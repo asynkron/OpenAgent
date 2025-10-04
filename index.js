@@ -2,8 +2,10 @@ require('dotenv').config();
 const OpenAI = require('openai');
 const readline = require('readline');
 const chalk = require('chalk');
+
 const boxenModule = require('boxen');
 const boxen = boxenModule.default || boxenModule; // Handle ESM default export shape
+
 const { spawn } = require('child_process');
 
 const apiKey = process.env.OPENAI_API_KEY;
@@ -40,9 +42,9 @@ You must respond ONLY with valid JSON in this format:
 Rules:
 - Always respond with valid JSON
 - Include "message" to explain what you're doing
-- Include "plan" to show progress as a checklist
+- Include "plan" only when a multi-step approach is helpful; otherwise omit it or return an empty array
 - Include "command" only when you need to execute a command
-- When a task is complete, respond with only "message" and "plan" (no "command")
+- When a task is complete, respond with "message" and, if helpful, "plan" (no "command")
 - Mark completed steps in the plan with "status": "completed"
 - Be concise and helpful`;
 
@@ -121,7 +123,30 @@ function tailLines(text, lines) {
 }
 
 /**
- * Render plan as a checklist inside a terminal box
+ * Render a titled section with a colored left border.
+ * The helper keeps output compact while still highlighting the speaker.
+ *
+ * @param {string} title - Section title label
+ * @param {Function} colorFn - Chalk color function for the border/title
+ * @param {Array<string>} lines - Individual content lines
+ */
+function renderSection(title, colorFn, lines) {
+  if (!lines || lines.length === 0) return;
+
+  const border = colorFn('│');
+  console.log('');
+  console.log(colorFn.bold(title));
+  lines.forEach((line) => {
+    if (!line) {
+      console.log(border);
+    } else {
+      console.log(`${border} ${line}`);
+    }
+  });
+}
+
+/**
+ * Render plan as a compact checklist with a colored guide line.
  * @param {Array} plan - Plan array from LLM
  */
 function renderPlan(plan) {
@@ -130,19 +155,12 @@ function renderPlan(plan) {
   const planLines = plan.map((item) => {
     const statusSymbol =
       item.status === 'completed' ? chalk.green('✔') : item.status === 'running' ? chalk.yellow('▶') : chalk.gray('•');
+    const stepLabel = chalk.cyan(`Step ${item.step}`);
     const title = chalk.white(item.title);
-    return `${statusSymbol} ${chalk.cyan(`Step ${item.step}`)} ${chalk.dim('-')} ${title}`;
+    return `${statusSymbol} ${stepLabel} ${chalk.dim('-')} ${title}`;
   });
 
-  console.log(
-    boxen(planLines.join('\n'), {
-      title: chalk.bold.cyan('Plan'),
-      titleAlignment: 'center',
-      borderColor: 'cyan',
-      padding: 1,
-      margin: 1,
-    })
-  );
+  renderSection('Plan', chalk.cyan, planLines);
 }
 
 /**
@@ -171,21 +189,14 @@ function askHuman(rl, prompt) {
 }
 
 /**
- * Render the assistant message in a boxed format.
+ * Render the assistant message with a subtle colored guide.
  * @param {string} message - assistant message
  */
 function renderMessage(message) {
   if (!message) return;
 
-  console.log(
-    boxen(message, {
-      title: chalk.bold.magenta('AI Message'),
-      titleAlignment: 'center',
-      borderColor: 'magenta',
-      padding: 1,
-      margin: 1,
-    })
-  );
+  const lines = message.split('\n');
+  renderSection('AI', chalk.magenta, lines);
 }
 
 /**
@@ -195,23 +206,20 @@ function renderMessage(message) {
 function renderCommand(command) {
   if (!command) return;
 
-  const details = [
+  const commandLines = [
     `${chalk.gray('Shell')}: ${command.shell || 'bash'}`,
     `${chalk.gray('Directory')}: ${command.cwd || '.'}`,
     `${chalk.gray('Timeout')}: ${command.timeout_sec || 30}s`,
-    '',
-    chalk.yellow(command.run || ''),
-  ].join('\n');
+  ];
 
-  console.log(
-    boxen(details, {
-      title: chalk.bold.yellow('Command'),
-      titleAlignment: 'center',
-      borderColor: 'yellow',
-      padding: 1,
-      margin: 1,
-    })
-  );
+  if (command.run) {
+    commandLines.push('');
+    commandLines.push(
+      ...command.run.split('\n').map((line) => chalk.yellow(line))
+    );
+  }
+
+  renderSection('Command', chalk.yellow, commandLines);
 }
 
 /**
@@ -227,36 +235,14 @@ function renderCommandResult(result, stdout, stderr) {
     `${chalk.gray('Status')}: ${result.killed ? chalk.red('KILLED (timeout)') : chalk.green('COMPLETED')}`,
   ];
 
-  console.log(
-    boxen(statusLines.join('\n'), {
-      title: chalk.bold.green('Command Result'),
-      titleAlignment: 'center',
-      borderColor: 'green',
-      padding: 1,
-      margin: 1,
-    })
-  );
+  renderSection('Command Result', chalk.green, statusLines);
 
   if (stdout) {
-    console.log(
-      boxen(stdout, {
-        title: chalk.bold.white('STDOUT'),
-        borderColor: 'white',
-        padding: 1,
-        margin: { top: 0, bottom: 1, left: 1, right: 1 },
-      })
-    );
+    renderSection('STDOUT', chalk.white, stdout.split('\n'));
   }
 
   if (stderr) {
-    console.log(
-      boxen(stderr, {
-        title: chalk.bold.red('STDERR'),
-        borderColor: 'red',
-        padding: 1,
-        margin: { top: 0, bottom: 1, left: 1, right: 1 },
-      })
-    );
+    renderSection('STDERR', chalk.red, stderr.split('\n'));
   }
 }
 
@@ -273,7 +259,7 @@ async function agentLoop() {
 
   const rl = createInterface();
 
-  console.log(boxen(chalk.bold('OpenAgent - AI Agent with JSON Protocol'), { borderColor: 'blue', padding: 1, margin: 1 }));
+  console.log(chalk.bold.blue('\nOpenAgent - AI Agent with JSON Protocol'));
   console.log(chalk.dim('Type "exit" or "quit" to end the conversation.'));
 
   while (true) {
