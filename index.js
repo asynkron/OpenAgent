@@ -24,18 +24,21 @@ const STARTUP_FORCE_AUTO_APPROVE = process.argv
     );
   });
 
-const apiKey = process.env.OPENAI_API_KEY;
+let __openaiClient = null;
 
-if (!apiKey) {
-  console.error('Error: OPENAI_API_KEY not found in environment variables.');
-  console.error('Please create a .env file with your OpenAI API key.');
-  process.exit(1);
+function getOpenAIClient() {
+  if (!__openaiClient) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY not found in environment variables.');
+    }
+    __openaiClient = new OpenAI({
+      apiKey,
+      baseURL: process.env.OPENAI_BASE_URL || undefined,
+    });
+  }
+  return __openaiClient;
 }
-
-const openai = new OpenAI({
-  apiKey: apiKey,
-  baseURL: process.env.OPENAI_BASE_URL || undefined,
-});
 const MODEL = process.env.OPENAI_MODEL || process.env.OPENAI_CHAT_MODEL || 'gpt-5-codex';
 
 marked.setOptions({
@@ -47,16 +50,32 @@ marked.setOptions({
 
 // Simple CLI animation to indicate the AI is thinking during API calls
 let __thinkingInterval = null;
+let __thinkingStartTime = null;
+
+function formatElapsedTime(startTime, now = Date.now()) {
+  if (!startTime || startTime > now) {
+    return '00:00';
+  }
+  const elapsedMs = Math.max(0, now - startTime);
+  const totalSeconds = Math.floor(elapsedMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+}
+
 function startThinking() {
   if (__thinkingInterval) return; // already running
+  __thinkingStartTime = Date.now();
   const frames = ['Thinking.', 'Thinking..', 'Thinking...'];
   let i = 0;
-  process.stdout.write('\n');
+  process.stdout.write('
+');
   __thinkingInterval = setInterval(() => {
     try {
+      const elapsed = formatElapsedTime(__thinkingStartTime);
       readline.clearLine(process.stdout, 0);
       readline.cursorTo(process.stdout, 0);
-      process.stdout.write(chalk.dim(frames[i]));
+      process.stdout.write(chalk.dim(frames[i] + ' (' + elapsed + ')'));
       i = (i + 1) % frames.length;
     } catch (_) {
       // ignore if stdout is not a TTY
@@ -68,6 +87,7 @@ function stopThinking() {
   if (__thinkingInterval) {
     clearInterval(__thinkingInterval);
     __thinkingInterval = null;
+    __thinkingStartTime = null;
     try {
       readline.clearLine(process.stdout, 0);
       readline.cursorTo(process.stdout, 0);
@@ -737,6 +757,16 @@ async function agentLoop() {
 
   const rl = createInterface();
 
+  let openai;
+  try {
+    openai = getOpenAIClient();
+  } catch (err) {
+    console.error('Error:', err.message);
+    console.error('Please create a .env file with your OpenAI API key.');
+    rl.close();
+    throw err;
+  }
+
   console.log(chalk.bold.blue('\nOpenAgent - AI Agent with JSON Protocol'));
   console.log(chalk.dim('Type "exit" or "quit" to end the conversation.'));
   if (STARTUP_FORCE_AUTO_APPROVE) {
@@ -937,5 +967,41 @@ Select 1, 2, or 3: `)).trim().toLowerCase();
   rl.close();
 }
 
-// Start the agent
-agentLoop();
+if (require.main === module) {
+  agentLoop().catch((err) => {
+    if (err && err.message) {
+      process.exitCode = 1;
+    }
+  });
+}
+
+module.exports = {
+  STARTUP_FORCE_AUTO_APPROVE,
+  getOpenAIClient,
+  startThinking,
+  stopThinking,
+  findAgentFiles,
+  buildAgentsPrompt,
+  runCommand,
+  runBrowse,
+  applyFilter,
+  tailLines,
+  display,
+  wrapStructuredContent,
+  renderMarkdownMessage,
+  renderPlan,
+  createInterface,
+  askHuman,
+  renderMessage,
+  renderCommand,
+  renderCommandResult,
+  loadPreapprovedConfig,
+  shellSplit,
+  isPreapprovedCommand,
+  __commandSignature,
+  isSessionApproved,
+  approveForSession,
+  extractResponseText,
+  agentLoop,
+  PREAPPROVED_CFG,
+};
