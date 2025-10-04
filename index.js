@@ -122,6 +122,10 @@ You must respond ONLY with valid JSON in this format:
   }
 }
 
+Special commands:
+browse "some url"
+- allows you to search the web using http get.
+
 Rules:
 - Always respond with valid JSON
 - Include "message" to explain what you're doing
@@ -129,7 +133,10 @@ Rules:
 - Include "command" only when you need to execute a command
 - When a task is complete, respond with "message" and, if helpful, "plan" (no "command")
 - Mark completed steps in the plan with "status": "completed"
-- Be concise and helpful`;
+- Be concise and helpful
+
+Special command:
+- To perform an HTTP GET without using the shell, set command.run to "browse <url>". The agent will fetch the URL and return the response body as stdout, HTTP errors in stderr with a non-zero exit_code. filter_regex and tail_lines still apply to the output.`;
 
 const SYSTEM_PROMPT =
   agentsGuidance.trim().length > 0
@@ -176,6 +183,98 @@ async function runCommand(cmd, cwd, timeoutSec) {
       });
     });
   });
+}
+
+/**
+ * Perform an HTTP GET request (special non-shell command).
+ * @param {string} url - URL to fetch
+ * @param {number} timeoutSec - Timeout in seconds
+ * @returns {Promise<{stdout: string, stderr: string, exit_code: number, killed: boolean, runtime_ms: number}>}
+ */
+async function runBrowse(url, timeoutSec) {
+  const startTime = Date.now();
+  let stdout = '';
+  let stderr = '';
+  let exit_code = 0;
+  let killed = false;
+
+  const finalize = () => ({
+    stdout,
+    stderr,
+    exit_code,
+    killed,
+    runtime_ms: Date.now() - startTime,
+  });
+
+  try {
+    // Prefer global fetch if available (Node 18+) with AbortController timeout
+    if (typeof fetch === 'function') {
+      const controller = new AbortController();
+      const id = setTimeout(() => { controller.abort(); killed = true; }, (timeoutSec || 30) * 1000);
+      try {
+        const res = await fetch(url, { method: 'GET', signal: controller.signal, redirect: 'follow' });
+        clearTimeout(id);
+        stdout = await res.text();
+        if (!res.ok) {
+          stderr = 'HTTP ' + res.status + ' ' + res.statusText;
+          exit_code = res.status || 1;
+        }
+      } catch (err) {
+        clearTimeout(id);
+        stderr = err && err.message ? err.message : String(err);
+        exit_code = 1;
+      }
+      return finalize();
+    }
+
+    // Fallback to http/https modules
+    const urlMod = require('url');
+    const http = require('http');
+    const https = require('https');
+    const parsed = urlMod.parse(url);
+    const lib = parsed.protocol === 'https:' ? https : http;
+
+    await new Promise((resolve) => {
+      const req = lib.request({
+        method: 'GET',
+        hostname: parsed.hostname,
+        port: parsed.port,
+        path: parsed.path,
+        headers: {},
+        timeout: (timeoutSec || 30) * 1000,
+      }, (res) => {
+        const chunks = [];
+        res.on('data', (d) => chunks.push(d));
+        res.on('end', () => {
+          stdout = Buffer.concat(chunks).toString('utf8');
+          if (res.statusCode < 200 || res.statusCode >= 300) {
+            stderr = 'HTTP ' + res.statusCode;
+            exit_code = res.statusCode || 1;
+          }
+          resolve();
+        });
+      });
+      req.on('timeout', () => {
+        killed = true;
+        stderr = 'Request timed out';
+        exit_code = 1;
+        req.destroy(new Error('timeout'));
+        resolve();
+      });
+      req.on('error', (err) => {
+        stderr = err && err.message ? err.message : String(err);
+        exit_code = 1;
+        resolve();
+      });
+      req.end();
+    });
+
+    return finalize();
+  } catch (err) {
+    stderr = err && err.message ? err.message : String(err);
+    exit_code = 1;
+    return finalize();
+  }
 }
 
 /**
@@ -374,6 +473,123 @@ function renderCommandResult(result, stdout, stderr) {
 /**
  * Main agent loop
  */
+// Load and evaluate pre-approved command allowlist
+function loadPreapprovedConfig() {
+  const cfgPath = path.join(process.cwd(), '.preapproved_commands.json');
+  try {
+    if (fs.existsSync(cfgPath)) {
+      const raw = fs.readFileSync(cfgPath, 'utf8');
+      const parsed = JSON.parse(raw);
+      return parsed && parsed.allowlist ? parsed : { allowlist: [] };
+    }
+  } catch (e) {
+    console.error(chalk.yellow('Warning: Failed to load .preapproved_commands.json:'), e.message);
+  }
+  return { allowlist: [] };
+}
+
+// Minimal shell-like splitter supporting quoted args
+function shellSplit(str) {
+  const re = /"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|\S+/g;
+  const out = [];
+  let m;
+  while ((m = re.exec(str))) {
+    out.push(m[1] ?? m[2] ?? m[0]);
+  }
+  return out;
+}
+
+function isPreapprovedCommand(command, cfg) {
+  try {
+    const run = (command && command.run ? String(command.run) : '').trim();
+    if (!run) return false;
+
+    // Special: browse <url> (our implementation is GET-only)
+    if (run.toLowerCase().startsWith('browse ')) {
+      return true;
+    }
+
+    // Restrict to a single simple command: no chaining with ;, &&, ||
+    const firstLine = run.split('\n')[0];
+    if (/;|&&|\|\|/.test(firstLine)) {
+      return false;
+    }
+
+    // Disallow redirection writes and sudo
+    if (/(^|\s)[0-9]*>>?\s/.test(firstLine)) return false;
+    if (/^\s*sudo\b/.test(firstLine)) return false;
+
+    const tokens = shellSplit(firstLine);
+    if (!tokens.length) return false;
+    const base = path.basename(tokens[0]);
+
+    const list = (cfg && Array.isArray(cfg.allowlist)) ? cfg.allowlist : [];
+    const entry = list.find((e) => e && e.name === base);
+    if (!entry) return false;
+
+    // If specific subcommands are allowed, enforce them
+    if (Array.isArray(entry.subcommands) && entry.subcommands.length > 0) {
+      const sub = tokens[1] || '';
+      if (!entry.subcommands.includes(sub)) return false;
+      // For version-like commands, prevent extra args
+      if (['python', 'python3', 'pip', 'node', 'npm'].includes(base)) {
+        if (tokens.length > 2) return false;
+      }
+    }
+
+    const joined = ' ' + tokens.slice(1).join(' ') + ' ';
+
+    // Command-specific safety rules aligned with allowlist notes
+    switch (base) {
+      case 'sed':
+        if (/(^|\s)-i(\b|\s)/.test(joined)) return false;
+        break;
+      case 'find':
+        if (/\s-exec\b/.test(joined) || /\s-delete\b/.test(joined)) return false;
+        break;
+      case 'curl':
+        if (/(^|\s)-X\s*(POST|PUT|PATCH|DELETE)\b/i.test(joined)) return false;
+        if (/(^|\s)(--data(-binary|-raw|-urlencode)?|-d|--form|-F|--upload-file|-T)\b/i.test(joined)) return false;
+        // -I (HEAD) and default GET are OK
+        break;
+      case 'wget':
+        // Allow --spider or output to stdout only
+        if (/\s--spider\b/.test(joined)) {
+          // ok
+        } else {
+          const toks = tokens.slice(1);
+          for (let i = 0; i < toks.length; i++) {
+            const t = toks[i];
+            if (t === '-O' || t === '--output-document') {
+              const n = toks[i + 1] || '';
+              if (n !== '-') return false;
+            }
+            if (t.startsWith('-O') && t !== '-O') {
+              // e.g., -Ofile -> not allowed
+              return false;
+            }
+          }
+        }
+        break;
+      case 'ping':
+        {
+          const i = tokens.indexOf('-c');
+          if (i === -1) return false;
+          const count = parseInt(tokens[i + 1], 10);
+          if (!Number.isFinite(count) || count > 3 || count < 1) return false;
+        }
+        break;
+      default:
+        break;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const PREAPPROVED_CFG = loadPreapprovedConfig();
 async function agentLoop() {
   const history = [
     {
@@ -442,32 +658,44 @@ async function agentLoop() {
 
         renderCommand(parsed.command);
 
-        // Confirm with human before executing
-        const approve = (await askHuman(rl, '\nApprove running this command? (y/n) ')).toLowerCase();
-        if (!(approve === 'y' || approve === 'yes')) {
-          console.log(chalk.yellow('Command execution canceled by human.'));
-          const observation = {
-            observation_for_llm: {
-              canceled_by_human: true,
-              message: 'Human declined to execute the proposed command.'
-            },
-            observation_metadata: {
-              timestamp: new Date().toISOString()
-            }
-          };
-          history.push({
-            role: 'user',
-            content: JSON.stringify(observation),
-          });
-          continue;
+        // Auto-approve via allowlist or ask human
+        let __autoApproved = isPreapprovedCommand(parsed.command, PREAPPROVED_CFG);
+        if (__autoApproved) {
+          console.log(chalk.green("Auto-approved by allowlist (.preapproved_commands.json)"));
+        } else {
+          const approve = (await askHuman(rl, '\nApprove running this command? (y/n) ')).toLowerCase();
+          if (!(approve === 'y' || approve === 'yes')) {
+            console.log(chalk.yellow('Command execution canceled by human.'));
+            const observation = {
+              observation_for_llm: {
+                canceled_by_human: true,
+                message: 'Human declined to execute the proposed command.'
+              },
+              observation_metadata: {
+                timestamp: new Date().toISOString()
+              }
+            };
+            history.push({
+              role: 'user',
+              content: JSON.stringify(observation),
+            });
+            continue;
+          }
         }
 
 
-        const result = await runCommand(
-          parsed.command.run,
-          parsed.command.cwd || '.',
-          parsed.command.timeout_sec || 30
-        );
+        let result;
+        const __runStr = parsed.command.run || '';
+        if (typeof __runStr === 'string' && __runStr.trim().toLowerCase().startsWith('browse ')) {
+          const url = __runStr.trim().slice(7).trim();
+          result = await runBrowse(url, parsed.command.timeout_sec || 30);
+        } else {
+          result = await runCommand(
+            parsed.command.run,
+            parsed.command.cwd || '.',
+            parsed.command.timeout_sec || 30
+          );
+        }
 
         let filteredStdout = result.stdout;
         let filteredStderr = result.stderr;
