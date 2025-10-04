@@ -1,0 +1,38 @@
+[
+  {
+    "id": "run-tests",
+    "name": "Run tests",
+    "description": "Run the project's test suite (npm test)",
+    "command": "npm test",
+    "variables": [],
+    "tags": ["test"]
+  },
+  {
+    "id": "install-deps",
+    "name": "Install dependencies",
+    "description": "Install npm dependencies or a specific package",
+    "command": "npm install {{package}}",
+    "variables": [
+      {"name": "package", "description": "Optional package name to install; leave empty to install all deps", "default": ""}
+    ],
+    "tags": ["npm", "deps"]
+  },
+  {
+    "id": "lint",
+    "name": "Run linter",
+    "description": "Run ESLint over a path",
+    "command": "npx eslint {{paths}}",
+    "variables": [
+      {"name": "paths", "description": "Files or directories to lint, default 'src'", "default": "src"}
+    ],
+    "tags": ["lint", "dev"]
+  },
+  {
+    "id": "list-modified",
+    "name": "List modified files",
+    "description": "Show git status --porcelain for modified files",
+    "command": "git status --porcelain",
+    "variables": [],
+    "tags": ["git", "info"]
+  }
+]
