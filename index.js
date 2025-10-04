@@ -523,7 +523,7 @@ async function fallbackAgentLoop() {
   rl.close();
 }
 
-function Block({ heading, color = 'white', body }) {
+function Block({ color = 'white', body }) {
   const textContent = Array.isArray(body) ? body.join('\n') : String(body || '');
   const lines = textContent.split('\n');
 
@@ -567,22 +567,9 @@ function Block({ heading, color = 'white', body }) {
     return ` ${padded} `;
   };
 
-  const headingLines = heading ? [heading] : [];
-  const bodyLines = lines.length > 0 ? lines : [];
+  const bodyLines = lines.length > 0 ? lines : [''];
 
-  const sections = [];
-
-  if (headingLines.length > 0) {
-    sections.push({ key: 'heading', lines: headingLines });
-  }
-
-  if (bodyLines.length > 0) {
-    sections.push({ key: 'body', lines: bodyLines });
-  }
-
-  if (sections.length === 0) {
-    sections.push({ key: 'empty', lines: [''] });
-  }
+  const sections = [{ key: 'body', lines: bodyLines }];
 
   const renderSection = (section) => {
     const content = section.lines.length > 0 ? section.lines : [''];
@@ -785,13 +772,20 @@ function InputField({ value, onChange, onSubmit, placeholder, textColor, backgro
 
   const beforeCursor = padded.slice(0, cursorIndex);
   const afterCursor = padded.slice(cursorIndex);
+  const blankLine = pad('', width);
 
   return React.createElement(
     Box,
-    { flexDirection: 'row', width: '100%', backgroundColor },
-    React.createElement(Text, { color: displayColor, backgroundColor }, beforeCursor),
-    React.createElement(Text, { color: '#f0f0f0', backgroundColor }, '▏'),
-    React.createElement(Text, { color: displayColor, backgroundColor }, afterCursor)
+    { flexDirection: 'column', width: '100%', backgroundColor },
+    React.createElement(Text, { key: 'top', color: displayColor, backgroundColor }, blankLine),
+    React.createElement(
+      Box,
+      { key: 'middle', flexDirection: 'row', width: '100%', backgroundColor },
+      React.createElement(Text, { color: displayColor, backgroundColor }, beforeCursor),
+      React.createElement(Text, { color: '#f0f0f0', backgroundColor }, '▏'),
+      React.createElement(Text, { color: displayColor, backgroundColor }, afterCursor)
+    ),
+    React.createElement(Text, { key: 'bottom', color: displayColor, backgroundColor }, blankLine)
   );
 
   function pad(text = '', targetWidth = width) {
