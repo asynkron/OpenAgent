@@ -17,11 +17,9 @@ const { marked } = require('marked');
 const markedTerminal = require('marked-terminal');
 const TerminalRenderer = markedTerminal.default || markedTerminal;
 
-marked.setOptions({
-  renderer: new TerminalRenderer({
-    reflowText: false,
-    tab: 2,
-  }),
+const terminalRenderer = new TerminalRenderer({
+  reflowText: false,
+  tab: 2,
 });
 
 function display(label, content, color = 'white') {
@@ -66,7 +64,7 @@ function wrapStructuredContent(message) {
 
 function renderMarkdownMessage(message) {
   const prepared = wrapStructuredContent(message);
-  return marked.parse(prepared);
+  return marked.parse(prepared, { renderer: terminalRenderer });
 }
 
 function renderPlan(plan) {

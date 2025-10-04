@@ -3,8 +3,9 @@
 const fs = require('fs');
 const fsp = fs.promises;
 const path = require('path');
-const os = require('os');
 const crypto = require('crypto');
+
+const DEFAULT_STATS_PATH = path.resolve(__dirname, '../../command-stats.json');
 
 async function incrementCommandCount(cmdKey, logPath = null) {
   try {
@@ -12,9 +13,7 @@ async function incrementCommandCount(cmdKey, logPath = null) {
     if (logPath) {
       targetPath = path.resolve(logPath);
     } else {
-      const xdg = process.env.XDG_DATA_HOME;
-      const base = xdg ? path.resolve(xdg) : path.join(os.homedir(), '.local', 'share');
-      targetPath = path.join(base, 'command-tracker', 'command-stats.json');
+      targetPath = DEFAULT_STATS_PATH;
     }
 
     const dir = path.dirname(targetPath);
