@@ -298,7 +298,7 @@ async function agentLoop() {
       while (continueLoop) {
         // Request the next assistant action
         const completion = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
+          model: 'gpt-5',
           messages: history,
           response_format: { type: 'json_object' },
         });
@@ -323,6 +323,7 @@ async function agentLoop() {
         renderPlan(parsed.plan);
 
         if (!parsed.command) {
+
           continueLoop = false;
           continue;
         }
