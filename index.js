@@ -36,7 +36,7 @@ const {
   renderCommand,
   renderCommandResult,
 } = require('./src/cli/render');
-const { runCommand, runBrowse } = require('./src/commands/run');
+const { runCommand, runBrowse, runEdit, runRead } = require('./src/commands/run');
 const {
   loadPreapprovedConfig,
   isPreapprovedCommand,
@@ -127,6 +127,8 @@ const exported = {
   SYSTEM_PROMPT,
   runCommand,
   runBrowse,
+  runEdit,
+  runRead,
   applyFilter,
   tailLines,
   shellSplit,
@@ -169,6 +171,8 @@ function runAgentLoopWithCurrentDependencies() {
     renderCommandResultFn: exported.renderCommandResult,
     runCommandFn: exported.runCommand,
     runBrowseFn: exported.runBrowse,
+    runEditFn: exported.runEdit,
+    runReadFn: exported.runRead,
     applyFilterFn: exported.applyFilter,
     tailLinesFn: exported.tailLines,
     isPreapprovedCommandFn: exported.isPreapprovedCommand,

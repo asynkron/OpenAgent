@@ -25,7 +25,7 @@ const {
   renderCommand,
   renderCommandResult,
 } = require('../cli/render');
-const { runCommand, runBrowse } = require('../commands/run');
+const { runCommand, runBrowse, runEdit, runRead } = require('../commands/run');
 const { applyFilter, tailLines } = require('../utils/text');
 const {
   isPreapprovedCommand,
@@ -79,6 +79,8 @@ function createAgentLoop({
   renderCommandResultFn = renderCommandResult,
   runCommandFn = runCommand,
   runBrowseFn = runBrowse,
+  runEditFn = runEdit,
+  runReadFn = runRead,
   applyFilterFn = applyFilter,
   tailLinesFn = tailLines,
   isPreapprovedCommandFn = isPreapprovedCommand,
@@ -233,8 +235,11 @@ Select 1, 2, or 3: `)).trim().toLowerCase();
 
             let result;
             if (parsed.command && parsed.command.edit) {
-              const cmdEdit = require('../../command_edit');
-              result = await cmdEdit.applyFileEdits(parsed.command.edit, parsed.command.cwd || '.');
+              result = await runEditFn(parsed.command.edit, parsed.command.cwd || '.');
+            }
+
+            if (typeof result === 'undefined' && parsed.command && parsed.command.read) {
+              result = await runReadFn(parsed.command.read, parsed.command.cwd || '.');
             }
 
             if (typeof result === 'undefined') {
@@ -270,7 +275,7 @@ Select 1, 2, or 3: `)).trim().toLowerCase();
             let filteredStdout = result.stdout;
             let filteredStderr = result.stderr;
 
-            const outputUtils = require('../../outputUtils');
+            const outputUtils = require('../utils/output');
             const combined = outputUtils.combineStdStreams(
               filteredStdout,
               filteredStderr,

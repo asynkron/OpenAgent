@@ -1,4 +1,4 @@
-const { applyEdit, applyEdits } = require('../../editText');
+const { applyEdit, applyEdits } = require('../../src/commands/edit');
 
 describe('applyEdit', () => {
   test('inserts text at position when start === end', () => {

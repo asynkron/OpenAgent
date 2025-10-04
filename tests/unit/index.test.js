@@ -1,3 +1,7 @@
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
 const defaultEnv = { ...process.env };
 
 function loadModule(envOverrides = {}) {
@@ -169,5 +173,33 @@ describe('runBrowse', () => {
     const result = await mod.runBrowse('https://example.com', 1);
     expect(result.exit_code).toBe(1);
     expect(result.stderr).toContain('network down');
+  });
+});
+
+describe('runRead', () => {
+  test('reads file contents from provided cwd', async () => {
+    const { mod } = loadModule();
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openagent-read-'));
+    try {
+      fs.writeFileSync(path.join(tmpDir, 'sample.txt'), 'hello world');
+      const result = await mod.runRead({ path: 'sample.txt' }, tmpDir);
+      expect(result.exit_code).toBe(0);
+      expect(result.stdout).toBe('hello world');
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('applies max_lines limit when provided', async () => {
+    const { mod } = loadModule();
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openagent-read-'));
+    try {
+      fs.writeFileSync(path.join(tmpDir, 'sample.txt'), 'line1\nline2\nline3');
+      const result = await mod.runRead({ path: 'sample.txt', max_lines: 2 }, tmpDir);
+      expect(result.exit_code).toBe(0);
+      expect(result.stdout).toBe('line1\nline2');
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 });
