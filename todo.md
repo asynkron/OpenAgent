@@ -6,7 +6,7 @@
   - [x] Offer quick shortcuts for frequently used commands
 
 - Testing & Quality
-  - Add integration tests covering the agent loop and approval flow
+  - [x] Add integration tests covering the agent loop and approval flow
   - Expand mocks for OpenAI error handling scenarios
   - Introduce coverage thresholds and reporting
 
