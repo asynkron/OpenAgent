@@ -33,6 +33,7 @@ const {
   approveForSession,
   PREAPPROVED_CFG,
 } = require('../commands/preapproval');
+const { incrementCommandCount } = require('../commands/commandStats');
 
 function extractResponseText(response) {
   if (!response || typeof response !== 'object') {
@@ -257,20 +258,15 @@ Select 1, 2, or 3: `)).trim().toLowerCase();
               }
             }
 
-            try {
-              const { incrementCommandCount } = require('../../cmd_tracker');
-              let key = parsed?.command?.key;
-              if (!key) {
-                if (typeof parsed?.command?.run === 'string') {
-                  key = parsed.command.run.trim().split(/\s+/)[0] || 'unknown';
-                } else {
-                  key = 'unknown';
-                }
+            let key = parsed?.command?.key;
+            if (!key) {
+              if (typeof parsed?.command?.run === 'string') {
+                key = parsed.command.run.trim().split(/\s+/)[0] || 'unknown';
+              } else {
+                key = 'unknown';
               }
-              incrementCommandCount(key).catch(() => {});
-            } catch (err) {
-              // ignore stats failures
             }
+            incrementCommandCount(key).catch(() => {});
 
             let filteredStdout = result.stdout;
             let filteredStderr = result.stderr;

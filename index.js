@@ -67,6 +67,7 @@ const {
   findShortcut,
   handleShortcutsCli,
 } = require('./src/shortcuts/cli');
+const { incrementCommandCount } = require('./src/commands/commandStats');
 
 let startupForceAutoApprove = process.argv
   .slice(2)
@@ -84,7 +85,6 @@ let startupForceAutoApprove = process.argv
 async function runCommandAndTrack(run, cwd = '.', timeoutSec = 60) {
   const result = await runCommand(run, cwd, timeoutSec);
   try {
-    const { incrementCommandCount } = require('./cmd_tracker');
     let key = 'unknown';
     if (Array.isArray(run) && run.length > 0) key = String(run[0]);
     else if (typeof run === 'string' && run.trim().length > 0) key = run.trim().split(/\s+/)[0];
