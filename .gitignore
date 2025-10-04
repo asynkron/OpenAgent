@@ -148,3 +148,4 @@ vite.config.ts.timestamp-*
 /.idea/modules.xml
 /.idea/OpenAgent.iml
 /.idea/vcs.xml
+.env

@@ -2,7 +2,8 @@ require('dotenv').config();
 const OpenAI = require('openai');
 const readline = require('readline');
 const chalk = require('chalk');
-const boxen = require('boxen');
+const boxenModule = require('boxen');
+const boxen = boxenModule.default || boxenModule; // Handle ESM default export shape
 const { spawn } = require('child_process');
 
 const apiKey = process.env.OPENAI_API_KEY;
