@@ -172,6 +172,11 @@ const agentsGuidance = buildAgentsPrompt(process.cwd());
 
 const BASE_SYSTEM_PROMPT = `You are an AI agent that helps users by executing commands and completing tasks.
 
+MUST DO: 
+1. read and understand /brain/* files at arart up
+2. never create temp files in repo directory
+3. always clean up temp files.
+
 You must respond ONLY with valid JSON in this format:
 {
   "message": "Optional message to display to the user",
@@ -217,6 +222,73 @@ const SYSTEM_PROMPT =
  * @param {number} timeoutSec - Timeout in seconds
  * @returns {Promise<{stdout: string, stderr: string, exit_code: number, killed: boolean, runtime_ms: number}>}
  */
+
+// --- Template support inserted ---
+const TEMPLATES_PATH = path.join(process.cwd(), 'templates', 'command-templates.json');
+function loadTemplates() {
+  try {
+    const raw = fs.readFileSync(TEMPLATES_PATH, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed;
+  } catch (err) {
+    return [];
+  }
+}
+
+function renderTemplateCommand(template, vars) {
+  let cmd = template.command || '';
+  const varsMap = Object.assign({}, vars || {});
+  // Ensure defaults applied
+  (template.variables || []).forEach((v) => {
+    if (!Object.prototype.hasOwnProperty.call(varsMap, v.name)) {
+      varsMap[v.name] = v.default || '';
+    }
+  });
+  // Simple placeholder replacement for {{name}}
+  Object.keys(varsMap).forEach((k) => {
+    const re = new RegExp('{{\s*' + k + '\s*}}', 'g');
+    cmd = cmd.replace(re, String(varsMap[k]));
+  });
+  return cmd;
+}
+
+// Small CLI helper for templates: node index.js templates [list|show <id>|render <id> <json-vars>]
+if (require.main === module) {
+  try {
+    const argv = process.argv || [];
+    if ((argv[2] || '') === 'templates') {
+      const sub = argv[3] || 'list';
+      const templates = loadTemplates();
+      if (sub === 'list') {
+        templates.forEach(t => console.log(`${t.id} - ${t.name}: ${t.description || ''}`));
+        process.exit(0);
+      }
+      if (sub === 'show') {
+        const id = argv[4];
+        const t = templates.find(x => x.id === id);
+        if (!t) { console.error('Template not found:', id); process.exit(2); }
+        console.log(JSON.stringify(t, null, 2));
+        process.exit(0);
+      }
+      if (sub === 'render') {
+        const id = argv[4];
+        const varsJson = argv[5] || '{}';
+        let vars = {};
+        try { vars = JSON.parse(varsJson); } catch (e) { console.error('Invalid JSON variables'); process.exit(3); }
+        const t = templates.find(x => x.id === id);
+        if (!t) { console.error('Template not found:', id); process.exit(2); }
+        console.log(renderTemplateCommand(t, vars));
+        process.exit(0);
+      }
+      console.log('Usage: node index.js templates [list|show <id>|render <id> <json-vars>]');
+      process.exit(0);
+    }
+  } catch (err) {
+    // noop; fall through to normal agent behavior
+  }
+}
+// --- end template support ---
 async function runCommand(cmd, cwd, timeoutSec, shellOpt) {
   return new Promise((resolve) => {
     const startTime = Date.now();
@@ -467,7 +539,7 @@ function createInterface() {
   return readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    terminal: true,
+    terminal: !!process.stdin.isTTY,
   });
 }
 
@@ -896,20 +968,34 @@ Select 1, 2, or 3: `)).trim().toLowerCase();
         }
 
         let result;
-        const __runStr = parsed.command.run || '';
-        if (typeof __runStr === 'string' && __runStr.trim().toLowerCase().startsWith('browse ')) {
-          const url = __runStr.trim().slice(7).trim();
-          result = await runBrowse(url, (parsed.command.timeout_sec ?? 60));
-        } else {
-          result = await runCommand(
-            parsed.command.run,
-            parsed.command.cwd || '.',
-            (parsed.command.timeout_sec ?? 60)
-          );
+        // If the assistant provided an edit specification, apply file edits directly
+        if (parsed.command && parsed.command.edit) {
+          // Lazily require the edit handler to avoid startup overhead
+          const cmdEdit = require('./command_edit');
+          result = await cmdEdit.applyFileEdits(parsed.command.edit, parsed.command.cwd || '.');
+        }
+        if (typeof result === 'undefined') {
+          const __runStr = parsed.command.run || '';
+          if (typeof __runStr === 'string' && __runStr.trim().toLowerCase().startsWith('browse ')) {
+            const url = __runStr.trim().slice(7).trim();
+            result = await runBrowse(url, (parsed.command.timeout_sec ?? 60));
+          } else {
+            result = await runCommand(
+              parsed.command.run,
+              parsed.command.cwd || '.',
+              (parsed.command.timeout_sec ?? 60)
+            );
+          }
+
         }
 
         let filteredStdout = result.stdout;
         let filteredStderr = result.stderr;
+
+        const outputUtils = require('./outputUtils');
+        const _combined = outputUtils.combineStdStreams(filteredStdout, filteredStderr, result.exit_code ?? 0);
+        filteredStdout = _combined.stdout;
+        filteredStderr = _combined.stderr;
 
         if (parsed.command.filter_regex) {
           filteredStdout = applyFilter(filteredStdout, parsed.command.filter_regex);
@@ -1004,3 +1090,56 @@ module.exports = {
   agentLoop,
   PREAPPROVED_CFG,
 };
+
+// --- Shortcuts support inserted ---
+const SHORTCUTS_PATH = path.join(process.cwd(), 'shortcuts', 'shortcuts.json');
+function loadShortcutsFile() {
+  try {
+    const raw = fs.readFileSync(SHORTCUTS_PATH, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed;
+  } catch (err) {
+    return [];
+  }
+}
+
+function findShortcut(id) {
+  const list = loadShortcutsFile();
+  return list.find(s => s.id === id);
+}
+
+// CLI helper: node index.js shortcuts [list|show <id>|run <id>]
+if (require.main === module) {
+  try {
+    const argv = process.argv || [];
+    if ((argv[2] || '') === 'shortcuts') {
+      const sub = argv[3] || 'list';
+      const shortcuts = loadShortcutsFile();
+      if (sub === 'list') {
+        shortcuts.forEach(s => console.log(`${s.id} - ${s.name}: ${s.description || ''}`));
+        process.exit(0);
+      }
+      if (sub === 'show') {
+        const id = argv[4];
+        const s = shortcuts.find(x => x.id === id);
+        if (!s) { console.error('Shortcut not found:', id); process.exit(2); }
+        console.log(JSON.stringify(s, null, 2));
+        process.exit(0);
+      }
+      if (sub === 'run') {
+        const id = argv[4];
+        const s = shortcuts.find(x => x.id === id);
+        if (!s) { console.error('Shortcut not found:', id); process.exit(2); }
+        // For safety, just render and print the command. The agent's approval/validation should handle execution.
+        console.log(s.command);
+        process.exit(0);
+      }
+      console.log('Usage: node index.js shortcuts [list|show <id>|run <id>]');
+      process.exit(0);
+    }
+  } catch (err) {
+    // noop; fall through to normal agent behavior
+  }
+}
+// --- end Shortcuts support ---

@@ -66,7 +66,7 @@ function formatElapsedTime(startTime, now = Date.now()) {
 function startThinking() {
   if (__thinkingInterval) return; // already running
   __thinkingStartTime = Date.now();
-  const frames = ['Thinking.', 'Thinking..', 'Thinking...'];
+  const frames = ['Thinking.  ', 'Thinking.. ', 'Thinking...'];
   let i = 0;
   process.stdout.write('\n');
   __thinkingInterval = setInterval(() => {
@@ -539,7 +539,7 @@ function createInterface() {
   return readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    terminal: true,
+    terminal: !!process.stdin.isTTY,
   });
 }
 
@@ -597,9 +597,9 @@ function renderCommand(command) {
  */
 function renderCommandResult(result, stdout, stderr) {
   const statusLines = [
-    `${chalk.gray('Exit Code')}: ${result.exit_code}`,
-    `${chalk.gray('Runtime')}: ${result.runtime_ms}ms`,
-    `${chalk.gray('Status')}: ${result.killed ? chalk.red('KILLED (timeout)') : chalk.green('COMPLETED')}`,
+    `${chalk.cyan('Exit Code')}: ${result.exit_code}`,
+    `${chalk.cyan('Runtime')}: ${result.runtime_ms}ms`,
+    `${chalk.cyan('Status')}: ${result.killed ? chalk.red('KILLED (timeout)') : chalk.green('COMPLETED')}`,
   ];
 
   display('Command Result', statusLines, 'green');
@@ -849,7 +849,7 @@ async function agentLoop() {
   }
 
   while (true) {
-    const userInput = await askHuman(rl, '\nHuman ▷ ');
+    const userInput = await askHuman(rl, '\n ▷ ');
 
     if (!userInput) {
       continue;

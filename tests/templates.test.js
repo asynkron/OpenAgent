@@ -11,6 +11,9 @@ test('load templates file exists and is array', () => {
 });
 
 test('render template via CLI', () => {
-  const out = child.execSync('node index.js templates render install-deps "{\"package\":\"lodash\"}"', { encoding: 'utf8' }).trim();
+  const node = process.execPath;
+  // Use execFileSync to avoid shell quoting issues
+  const vars = JSON.stringify({ package: 'lodash' });
+  const out = child.execFileSync(node, ['index.js', 'templates', 'render', 'install-deps', vars], { encoding: 'utf8' }).trim();
   expect(out).toContain('npm install');
 });
