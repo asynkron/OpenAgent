@@ -119,7 +119,7 @@ function renderCommand(command) {
   ];
 
   if (command.run) {
-    //this is correct
+    //this is correct, command should be bash/sh whatever shell we are running in
     const fencedCommand = wrapWithLanguageFence(command.run, 'bash');
     const renderedCommand = renderMarkdownMessage(fencedCommand);
     commandLines.push('');

@@ -175,6 +175,7 @@ function createAgentLoop({
               break;
             }
 
+            //This is correct. AI message is just vanilla markdown.
             renderMessageFn(parsed.message);
             renderPlanFn(parsed.plan);
 
@@ -182,6 +183,14 @@ function createAgentLoop({
               continueLoop = false;
               continue;
             }
+
+            //TODO: guesstimate the language type based on the command here.
+            //e.g. check for filenames and decide language from that
+            //`cat blablabla.md` is clearly a markdown file and we know the syntax for the stdout/err is now markdown
+            //the language for the command should always be bash/sh whatever shell we are running in.
+            //This leaves only the stdout and strerr to solve for.
+            //the hljs auto detect should be removed in favor for command guesstimating.
+
 
             renderCommandFn(parsed.command);
 
