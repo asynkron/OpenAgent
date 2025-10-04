@@ -1,7 +1,7 @@
 # TODO Roadmap
 
 - Commands
-  - [x] Enhance text editing capabilities within the command workflow
+  - Enhance text editing capabilities within the command workflow (completed — implemented editText.js, command_edit.js, and tests)
   - Provide reusable command templates/snippets
   - Offer quick shortcuts for frequently used commands
 

@@ -896,14 +896,7 @@ Select 1, 2, or 3: `)).trim().toLowerCase();
         }
 
         let result;
-        // If the assistant provided an edit specification, apply file edits directly
-        if (parsed.command && parsed.command.edit) {
-          // Lazily require the edit handler to avoid startup overhead
-          const cmdEdit = require('./command_edit');
-          result = await cmdEdit.applyFileEdits(parsed.command.edit, parsed.command.cwd || '.');
-        }
-        if (typeof result === 'undefined') {
-          const __runStr = parsed.command.run || '';
+        const __runStr = parsed.command.run || '';
         if (typeof __runStr === 'string' && __runStr.trim().toLowerCase().startsWith('browse ')) {
           const url = __runStr.trim().slice(7).trim();
           result = await runBrowse(url, (parsed.command.timeout_sec ?? 60));
@@ -915,15 +908,8 @@ Select 1, 2, or 3: `)).trim().toLowerCase();
           );
         }
 
-                }
-
         let filteredStdout = result.stdout;
         let filteredStderr = result.stderr;
-
-        const outputUtils = require('./outputUtils');
-        const _combined = outputUtils.combineStdStreams(filteredStdout, filteredStderr, result.exit_code ?? 0);
-        filteredStdout = _combined.stdout;
-        filteredStderr = _combined.stderr;
 
         if (parsed.command.filter_regex) {
           filteredStdout = applyFilter(filteredStdout, parsed.command.filter_regex);
