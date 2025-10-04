@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { applyFileEdits } = require('../command_edit');
+const { applyFileEdits } = require('../../command_edit');
 
 const TEST_FILE = path.resolve(__dirname, 'tmp_edit_test.txt');
 

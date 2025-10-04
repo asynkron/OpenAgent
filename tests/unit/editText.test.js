@@ -1,4 +1,4 @@
-const { applyEdit, applyEdits } = require('../editText');
+const { applyEdit, applyEdits } = require('../../editText');
 
 describe('applyEdit', () => {
   test('inserts text at position when start === end', () => {
@@ -31,8 +31,8 @@ describe('applyEdits', () => {
   test('applies multiple non-overlapping edits', () => {
     const original = 'The quick brown fox';
     const edits = [
-      { start: 4, end: 9, newText: 'slow' }, // quick -> slow
-      { start: 16, end: 19, newText: 'dog' } // fox -> dog
+      { start: 4, end: 9, newText: 'slow' },
+      { start: 16, end: 19, newText: 'dog' }
     ];
     const edited = applyEdits(original, edits);
     expect(edited).toBe('The slow brown dog');
@@ -41,10 +41,9 @@ describe('applyEdits', () => {
   test('applies multiple edits safely when ranges are given in any order', () => {
     const original = 'ABCDEFG';
     const edits = [
-      { start: 1, end: 3, newText: 'xx' }, // replace BC
-      { start: 4, end: 6, newText: 'YY' }  // replace EF
+      { start: 1, end: 3, newText: 'xx' },
+      { start: 4, end: 6, newText: 'YY' }
     ];
-    // Provide edits in forward order; function should sort and apply safely.
     const edited = applyEdits(original, edits);
     expect(edited).toBe('AxxDYYG');
   });
@@ -55,8 +54,6 @@ describe('applyEdits', () => {
       { start: 2, end: 5, newText: 'X' },
       { start: 3, end: 7, newText: 'Y' }
     ];
-    // Sorted descending by start: apply {3,7}->Y first on original -> 012Y789
-    // then apply {2,5}->X on that result: positions refer to current string
     const edited = applyEdits(original, edits);
     expect(edited).toBe('01X89');
   });

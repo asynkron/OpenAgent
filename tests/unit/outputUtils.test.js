@@ -1,4 +1,4 @@
-const { combineStdStreams } = require('../outputUtils');
+const { combineStdStreams } = require('../../outputUtils');
 
 describe('combineStdStreams', () => {
   test('concats stderr into stdout on success (exitCode 0)', () => {

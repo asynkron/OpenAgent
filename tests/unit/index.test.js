@@ -21,7 +21,7 @@ function loadModule(envOverrides = {}) {
   }));
   jest.doMock('openai', () => MockOpenAI);
 
-  const mod = require('../index.js');
+  const mod = require('../../index.js');
   return { mod, MockOpenAI, mockResponsesCreate };
 }
 

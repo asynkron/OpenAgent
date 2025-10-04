@@ -12,6 +12,5 @@ test('shortcuts file exists and has entries', () => {
 test('run shortcut CLI prints command (tolerant of other CLI output)', () => {
   const node = process.execPath;
   const out = child.execFileSync(node, ['index.js', 'shortcuts', 'run', 'quick-tests'], { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 }).trim();
-  // The CLI may emit other banner text; ensure the command appears somewhere
   expect(out).toMatch(/npm test/);
 });
