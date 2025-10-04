@@ -1,15 +1,69 @@
-require('dotenv').config();
-const fs = require('fs');
-const path = require('path');
-const OpenAI = require('openai');
-const readline = require('readline');
-const chalk = require('chalk');
+import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
+import readline from 'readline';
+import { spawn } from 'child_process';
+import OpenAI from 'openai';
 
-const { marked } = require('marked');
-const markedTerminal = require('marked-terminal');
+import React from 'react';
+import { render, Box, Text, useApp, useStdin, useStdout, useInput } from 'ink';
+import Spinner from 'ink-spinner';
+import chalk from 'chalk';
+
+import { marked } from 'marked';
+import markedTerminal from 'marked-terminal';
+
 const TerminalRenderer = markedTerminal.default || markedTerminal;
 
-const { spawn } = require('child_process');
+dotenv.config();
+
+function checkRawModeSupport() {
+  const stdin = process.stdin;
+  if (!stdin || typeof stdin.isTTY === 'undefined' || !stdin.isTTY) {
+    return false;
+  }
+
+  if (typeof stdin.setRawMode !== 'function') {
+    return false;
+  }
+
+  try {
+    stdin.setRawMode(true);
+    stdin.setRawMode(false);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+const rawModeSupported = checkRawModeSupport();
+
+function useTerminalDimensions() {
+  const { stdout } = useStdout();
+  const initialColumns = stdout?.columns || process.stdout?.columns || 80;
+  const initialRows = stdout?.rows || process.stdout?.rows || 24;
+  const [dimensions, setDimensions] = React.useState([initialColumns, initialRows]);
+
+  React.useEffect(() => {
+    if (!stdout || typeof stdout.on !== 'function' || typeof stdout.off !== 'function') {
+      return undefined;
+    }
+
+    const handler = () => {
+      const nextColumns = stdout.columns || initialColumns;
+      const nextRows = stdout.rows || initialRows;
+      setDimensions([nextColumns, nextRows]);
+    };
+
+    stdout.on('resize', handler);
+
+    return () => {
+      stdout.off('resize', handler);
+    };
+  }, [stdout, initialColumns, initialRows]);
+
+  return dimensions;
+}
 
 const apiKey = process.env.OPENAI_API_KEY;
 
@@ -20,31 +74,25 @@ if (!apiKey) {
 }
 
 const openai = new OpenAI({
-  apiKey: apiKey,
+  apiKey,
 });
 
 marked.setOptions({
   renderer: new TerminalRenderer({
-    reflowText: false, // Preserve line breaks so code blocks stay readable
+    reflowText: false,
     tab: 2,
   }),
 });
 
-/**
- * Recursively discover AGENTS.md files (excluding heavy vendor folders).
- * @param {string} rootDir - starting directory for the search
- * @returns {string[]} list of absolute file paths
- */
 function findAgentFiles(rootDir) {
   const discovered = [];
 
-  /** @param {string} current */
   function walk(current) {
     let entries = [];
     try {
       entries = fs.readdirSync(current, { withFileTypes: true });
     } catch (err) {
-      return; // Ignore unreadable directories
+      return;
     }
 
     for (const entry of entries) {
@@ -69,11 +117,6 @@ function findAgentFiles(rootDir) {
   return discovered;
 }
 
-/**
- * Build an additional prompt section that mirrors local AGENTS.md guidance.
- * @param {string} rootDir - workspace root
- * @returns {string} formatted rules text
- */
 function buildAgentsPrompt(rootDir) {
   const agentFiles = findAgentFiles(rootDir);
   if (agentFiles.length === 0) {
@@ -104,45 +147,13 @@ function buildAgentsPrompt(rootDir) {
 
 const agentsGuidance = buildAgentsPrompt(process.cwd());
 
-const BASE_SYSTEM_PROMPT = `You are an AI agent that helps users by executing commands and completing tasks.
-
-You must respond ONLY with valid JSON in this format:
-{
-  "message": "Optional message to display to the user",
-  "plan": [
-    {"step": 1, "title": "Description of step", "status": "pending|running|completed"}
-  ],
-  "command": {
-    "shell": "bash",
-    "run": "command to execute",
-    "cwd": ".",
-    "timeout_sec": 60,
-    "filter_regex": "optional regex pattern to filter output",
-    "tail_lines": 200
-  }
-}
-
-Rules:
-- Always respond with valid JSON
-- Include "message" to explain what you're doing
-- Include "plan" only when a multi-step approach is helpful; otherwise omit it or return an empty array
-- Include "command" only when you need to execute a command
-- When a task is complete, respond with "message" and, if helpful, "plan" (no "command")
-- Mark completed steps in the plan with "status": "completed"
-- Be concise and helpful`;
+const BASE_SYSTEM_PROMPT = `You are an AI agent that helps users by executing commands and completing tasks.\n\nYou must respond ONLY with valid JSON in this format:\n{\n  "message": "Optional message to display to the user",\n  "plan": [\n    {"step": 1, "title": "Description of step", "status": "pending|running|completed"}\n  ],\n  "command": {\n    "shell": "bash",\n    "run": "command to execute",\n    "cwd": ".",\n    "timeout_sec": 60,\n    "filter_regex": "optional regex pattern to filter output",\n    "tail_lines": 200\n  }\n}\n\nRules:\n- Always respond with valid JSON\n- Include "message" to explain what you're doing\n- Include "plan" only when a multi-step approach is helpful; otherwise omit it or return an empty array\n- Include "command" only when you need to execute a command\n- When a task is complete, respond with "message" and, if helpful, "plan" (no "command")\n- Mark completed steps in the plan with "status": "completed"\n- Be concise and helpful`;
 
 const SYSTEM_PROMPT =
   agentsGuidance.trim().length > 0
     ? `${BASE_SYSTEM_PROMPT}\n\nThe following local operating rules are mandatory. They are sourced from AGENTS.md files present in the workspace:\n\n${agentsGuidance}`
     : BASE_SYSTEM_PROMPT;
 
-/**
- * Execute a command with timeout and capture output
- * @param {string} cmd - Command to execute
- * @param {string} cwd - Working directory
- * @param {number} timeoutSec - Timeout in seconds
- * @returns {Promise<{stdout: string, stderr: string, exit_code: number, killed: boolean, runtime_ms: number}>}
- */
 async function runCommand(cmd, cwd, timeoutSec) {
   return new Promise((resolve) => {
     const startTime = Date.now();
@@ -178,12 +189,6 @@ async function runCommand(cmd, cwd, timeoutSec) {
   });
 }
 
-/**
- * Apply regex filter to output lines
- * @param {string} text - Text to filter
- * @param {string} regex - Regex pattern
- * @returns {string} Filtered text
- */
 function applyFilter(text, regex) {
   if (!regex) return text;
   try {
@@ -193,55 +198,16 @@ function applyFilter(text, regex) {
       .filter((line) => pattern.test(line))
       .join('\n');
   } catch (e) {
-    console.error('Invalid regex pattern:', e.message);
     return text;
   }
 }
 
-/**
- * Get last N lines from text
- * @param {string} text - Text to tail
- * @param {number} lines - Number of lines to keep
- * @returns {string} Tailed text
- */
 function tailLines(text, lines) {
   if (!lines) return text;
   const allLines = text.split('\n');
   return allLines.slice(-lines).join('\n');
 }
 
-/**
- * Unified renderer for box-styled sections so every speaker uses the same layout.
- * @param {string} label - Title to display in the infobox header
- * @param {string | string[]} content - Message content or line array
- * @param {string} color - Chalk color keyword used for border/title accents
- */
-function display(label, content, color = 'white') {
-  if (!content || (Array.isArray(content) && content.length === 0)) {
-    return;
-  }
-
-  const text = Array.isArray(content) ? content.join('\n') : String(content);
-  const borderColor = typeof color === 'string' ? color : 'white';
-  const chalkColorFn = chalk[borderColor] || chalk.white;
-  const header = `${label} ______________`;
-
-  console.log('');
-  console.log(chalkColorFn.bold(header));
-  console.log(text);
-}
-
-const CONTENT_TYPE_DETECTORS = [
-  { pattern: /(^|\n)diff --git /, language: 'diff' },
-  { pattern: /python3\s*-+\s*<<\s*['"]?PY['"]?/i, language: 'python' },
-];
-
-/**
- * Wrap detected structured content in fenced code blocks so the Markdown renderer
- * can highlight it correctly.
- * @param {string} message - raw assistant text
- * @returns {string} message prepared for markdown rendering
- */
 function wrapStructuredContent(message) {
   if (!message) {
     return '';
@@ -253,7 +219,12 @@ function wrapStructuredContent(message) {
     return trimmed;
   }
 
-  for (const detector of CONTENT_TYPE_DETECTORS) {
+  const detectors = [
+    { pattern: /(^|\n)diff --git /, language: 'diff' },
+    { pattern: /python3\s*-+\s*<<\s*['"]?PY['"]?/i, language: 'python' },
+  ];
+
+  for (const detector of detectors) {
     if (detector.pattern.test(trimmed)) {
       return `\`\`\`${detector.language}\n${trimmed}\n\`\`\``;
     }
@@ -262,37 +233,112 @@ function wrapStructuredContent(message) {
   return trimmed;
 }
 
-/**
- * Render rich markdown content (with syntax hints) in the terminal.
- * @param {string} message - assistant message
- * @returns {string} ANSI-ready string
- */
 function renderMarkdownMessage(message) {
   const prepared = wrapStructuredContent(message);
   return marked.parse(prepared);
 }
 
-/**
- * Render plan as a compact checklist with a colored guide line.
- * @param {Array} plan - Plan array from LLM
- */
-function renderPlan(plan) {
-  if (!plan || !Array.isArray(plan) || plan.length === 0) return;
+function formatPlan(plan) {
+  if (!Array.isArray(plan) || plan.length === 0) {
+    return '';
+  }
 
-  const planLines = plan.map((item) => {
-    const statusSymbol =
-      item.status === 'completed' ? chalk.green('✔') : item.status === 'running' ? chalk.yellow('▶') : chalk.gray('•');
-    const stepLabel = chalk.cyan(`Step ${item.step}`);
-    const title = chalk.white(item.title);
-    return `${statusSymbol} ${stepLabel} ${chalk.dim('-')} ${title}`;
-  });
-
-  display('Plan', planLines, 'cyan');
+  return plan
+    .map((item) => {
+      const status = item.status || 'pending';
+      const symbol = status === 'completed' ? '[✔]' : status === 'running' ? '[▶]' : '[•]';
+      return `${symbol} Step ${item.step}: ${item.title}`;
+    })
+    .join('\n');
 }
 
-/**
- * Create readline interface with a friendlier prompt.
- */
+function formatCommandBlock(command) {
+  if (!command) {
+    return '';
+  }
+
+  const lines = [
+    `Shell: ${command.shell || 'bash'}`,
+    `Directory: ${command.cwd || '.'}`,
+    `Timeout: ${(command.timeout_sec || 30).toString()}s`,
+  ];
+
+  if (command.run) {
+    lines.push('', command.run);
+  }
+
+  return lines.join('\n');
+}
+
+function formatCommandResult(result) {
+  const lines = [
+    `Exit Code: ${result.exit_code}`,
+    `Runtime: ${result.runtime_ms}ms`,
+    `Status: ${result.killed ? 'KILLED (timeout)' : 'COMPLETED'}`,
+  ];
+  return lines.join('\n');
+}
+
+function formatErrorLines(error) {
+  const lines = [`${error}`];
+
+  if (error.response?.status) {
+    lines.push(`Status: ${error.response.status}`);
+  }
+
+  if (error.response?.data) {
+    const responseData =
+      typeof error.response.data === 'string'
+        ? error.response.data
+        : JSON.stringify(error.response.data, null, 2);
+    lines.push(`Response Data: ${responseData}`);
+  }
+
+  return lines.join('\n');
+}
+
+function displayFallback(label, content, color = 'white') {
+  if (!content) {
+    return;
+  }
+
+  const text = Array.isArray(content) ? content.join('\n') : String(content);
+  const chalkColorFn = chalk[color] || chalk.white;
+  const header = `${label} -------------`;
+
+  console.log('');
+  console.log(chalkColorFn.bold(header));
+  console.log(text);
+}
+
+function renderMessageFallback(message) {
+  if (!message) return;
+  const rendered = renderMarkdownMessage(message);
+  displayFallback('AI', rendered, 'magenta');
+}
+
+function renderPlanFallback(plan) {
+  if (!Array.isArray(plan) || plan.length === 0) {
+    return;
+  }
+  displayFallback('Plan', formatPlan(plan), 'cyan');
+}
+
+function renderCommandFallback(command) {
+  if (!command) return;
+  displayFallback('Command', formatCommandBlock(command), 'yellow');
+}
+
+function renderCommandResultFallback(result, stdout, stderr) {
+  displayFallback('Command Result', formatCommandResult(result), 'green');
+  if (stdout) {
+    displayFallback('STDOUT', stdout, 'white');
+  }
+  if (stderr) {
+    displayFallback('STDERR', stderr, 'red');
+  }
+}
+
 function createInterface() {
   return readline.createInterface({
     input: process.stdin,
@@ -301,80 +347,15 @@ function createInterface() {
   });
 }
 
-/**
- * Ask the human user for input with highlighted prompt text.
- * @param {readline.Interface} rl - readline interface
- * @param {string} prompt - prompt label
- * @returns {Promise<string>} input from user
- */
 function askHuman(rl, prompt) {
   return new Promise((resolve) => {
     rl.question(chalk.bold.blue(prompt), (answer) => {
-      resolve(answer.trim());
+      resolve((answer ?? '').trim());
     });
   });
 }
 
-/**
- * Render the assistant message with a subtle colored guide.
- * @param {string} message - assistant message
- */
-function renderMessage(message) {
-  if (!message) return;
-
-  const rendered = renderMarkdownMessage(message);
-  display('AI', rendered, 'magenta');
-}
-
-/**
- * Render command information before execution.
- * @param {object} command - command block from the LLM response
- */
-function renderCommand(command) {
-  if (!command) return;
-
-  const commandLines = [
-    `${chalk.gray('Shell')}: ${command.shell || 'bash'}`,
-    `${chalk.gray('Directory')}: ${command.cwd || '.'}`,
-    `${chalk.gray('Timeout')}: ${command.timeout_sec || 30}s`,
-  ];
-
-  if (command.run) {
-    commandLines.push('');
-    commandLines.push(...command.run.split('\n').map((line) => chalk.yellow(line)));
-  }
-
-  display('Command', commandLines, 'yellow');
-}
-
-/**
- * Render command execution results.
- * @param {object} result - output from runCommand
- * @param {string} stdout - filtered stdout
- * @param {string} stderr - filtered stderr
- */
-function renderCommandResult(result, stdout, stderr) {
-  const statusLines = [
-    `${chalk.gray('Exit Code')}: ${result.exit_code}`,
-    `${chalk.gray('Runtime')}: ${result.runtime_ms}ms`,
-    `${chalk.gray('Status')}: ${result.killed ? chalk.red('KILLED (timeout)') : chalk.green('COMPLETED')}`,
-  ];
-
-  display('Command Result', statusLines, 'green');
-
-  if (stdout) {
-    display('STDOUT', stdout, 'white');
-  }
-
-  if (stderr) {
-    display('STDERR', stderr, 'red');
-  }
-}
-
-/**
- * Main agent loop
- */
-async function agentLoop() {
+async function fallbackAgentLoop() {
   const history = [
     {
       role: 'system',
@@ -408,14 +389,13 @@ async function agentLoop() {
       let continueLoop = true;
 
       while (continueLoop) {
-        // Request the next assistant action
         const completion = await openai.chat.completions.create({
           model: 'gpt-5',
           messages: history,
           response_format: { type: 'json_object' },
         });
 
-        const responseContent = completion.choices[0].message.content;
+        const responseContent = completion.choices[0]?.message?.content || '';
 
         history.push({
           role: 'assistant',
@@ -425,35 +405,63 @@ async function agentLoop() {
         let parsed;
         try {
           parsed = JSON.parse(responseContent);
-        } catch (e) {
-          console.error(chalk.red('Error: LLM returned invalid JSON'));
-          console.error('Response:', responseContent);
+        } catch (error) {
+          displayFallback(
+            'Error',
+            [
+              'LLM returned invalid JSON.',
+              `Response: ${responseContent}`,
+              `Parse Error: ${error.message}`,
+            ],
+            'red'
+          );
+          continueLoop = false;
           break;
         }
 
-        renderMessage(parsed.message);
-        renderPlan(parsed.plan);
+        const hasMessage = typeof parsed.message === 'string' && parsed.message.trim().length > 0;
+        const hasPlan = Array.isArray(parsed.plan) && parsed.plan.length > 0;
+        const hasCommand = parsed.command && Object.keys(parsed.command).length > 0;
 
-        if (!parsed.command) {
+        if (!hasMessage && !hasPlan && !hasCommand) {
+          displayFallback(
+            'Error',
+            [
+              'Assistant response missing message, plan, and command.',
+              `Response: ${responseContent}`,
+            ],
+            'red'
+          );
+          continueLoop = false;
+          break;
+        }
 
+        if (hasMessage) {
+          renderMessageFallback(parsed.message);
+        }
+
+        if (hasPlan) {
+          renderPlanFallback(parsed.plan);
+        }
+
+        if (!hasCommand) {
           continueLoop = false;
           continue;
         }
 
-        renderCommand(parsed.command);
+        renderCommandFallback(parsed.command);
 
-        // Confirm with human before executing
         const approve = (await askHuman(rl, '\nApprove running this command? (y/n) ')).toLowerCase();
         if (!(approve === 'y' || approve === 'yes')) {
           console.log(chalk.yellow('Command execution canceled by human.'));
           const observation = {
             observation_for_llm: {
               canceled_by_human: true,
-              message: 'Human declined to execute the proposed command.'
+              message: 'Human declined to execute the proposed command.',
             },
             observation_metadata: {
-              timestamp: new Date().toISOString()
-            }
+              timestamp: new Date().toISOString(),
+            },
           };
           history.push({
             role: 'user',
@@ -461,7 +469,6 @@ async function agentLoop() {
           });
           continue;
         }
-
 
         const result = await runCommand(
           parsed.command.run,
@@ -482,14 +489,7 @@ async function agentLoop() {
           filteredStderr = tailLines(filteredStderr, parsed.command.tail_lines);
         }
 
-        const stdoutPreview = filteredStdout
-          ? filteredStdout.split('\n').slice(0, 20).join('\n') + (filteredStdout.split('\n').length > 20 ? '\n…' : '')
-          : '';
-        const stderrPreview = filteredStderr
-          ? filteredStderr.split('\n').slice(0, 20).join('\n') + (filteredStderr.split('\n').length > 20 ? '\n…' : '')
-          : '';
-
-        renderCommandResult(result, stdoutPreview, stderrPreview);
+        renderCommandResultFallback(result, filteredStdout, filteredStderr);
 
         const observation = {
           observation_for_llm: {
@@ -516,15 +516,584 @@ async function agentLoop() {
         });
       }
     } catch (error) {
-      console.error(chalk.red(`Error calling OpenAI API: ${error.message}`));
-      if (error.response) {
-        console.error('Response:', error.response.data);
-      }
+      displayFallback('Error', formatErrorLines(error), 'red');
     }
   }
 
   rl.close();
 }
 
-// Start the agent
-agentLoop();
+function Block({ heading, color = 'white', body }) {
+  const textContent = Array.isArray(body) ? body.join('\n') : String(body || '');
+  const lines = textContent.split('\n');
+
+  const bgColorPalette = {
+    magenta: '#1d1124',
+    cyan: '#112024',
+    yellow: '#241f11',
+    green: '#122414',
+    red: '#241112',
+    blue: '#111824',
+    white: '#181818',
+    default: '#181818',
+  };
+
+  const textColorPalette = {
+    magenta: '#f2e8ff',
+    cyan: '#d7f2ff',
+    yellow: '#fff5d7',
+    green: '#d7ffe1',
+    red: '#ffd7d7',
+    blue: '#d7e4ff',
+    white: '#e0e0e0',
+    default: '#e0e0e0',
+  };
+
+  const backgroundColor = bgColorPalette[color] || bgColorPalette.default;
+  const foregroundColor = textColorPalette[color] || textColorPalette.default;
+
+  const [columns] = useTerminalDimensions();
+  const width = Math.max((columns || 80) - 2, 20);
+
+  const padLine = (value = '') => {
+    const base = value;
+    if (base.length >= width) {
+      return base.slice(0, width);
+    }
+    return base.padEnd(width, ' ');
+  };
+
+  const headingLine = padLine(heading);
+  const bodyLines = lines.length > 0 ? lines : [''];
+
+  const children = [
+    React.createElement(Text, { key: 'heading', color: foregroundColor, backgroundColor }, headingLine),
+    ...bodyLines.map((line, index) =>
+      React.createElement(Text, { key: `line-${index}`, color: foregroundColor, backgroundColor }, padLine(line))
+    )
+  ];
+
+  return React.createElement(
+    Box,
+    {
+      flexDirection: 'column',
+      width: '100%',
+      backgroundColor,
+      paddingX: 1,
+    },
+    ...children
+  );
+}
+
+function SpinnerBlock({ message }) {
+  const backgroundColor = '#241f11';
+  const foregroundColor = '#fff5d7';
+  const [columns] = useTerminalDimensions();
+  const width = Math.max((columns || 80) - 2, 20);
+
+  const remaining = Math.max(width - message.length - 2, 0);
+
+  return React.createElement(
+    Box,
+    { flexDirection: 'row', width: '100%', backgroundColor, paddingX: 1 },
+    React.createElement(
+      Text,
+      { color: foregroundColor, backgroundColor },
+      React.createElement(Spinner, { type: 'dots' }),
+      ' ',
+      message.length >= width - 2 ? message.slice(0, width - 2) : message,
+      ' '.repeat(remaining)
+    )
+  );
+}
+
+function InputPanel({ label, value, onChange, onSubmit, disabled }) {
+  const promptLabel = label;
+  const { isRawModeSupported } = useStdin();
+  const inputDisabled = disabled || !isRawModeSupported;
+  const panelBackground = '#151515';
+  const textColor = '#d0d0d0';
+  const placeholderText = 'Type here and press Enter';
+  const [columns] = useTerminalDimensions();
+  const width = Math.max((columns || 80) - 2, 20);
+
+  return React.createElement(
+    Box,
+    { flexDirection: 'column', width: '100%', backgroundColor: panelBackground, paddingX: 1 },
+    promptLabel && promptLabel !== 'Human'
+      ? React.createElement(Text, { key: 'label', color: textColor, backgroundColor: panelBackground }, pad(promptLabel))
+      : null,
+    inputDisabled
+      ? React.createElement(Text, { key: 'disabled', color: textColor, backgroundColor: panelBackground },
+        pad('Input unavailable (raw mode unsupported or locked).'))
+      : React.createElement(InputField, {
+        key: 'input',
+        value,
+        onChange,
+        onSubmit,
+        placeholder: placeholderText,
+        textColor,
+        backgroundColor: panelBackground,
+        width,
+      })
+  );
+
+  function pad(text = '') {
+    if (text.length >= width) {
+      return text.slice(0, width);
+    }
+    return text.padEnd(width, ' ');
+  }
+}
+
+function InputField({ value, onChange, onSubmit, placeholder, textColor, backgroundColor, width }) {
+  const { setRawMode } = useStdin();
+  const [cursor, setCursor] = React.useState(value.length);
+
+  React.useEffect(() => {
+    setCursor((prev) => Math.min(prev, value.length));
+  }, [value]);
+
+  React.useEffect(() => {
+    if (!setRawMode) {
+      return undefined;
+    }
+    setRawMode(true);
+    return () => {
+      setRawMode(false);
+    };
+  }, [setRawMode]);
+
+  useInput(
+    (input, key) => {
+      if (key.return) {
+        onSubmit?.(value);
+        return;
+      }
+
+      if (key.leftArrow) {
+        setCursor((prev) => Math.max(prev - 1, 0));
+        return;
+      }
+
+      if (key.rightArrow) {
+        setCursor((prev) => Math.min(prev + 1, value.length));
+        return;
+      }
+
+      if (key.home) {
+        setCursor(0);
+        return;
+      }
+
+      if (key.end) {
+        setCursor(value.length);
+        return;
+      }
+
+      if (key.backspace) {
+        if (cursor === 0) {
+          return;
+        }
+        const nextValue = value.slice(0, cursor - 1) + value.slice(cursor);
+        setCursor((prev) => Math.max(prev - 1, 0));
+        onChange(nextValue);
+        return;
+      }
+
+      if (key.delete) {
+        if (cursor === value.length) {
+          return;
+        }
+        const nextValue = value.slice(0, cursor) + value.slice(cursor + 1);
+        onChange(nextValue);
+        return;
+      }
+
+      if (key.tab || key.escape) {
+        return;
+      }
+
+      if (key.ctrl || key.meta) {
+        return;
+      }
+
+      if (!input) {
+        return;
+      }
+
+      const nextValue = value.slice(0, cursor) + input + value.slice(cursor);
+      setCursor((prev) => prev + input.length);
+      onChange(nextValue);
+    },
+    { isActive: true }
+  );
+
+  const isEmpty = value.length === 0;
+  const displayText = isEmpty ? placeholder : value;
+  const displayColor = isEmpty ? '#6f6f6f' : textColor;
+  const padded = pad(displayText, width);
+  const cursorIndex = Math.min(cursor, padded.length);
+
+  const beforeCursor = padded.slice(0, cursorIndex);
+  const afterCursor = padded.slice(cursorIndex);
+
+  return React.createElement(
+    Box,
+    { flexDirection: 'row', width: '100%', backgroundColor },
+    React.createElement(Text, { color: displayColor, backgroundColor }, beforeCursor),
+    React.createElement(Text, { color: '#f0f0f0', backgroundColor }, '▏'),
+    React.createElement(Text, { color: displayColor, backgroundColor }, afterCursor)
+  );
+
+  function pad(text = '', targetWidth = width) {
+    if (text.length >= targetWidth) {
+      return text.slice(0, targetWidth);
+    }
+    return text.padEnd(targetWidth, ' ');
+  }
+}
+
+function AgentApp() {
+  const { exit } = useApp();
+
+  const entryIdRef = React.useRef(0);
+  const [entries, setEntries] = React.useState([]);
+  const [history, setHistory] = React.useState([
+    {
+      role: 'system',
+      content: SYSTEM_PROMPT,
+    },
+  ]);
+  const historyRef = React.useRef(history);
+  React.useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
+
+  const [inputValue, setInputValue] = React.useState('');
+  const [mode, setMode] = React.useState('user');
+  const [promptLabel, setPromptLabel] = React.useState('Human');
+  const [spinnerMessage, setSpinnerMessage] = React.useState(null);
+  const [pendingCommand, setPendingCommand] = React.useState(null);
+
+  const pushEntry = React.useCallback((entry) => {
+    setEntries((prev) => [...prev, { id: entryIdRef.current++, ...entry }]);
+  }, []);
+
+  React.useEffect(() => {
+    pushEntry({ heading: 'AI', color: 'magenta', body: 'Hello!' });
+    pushEntry({
+      heading: 'Info',
+      color: 'cyan',
+      body: 'OpenAgent - AI Agent with JSON Protocol\nType "exit" or "quit" to end the conversation.',
+    });
+  }, [pushEntry]);
+
+  const handleAssistantResponse = React.useCallback(
+    (completion, historySnapshot) => {
+      const choice = completion?.choices?.[0];
+      const responseContent = choice?.message?.content || '';
+
+      const updatedHistory = [...historySnapshot, { role: 'assistant', content: responseContent }];
+      setHistory(updatedHistory);
+
+      if (!responseContent) {
+        pushEntry({
+          heading: 'Error',
+          color: 'red',
+          body: 'Assistant response was empty.',
+        });
+        setMode('user');
+        setPromptLabel('Human');
+        return;
+      }
+
+      let parsed;
+      try {
+        parsed = JSON.parse(responseContent);
+      } catch (error) {
+        pushEntry({
+          heading: 'Error',
+          color: 'red',
+          body: `LLM returned invalid JSON.\nResponse: ${responseContent}\nParse Error: ${error.message}`,
+        });
+        setMode('user');
+        setPromptLabel('Human');
+        return;
+      }
+
+      const hasMessage = typeof parsed.message === 'string' && parsed.message.trim().length > 0;
+      const hasPlan = Array.isArray(parsed.plan) && parsed.plan.length > 0;
+      const hasCommand = parsed.command && Object.keys(parsed.command).length > 0;
+
+      if (!hasMessage && !hasPlan && !hasCommand) {
+        pushEntry({
+          heading: 'Error',
+          color: 'red',
+          body: `Assistant response missing message, plan, and command.\nResponse: ${responseContent}`,
+        });
+        setMode('user');
+        setPromptLabel('Human');
+        return;
+      }
+
+      if (hasMessage) {
+        pushEntry({ heading: 'AI', color: 'magenta', body: renderMarkdownMessage(parsed.message) });
+      }
+
+      if (hasPlan) {
+        pushEntry({ heading: 'Plan', color: 'cyan', body: formatPlan(parsed.plan) });
+      }
+
+      if (!hasCommand) {
+        setMode('user');
+        setPromptLabel('Human');
+        return;
+      }
+
+      setPendingCommand(parsed.command);
+      pushEntry({ heading: 'Command', color: 'yellow', body: formatCommandBlock(parsed.command) });
+
+      setMode('approval');
+      setPromptLabel('Approve (y/n)');
+    },
+    [pushEntry]
+  );
+
+  const callAssistant = React.useCallback(
+    async (historySnapshot) => {
+      setSpinnerMessage('Working with OpenAI…');
+      try {
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-5',
+          messages: historySnapshot,
+          response_format: { type: 'json_object' },
+        });
+
+        setSpinnerMessage(null);
+        handleAssistantResponse(completion, historySnapshot);
+      } catch (error) {
+        setSpinnerMessage(null);
+        pushEntry({ heading: 'Error', color: 'red', body: formatErrorLines(error) });
+        setPendingCommand(null);
+        setMode('user');
+        setPromptLabel('Human');
+      }
+    },
+    [handleAssistantResponse, pushEntry]
+  );
+
+  const runAssistantTurn = React.useCallback(
+    (nextHistory) => {
+      setMode('locked');
+      callAssistant(nextHistory);
+    },
+    [callAssistant]
+  );
+
+  const executeCommand = React.useCallback(
+    async (command) => {
+      setMode('locked');
+      setSpinnerMessage('Executing command…');
+      try {
+        const result = await runCommand(command.run, command.cwd || '.', command.timeout_sec || 30);
+
+        setSpinnerMessage(null);
+        pushEntry({ heading: 'Command Result', color: 'green', body: formatCommandResult(result) });
+
+        let filteredStdout = result.stdout;
+        let filteredStderr = result.stderr;
+
+        if (command.filter_regex) {
+          filteredStdout = applyFilter(filteredStdout, command.filter_regex);
+          filteredStderr = applyFilter(filteredStderr, command.filter_regex);
+        }
+
+        if (command.tail_lines) {
+          filteredStdout = tailLines(filteredStdout, command.tail_lines);
+          filteredStderr = tailLines(filteredStderr, command.tail_lines);
+        }
+
+        if (filteredStdout) {
+          pushEntry({ heading: 'STDOUT', color: 'white', body: filteredStdout });
+        }
+
+        if (filteredStderr) {
+          pushEntry({ heading: 'STDERR', color: 'red', body: filteredStderr });
+        }
+
+        const observation = {
+          observation_for_llm: {
+            stdout: filteredStdout,
+            stderr: filteredStderr,
+            exit_code: result.exit_code,
+            truncated:
+              (command.filter_regex && (result.stdout !== filteredStdout || result.stderr !== filteredStderr)) ||
+              (command.tail_lines &&
+                (result.stdout.split('\n').length > command.tail_lines ||
+                  result.stderr.split('\n').length > command.tail_lines)),
+          },
+          observation_metadata: {
+            runtime_ms: result.runtime_ms,
+            killed: result.killed,
+            timestamp: new Date().toISOString(),
+          },
+        };
+
+        const updatedHistory = [
+          ...historyRef.current,
+          {
+            role: 'user',
+            content: JSON.stringify(observation),
+          },
+        ];
+
+        setHistory(updatedHistory);
+        setPendingCommand(null);
+        runAssistantTurn(updatedHistory);
+      } catch (error) {
+        setSpinnerMessage(null);
+        pushEntry({ heading: 'Error', color: 'red', body: `Failed to execute command.\n${error.message}` });
+        setMode('user');
+        setPromptLabel('Human');
+      }
+    },
+    [pushEntry, runAssistantTurn]
+  );
+
+  const handleSubmit = React.useCallback(
+    (value) => {
+      const trimmed = value.trim();
+      setInputValue('');
+
+      if (!trimmed) {
+        return;
+      }
+
+      if (mode === 'locked') {
+        return;
+      }
+
+      if (mode === 'user') {
+        if (trimmed.toLowerCase() === 'exit' || trimmed.toLowerCase() === 'quit') {
+          exit();
+          return;
+        }
+
+        pushEntry({ heading: 'Human', color: 'blue', body: trimmed });
+
+        const updatedHistory = [
+          ...historyRef.current,
+          {
+            role: 'user',
+            content: trimmed,
+          },
+        ];
+
+        setHistory(updatedHistory);
+        setMode('locked');
+        runAssistantTurn(updatedHistory);
+        return;
+      }
+
+      if (mode === 'approval') {
+        pushEntry({ heading: 'Human', color: 'blue', body: trimmed });
+
+        if (!pendingCommand) {
+          setMode('user');
+          setPromptLabel('Human');
+          return;
+        }
+
+        if (trimmed.toLowerCase() === 'y' || trimmed.toLowerCase() === 'yes') {
+          executeCommand(pendingCommand);
+          return;
+        }
+
+        if (trimmed.toLowerCase() === 'n' || trimmed.toLowerCase() === 'no') {
+          const observation = {
+            observation_for_llm: {
+              canceled_by_human: true,
+              message: 'Human declined to execute the proposed command.',
+            },
+            observation_metadata: {
+              timestamp: new Date().toISOString(),
+            },
+          };
+
+          const updatedHistory = [
+            ...historyRef.current,
+            {
+              role: 'user',
+              content: JSON.stringify(observation),
+            },
+          ];
+
+          setHistory(updatedHistory);
+          setPendingCommand(null);
+          runAssistantTurn(updatedHistory);
+          return;
+        }
+
+        pushEntry({
+          heading: 'Error',
+          color: 'red',
+          body: 'Please respond with "y"/"yes" or "n"/"no".',
+        });
+        return;
+      }
+    },
+    [exit, executeCommand, mode, pendingCommand, pushEntry, runAssistantTurn]
+  );
+
+  React.useEffect(() => {
+    if (mode === 'user') {
+      setPromptLabel('Human');
+    } else if (mode === 'approval') {
+      setPromptLabel('Approve (y/n)');
+    } else {
+      setPromptLabel('Working');
+    }
+  }, [mode]);
+
+  const children = entries.map((entry) =>
+    React.createElement(Block, {
+      key: entry.id,
+      heading: entry.heading,
+      color: entry.color,
+      body: entry.body,
+    })
+  );
+
+  if (spinnerMessage) {
+    children.push(React.createElement(SpinnerBlock, { key: 'spinner', message: spinnerMessage }));
+  }
+
+  children.push(
+    React.createElement(InputPanel, {
+      key: 'input-panel',
+      label: promptLabel || 'Input',
+      value: inputValue,
+      onChange: setInputValue,
+      onSubmit: handleSubmit,
+      disabled: mode === 'locked',
+    })
+  );
+
+  return React.createElement(
+    Box,
+    { flexDirection: 'column', width: '100%' },
+    ...children
+  );
+}
+
+if (rawModeSupported || process.env.OPENAGENT_FORCE_INK === '1') {
+  render(React.createElement(AgentApp), {
+    stdin: process.stdin,
+    stdout: process.stdout,
+    stderr: process.stderr,
+  });
+} else {
+  console.log(chalk.yellow('Raw mode not supported; falling back to basic interface.'));
+  fallbackAgentLoop();
+}
