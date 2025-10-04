@@ -2,7 +2,7 @@
 
 - Commands
   - [x] Enhance text editing capabilities within the command workflow
-  - Provide reusable command templates/snippets
+  - [x] Provide reusable command templates/snippets
   - Offer quick shortcuts for frequently used commands
 
 - Testing & Quality

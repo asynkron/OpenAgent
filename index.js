@@ -222,6 +222,73 @@ const SYSTEM_PROMPT =
  * @param {number} timeoutSec - Timeout in seconds
  * @returns {Promise<{stdout: string, stderr: string, exit_code: number, killed: boolean, runtime_ms: number}>}
  */
+
+// --- Template support inserted ---
+const TEMPLATES_PATH = path.join(process.cwd(), 'templates', 'command-templates.json');
+function loadTemplates() {
+  try {
+    const raw = fs.readFileSync(TEMPLATES_PATH, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed;
+  } catch (err) {
+    return [];
+  }
+}
+
+function renderTemplateCommand(template, vars) {
+  let cmd = template.command || '';
+  const varsMap = Object.assign({}, vars || {});
+  // Ensure defaults applied
+  (template.variables || []).forEach((v) => {
+    if (!Object.prototype.hasOwnProperty.call(varsMap, v.name)) {
+      varsMap[v.name] = v.default || '';
+    }
+  });
+  // Simple placeholder replacement for {{name}}
+  Object.keys(varsMap).forEach((k) => {
+    const re = new RegExp('{{\s*' + k + '\s*}}', 'g');
+    cmd = cmd.replace(re, String(varsMap[k]));
+  });
+  return cmd;
+}
+
+// Small CLI helper for templates: node index.js templates [list|show <id>|render <id> <json-vars>]
+if (require.main === module) {
+  try {
+    const argv = process.argv || [];
+    if ((argv[2] || '') === 'templates') {
+      const sub = argv[3] || 'list';
+      const templates = loadTemplates();
+      if (sub === 'list') {
+        templates.forEach(t => console.log(`${t.id} - ${t.name}: ${t.description || ''}`));
+        process.exit(0);
+      }
+      if (sub === 'show') {
+        const id = argv[4];
+        const t = templates.find(x => x.id === id);
+        if (!t) { console.error('Template not found:', id); process.exit(2); }
+        console.log(JSON.stringify(t, null, 2));
+        process.exit(0);
+      }
+      if (sub === 'render') {
+        const id = argv[4];
+        const varsJson = argv[5] || '{}';
+        let vars = {};
+        try { vars = JSON.parse(varsJson); } catch (e) { console.error('Invalid JSON variables'); process.exit(3); }
+        const t = templates.find(x => x.id === id);
+        if (!t) { console.error('Template not found:', id); process.exit(2); }
+        console.log(renderTemplateCommand(t, vars));
+        process.exit(0);
+      }
+      console.log('Usage: node index.js templates [list|show <id>|render <id> <json-vars>]');
+      process.exit(0);
+    }
+  } catch (err) {
+    // noop; fall through to normal agent behavior
+  }
+}
+// --- end template support ---
 async function runCommand(cmd, cwd, timeoutSec, shellOpt) {
   return new Promise((resolve) => {
     const startTime = Date.now();

@@ -140,3 +140,14 @@ Agent: Node.js is installed! You have version 18.17.0.
 
 ## License
 MIT
+
+## Command Templates
+
+The agent supports reusable command templates stored in templates/command-templates.json. Use the built-in CLI helper to list and render templates:
+
+- List: node index.js templates list
+- Show: node index.js templates show <id>
+- Render: node index.js templates render <id> '{"var":"value"}'
+
+Templates are simple JSON objects with placeholders like {{name}} which will be replaced by provided variables.
+
