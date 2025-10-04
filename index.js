@@ -21,7 +21,9 @@ if (!apiKey) {
 
 const openai = new OpenAI({
   apiKey: apiKey,
+  baseURL: process.env.OPENAI_BASE_URL || undefined,
 });
+const MODEL = process.env.OPENAI_MODEL || process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini';
 
 marked.setOptions({
   renderer: new TerminalRenderer({
@@ -41,7 +43,7 @@ function startThinking() {
     try {
       readline.clearLine(process.stdout, 0);
       readline.cursorTo(process.stdout, 0);
-      process.stdout.write(require('chalk').dim(frames[i]));
+      process.stdout.write(chalk.dim(frames[i]));
       i = (i + 1) % frames.length;
     } catch (_) {
       // ignore if stdout is not a TTY
@@ -183,10 +185,10 @@ const SYSTEM_PROMPT =
  * @param {number} timeoutSec - Timeout in seconds
  * @returns {Promise<{stdout: string, stderr: string, exit_code: number, killed: boolean, runtime_ms: number}>}
  */
-async function runCommand(cmd, cwd, timeoutSec) {
+async function runCommand(cmd, cwd, timeoutSec, shellOpt) {
   return new Promise((resolve) => {
     const startTime = Date.now();
-    const proc = spawn(cmd, { cwd, shell: true });
+    const proc = spawn(cmd, { cwd, shell: (shellOpt ?? true) });
     let stdout = '';
     let stderr = '';
     let killed = false;
@@ -243,7 +245,7 @@ async function runBrowse(url, timeoutSec) {
     // Prefer global fetch if available (Node 18+) with AbortController timeout
     if (typeof fetch === 'function') {
       const controller = new AbortController();
-      const id = setTimeout(() => { controller.abort(); killed = true; }, (timeoutSec || 30) * 1000);
+      const id = setTimeout(() => { controller.abort(); killed = true; }, (timeoutSec ?? 60) * 1000);
       try {
         const res = await fetch(url, { method: 'GET', signal: controller.signal, redirect: 'follow' });
         clearTimeout(id);
@@ -274,7 +276,7 @@ async function runBrowse(url, timeoutSec) {
         port: parsed.port,
         path: parsed.path,
         headers: {},
-        timeout: (timeoutSec || 30) * 1000,
+        timeout: (timeoutSec ?? 60) * 1000,
       }, (res) => {
         const chunks = [];
         res.on('data', (d) => chunks.push(d));
@@ -472,7 +474,7 @@ function renderCommand(command) {
   const commandLines = [
     `${chalk.gray('Shell')}: ${command.shell || 'bash'}`,
     `${chalk.gray('Directory')}: ${command.cwd || '.'}`,
-    `${chalk.gray('Timeout')}: ${command.timeout_sec || 30}s`,
+    `${chalk.gray('Timeout')}: ${command.timeout_sec ?? 60}s`,
   ];
 
   if (command.run) {
@@ -520,7 +522,7 @@ function loadPreapprovedConfig() {
       return parsed && parsed.allowlist ? parsed : { allowlist: [] };
     }
   } catch (e) {
-    console.error(chalk.yellow('Warning: Failed to load .preapproved_commands.json:'), e.message);
+    console.error(chalk.yellow('Warning: Failed to load approved_commands.json:'), e.message);
   }
   return { allowlist: [] };
 }
@@ -538,25 +540,45 @@ function shellSplit(str) {
 
 function isPreapprovedCommand(command, cfg) {
   try {
-    const run = (command && command.run ? String(command.run) : '').trim();
-    if (!run) return false;
+    const runRaw = (command && command.run ? String(command.run) : '').trim();
+    if (!runRaw) return false;
 
-    // Special: browse <url> (our implementation is GET-only)
-    if (run.toLowerCase().startsWith('browse ')) {
-      return true;
-    }
+    // Reject any multi-line or carriage-return content
+    if (/\r|\n/.test(runRaw)) return false;
 
-    // Restrict to a single simple command: no chaining with ;, &&, ||
-    const firstLine = run.split('\n')[0];
-    if (/;|&&|\|\|/.test(firstLine)) {
+    // Special: browse <url> (GET-only via runBrowse), validate URL and protocol
+    if (runRaw.toLowerCase().startsWith('browse ')) {
+      const url = runRaw.slice(7).trim();
+      if (!url || /\s/.test(url)) return false; // no spaces in URL
+      try {
+        const u = new URL(url);
+        if (u.protocol === 'http:' || u.protocol === 'https:') return true;
+      } catch (_) {}
       return false;
     }
 
-    // Disallow redirection writes and sudo
-    if (/(^|\s)[0-9]*>>?\s/.test(firstLine)) return false;
-    if (/^\s*sudo\b/.test(firstLine)) return false;
+    // Disallow common shell chaining/metacharacters
+    const forbidden = [
+      /;|&&|\|\|/, // chaining
+      /\|/,         // pipes
+      /`/,          // backticks
+      /\$\(/,      // command substitution
+      /<\(/        // process substitution
+    ];
+    if (forbidden.some((re) => re.test(runRaw))) return false;
 
-    const tokens = shellSplit(firstLine);
+    // Disallow sudo explicitly
+    if (/^\s*sudo\b/.test(runRaw)) return false;
+
+    // Disallow redirection writes (>, >>, 2>&1 etc.)
+    if (/(^|\s)[0-9]*>>?\s/.test(runRaw)) return false;
+    if (/\d?>&\d?/.test(runRaw)) return false;
+
+    // For auto-approval, do not allow custom string shells (e.g., 'bash')
+    const shellOpt = command && 'shell' in command ? command.shell : undefined;
+    if (typeof shellOpt === 'string') return false;
+
+    const tokens = shellSplit(runRaw);
     if (!tokens.length) return false;
     const base = path.basename(tokens[0]);
 
@@ -564,19 +586,23 @@ function isPreapprovedCommand(command, cfg) {
     const entry = list.find((e) => e && e.name === base);
     if (!entry) return false;
 
-    // If specific subcommands are allowed, enforce them
+    // Determine subcommand as first non-option token after base
+    let sub = '';
+    for (let k = 1; k < tokens.length; k++) {
+      const t = tokens[k];
+      if (!t.startsWith('-')) { sub = t; break; }
+    }
+
     if (Array.isArray(entry.subcommands) && entry.subcommands.length > 0) {
-      const sub = tokens[1] || '';
       if (!entry.subcommands.includes(sub)) return false;
       // For version-like commands, prevent extra args
       if (['python', 'python3', 'pip', 'node', 'npm'].includes(base)) {
-        if (tokens.length > 2) return false;
+        const afterSubIdx = tokens.indexOf(sub);
+        if (afterSubIdx !== -1 && tokens.length > afterSubIdx + 1) return false;
       }
     }
 
     const joined = ' ' + tokens.slice(1).join(' ') + ' ';
-
-    // Command-specific safety rules aligned with allowlist notes
     switch (base) {
       case 'sed':
         if (/(^|\s)-i(\b|\s)/.test(joined)) return false;
@@ -584,13 +610,23 @@ function isPreapprovedCommand(command, cfg) {
       case 'find':
         if (/\s-exec\b/.test(joined) || /\s-delete\b/.test(joined)) return false;
         break;
-      case 'curl':
+      case 'curl': {
         if (/(^|\s)-X\s*(POST|PUT|PATCH|DELETE)\b/i.test(joined)) return false;
         if (/(^|\s)(--data(-binary|-raw|-urlencode)?|-d|--form|-F|--upload-file|-T)\b/i.test(joined)) return false;
-        // -I (HEAD) and default GET are OK
+        // Disallow writing to files: -O/--remote-name or -o FILE or -oFILE
+        if (/(^|\s)(-O|--remote-name|--remote-header-name)\b/.test(joined)) return false;
+        const toks = tokens.slice(1);
+        for (let i = 0; i < toks.length; i++) {
+          const t = toks[i];
+          if (t === '-o' || t === '--output') {
+            const n = toks[i + 1] || '';
+            if (n !== '-') return false;
+          }
+          if (t.startsWith('-o') && t.length > 2) return false; // -oFILE
+        }
         break;
-      case 'wget':
-        // Allow --spider or output to stdout only
+      }
+      case 'wget': {
         if (/\s--spider\b/.test(joined)) {
           // ok
         } else {
@@ -601,21 +637,18 @@ function isPreapprovedCommand(command, cfg) {
               const n = toks[i + 1] || '';
               if (n !== '-') return false;
             }
-            if (t.startsWith('-O') && t !== '-O') {
-              // e.g., -Ofile -> not allowed
-              return false;
-            }
+            if (t.startsWith('-O') && t !== '-O') return false; // -Ofile
           }
         }
         break;
-      case 'ping':
-        {
-          const i = tokens.indexOf('-c');
-          if (i === -1) return false;
-          const count = parseInt(tokens[i + 1], 10);
-          if (!Number.isFinite(count) || count > 3 || count < 1) return false;
-        }
+      }
+      case 'ping': {
+        const idx = tokens.indexOf('-c');
+        if (idx === -1) return false;
+        const count = parseInt(tokens[idx + 1], 10);
+        if (!Number.isFinite(count) || count > 3 || count < 1) return false;
         break;
+      }
       default:
         break;
     }
@@ -665,7 +698,7 @@ async function agentLoop() {
         // Request the next assistant action
         startThinking();
         const completion = await openai.chat.completions.create({
-          model: 'gpt-5',
+          model: MODEL,
           messages: history,
           response_format: { type: 'json_object' },
         });
@@ -701,7 +734,7 @@ async function agentLoop() {
         // Auto-approve via allowlist or ask human
         let __autoApproved = isPreapprovedCommand(parsed.command, PREAPPROVED_CFG);
         if (__autoApproved) {
-          console.log(chalk.green("Auto-approved by allowlist (.preapproved_commands.json)"));
+          console.log(chalk.green("Auto-approved by allowlist (approved_commands.json)"));
         } else {
           const approve = (await askHuman(rl, '\nApprove running this command? (y/n) ')).toLowerCase();
           if (!(approve === 'y' || approve === 'yes')) {
@@ -728,12 +761,12 @@ async function agentLoop() {
         const __runStr = parsed.command.run || '';
         if (typeof __runStr === 'string' && __runStr.trim().toLowerCase().startsWith('browse ')) {
           const url = __runStr.trim().slice(7).trim();
-          result = await runBrowse(url, parsed.command.timeout_sec || 30);
+          result = await runBrowse(url, (parsed.command.timeout_sec ?? 60));
         } else {
           result = await runCommand(
             parsed.command.run,
             parsed.command.cwd || '.',
-            parsed.command.timeout_sec || 30
+            (parsed.command.timeout_sec ?? 60)
           );
         }
 
