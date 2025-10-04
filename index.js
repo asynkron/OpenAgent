@@ -556,22 +556,47 @@ function Block({ heading, color = 'white', body }) {
   const width = Math.max((columns || 80) - 2, 20);
 
   const padLine = (value = '') => {
-    const base = value;
-    if (base.length >= width) {
-      return base.slice(0, width);
+    if (width <= 2) {
+      return value.slice(0, width).padEnd(width, ' ');
     }
-    return base.padEnd(width, ' ');
+
+    const innerWidth = width - 2;
+    const base = value ?? '';
+    const truncated = base.length > innerWidth ? base.slice(0, innerWidth) : base;
+    const padded = truncated.padEnd(innerWidth, ' ');
+    return ` ${padded} `;
   };
 
-  const headingLine = padLine(heading);
-  const bodyLines = lines.length > 0 ? lines : [''];
+  const headingLines = heading ? [heading] : [];
+  const bodyLines = lines.length > 0 ? lines : [];
 
-  const children = [
-    React.createElement(Text, { key: 'heading', color: foregroundColor, backgroundColor }, headingLine),
-    ...bodyLines.map((line, index) =>
-      React.createElement(Text, { key: `line-${index}`, color: foregroundColor, backgroundColor }, padLine(line))
-    )
-  ];
+  const sections = [];
+
+  if (headingLines.length > 0) {
+    sections.push({ key: 'heading', lines: headingLines });
+  }
+
+  if (bodyLines.length > 0) {
+    sections.push({ key: 'body', lines: bodyLines });
+  }
+
+  if (sections.length === 0) {
+    sections.push({ key: 'empty', lines: [''] });
+  }
+
+  const renderSection = (section) => {
+    const content = section.lines.length > 0 ? section.lines : [''];
+    const padded = [padLine(''), ...content.map((line) => padLine(line)), padLine('')];
+    return padded.map((value, index) =>
+      React.createElement(Text, {
+        key: `${section.key}-${index}`,
+        color: foregroundColor,
+        backgroundColor,
+      }, value)
+    );
+  };
+
+  const children = sections.flatMap((section) => renderSection(section));
 
   return React.createElement(
     Box,
@@ -591,19 +616,38 @@ function SpinnerBlock({ message }) {
   const [columns] = useTerminalDimensions();
   const width = Math.max((columns || 80) - 2, 20);
 
-  const remaining = Math.max(width - message.length - 2, 0);
+  const innerWidth = Math.max(width - 2, 0);
+  const maxMessageWidth = Math.max(innerWidth - 2, 0);
+  const truncatedMessage = message.length > maxMessageWidth ? message.slice(0, maxMessageWidth) : message;
+  const remaining = Math.max(innerWidth - (truncatedMessage.length + 2), 0);
+
+  const padLine = (value = '') => {
+    if (width <= 2) {
+      return value.slice(0, width).padEnd(width, ' ');
+    }
+    const base = value ?? '';
+    const truncated = base.length > innerWidth ? base.slice(0, innerWidth) : base;
+    const padded = truncated.padEnd(innerWidth, ' ');
+    return ` ${padded} `;
+  };
+
+  const blank = padLine('');
 
   return React.createElement(
     Box,
-    { flexDirection: 'row', width: '100%', backgroundColor, paddingX: 1 },
+    { flexDirection: 'column', width: '100%', backgroundColor, paddingX: 1 },
+    React.createElement(Text, { key: 'top', color: foregroundColor, backgroundColor }, blank),
     React.createElement(
       Text,
-      { color: foregroundColor, backgroundColor },
+      { key: 'middle', color: foregroundColor, backgroundColor },
+      ' ',
       React.createElement(Spinner, { type: 'dots' }),
       ' ',
-      message.length >= width - 2 ? message.slice(0, width - 2) : message,
-      ' '.repeat(remaining)
-    )
+      truncatedMessage,
+      ' '.repeat(remaining),
+      ' '
+    ),
+    React.createElement(Text, { key: 'bottom', color: foregroundColor, backgroundColor }, blank)
   );
 }
 
@@ -639,10 +683,14 @@ function InputPanel({ label, value, onChange, onSubmit, disabled }) {
   );
 
   function pad(text = '') {
-    if (text.length >= width) {
-      return text.slice(0, width);
+    if (width <= 2) {
+      return text.slice(0, width).padEnd(width, ' ');
     }
-    return text.padEnd(width, ' ');
+    const innerWidth = width - 2;
+    const base = text ?? '';
+    const truncated = base.length > innerWidth ? base.slice(0, innerWidth) : base;
+    const padded = truncated.padEnd(innerWidth, ' ');
+    return ` ${padded} `;
   }
 }
 
