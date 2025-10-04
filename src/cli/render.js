@@ -37,22 +37,30 @@ function display(label, content, color = 'white') {
   console.log(text);
 }
 
+const COMMAND_READERS = ['sed', 'cat', 'read'];
+const COMMAND_EXTENSION_MAPPINGS = [
+  { extensions: ['md', 'markdown'], language: 'markdown' },
+  { extensions: ['diff', 'patch'], language: 'diff' },
+  { extensions: ['py'], language: 'python' },
+  { extensions: ['js', 'jsx', 'mjs', 'cjs'], language: 'javascript' },
+  { extensions: ['json'], language: 'json' },
+  { extensions: ['html', 'htm'], language: 'html' },
+  { extensions: ['sh', 'bash'], language: 'bash' },
+];
+
+const COMMAND_DETECTORS = COMMAND_EXTENSION_MAPPINGS.map(({ extensions, language }) => {
+  const joinedExtensions = extensions.join('|');
+  const pattern = new RegExp(
+    `^\s*(?:${COMMAND_READERS.join('|')})\s+.*\.(${joinedExtensions})\b`,
+    'i',
+  );
+
+  return { pattern, language };
+});
+
 const CONTENT_TYPE_DETECTORS = [
   { pattern: /(^|\n)diff --git /, language: 'diff' },
-  { pattern: /^sed\s+.*\.(md|markdown)\b/i, language: 'markdown' },
-  { pattern: /^sed\s+.*\.(diff|patch)\b/i, language: 'diff' },
-  { pattern: /^sed\s+.*\.(py)\b/i, language: 'python' },
-  { pattern: /^sed\s+.*\.(js|jsx|mjs|cjs)\b/i, language: 'javascript' },
-  { pattern: /^sed\s+.*\.(json)\b/i, language: 'json' },
-  { pattern: /^sed\s+.*\.(html|htm)\b/i, language: 'html' },
-  { pattern: /^sed\s+.*\.(sh|bash)\b/i, language: 'bash' },
-  { pattern: /^cat\s+.*\.(md|markdown)\b/i, language: 'markdown' },
-  { pattern: /^cat\s+.*\.(diff|patch)\b/i, language: 'diff' },
-  { pattern: /^cat\s+.*\.(py)\b/i, language: 'python' },
-  { pattern: /^cat\s+.*\.(js|jsx|mjs|cjs)\b/i, language: 'javascript' },
-  { pattern: /^cat\s+.*\.(json)\b/i, language: 'json' },
-  { pattern: /^cat\s+.*\.(html|htm)\b/i, language: 'html' },
-  { pattern: /^cat\s+.*\.(sh|bash)\b/i, language: 'bash' },
+  ...COMMAND_DETECTORS,
   { pattern: /python3\s*-+\s*<<\s*['"]?PY['"]?/i, language: 'python' },
   { pattern: /node\s*-+\s*<<\s*['"]?NODE['"]?/i, language: 'javascript' },
   { pattern: /^\s*(\{[\s\S]*\}|\[[\s\S]*\])\s*$/, language: 'json' },
@@ -60,6 +68,7 @@ const CONTENT_TYPE_DETECTORS = [
   { pattern: /^#!\s*.*python.*/i, language: 'python' },
   { pattern: /^#!\s*.*(?:bash|sh).*/i, language: 'bash' },
 ];
+
 
 function inferLanguageFromDetectors(content) {
   for (const detector of CONTENT_TYPE_DETECTORS) {

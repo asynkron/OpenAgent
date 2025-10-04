@@ -26,7 +26,7 @@ const {
   renderCommandResult,
 } = require('../cli/render');
 const { runCommand, runBrowse, runEdit, runRead } = require('../commands/run');
-const { applyFilter, tailLines } = require('../utils/text');
+const { applyFilter, tailLines, shellSplit } = require('../utils/text');
 const {
   isPreapprovedCommand,
   isSessionApproved,
@@ -64,6 +64,75 @@ function extractResponseText(response) {
   }
 
   return '';
+}
+
+function parseReadSpecTokens(tokens) {
+  const spec = {};
+
+  for (let i = 0; i < tokens.length; i += 1) {
+    const token = tokens[i];
+    if (!token) {
+      continue;
+    }
+
+    if (token.startsWith('--')) {
+      const eqIndex = token.indexOf('=');
+      const rawKey = eqIndex !== -1 ? token.slice(2, eqIndex) : token.slice(2);
+      let value;
+      if (eqIndex !== -1) {
+        value = token.slice(eqIndex + 1);
+      } else if (i + 1 < tokens.length && !tokens[i + 1].startsWith('--')) {
+        value = tokens[i + 1];
+        i += 1;
+      }
+
+      const key = rawKey.toLowerCase().replace(/-/g, '_');
+
+      if (key === 'encoding' && value) {
+        spec.encoding = value;
+      } else if (key === 'max_lines' && value) {
+        const parsed = parseInt(value, 10);
+        if (Number.isFinite(parsed)) {
+          spec.max_lines = parsed;
+        }
+      } else if (key === 'max_bytes' && value) {
+        const parsed = parseInt(value, 10);
+        if (Number.isFinite(parsed)) {
+          spec.max_bytes = parsed;
+        }
+      }
+
+      continue;
+    }
+
+    if (!spec.path) {
+      spec.path = token;
+    }
+  }
+
+  return spec;
+}
+
+function mergeReadSpecs(base, override) {
+  const merged = { ...base };
+
+  if (override.path && !merged.path) {
+    merged.path = override.path;
+  }
+
+  if (override.encoding && merged.encoding === undefined) {
+    merged.encoding = override.encoding;
+  }
+
+  if (typeof override.max_lines === 'number' && merged.max_lines === undefined) {
+    merged.max_lines = override.max_lines;
+  }
+
+  if (typeof override.max_bytes === 'number' && merged.max_bytes === undefined) {
+    merged.max_bytes = override.max_bytes;
+  }
+
+  return merged;
 }
 
 function createAgentLoop({
@@ -246,11 +315,38 @@ Select 1, 2, or 3: `)).trim().toLowerCase();
             }
 
             if (typeof result === 'undefined') {
-              const runStr = parsed.command.run || '';
-              if (typeof runStr === 'string' && runStr.trim().toLowerCase().startsWith('browse ')) {
-                const url = runStr.trim().slice(7).trim();
-                result = await runBrowseFn(url, parsed.command.timeout_sec ?? 60);
-              } else {
+              const runStrRaw = typeof parsed.command.run === 'string' ? parsed.command.run : '';
+              const runStr = runStrRaw.trim();
+
+              if (runStr) {
+                const tokens = shellSplit(runStr);
+                const commandKeyword = tokens[0] ? tokens[0].toLowerCase() : '';
+
+                if (commandKeyword === 'browse') {
+                  const target = tokens.slice(1).join(' ').trim();
+                  if (target) {
+                    result = await runBrowseFn(target, parsed.command.timeout_sec ?? 60);
+                  }
+                } else if (commandKeyword === 'read') {
+                  const readTokens = tokens.slice(1);
+                  const specFromTokens = parseReadSpecTokens(readTokens);
+                  const mergedSpec = mergeReadSpecs(parsed.command.read || {}, specFromTokens);
+
+                  if (mergedSpec.path) {
+                    result = await runReadFn(mergedSpec, parsed.command.cwd || '.');
+                  } else {
+                    result = {
+                      stdout: '',
+                      stderr: 'read command requires a path argument',
+                      exit_code: 1,
+                      killed: false,
+                      runtime_ms: 0,
+                    };
+                  }
+                }
+              }
+
+              if (typeof result === 'undefined') {
                 result = await runCommandFn(
                   parsed.command.run,
                   parsed.command.cwd || '.',
