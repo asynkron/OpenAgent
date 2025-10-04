@@ -1,6 +1,8 @@
 require('dotenv').config();
 const OpenAI = require('openai');
-const readlineSync = require('readline-sync');
+const readline = require('readline');
+const chalk = require('chalk');
+const boxen = require('boxen');
 const { spawn } = require('child_process');
 
 const apiKey = process.env.OPENAI_API_KEY;
@@ -118,19 +120,143 @@ function tailLines(text, lines) {
 }
 
 /**
- * Render plan as a checklist
+ * Render plan as a checklist inside a terminal box
  * @param {Array} plan - Plan array from LLM
  */
 function renderPlan(plan) {
   if (!plan || !Array.isArray(plan) || plan.length === 0) return;
-  
-  console.log('\n=== Plan ===');
-  plan.forEach((item) => {
-    const checkbox = item.status === 'completed' ? '[x]' : '[ ]';
-    const marker = item.status === 'running' ? '▶' : ' ';
-    console.log(`${marker} ${checkbox} Step ${item.step}: ${item.title}`);
+
+  const planLines = plan.map((item) => {
+    const statusSymbol =
+      item.status === 'completed' ? chalk.green('✔') : item.status === 'running' ? chalk.yellow('▶') : chalk.gray('•');
+    const title = chalk.white(item.title);
+    return `${statusSymbol} ${chalk.cyan(`Step ${item.step}`)} ${chalk.dim('-')} ${title}`;
   });
-  console.log('============\n');
+
+  console.log(
+    boxen(planLines.join('\n'), {
+      title: chalk.bold.cyan('Plan'),
+      titleAlignment: 'center',
+      borderColor: 'cyan',
+      padding: 1,
+      margin: 1,
+    })
+  );
+}
+
+/**
+ * Create readline interface with a friendlier prompt.
+ */
+function createInterface() {
+  return readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    terminal: true,
+  });
+}
+
+/**
+ * Ask the human user for input with highlighted prompt text.
+ * @param {readline.Interface} rl - readline interface
+ * @param {string} prompt - prompt label
+ * @returns {Promise<string>} input from user
+ */
+function askHuman(rl, prompt) {
+  return new Promise((resolve) => {
+    rl.question(chalk.bold.blue(prompt), (answer) => {
+      resolve(answer.trim());
+    });
+  });
+}
+
+/**
+ * Render the assistant message in a boxed format.
+ * @param {string} message - assistant message
+ */
+function renderMessage(message) {
+  if (!message) return;
+
+  console.log(
+    boxen(message, {
+      title: chalk.bold.magenta('AI Message'),
+      titleAlignment: 'center',
+      borderColor: 'magenta',
+      padding: 1,
+      margin: 1,
+    })
+  );
+}
+
+/**
+ * Render command information before execution.
+ * @param {object} command - command block from the LLM response
+ */
+function renderCommand(command) {
+  if (!command) return;
+
+  const details = [
+    `${chalk.gray('Shell')}: ${command.shell || 'bash'}`,
+    `${chalk.gray('Directory')}: ${command.cwd || '.'}`,
+    `${chalk.gray('Timeout')}: ${command.timeout_sec || 30}s`,
+    '',
+    chalk.yellow(command.run || ''),
+  ].join('\n');
+
+  console.log(
+    boxen(details, {
+      title: chalk.bold.yellow('Command'),
+      titleAlignment: 'center',
+      borderColor: 'yellow',
+      padding: 1,
+      margin: 1,
+    })
+  );
+}
+
+/**
+ * Render command execution results.
+ * @param {object} result - output from runCommand
+ * @param {string} stdout - filtered stdout
+ * @param {string} stderr - filtered stderr
+ */
+function renderCommandResult(result, stdout, stderr) {
+  const statusLines = [
+    `${chalk.gray('Exit Code')}: ${result.exit_code}`,
+    `${chalk.gray('Runtime')}: ${result.runtime_ms}ms`,
+    `${chalk.gray('Status')}: ${result.killed ? chalk.red('KILLED (timeout)') : chalk.green('COMPLETED')}`,
+  ];
+
+  console.log(
+    boxen(statusLines.join('\n'), {
+      title: chalk.bold.green('Command Result'),
+      titleAlignment: 'center',
+      borderColor: 'green',
+      padding: 1,
+      margin: 1,
+    })
+  );
+
+  if (stdout) {
+    console.log(
+      boxen(stdout, {
+        title: chalk.bold.white('STDOUT'),
+        borderColor: 'white',
+        padding: 1,
+        margin: { top: 0, bottom: 1, left: 1, right: 1 },
+      })
+    );
+  }
+
+  if (stderr) {
+    console.log(
+      boxen(stderr, {
+        title: chalk.bold.red('STDERR'),
+        borderColor: 'red',
+        padding: 1,
+        margin: { top: 0, bottom: 1, left: 1, right: 1 },
+      })
+    );
+  }
 }
 
 /**
@@ -144,106 +270,72 @@ async function agentLoop() {
     },
   ];
 
-  console.log('OpenAgent - AI Agent with JSON Protocol');
-  console.log('Type "exit" or "quit" to end the conversation.\n');
+  const rl = createInterface();
+
+  console.log(boxen(chalk.bold('OpenAgent - AI Agent with JSON Protocol'), { borderColor: 'blue', padding: 1, margin: 1 }));
+  console.log(chalk.dim('Type "exit" or "quit" to end the conversation.'));
 
   while (true) {
-    const input = readlineSync.question('You: ');
-    const userInput = input.trim();
+    const userInput = await askHuman(rl, '\nHuman ▷ ');
 
     if (!userInput) {
       continue;
     }
 
     if (userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
-      console.log('Goodbye!');
+      console.log(chalk.green('Goodbye!'));
       break;
     }
 
-    // Add user message to history
     history.push({
       role: 'user',
       content: userInput,
     });
 
     try {
-      // Call OpenAI API
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: history,
-        response_format: { type: 'json_object' },
-      });
+      let continueLoop = true;
 
-      const responseContent = completion.choices[0].message.content;
-      
-      // Add assistant response to history
-      history.push({
-        role: 'assistant',
-        content: responseContent,
-      });
+      while (continueLoop) {
+        // Request the next assistant action
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: history,
+          response_format: { type: 'json_object' },
+        });
 
-      // Parse JSON response
-      let parsed;
-      try {
-        parsed = JSON.parse(responseContent);
-      } catch (e) {
-        console.error('Error: LLM returned invalid JSON');
-        console.error('Response:', responseContent);
-        continue;
-      }
+        const responseContent = completion.choices[0].message.content;
 
-      // Display message
-      if (parsed.message) {
-        console.log(`\nAgent: ${parsed.message}\n`);
-      }
+        history.push({
+          role: 'assistant',
+          content: responseContent,
+        });
 
-      // Render plan
-      if (parsed.plan) {
+        let parsed;
+        try {
+          parsed = JSON.parse(responseContent);
+        } catch (e) {
+          console.error(chalk.red('Error: LLM returned invalid JSON'));
+          console.error('Response:', responseContent);
+          break;
+        }
+
+        renderMessage(parsed.message);
         renderPlan(parsed.plan);
-      }
 
-      // Execute command if present
-      if (parsed.command) {
-        console.log(`\n=== Proposed Command ===`);
-        console.log(`Shell: ${parsed.command.shell || 'bash'}`);
-        console.log(`Command: ${parsed.command.run}`);
-        console.log(`Working Directory: ${parsed.command.cwd || '.'}`);
-        console.log(`Timeout: ${parsed.command.timeout_sec || 30} seconds`);
-        console.log('========================\n');
-
-        const proceed = readlineSync.question('Press Enter to run, or type "skip" to skip: ');
-        
-        if (proceed.trim().toLowerCase() === 'skip') {
-          console.log('Command skipped.\n');
-          
-          // Send observation that command was skipped
-          const observation = {
-            observation_for_llm: {
-              skipped: true,
-              message: 'User chose to skip this command',
-            },
-            observation_metadata: {
-              timestamp: new Date().toISOString(),
-            },
-          };
-          
-          history.push({
-            role: 'user',
-            content: JSON.stringify(observation),
-          });
+        if (!parsed.command) {
+          continueLoop = false;
           continue;
         }
 
-        console.log('Executing command...\n');
+        renderCommand(parsed.command);
 
-        // Execute the command
+        // Execute the command without extra confirmation
         const result = await runCommand(
           parsed.command.run,
           parsed.command.cwd || '.',
           parsed.command.timeout_sec || 30
         );
 
-        // Apply filters
         let filteredStdout = result.stdout;
         let filteredStderr = result.stderr;
 
@@ -257,46 +349,26 @@ async function agentLoop() {
           filteredStderr = tailLines(filteredStderr, parsed.command.tail_lines);
         }
 
-        // Display result summary
-        console.log('=== Command Result ===');
-        console.log(`Exit Code: ${result.exit_code}`);
-        console.log(`Runtime: ${result.runtime_ms}ms`);
-        if (result.killed) {
-          console.log('Status: KILLED (timeout)');
-        }
-        console.log('======================\n');
+        const stdoutPreview = filteredStdout
+          ? filteredStdout.split('\n').slice(0, 20).join('\n') + (filteredStdout.split('\n').length > 20 ? '\n…' : '')
+          : '';
+        const stderrPreview = filteredStderr
+          ? filteredStderr.split('\n').slice(0, 20).join('\n') + (filteredStderr.split('\n').length > 20 ? '\n…' : '')
+          : '';
 
-        // Show output preview
-        if (filteredStdout) {
-          console.log('--- STDOUT (preview) ---');
-          const preview = filteredStdout.split('\n').slice(0, 10).join('\n');
-          console.log(preview);
-          if (filteredStdout.split('\n').length > 10) {
-            console.log('... (truncated for display, full output sent to LLM)');
-          }
-          console.log('------------------------\n');
-        }
+        renderCommandResult(result, stdoutPreview, stderrPreview);
 
-        if (filteredStderr) {
-          console.log('--- STDERR (preview) ---');
-          const preview = filteredStderr.split('\n').slice(0, 10).join('\n');
-          console.log(preview);
-          if (filteredStderr.split('\n').length > 10) {
-            console.log('... (truncated for display, full output sent to LLM)');
-          }
-          console.log('------------------------\n');
-        }
-
-        // Create observation for LLM
         const observation = {
           observation_for_llm: {
             stdout: filteredStdout,
             stderr: filteredStderr,
             exit_code: result.exit_code,
             truncated:
-              (parsed.command.filter_regex && (result.stdout !== filteredStdout || result.stderr !== filteredStderr)) ||
-              (parsed.command.tail_lines && (result.stdout.split('\n').length > parsed.command.tail_lines || 
-                result.stderr.split('\n').length > parsed.command.tail_lines)),
+              (parsed.command.filter_regex &&
+                (result.stdout !== filteredStdout || result.stderr !== filteredStderr)) ||
+              (parsed.command.tail_lines &&
+                (result.stdout.split('\n').length > parsed.command.tail_lines ||
+                  result.stderr.split('\n').length > parsed.command.tail_lines)),
           },
           observation_metadata: {
             runtime_ms: result.runtime_ms,
@@ -305,19 +377,20 @@ async function agentLoop() {
           },
         };
 
-        // Send observation back to LLM
         history.push({
           role: 'user',
           content: JSON.stringify(observation),
         });
       }
     } catch (error) {
-      console.error('Error calling OpenAI API:', error.message);
+      console.error(chalk.red(`Error calling OpenAI API: ${error.message}`));
       if (error.response) {
         console.error('Response:', error.response.data);
       }
     }
   }
+
+  rl.close();
 }
 
 // Start the agent
