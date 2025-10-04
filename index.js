@@ -5,11 +5,9 @@ const OpenAI = require('openai');
 const readline = require('readline');
 const chalk = require('chalk');
 
-const boxenModule = require('boxen');
-const boxen = boxenModule.default || boxenModule; // Handle ESM default export shape
-
 const { marked } = require('marked');
-const TerminalRenderer = require('marked-terminal');
+const markedTerminal = require('marked-terminal');
+const TerminalRenderer = markedTerminal.default || markedTerminal;
 
 const { spawn } = require('child_process');
 
@@ -226,18 +224,11 @@ function display(label, content, color = 'white') {
   const text = Array.isArray(content) ? content.join('\n') : String(content);
   const borderColor = typeof color === 'string' ? color : 'white';
   const chalkColorFn = chalk[borderColor] || chalk.white;
+  const header = `${label} ______________`;
 
   console.log('');
-  console.log(
-    boxen(text, {
-      borderColor,
-      borderStyle: 'round',
-      title: chalkColorFn.bold(label),
-      titleAlignment: 'left',
-      padding: { top: 0, bottom: 0, left: 1, right: 1 },
-      margin: { top: 0, bottom: 0 },
-    })
-  );
+  console.log(chalkColorFn.bold(header));
+  console.log(text);
 }
 
 const CONTENT_TYPE_DETECTORS = [
