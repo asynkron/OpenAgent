@@ -266,7 +266,11 @@ Select 1, 2, or 3: `)).trim().toLowerCase();
                 key = 'unknown';
               }
             }
-            incrementCommandCount(key).catch(() => {});
+            try {
+              await incrementCommandCount(key);
+            } catch (error) {
+              // Ignore stats failures intentionally.
+            }
 
             let filteredStdout = result.stdout;
             let filteredStderr = result.stderr;

@@ -158,7 +158,7 @@ const exported = {
   handleShortcutsCli,
 };
 
-function runAgentLoopWithCurrentDependencies() {
+async function runAgentLoopWithCurrentDependencies() {
   const loop = createAgentLoop({
     getAutoApproveFlag: () => exported.STARTUP_FORCE_AUTO_APPROVE,
     createInterfaceFn: exported.createInterface,
@@ -183,18 +183,26 @@ function runAgentLoopWithCurrentDependencies() {
   return loop();
 }
 
-exported.agentLoop = function agentLoop() {
+exported.agentLoop = async function agentLoop() {
   return runAgentLoopWithCurrentDependencies();
 };
 
 module.exports = exported;
 
 if (require.main === module) {
-  if (!maybeHandleCliExtensions(process.argv)) {
-    exported.agentLoop().catch((err) => {
+  const main = async () => {
+    if (maybeHandleCliExtensions(process.argv)) {
+      return;
+    }
+
+    try {
+      await exported.agentLoop();
+    } catch (err) {
       if (err && err.message) {
         process.exitCode = 1;
       }
-    });
-  }
+    }
+  };
+
+  main();
 }
