@@ -32,6 +32,46 @@ function tailLines(text, lines) {
   return allLines.slice(-lines).join('\n');
 }
 
+function truncateOutput(
+  text,
+  {
+    head = 200,
+    tail = 200,
+    snipMarker = '<snip....>',
+  } = {}
+) {
+  if (text === undefined || text === null) {
+    return '';
+  }
+
+  const asString = String(text);
+  if (asString === '') {
+    return '';
+  }
+
+  const lines = asString.split('\n');
+  const totalLines = lines.length;
+
+  if (totalLines <= head + tail) {
+    return asString;
+  }
+
+  const tailSlice = tail > 0 ? lines.slice(-tail) : [];
+  const headSlice = head > 0 ? lines.slice(0, head) : [];
+
+  const parts = [];
+  if (tailSlice.length) {
+    parts.push(tailSlice.join('\n'));
+  }
+  parts.push(snipMarker);
+  if (headSlice.length) {
+    parts.push(headSlice.join('\n'));
+  }
+
+  return parts.join('\n');
+}
+
+
 function shellSplit(str) {
   const re = /"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|\S+/g;
   const out = [];
@@ -45,5 +85,6 @@ function shellSplit(str) {
 module.exports = {
   applyFilter,
   tailLines,
+  truncateOutput,
   shellSplit,
 };

@@ -16,7 +16,6 @@ const chalk = require('chalk');
 const { marked } = require('marked');
 const markedTerminal = require('marked-terminal');
 const TerminalRenderer = markedTerminal.default || markedTerminal;
-const { shellSplit } = require('../utils/text');
 
 const terminalRenderer = new TerminalRenderer({
   reflowText: false,
@@ -41,8 +40,22 @@ function display(label, content, color = 'white') {
 const CONTENT_TYPE_DETECTORS = [
   { pattern: /(^|\n)diff --git /, language: 'diff' },
   { pattern: /python3\s*-+\s*<<\s*['"]?PY['"]?/i, language: 'python' },
+  { pattern: /node\s*-+\s*<<\s*['"]?NODE['"]?/i, language: 'javascript' },
+  { pattern: /^\s*(\{[\s\S]*\}|\[[\s\S]*\])\s*$/, language: 'json' },
+  { pattern: /^\s*<[^>]+>/, language: 'html' },
+  { pattern: /^#!\s*.*python.*/i, language: 'python' },
+  { pattern: /^#!\s*.*(?:bash|sh).*/i, language: 'bash' },
 ];
 
+function inferLanguageFromDetectors(content) {
+  for (const detector of CONTENT_TYPE_DETECTORS) {
+    if (detector.pattern.test(content)) {
+      return detector.language;
+    }
+  }
+
+  return null;
+}
 function wrapStructuredContent(message) {
   if (!message) {
     return '';
@@ -54,16 +67,24 @@ function wrapStructuredContent(message) {
     return trimmed;
   }
 
-  for (const detector of CONTENT_TYPE_DETECTORS) {
-    if (detector.pattern.test(trimmed)) {
-      return `\`\`\`${detector.language}\n${trimmed}\n\`\`\``;
-    }
+  const detectedLanguage = inferLanguageFromDetectors(trimmed);
+  if (detectedLanguage) {
+    return '```' + detectedLanguage + '\n' + trimmed + '\n```';
   }
 
   return trimmed;
 }
+function detectLanguage(content, fallbackLanguage = 'plaintext') {
+  if (!content) {
+    return fallbackLanguage;
+  }
 
-function wrapWithLanguageFence(text, fallbackLanguage = 'plaintext') {
+  const trimmed = content.trim();
+  const detected = inferLanguageFromDetectors(trimmed);
+
+  return detected || fallbackLanguage;
+}
+function wrapWithLanguageFence(text, language = 'plaintext') {
   if (text === undefined || text === null) {
     return '';
   }
@@ -73,10 +94,7 @@ function wrapWithLanguageFence(text, fallbackLanguage = 'plaintext') {
     return content;
   }
 
-  const { language } = highlightAuto(content) || {};
-  const detectedLanguage = language || fallbackLanguage;
-
-  return `\`\`\`${detectedLanguage}\n${content}\n\`\`\``;
+  return `\`\`\`${language}\n${content}\n\`\`\``;
 }
 
 function renderMarkdownMessage(message) {
@@ -118,6 +136,7 @@ function renderCommand(command) {
     `${chalk.cyan('Timeout')}: ${command.timeout_sec ?? 60}s`,
   ];
 
+
   if (command.run) {
     //this is correct, command should be bash/sh whatever shell we are running in
     const fencedCommand = wrapWithLanguageFence(command.run, 'bash');
@@ -129,7 +148,7 @@ function renderCommand(command) {
   display('Command', commandLines, 'yellow');
 }
 
-function renderCommandResult(result, stdout, stderr) {
+function renderCommandResult(command, result, stdout, stderr) {
   const statusLines = [
     `${chalk.cyan('Exit Code')}: ${result.exit_code}`,
     `${chalk.cyan('Runtime')}: ${result.runtime_ms}ms`,
@@ -138,8 +157,10 @@ function renderCommandResult(result, stdout, stderr) {
 
   display('Command Result', statusLines, 'green');
 
+  let language = detectLanguage(command.command);
+
   if (stdout) {
-    const fencedStdout = wrapWithLanguageFence(stdout, 'plaintext');
+    const fencedStdout = wrapWithLanguageFence(stdout, language);
     const renderedStdout = renderMarkdownMessage(fencedStdout);
     display('STDOUT', renderedStdout, 'white');
   }

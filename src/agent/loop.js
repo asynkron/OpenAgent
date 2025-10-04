@@ -184,14 +184,7 @@ function createAgentLoop({
               continue;
             }
 
-            //TODO: guesstimate the language type based on the command here.
-            //e.g. check for filenames and decide language from that
-            //`cat blablabla.md` is clearly a markdown file and we know the syntax for the stdout/err is now markdown
-            //the language for the command should always be bash/sh whatever shell we are running in.
-            //This leaves only the stdout and strerr to solve for.
-            //the hljs auto detect should be removed in favor for command guesstimating.
-
-
+            
             renderCommandFn(parsed.command);
 
             const autoApprovedAllowlist = isPreapprovedCommandFn(parsed.command, preapprovedCfg);
@@ -310,7 +303,7 @@ Select 1, 2, or 3: `)).trim().toLowerCase();
               ? filteredStderr.split('\n').slice(0, 20).join('\n') + (filteredStderr.split('\n').length > 20 ? '\n…' : '')
               : '';
 
-            renderCommandResultFn(result, stdoutPreview, stderrPreview);
+            renderCommandResultFn(parsed.command, result, stdoutPreview, stderrPreview);
 
             const observation = {
               observation_for_llm: {
@@ -338,7 +331,7 @@ Select 1, 2, or 3: `)).trim().toLowerCase();
           }
         } catch (error) {
           stopThinkingFn();
-          console.error(chalk.red(`Error calling OpenAI API: ${error.message}`));
+          console.error(error);
           if (error.response) {
             console.error('Response:', error.response.data);
           }
