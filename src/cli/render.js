@@ -16,6 +16,7 @@ const chalk = require('chalk');
 const { marked } = require('marked');
 const markedTerminal = require('marked-terminal');
 const TerminalRenderer = markedTerminal.default || markedTerminal;
+const { shellSplit } = require('../utils/text');
 
 const terminalRenderer = new TerminalRenderer({
   reflowText: false,
@@ -62,6 +63,22 @@ function wrapStructuredContent(message) {
   return trimmed;
 }
 
+function wrapWithLanguageFence(text, fallbackLanguage = 'plaintext') {
+  if (text === undefined || text === null) {
+    return '';
+  }
+
+  const content = String(text);
+  if (!content.trim() || /```/.test(content)) {
+    return content;
+  }
+
+  const { language } = highlightAuto(content) || {};
+  const detectedLanguage = language || fallbackLanguage;
+
+  return `\`\`\`${detectedLanguage}\n${content}\n\`\`\``;
+}
+
 function renderMarkdownMessage(message) {
   const prepared = wrapStructuredContent(message);
   return marked.parse(prepared, { renderer: terminalRenderer });
@@ -102,8 +119,11 @@ function renderCommand(command) {
   ];
 
   if (command.run) {
+    //this is correct
+    const fencedCommand = wrapWithLanguageFence(command.run, 'bash');
+    const renderedCommand = renderMarkdownMessage(fencedCommand);
     commandLines.push('');
-    commandLines.push(...command.run.split('\n').map((line) => chalk.yellow(line)));
+    commandLines.push(renderedCommand);
   }
 
   display('Command', commandLines, 'yellow');
@@ -119,11 +139,15 @@ function renderCommandResult(result, stdout, stderr) {
   display('Command Result', statusLines, 'green');
 
   if (stdout) {
-    display('STDOUT', stdout, 'white');
+    const fencedStdout = wrapWithLanguageFence(stdout, 'plaintext');
+    const renderedStdout = renderMarkdownMessage(fencedStdout);
+    display('STDOUT', renderedStdout, 'white');
   }
 
   if (stderr) {
-    display('STDERR', stderr, 'red');
+    const fencedStderr = wrapWithLanguageFence(stderr, 'plaintext');
+    const renderedStderr = renderMarkdownMessage(fencedStderr);
+    display('STDERR', renderedStderr, 'red');
   }
 }
 
@@ -135,4 +159,5 @@ module.exports = {
   renderMessage,
   renderCommand,
   renderCommandResult,
+  wrapWithLanguageFence,
 };

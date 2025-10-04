@@ -3,19 +3,28 @@
 const fs = require('fs');
 const fsp = fs.promises;
 const path = require('path');
+const os = require('os');
 const crypto = require('crypto');
 
-const DEFAULT_STATS_PATH = path.resolve(__dirname, '../../command-stats.json');
+function resolveDefaultStatsPath() {
+  const xdgDataHome = process.env.XDG_DATA_HOME && process.env.XDG_DATA_HOME.trim();
+  if (xdgDataHome) {
+    return path.join(xdgDataHome, 'command-tracker', 'command-stats.json');
+  }
+
+  const homeDir = process.env.HOME || os.homedir();
+  if (homeDir) {
+    return path.join(homeDir, '.local', 'share', 'openagent', 'command-stats.json');
+  }
+
+  return path.resolve(__dirname, '../../command-stats.json');
+}
+
+const DEFAULT_STATS_PATH = resolveDefaultStatsPath();
 
 async function incrementCommandCount(cmdKey, logPath = null) {
   try {
-    let targetPath;
-    if (logPath) {
-      targetPath = path.resolve(logPath);
-    } else {
-      targetPath = DEFAULT_STATS_PATH;
-    }
-
+    const targetPath = logPath ? path.resolve(logPath) : DEFAULT_STATS_PATH;
     const dir = path.dirname(targetPath);
     await fsp.mkdir(dir, { recursive: true });
 
