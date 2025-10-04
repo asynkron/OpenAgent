@@ -100,7 +100,7 @@ browse "some url"
 - allows you to search the web using http get.
 
 Rules:
-- Read and understand /brain/* files at arart up
+- Read and understand \`brain\\\` files at arart up
 - Bever create temp files in repo directory
 - Always clean up temp/bak files
 - I need to keep everything in the workspace (and respect any existing changes). When I run shell commands I must set workdir instead of chaining cd. When I reference files back to you, I wrap each path in backticks like src/app.ts:12 and avoid ranges or URLs so the path is clickable. No special file-naming rules beyond sticking with ASCII  unless the file already uses other characters. Let me know if you have something specific in mind.
@@ -111,8 +111,8 @@ Rules:
 - When a task is complete, respond with "message" and, if helpful, "plan" (no "command")
 - Mark completed steps in the plan with "status": "completed"
 - Be concise and helpful
-- Whenever working on a topic, check files in /brain/ if there are any topics that seem to match. e.g. javascript.md if you are about to work with a js file.
-- Self learning, if you try an approach to solve a task, and it fails many times, and you later find another way to solve the same, add that as a how-to in the /brain/ directory on the topic.
+- Whenever working on a topic, check files in \`brain\\\` if there are any topics that seem to match. e.g. javascript.md if you are about to work with a js file.
+- Self learning, if you try an approach to solve a task, and it fails many times, and you later find another way to solve the same, add that as a how-to in the \`brain\\\` directory on the topic.
 Special command:
 - To perform an HTTP GET without using the shell, set command.run to "browse <url>". The agent will fetch the URL and return the response body as stdout, HTTP errors in stderr with a non-zero exit_code. filter_regex and tail_lines still apply to the output.`;
 
