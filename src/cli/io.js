@@ -13,6 +13,7 @@
  */
 
 const readline = require('readline');
+const { promisify } = require('util');
 const chalk = require('chalk');
 
 function createInterface() {
@@ -23,12 +24,13 @@ function createInterface() {
   });
 }
 
-function askHuman(rl, prompt) {
-  return new Promise((resolve) => {
-    rl.question(chalk.bold.blue(prompt), (answer) => {
-      resolve(answer.trim());
+async function askHuman(rl, prompt) {
+  const answer = await new Promise((resolve) => {
+    rl.question(chalk.bold.blue(prompt), (response) => {
+      resolve(response);
     });
   });
+  return String(answer).trim();
 }
 
 module.exports = {
