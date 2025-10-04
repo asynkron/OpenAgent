@@ -317,7 +317,27 @@ async function agentLoop() {
 
         renderCommand(parsed.command);
 
-        // Execute the command without extra confirmation
+        // Confirm with human before executing
+        const approve = (await askHuman(rl, '\nApprove running this command? (y/n) ')).toLowerCase();
+        if (!(approve === 'y' || approve === 'yes')) {
+          console.log(chalk.yellow('Command execution canceled by human.'));
+          const observation = {
+            observation_for_llm: {
+              canceled_by_human: true,
+              message: 'Human declined to execute the proposed command.'
+            },
+            observation_metadata: {
+              timestamp: new Date().toISOString()
+            }
+          };
+          history.push({
+            role: 'user',
+            content: JSON.stringify(observation),
+          });
+          continue;
+        }
+
+
         const result = await runCommand(
           parsed.command.run,
           parsed.command.cwd || '.',
