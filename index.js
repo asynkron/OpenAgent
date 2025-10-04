@@ -23,7 +23,7 @@ const openai = new OpenAI({
   apiKey: apiKey,
   baseURL: process.env.OPENAI_BASE_URL || undefined,
 });
-const MODEL = process.env.OPENAI_MODEL || process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini';
+const MODEL = process.env.OPENAI_MODEL || process.env.OPENAI_CHAT_MODEL || 'gpt-5';
 
 marked.setOptions({
   renderer: new TerminalRenderer({
@@ -553,7 +553,7 @@ function isPreapprovedCommand(command, cfg) {
       try {
         const u = new URL(url);
         if (u.protocol === 'http:' || u.protocol === 'https:') return true;
-      } catch (_) {}
+      } catch (_) { }
       return false;
     }
 
@@ -576,7 +576,10 @@ function isPreapprovedCommand(command, cfg) {
 
     // For auto-approval, do not allow custom string shells (e.g., 'bash')
     const shellOpt = command && 'shell' in command ? command.shell : undefined;
-    if (typeof shellOpt === 'string') return false;
+    if (typeof shellOpt === 'string') {
+  const s = String(shellOpt).trim().toLowerCase();
+  if (!['bash','sh'].includes(s)) return false;
+}
 
     const tokens = shellSplit(runRaw);
     if (!tokens.length) return false;
@@ -660,6 +663,25 @@ function isPreapprovedCommand(command, cfg) {
 }
 
 const PREAPPROVED_CFG = loadPreapprovedConfig();
+
+// In-memory session approvals
+const __SESSION_APPROVED = new Set();
+function __commandSignature(cmd) {
+  // Canonical signature for session approval
+  return JSON.stringify({
+    shell: cmd.shell || 'bash',
+    run: typeof cmd.run === 'string' ? cmd.run : '',
+    cwd: cmd.cwd || '.',
+    // Only key fields used to identify what actually runs; ignore timeouts/filters
+  });
+}
+function isSessionApproved(cmd) {
+  try { return __SESSION_APPROVED.has(__commandSignature(cmd)); } catch { return false; }
+}
+function approveForSession(cmd) {
+  try { __SESSION_APPROVED.add(__commandSignature(cmd)); } catch {}
+}
+
 async function agentLoop() {
   //TODO: we also need to check if any of the commands match any command that is about to be exacuted, and skip human interaction.
   const history = [
@@ -732,30 +754,53 @@ async function agentLoop() {
         renderCommand(parsed.command);
 
         // Auto-approve via allowlist or ask human
-        let __autoApproved = isPreapprovedCommand(parsed.command, PREAPPROVED_CFG);
+
+        // Auto-approve via allowlist or ask human (with session approvals)
+        const __autoApprovedAllowlist = isPreapprovedCommand(parsed.command, PREAPPROVED_CFG);
+        const __autoApprovedSession = isSessionApproved(parsed.command);
+        const __autoApproved = __autoApprovedAllowlist || __autoApprovedSession;
         if (__autoApproved) {
-          console.log(chalk.green("Auto-approved by allowlist (approved_commands.json)"));
+          if (__autoApprovedAllowlist) {
+            console.log(chalk.green("Auto-approved by allowlist (approved_commands.json)"));
+          } else {
+            console.log(chalk.green("Auto-approved by session approvals"));
+          }
         } else {
-          const approve = (await askHuman(rl, '\nApprove running this command? (y/n) ')).toLowerCase();
-          if (!(approve === 'y' || approve === 'yes')) {
-            console.log(chalk.yellow('Command execution canceled by human.'));
+          // 3-option approval menu
+          let selection;
+          while (true) {
+            const input = (await askHuman(rl, `
+Approve running this command?
+  1) Yes (run once)
+  2) Yes, for entire session (add to in-memory approvals)
+  3) No, tell the AI to do something else
+Select 1, 2, or 3: `)).trim().toLowerCase();
+            if (input === '1' || input === 'y' || input === 'yes') { selection = 1; break; }
+            if (input === '2') { selection = 2; break; }
+            if (input === '3' || input === 'n' || input === 'no') { selection = 3; break; }
+            console.log(chalk.yellow('Please enter 1, 2, or 3.'));
+          }
+
+          if (selection === 3) {
+            console.log(chalk.yellow('Command execution canceled by human (requested alternative).'));
             const observation = {
               observation_for_llm: {
                 canceled_by_human: true,
-                message: 'Human declined to execute the proposed command.'
+                message: 'Human declined to execute the proposed command and asked the AI to propose an alternative approach without executing a command.'
               },
               observation_metadata: {
                 timestamp: new Date().toISOString()
               }
             };
-            history.push({
-              role: 'user',
-              content: JSON.stringify(observation),
-            });
+            history.push({ role: 'user', content: JSON.stringify(observation) });
             continue;
+          } else if (selection === 2) {
+            approveForSession(parsed.command);
+            console.log(chalk.green('Approved and added to session approvals.'));
+          } else {
+            console.log(chalk.green('Approved (run once).'));
           }
         }
-
 
         let result;
         const __runStr = parsed.command.run || '';

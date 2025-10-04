@@ -31,7 +31,7 @@ const patched = `function isPreapprovedCommand(command, cfg) {
     const forbidden = [
       /;|&&|\|\|/, // chaining
       /\|/,         // pipes
-      /`/,          // backticks
+      /\`/,          // backticks
       /\$\(/,      // command substitution
       /<\(/        // process substitution
     ];
@@ -46,7 +46,10 @@ const patched = `function isPreapprovedCommand(command, cfg) {
 
     // For auto-approval, do not allow custom string shells (e.g., 'bash')
     const shellOpt = command && 'shell' in command ? command.shell : undefined;
-    if (typeof shellOpt === 'string') return false;
+    if (typeof shellOpt === 'string') {
+      const s = String(shellOpt).trim().toLowerCase();
+      if (!['bash','sh'].includes(s)) return false;
+    }
 
     const tokens = shellSplit(runRaw);
     if (!tokens.length) return false;

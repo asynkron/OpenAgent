@@ -2,15 +2,29 @@ const fs = require('fs');
 const vm = require('vm');
 const path = require('path');
 const src = fs.readFileSync('index.js','utf8');
-function extract(fnName){
-  const re = new RegExp(`function\\s+${fnName}\\s*\\([\\s\\S]*?\\)\\s*\\{[\\s\\S]*?\\n\\}`, 'm');
-  const m = src.match(re);
-  if(!m) throw new Error('missing ' + fnName);
-  return m[0];
+function extract(fnName) {
+  const startMarker = 'function ' + fnName + '(';
+  const i = src.indexOf(startMarker);
+  if (i === -1) throw new Error('missing ' + fnName);
+  // Find the first opening brace after the function signature
+  const open = src.indexOf('{', i);
+  if (open === -1) throw new Error('missing opening brace for ' + fnName);
+  let depth = 0;
+  for (let j = open; j < src.length; j++) {
+    const ch = src[j];
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        return src.slice(i, j + 1);
+      }
+    }
+  }
+  throw new Error('unbalanced braces for ' + fnName);
 }
 const shellSplitSrc = extract('shellSplit');
 const isPreSrc = extract('isPreapprovedCommand');
-const ctx = { console, path };
+const ctx = { console, path, URL };
 vm.createContext(ctx);
 vm.runInContext(shellSplitSrc + '\n' + isPreSrc, ctx);
 const isPre = ctx.isPreapprovedCommand;
