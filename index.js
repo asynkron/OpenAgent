@@ -989,7 +989,15 @@ Select 1, 2, or 3: `)).trim().toLowerCase();
 
         }
 
-        let filteredStdout = result.stdout;
+        // SILENT: increment command usage counter (added by automation)
+try {
+  const { incrementCommandCount } = require('./cmd_tracker');
+  // derive a stable key: prefer parsed.command.key, else program name from run string
+  let _cmdKey = (parsed && parsed.command && parsed.command.key) ? parsed.command.key : (typeof parsed.command.run === 'string' ? parsed.command.run.trim().split(/\s+/)[0] : 'unknown');
+  // call silently; swallow promise rejection
+  incrementCommandCount(_cmdKey).catch(()=>{});
+} catch (e) {}
+let filteredStdout = result.stdout;
         let filteredStderr = result.stderr;
 
         const outputUtils = require('./outputUtils');
@@ -1143,3 +1151,17 @@ if (require.main === module) {
   }
 }
 // --- end Shortcuts support ---
+
+// Integration helper: run command and update command stats (used by integration tests)
+module.exports.runCommandAndTrack = async function(run, cwd='.', timeoutSec=60) {
+  const result = await module.exports.runCommand(run, cwd, timeoutSec);
+  try {
+    const { incrementCommandCount } = require('./cmd_tracker');
+    let key = 'unknown';
+    if (Array.isArray(run) && run.length > 0) key = String(run[0]);
+    else if (typeof run === 'string' && run.trim().length > 0) key = run.trim().split(/\s+/)[0];
+    // await the increment to ensure deterministic test behavior; swallow errors
+    await incrementCommandCount(key).catch(()=>{});
+  } catch (e) {}
+  return result;
+};
