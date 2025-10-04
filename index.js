@@ -39,7 +39,7 @@ function getOpenAIClient() {
   }
   return __openaiClient;
 }
-const MODEL = process.env.OPENAI_MODEL || process.env.OPENAI_CHAT_MODEL || 'gpt-5-mini';
+const MODEL = process.env.OPENAI_MODEL || process.env.OPENAI_CHAT_MODEL || 'gpt-5-codex';
 
 marked.setOptions({
   renderer: new TerminalRenderer({
