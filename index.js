@@ -172,6 +172,11 @@ const agentsGuidance = buildAgentsPrompt(process.cwd());
 
 const BASE_SYSTEM_PROMPT = `You are an AI agent that helps users by executing commands and completing tasks.
 
+MUST DO: 
+1. read and understand /brain/* files at arart up
+2. never create temp files in repo directory
+3. always clean up temp files.
+
 You must respond ONLY with valid JSON in this format:
 {
   "message": "Optional message to display to the user",
@@ -904,18 +909,18 @@ Select 1, 2, or 3: `)).trim().toLowerCase();
         }
         if (typeof result === 'undefined') {
           const __runStr = parsed.command.run || '';
-        if (typeof __runStr === 'string' && __runStr.trim().toLowerCase().startsWith('browse ')) {
-          const url = __runStr.trim().slice(7).trim();
-          result = await runBrowse(url, (parsed.command.timeout_sec ?? 60));
-        } else {
-          result = await runCommand(
-            parsed.command.run,
-            parsed.command.cwd || '.',
-            (parsed.command.timeout_sec ?? 60)
-          );
-        }
+          if (typeof __runStr === 'string' && __runStr.trim().toLowerCase().startsWith('browse ')) {
+            const url = __runStr.trim().slice(7).trim();
+            result = await runBrowse(url, (parsed.command.timeout_sec ?? 60));
+          } else {
+            result = await runCommand(
+              parsed.command.run,
+              parsed.command.cwd || '.',
+              (parsed.command.timeout_sec ?? 60)
+            );
+          }
 
-                }
+        }
 
         let filteredStdout = result.stdout;
         let filteredStderr = result.stderr;
