@@ -15,7 +15,7 @@ function validateRange(text, start, end) {
 
 function applyEdit(text, edit) {
   if (!edit || typeof edit !== 'object') throw new Error('edit must be an object');
-  const {start, end, newText = ''} = edit;
+  const { start, end, newText = '' } = edit;
   validateRange(text, start, end);
   return text.slice(0, start) + newText + text.slice(end);
 }
