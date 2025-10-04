@@ -1,10 +1,15 @@
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 const OpenAI = require('openai');
 const readline = require('readline');
 const chalk = require('chalk');
 
 const boxenModule = require('boxen');
 const boxen = boxenModule.default || boxenModule; // Handle ESM default export shape
+
+const { marked } = require('marked');
+const TerminalRenderer = require('marked-terminal');
 
 const { spawn } = require('child_process');
 
@@ -20,8 +25,88 @@ const openai = new OpenAI({
   apiKey: apiKey,
 });
 
-// System prompt to enforce JSON protocol
-const SYSTEM_PROMPT = `You are an AI agent that helps users by executing commands and completing tasks.
+marked.setOptions({
+  renderer: new TerminalRenderer({
+    reflowText: false, // Preserve line breaks so code blocks stay readable
+    tab: 2,
+  }),
+});
+
+/**
+ * Recursively discover AGENTS.md files (excluding heavy vendor folders).
+ * @param {string} rootDir - starting directory for the search
+ * @returns {string[]} list of absolute file paths
+ */
+function findAgentFiles(rootDir) {
+  const discovered = [];
+
+  /** @param {string} current */
+  function walk(current) {
+    let entries = [];
+    try {
+      entries = fs.readdirSync(current, { withFileTypes: true });
+    } catch (err) {
+      return; // Ignore unreadable directories
+    }
+
+    for (const entry of entries) {
+      if (entry.name === 'node_modules' || entry.name === '.git') {
+        continue;
+      }
+
+      const fullPath = path.join(current, entry.name);
+
+      if (entry.isDirectory()) {
+        walk(fullPath);
+        continue;
+      }
+
+      if (entry.isFile() && entry.name.toLowerCase() === 'agents.md') {
+        discovered.push(fullPath);
+      }
+    }
+  }
+
+  walk(rootDir);
+  return discovered;
+}
+
+/**
+ * Build an additional prompt section that mirrors local AGENTS.md guidance.
+ * @param {string} rootDir - workspace root
+ * @returns {string} formatted rules text
+ */
+function buildAgentsPrompt(rootDir) {
+  const agentFiles = findAgentFiles(rootDir);
+  if (agentFiles.length === 0) {
+    return '';
+  }
+
+  const sections = agentFiles
+    .map((filePath) => {
+      try {
+        const content = fs.readFileSync(filePath, 'utf8').trim();
+        if (!content) {
+          return '';
+        }
+
+        return `File: ${path.relative(rootDir, filePath)}\n${content}`;
+      } catch (err) {
+        return '';
+      }
+    })
+    .filter(Boolean);
+
+  if (sections.length === 0) {
+    return '';
+  }
+
+  return sections.join('\n\n---\n\n');
+}
+
+const agentsGuidance = buildAgentsPrompt(process.cwd());
+
+const BASE_SYSTEM_PROMPT = `You are an AI agent that helps users by executing commands and completing tasks.
 
 You must respond ONLY with valid JSON in this format:
 {
@@ -47,6 +132,11 @@ Rules:
 - When a task is complete, respond with "message" and, if helpful, "plan" (no "command")
 - Mark completed steps in the plan with "status": "completed"
 - Be concise and helpful`;
+
+const SYSTEM_PROMPT =
+  agentsGuidance.trim().length > 0
+    ? `${BASE_SYSTEM_PROMPT}\n\nThe following local operating rules are mandatory. They are sourced from AGENTS.md files present in the workspace:\n\n${agentsGuidance}`
+    : BASE_SYSTEM_PROMPT;
 
 /**
  * Execute a command with timeout and capture output
@@ -123,26 +213,72 @@ function tailLines(text, lines) {
 }
 
 /**
- * Render a titled section with a colored left border.
- * The helper keeps output compact while still highlighting the speaker.
- *
- * @param {string} title - Section title label
- * @param {Function} colorFn - Chalk color function for the border/title
- * @param {Array<string>} lines - Individual content lines
+ * Unified renderer for box-styled sections so every speaker uses the same layout.
+ * @param {string} label - Title to display in the infobox header
+ * @param {string | string[]} content - Message content or line array
+ * @param {string} color - Chalk color keyword used for border/title accents
  */
-function renderSection(title, colorFn, lines) {
-  if (!lines || lines.length === 0) return;
+function display(label, content, color = 'white') {
+  if (!content || (Array.isArray(content) && content.length === 0)) {
+    return;
+  }
 
-  const border = colorFn('│');
+  const text = Array.isArray(content) ? content.join('\n') : String(content);
+  const borderColor = typeof color === 'string' ? color : 'white';
+  const chalkColorFn = chalk[borderColor] || chalk.white;
+
   console.log('');
-  console.log(colorFn.bold(title));
-  lines.forEach((line) => {
-    if (!line) {
-      console.log(border);
-    } else {
-      console.log(`${border} ${line}`);
+  console.log(
+    boxen(text, {
+      borderColor,
+      borderStyle: 'round',
+      title: chalkColorFn.bold(label),
+      titleAlignment: 'left',
+      padding: { top: 0, bottom: 0, left: 1, right: 1 },
+      margin: { top: 0, bottom: 0 },
+    })
+  );
+}
+
+const CONTENT_TYPE_DETECTORS = [
+  { pattern: /(^|\n)diff --git /, language: 'diff' },
+  { pattern: /python3\s*-+\s*<<\s*['"]?PY['"]?/i, language: 'python' },
+];
+
+/**
+ * Wrap detected structured content in fenced code blocks so the Markdown renderer
+ * can highlight it correctly.
+ * @param {string} message - raw assistant text
+ * @returns {string} message prepared for markdown rendering
+ */
+function wrapStructuredContent(message) {
+  if (!message) {
+    return '';
+  }
+
+  const trimmed = message.trim();
+
+  if (/```/.test(trimmed)) {
+    return trimmed;
+  }
+
+  for (const detector of CONTENT_TYPE_DETECTORS) {
+    if (detector.pattern.test(trimmed)) {
+      return `\`\`\`${detector.language}\n${trimmed}\n\`\`\``;
     }
-  });
+  }
+
+  return trimmed;
+}
+
+/**
+ * Render rich markdown content (with syntax hints) in the terminal.
+ * @param {string} message - assistant message
+ * @returns {string} ANSI-ready string
+ */
+function renderMarkdownMessage(message) {
+  const prepared = wrapStructuredContent(message);
+  return marked.parse(prepared);
 }
 
 /**
@@ -160,7 +296,7 @@ function renderPlan(plan) {
     return `${statusSymbol} ${stepLabel} ${chalk.dim('-')} ${title}`;
   });
 
-  renderSection('Plan', chalk.cyan, planLines);
+  display('Plan', planLines, 'cyan');
 }
 
 /**
@@ -195,8 +331,8 @@ function askHuman(rl, prompt) {
 function renderMessage(message) {
   if (!message) return;
 
-  const lines = message.split('\n');
-  renderSection('AI', chalk.magenta, lines);
+  const rendered = renderMarkdownMessage(message);
+  display('AI', rendered, 'magenta');
 }
 
 /**
@@ -214,12 +350,10 @@ function renderCommand(command) {
 
   if (command.run) {
     commandLines.push('');
-    commandLines.push(
-      ...command.run.split('\n').map((line) => chalk.yellow(line))
-    );
+    commandLines.push(...command.run.split('\n').map((line) => chalk.yellow(line)));
   }
 
-  renderSection('Command', chalk.yellow, commandLines);
+  display('Command', commandLines, 'yellow');
 }
 
 /**
@@ -235,14 +369,14 @@ function renderCommandResult(result, stdout, stderr) {
     `${chalk.gray('Status')}: ${result.killed ? chalk.red('KILLED (timeout)') : chalk.green('COMPLETED')}`,
   ];
 
-  renderSection('Command Result', chalk.green, statusLines);
+  display('Command Result', statusLines, 'green');
 
   if (stdout) {
-    renderSection('STDOUT', chalk.white, stdout.split('\n'));
+    display('STDOUT', stdout, 'white');
   }
 
   if (stderr) {
-    renderSection('STDERR', chalk.red, stderr.split('\n'));
+    display('STDERR', stderr, 'red');
   }
 }
 
