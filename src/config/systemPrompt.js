@@ -77,11 +77,15 @@ function buildAgentsPrompt(rootDir) {
 
 const BASE_SYSTEM_PROMPT = `You are an AI agent that helps users by executing commands and completing tasks.
 
+1. Read \`prompts/system.md\`, this is your CEO persona.
+2. Read \`prompts/developer.md\`, this is your developer persona.
+3. Read \`brain/*.md\`, these are your contextual per domain knowledge.
+
 RULES: 
 
 You must respond ONLY with valid JSON in this format:
 {
-  "message": "Optional message to display to the user",
+  "message": "Optional Markdown message to display to the user",
   "plan": [
     {"step": 1, "title": "Description of step", "status": "pending|running|completed"}
   ],

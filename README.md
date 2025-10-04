@@ -1,68 +1,72 @@
 # OpenAgent
-Simple Node.JS based AI agent
 
-## Description
-An AI agent built in Node.js that uses a JSON protocol to interact with OpenAI's GPT models. The agent can execute commands safely with timeouts, display progress plans, and requires user confirmation before running commands.
+OpenAgent is a Node.js-based CLI agent that communicates with an LLM using a structured JSON protocol. It safely executes shell commands with human-in-the-loop approval, live progress tracking, and output controls.
+
+## Table of Contents
+- [Features](#features)
+- [Getting Started](#getting-started)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [JSON Protocol](#json-protocol)
+- [Templates & Shortcuts](#templates--shortcuts)
+- [Safety](#safety)
+- [License](#license)
 
 ## Features
+- **Structured JSON Protocol** for deterministic LLM↔agent communication
+- **Command Execution with Timeouts** and interactive approval
+- **Plan Visualization** showing task progress as a checklist
+- **Output Filtering** via regex and tail limits
+- **Conversation History** persisted across steps for context retention
 
-- **JSON Protocol**: Structured communication between LLM and agent
-- **Command Execution**: Safely execute shell commands with timeouts
-- **Plan Visualization**: Display task progress as an interactive checklist
-- **User Confirmation**: Human-in-the-loop - commands require Enter key to execute
-- **Output Filtering**: Apply regex filters and tail limits to command output
-- **Conversation History**: Maintains context across multiple exchanges
-
-## Installation
-
-1. Clone the repository
+## Getting Started
+1. Clone the repository:
+   ```bash
+   git clone <your-fork-url>
+   cd openagent
+   ```
 2. Install dependencies:
-```bash
-npm install
-```
+   ```bash
+   npm install
+   ```
+3. Copy the environment template and add your OpenAI API key:
+   ```bash
+   cp .env.example .env
+   ```
 
-3. Create a `.env` file with your OpenAI API key:
-```bash
-cp .env.example .env
+## Configuration
+Edit `.env` to include the required secrets:
 ```
-
-4. Edit `.env` and add your OpenAI API key:
+OPENAI_API_KEY=sk-...
 ```
-OPENAI_API_KEY=your_actual_api_key_here
-```
+Adjust other environment variables as needed (e.g., model selection, timeouts).
 
 ## Usage
-
-Start the application:
+Start the CLI agent:
 ```bash
 npm start
 ```
 
-Type your task and press Enter. The AI will:
-1. Display a message explaining its approach
-2. Show a plan with progress checkboxes
-3. Propose commands for you to review
-4. Wait for you to press Enter before executing
-5. Display command results and continue the loop
+Interaction loop:
+1. Type a task and press **Enter**
+2. Review the agent’s explanation and plan
+3. Inspect proposed commands (they won’t run without approval)
+4. Press **Enter** to execute, or type `skip`
+5. View results; repeat until the task completes
 
-To skip a proposed command, type `skip` instead of pressing Enter.
-
-To exit the application, type `exit` or `quit`.
+To exit, type `exit` or `quit` at any prompt.
 
 ## JSON Protocol
-
-The agent uses a structured JSON protocol:
-
-**LLM → Agent:**
+**LLM → Agent** messages look like:
 ```json
 {
-  "message": "Explanation of what I'm doing",
+  "message": "status update",
   "plan": [
-    {"step": 1, "title": "Task description", "status": "pending|running|completed"}
+    {"step": 1, "title": "Describe goal", "status": "running"}
   ],
   "command": {
     "shell": "bash",
-    "run": "command to execute",
+    "run": "ls -a",
     "cwd": ".",
     "timeout_sec": 60,
     "filter_regex": "error|warning",
@@ -71,94 +75,38 @@ The agent uses a structured JSON protocol:
 }
 ```
 
-**Agent → LLM:**
+**Agent → LLM** observations:
 ```json
 {
   "observation_for_llm": {
-    "stdout": "command output",
-    "stderr": "error output",
+    "stdout": "output",
+    "stderr": "",
     "exit_code": 0,
     "truncated": false
   },
   "observation_metadata": {
-    "runtime_ms": 1500,
+    "runtime_ms": 120,
     "killed": false,
-    "timestamp": "2025-01-01T12:00:00Z"
+    "timestamp": "2025-02-01T12:00:00Z"
   }
 }
 ```
 
-## Example Session
+## Templates & Shortcuts
+- **Command templates** in `templates/command-templates.json`:
+  - List: `node index.js templates list`
+  - Show: `node index.js templates show <id>`
+  - Render: `node index.js templates render <id> '{"var":"value"}'`
+- **Shortcuts** in `shortcuts/shortcuts.json`:
+  - List: `node index.js shortcuts list`
+  - Show: `node index.js shortcuts show <id>`
+  - Run (prints command): `node index.js shortcuts run <id>`
 
-```
-OpenAgent - AI Agent with JSON Protocol
-Type "exit" or "quit" to end the conversation.
-
-You: Check if Node.js is installed and show the version
-
-Agent: I'll check your Node.js installation and version.
-
-=== Plan ===
- [ ] Step 1: Check Node.js version
- [ ] Step 2: Display result
-============
-
-=== Proposed Command ===
-Shell: bash
-Command: node --version
-Working Directory: .
-Timeout: 30 seconds
-========================
-
-Press Enter to run, or type "skip" to skip: 
-
-Executing command...
-
-=== Command Result ===
-Exit Code: 0
-Runtime: 45ms
-======================
-
---- STDOUT (preview) ---
-v18.17.0
-------------------------
-
-Agent: Node.js is installed! You have version 18.17.0.
-
-=== Plan ===
- [x] Step 1: Check Node.js version
- [x] Step 2: Display result
-============
-```
-
-## Safety Features
-
-- **Timeouts**: All commands have configurable timeouts (default 30s)
-- **User Confirmation**: No command runs without user approval
-- **Output Limits**: Configurable line limits and regex filtering
-- **Error Handling**: Graceful handling of command failures
+## Safety
+- Every command has a configurable timeout
+- Execution always requires explicit user confirmation
+- Outputs can be limited or filtered to avoid flooding
+- Errors are captured and surfaced cleanly
 
 ## License
-MIT
-
-## Command Templates
-
-The agent supports reusable command templates stored in templates/command-templates.json. Use the built-in CLI helper to list and render templates:
-
-- List: node index.js templates list
-- Show: node index.js templates show <id>
-- Render: node index.js templates render <id> '{"var":"value"}'
-
-Templates are simple JSON objects with placeholders like {{name}} which will be replaced by provided variables.
-
-
-## Shortcuts
-
-Quick shortcuts for frequently used commands are stored in shortcuts/shortcuts.json. Use the CLI helper:
-
-- List: node index.js shortcuts list
-- Show: node index.js shortcuts show <id>
-- Run (prints command): node index.js shortcuts run <id>
-
-Shortcuts print the command to run; execution should go through the agent flow to ensure approvals and validation.
-
+This project is released under the [MIT License](LICENSE).
