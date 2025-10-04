@@ -1,6 +1,21 @@
 jest.setTimeout(20000);
 
+const mockAnswersQueue = [];
+const mockInterface = {
+  question: jest.fn((prompt, cb) => {
+    const next = mockAnswersQueue.shift() || '';
+    process.nextTick(() => cb(next));
+  }),
+  close: jest.fn()
+};
+
 jest.resetModules();
+jest.mock('readline', () => ({
+  createInterface: jest.fn(() => mockInterface),
+  clearLine: jest.fn(),
+  cursorTo: jest.fn()
+}));
+
 jest.mock('openai', () => {
   let mockCallCount = 0;
   return function OpenAIMock() {
@@ -46,26 +61,29 @@ jest.mock('openai', () => {
 
 const agent = require('../../index.js');
 
-test('agent loop (in-process) with mocked OpenAI and mocked readline flows once and exits (module mock)', async () => {
+test('agent loop executes one mocked command then exits on user request', async () => {
+  process.env.OPENAI_API_KEY = 'test-key';
   agent.STARTUP_FORCE_AUTO_APPROVE = true;
 
-  const answers = ['Run the test command', 'exit'];
-  agent.createInterface = () => ({
-    question: (prompt, cb) => {
-      const ans = answers.shift() || '';
-      setImmediate(() => cb(ans));
-    },
-    close: () => {}
-  });
+  mockAnswersQueue.length = 0;
+  mockAnswersQueue.push('Run the test command', 'exit');
+  mockInterface.question.mockClear();
+  mockInterface.close.mockClear();
 
   agent.startThinking = () => {};
   agent.stopThinking = () => {};
 
-  agent.runCommand = async (cmd, cwd, timeoutSec) => {
-    return { stdout: 'MOCKED_OK\n', stderr: '', exit_code: 0, killed: false, runtime_ms: 5 };
-  };
+  const runCommandMock = jest.fn().mockResolvedValue({
+    stdout: 'MOCKED_OK\n',
+    stderr: '',
+    exit_code: 0,
+    killed: false,
+    runtime_ms: 5
+  });
+  agent.runCommand = runCommandMock;
 
   await agent.agentLoop();
 
-  expect(true).toBe(true);
+  expect(runCommandMock).toHaveBeenCalledTimes(1);
+  expect(mockInterface.close).toHaveBeenCalled();
 });
