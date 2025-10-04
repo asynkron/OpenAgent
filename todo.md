@@ -3,7 +3,7 @@
 - Commands
   - [x] Enhance text editing capabilities within the command workflow
   - [x] Provide reusable command templates/snippets
-  - Offer quick shortcuts for frequently used commands
+  - [x] Offer quick shortcuts for frequently used commands
 
 - Testing & Quality
   - Add integration tests covering the agent loop and approval flow

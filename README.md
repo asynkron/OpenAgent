@@ -151,3 +151,14 @@ The agent supports reusable command templates stored in templates/command-templa
 
 Templates are simple JSON objects with placeholders like {{name}} which will be replaced by provided variables.
 
+
+## Shortcuts
+
+Quick shortcuts for frequently used commands are stored in shortcuts/shortcuts.json. Use the CLI helper:
+
+- List: node index.js shortcuts list
+- Show: node index.js shortcuts show <id>
+- Run (prints command): node index.js shortcuts run <id>
+
+Shortcuts print the command to run; execution should go through the agent flow to ensure approvals and validation.
+

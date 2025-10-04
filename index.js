@@ -1090,3 +1090,56 @@ module.exports = {
   agentLoop,
   PREAPPROVED_CFG,
 };
+
+// --- Shortcuts support inserted ---
+const SHORTCUTS_PATH = path.join(process.cwd(), 'shortcuts', 'shortcuts.json');
+function loadShortcutsFile() {
+  try {
+    const raw = fs.readFileSync(SHORTCUTS_PATH, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed;
+  } catch (err) {
+    return [];
+  }
+}
+
+function findShortcut(id) {
+  const list = loadShortcutsFile();
+  return list.find(s => s.id === id);
+}
+
+// CLI helper: node index.js shortcuts [list|show <id>|run <id>]
+if (require.main === module) {
+  try {
+    const argv = process.argv || [];
+    if ((argv[2] || '') === 'shortcuts') {
+      const sub = argv[3] || 'list';
+      const shortcuts = loadShortcutsFile();
+      if (sub === 'list') {
+        shortcuts.forEach(s => console.log(`${s.id} - ${s.name}: ${s.description || ''}`));
+        process.exit(0);
+      }
+      if (sub === 'show') {
+        const id = argv[4];
+        const s = shortcuts.find(x => x.id === id);
+        if (!s) { console.error('Shortcut not found:', id); process.exit(2); }
+        console.log(JSON.stringify(s, null, 2));
+        process.exit(0);
+      }
+      if (sub === 'run') {
+        const id = argv[4];
+        const s = shortcuts.find(x => x.id === id);
+        if (!s) { console.error('Shortcut not found:', id); process.exit(2); }
+        // For safety, just render and print the command. The agent's approval/validation should handle execution.
+        console.log(s.command);
+        process.exit(0);
+      }
+      console.log('Usage: node index.js shortcuts [list|show <id>|run <id>]');
+      process.exit(0);
+    }
+  } catch (err) {
+    // noop; fall through to normal agent behavior
+  }
+}
+// --- end Shortcuts support ---
