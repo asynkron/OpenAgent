@@ -30,6 +30,38 @@ marked.setOptions({
   }),
 });
 
+// Simple CLI animation to indicate the AI is thinking during API calls
+let __thinkingInterval = null;
+function startThinking() {
+  if (__thinkingInterval) return; // already running
+  const frames = ['Thinking.', 'Thinking..', 'Thinking...'];
+  let i = 0;
+  process.stdout.write('\n');
+  __thinkingInterval = setInterval(() => {
+    try {
+      readline.clearLine(process.stdout, 0);
+      readline.cursorTo(process.stdout, 0);
+      process.stdout.write(require('chalk').dim(frames[i]));
+      i = (i + 1) % frames.length;
+    } catch (_) {
+      // ignore if stdout is not a TTY
+    }
+  }, 400);
+}
+
+function stopThinking() {
+  if (__thinkingInterval) {
+    clearInterval(__thinkingInterval);
+    __thinkingInterval = null;
+    try {
+      readline.clearLine(process.stdout, 0);
+      readline.cursorTo(process.stdout, 0);
+    } catch (_) {
+      // ignore
+    }
+  }
+}
+
 /**
  * Recursively discover AGENTS.md files (excluding heavy vendor folders).
  * @param {string} rootDir - starting directory for the search
@@ -134,7 +166,8 @@ Rules:
 - When a task is complete, respond with "message" and, if helpful, "plan" (no "command")
 - Mark completed steps in the plan with "status": "completed"
 - Be concise and helpful
-
+- Whenever working on a topic, check files in /brain/ if there are any topics that seem to match. e.g. javascript.md if you are about to work with a js file.
+- Self learning, if you try an approach to solve a task, and it fails many times, and you later find another way to solve the same, add that as a how-to in the /brain/ directory on the topic.
 Special command:
 - To perform an HTTP GET without using the shell, set command.run to "browse <url>". The agent will fetch the URL and return the response body as stdout, HTTP errors in stderr with a non-zero exit_code. filter_regex and tail_lines still apply to the output.`;
 
@@ -625,11 +658,13 @@ async function agentLoop() {
 
       while (continueLoop) {
         // Request the next assistant action
+        startThinking();
         const completion = await openai.chat.completions.create({
           model: 'gpt-5',
           messages: history,
           response_format: { type: 'json_object' },
         });
+        stopThinking();
 
         const responseContent = completion.choices[0].message.content;
 
@@ -744,6 +779,7 @@ async function agentLoop() {
         });
       }
     } catch (error) {
+      stopThinking();
       console.error(chalk.red(`Error calling OpenAI API: ${error.message}`));
       if (error.response) {
         console.error('Response:', error.response.data);
