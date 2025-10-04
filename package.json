@@ -12,6 +12,7 @@
   "license": "MIT",
   "dependencies": {
     "dotenv": "^17.2.3",
-    "openai": "^6.1.0"
+    "openai": "^6.1.0",
+    "readline-sync": "^1.4.10"
   }
 }
