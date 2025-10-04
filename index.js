@@ -11,6 +11,19 @@ const TerminalRenderer = markedTerminal.default || markedTerminal;
 
 const { spawn } = require('child_process');
 
+const STARTUP_FORCE_AUTO_APPROVE = process.argv
+  .slice(2)
+  .some((arg) => {
+    if (!arg) return false;
+    const normalized = String(arg).trim().toLowerCase();
+    return (
+      normalized === 'auto' ||
+      normalized === '--auto' ||
+      normalized === '--auto-approve' ||
+      normalized === '--auto-approval'
+    );
+  });
+
 const apiKey = process.env.OPENAI_API_KEY;
 
 if (!apiKey) {
@@ -23,7 +36,7 @@ const openai = new OpenAI({
   apiKey: apiKey,
   baseURL: process.env.OPENAI_BASE_URL || undefined,
 });
-const MODEL = process.env.OPENAI_MODEL || process.env.OPENAI_CHAT_MODEL || 'gpt-5';
+const MODEL = process.env.OPENAI_MODEL || process.env.OPENAI_CHAT_MODEL || 'gpt-5-codex';
 
 marked.setOptions({
   renderer: new TerminalRenderer({
@@ -577,9 +590,9 @@ function isPreapprovedCommand(command, cfg) {
     // For auto-approval, do not allow custom string shells (e.g., 'bash')
     const shellOpt = command && 'shell' in command ? command.shell : undefined;
     if (typeof shellOpt === 'string') {
-  const s = String(shellOpt).trim().toLowerCase();
-  if (!['bash','sh'].includes(s)) return false;
-}
+      const s = String(shellOpt).trim().toLowerCase();
+      if (!['bash', 'sh'].includes(s)) return false;
+    }
 
     const tokens = shellSplit(runRaw);
     if (!tokens.length) return false;
@@ -679,7 +692,38 @@ function isSessionApproved(cmd) {
   try { return __SESSION_APPROVED.has(__commandSignature(cmd)); } catch { return false; }
 }
 function approveForSession(cmd) {
-  try { __SESSION_APPROVED.add(__commandSignature(cmd)); } catch {}
+  try { __SESSION_APPROVED.add(__commandSignature(cmd)); } catch { }
+}
+
+function extractResponseText(response) {
+  if (!response || typeof response !== 'object') {
+    return '';
+  }
+
+  if (typeof response.output_text === 'string') {
+    const normalized = response.output_text.trim();
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  const outputs = Array.isArray(response.output) ? response.output : [];
+  for (const item of outputs) {
+    if (!item || item.type !== 'message' || !Array.isArray(item.content)) {
+      continue;
+    }
+
+    for (const part of item.content) {
+      if (part && part.type === 'output_text' && typeof part.text === 'string') {
+        const normalized = part.text.trim();
+        if (normalized) {
+          return normalized;
+        }
+      }
+    }
+  }
+
+  return '';
 }
 
 async function agentLoop() {
@@ -695,6 +739,13 @@ async function agentLoop() {
 
   console.log(chalk.bold.blue('\nOpenAgent - AI Agent with JSON Protocol'));
   console.log(chalk.dim('Type "exit" or "quit" to end the conversation.'));
+  if (STARTUP_FORCE_AUTO_APPROVE) {
+    console.log(
+      chalk.yellow(
+        'Full auto-approval mode enabled via CLI flag. All commands will run without prompting.'
+      )
+    );
+  }
 
   while (true) {
     const userInput = await askHuman(rl, '\nHuman ▷ ');
@@ -719,14 +770,23 @@ async function agentLoop() {
       while (continueLoop) {
         // Request the next assistant action
         startThinking();
-        const completion = await openai.chat.completions.create({
+        console.log("Sending request to AI");
+        const completion = await openai.responses.create({
           model: MODEL,
-          messages: history,
-          response_format: { type: 'json_object' },
+          input: history,
+          text: {
+            format: { type: 'json_object' },
+          }
         });
         stopThinking();
+        console.log("Received response from AI");
 
-        const responseContent = completion.choices[0].message.content;
+        const responseContent = extractResponseText(completion);
+
+        if (!responseContent) {
+          console.error(chalk.red('Error: OpenAI response did not include text output.'));
+          break;
+        }
 
         history.push({
           role: 'assistant',
@@ -758,12 +818,16 @@ async function agentLoop() {
         // Auto-approve via allowlist or ask human (with session approvals)
         const __autoApprovedAllowlist = isPreapprovedCommand(parsed.command, PREAPPROVED_CFG);
         const __autoApprovedSession = isSessionApproved(parsed.command);
-        const __autoApproved = __autoApprovedAllowlist || __autoApprovedSession;
+        const __autoApprovedCli = STARTUP_FORCE_AUTO_APPROVE;
+        const __autoApproved =
+          __autoApprovedAllowlist || __autoApprovedSession || __autoApprovedCli;
         if (__autoApproved) {
           if (__autoApprovedAllowlist) {
             console.log(chalk.green("Auto-approved by allowlist (approved_commands.json)"));
-          } else {
+          } else if (__autoApprovedSession) {
             console.log(chalk.green("Auto-approved by session approvals"));
+          } else {
+            console.log(chalk.green("Auto-approved by CLI flag (--auto-approve)"));
           }
         } else {
           // 3-option approval menu
