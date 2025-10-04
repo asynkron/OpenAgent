@@ -385,11 +385,15 @@ function wrapStructuredContent(message) {
     return trimmed;
   }
 
+  //TODO: add generic detector that can pick up if most of the string are mostly markup, or of any specific programming language.
+
+
   for (const detector of CONTENT_TYPE_DETECTORS) {
     if (detector.pattern.test(trimmed)) {
       return `\`\`\`${detector.language}\n${trimmed}\n\`\`\``;
     }
   }
+
 
   return trimmed;
 }
@@ -508,7 +512,7 @@ function renderCommandResult(result, stdout, stderr) {
  */
 // Load and evaluate pre-approved command allowlist
 function loadPreapprovedConfig() {
-  const cfgPath = path.join(process.cwd(), '.preapproved_commands.json');
+  const cfgPath = path.join(process.cwd(), 'approved_commands.json');
   try {
     if (fs.existsSync(cfgPath)) {
       const raw = fs.readFileSync(cfgPath, 'utf8');
@@ -624,6 +628,7 @@ function isPreapprovedCommand(command, cfg) {
 
 const PREAPPROVED_CFG = loadPreapprovedConfig();
 async function agentLoop() {
+  //TODO: we also need to check if any of the commands match any command that is about to be exacuted, and skip human interaction.
   const history = [
     {
       role: 'system',
