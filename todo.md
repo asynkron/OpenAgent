@@ -1,26 +1,10 @@
 # TODO Roadmap
 
-- Commands
-  - [x] Enhance text editing capabilities within the command workflow
-  - [x] Provide reusable command templates/snippets
-  - [x] Offer quick shortcuts for frequently used commands
-
-- Testing & Quality
-  - [x] Add integration tests covering the agent loop and approval flow
-  - Expand mocks for OpenAI error handling scenarios
-  - Introduce coverage thresholds and reporting
-
-- User Experience
-  - Display richer status indicators during command execution
-  - Offer configurable verbosity levels (quiet/verbose modes)
-  - Persist session history for easier review
-
-- Documentation
-  - Detail configuration of approved_commands.json and auto-approval rules
-  - Add troubleshooting guide for common setup issues
-  - Include examples for custom workflows and extensions
-
-- Automation & Tooling
-  - Set up CI pipeline to run tests and lint checks on commits
-  - Add linting/formatting tooling (e.g., ESLint, Prettier) with npm scripts
-  - Automate release notes and version bumping
+- [ ] Research OpenAI client cancellation support — confirm whether `openai.responses.create` accepts an `AbortSignal` and document the approach (fallback to manual `Promise.race` if unsupported).
+- [ ] Introduce a shared cancellation manager — track the active async operation (OpenAI request or shell command) and expose `register`, `cancel`, and `isCanceled` helpers used across the loop.
+- [ ] Capture ESC keypress globally — extend `createInterface`/stdin listeners to emit a cancellation event when ESC is pressed, even outside explicit prompts.
+- [ ] Wire cancellation into OpenAI requests — wrap the call inside `executeAgentPass`, pass the abort signal, stop the thinking animation, record the cancellation, and route back to `askHuman` with a synthetic observation.
+- [ ] Wire cancellation into shell command execution — make `runCommand` accept an external abort handle that kills the child process immediately and surfaces a canceled result to the loop.
+- [ ] Bypass `--nohuman` automation after cancellation — ensure the loop re-enters `askHuman` regardless of flags, resets `--nohuman` state, and presents a message indicating the interruption.
+- [ ] Verify UX and reliability — add unit/integration coverage for ESC handling, confirming spinner cleanup, process termination, and correct loop handoff; run existing test/lint suites.
+- [ ] Ensure `edit` command creates the target file when it does not already exist.

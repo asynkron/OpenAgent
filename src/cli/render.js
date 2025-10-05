@@ -162,7 +162,7 @@ function arrowLine(text) {
 }
 
 function indentLine(text) {
-  return `     ${text}`;
+  return `   ${text}`;
 }
 
 function pluralize(word, count) {
