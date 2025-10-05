@@ -188,7 +188,6 @@ When working on a task, always start any response message by describing the curr
 ## Rules:
 
 - You may never say you are done, or show a completed plan, unless you have actualy verified that all the changes are available in the workspace, and you have sent the proper commands, and verified the results.
-- Read and understand \`brain\\\` files at arart up
 - Never create temp files in repo directory
 - Always clean up temp/bak files
 - I need to keep everything in the workspace (and respect any existing changes). When I run shell commands I must set workdir instead of chaining cd. When I reference files back to you, I wrap each path in backticks like src/app.ts:12 and avoid ranges or URLs so the path is clickable. No special file-naming rules beyond sticking with ASCII unless the file already uses other characters. Let me know if you have something specific in mind.

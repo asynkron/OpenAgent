@@ -159,6 +159,31 @@ export function renderCommand(command) {
 }
 
 export function renderCommandResult(command, result, stdout, stderr) {
+function renderCommand(command) {
+  if (!command || typeof command !== 'object') {
+    return;
+  }
+
+  const sections = [];
+
+  const runText = command.run || 'missing:' + JSON.stringify(command);
+
+  const fenced = wrapWithLanguageFence(runText, 'bash');
+  sections.push(renderMarkdownMessage(fenced));
+
+  display('Command', sections, 'yellow');
+}
+
+function renderCommandResult(command, result, stdout, stderr) {
+  // const statusLines = [
+  //   `${chalk.cyan('Exit Code')}: ${result.exit_code}`,
+  //   `${chalk.cyan('Runtime')}: ${result.runtime_ms}ms`,
+  //   `${chalk.cyan('Status')}: ${result.killed ? chalk.red('KILLED (timeout)') : chalk.green('COMPLETED')}`,
+  // ];
+
+  // display('Command Result', statusLines, 'green');
+
+
   const language = detectLanguage(command.command);
 
   if (stdout) {
