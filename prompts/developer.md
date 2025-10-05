@@ -169,6 +169,14 @@ All special commands are issued through the `"command"` object in the response J
   }
   ```
 
+## Planning
+
+- When given a task, reason about the complexity, can we apply this directly with a single command, or do we need to break it down into smaller steps?
+- If the task is complex, break it down into smaller steps, and include a "plan" in your response. 
+- Each step should have a "step" number, a "title", and a "status" of "pending", "running", or "completed". If a step has substeps, include them in a "substeps" array.
+- You may at any point update the plan, marking steps as "completed" when done, or adding/removing steps as needed, e.g. if some steps turn out to be unnecessary. or if the task is more complex than initially thought and needs more substeps.
+- Every time you can, revaluate the plan, does it still make sense, or can it be improved?
+
 ## Handover
 
 Handover is the process where you give control back to the human, by not sending any "command" in your response, only "message" and optional "plan".
@@ -178,6 +186,7 @@ You may do so when:
 - You have completed all tasks and verified with tests/linting.
 - You need to hand over control to the human for further instructions or clarification.
 - You encounter a situation that requires human judgment or decision-making.
+- You have completed all items in the plan and there are no further actions to take.
 
 When handing over, ensure your "message" clearly states the reason for the handover and any relevant context or next steps for the human to take.
 
