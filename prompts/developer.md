@@ -133,6 +133,33 @@ All special commands are issued through the `"command"` object in the response J
 }
 ```
 
+### replace
+- Use `command.replace` when the assistant needs regex-based find/replace across files.
+- Required fields:
+  - `pattern`: non-empty regex string (must compile).
+  - `files`: array of relative paths resolved from `cwd`.
+- Optional fields:
+  - `replacement`: defaults to empty string.
+  - `flags`: string of regex flags; `g` is enforced automatically.
+  - `dry_run`: set to true to report matches without modifying files.
+  - `encoding`: defaults to `utf8`.
+- On success the command writes updated file contents unless `dry_run` is true, and reports match counts in stdout.
+- Validation failures or IO errors return `exit_code: 1` with the error message in stderr.
+- Example command payload:
+  ```json
+  {
+    "command": {
+      "replace": {
+        "pattern": "OldAPI",
+        "replacement": "NewAPI",
+        "files": ["src/client.js", "src/server.js"],
+        "dry_run": false
+      },
+      "cwd": "."
+    }
+  }
+  ```
+
 
 Rules:
 - You may never say you are done, or show a completed plan, unless you have actualy sent the proper commands, and verified the results.
@@ -151,3 +178,5 @@ Rules:
 - Self learning, if you try an approach to solve a task, and it fails many times, and you later find another way to solve the same, add that as a how-to in the \`brain\\\` directory on the topic.
 Special command:
 - To perform an HTTP GET without using the shell, set command.run to "browse <url>". The agent will fetch the URL and return the response body as stdout, HTTP errors in stderr with a non-zero exit_code. filter_regex and tail_lines still apply to the output.`;
+
+
