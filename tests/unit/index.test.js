@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
+import { EventEmitter } from 'node:events';
 import { jest } from '@jest/globals';
 
 const defaultEnv = { ...process.env };
@@ -41,18 +42,24 @@ async function loadModule(envOverrides = {}, { commandStatsMock, runCommandMock 
     const runEdit = jest.fn();
     const runRead = jest.fn();
     const runReplace = jest.fn();
+    const runEscapeString = jest.fn();
+    const runUnescapeString = jest.fn();
     jest.unstable_mockModule('../../src/commands/run.js', () => ({
       runCommand: runCommandMock,
       runBrowse,
       runEdit,
       runRead,
       runReplace,
+      runEscapeString,
+      runUnescapeString,
       default: {
         runCommand: runCommandMock,
         runBrowse,
         runEdit,
         runRead,
         runReplace,
+        runEscapeString,
+        runUnescapeString,
       },
     }));
   }
@@ -203,24 +210,38 @@ describe('runBrowse', () => {
     jest.resetModules();
     delete global.fetch;
 
-    const server = await new Promise((resolve) => {
-      const srv = http.createServer((_req, res) => {
-        res.writeHead(200, { 'Content-Type': 'text/plain' });
-        res.end('hello');
-      });
-      srv.listen(0, () => resolve(srv));
+    const requestSpy = jest.spyOn(http, 'request').mockImplementation((options, callback) => {
+      const response = new EventEmitter();
+      response.statusCode = 200;
+
+      const request = new EventEmitter();
+      request.destroy = jest.fn();
+      request.end = () => {
+        setImmediate(() => {
+          callback(response);
+          response.emit('data', Buffer.from('hello'));
+          response.emit('end');
+        });
+      };
+
+      return request;
     });
 
-    const address = server.address();
-    const url = `http://127.0.0.1:${address.port}`;
+    const url = 'http://example.com/test';
     const { mod } = await loadModule();
 
-    const result = await mod.runBrowse(url, 1);
+    try {
+      const result = await mod.runBrowse(url, 1);
 
-    expect(result.exit_code).toBe(0);
-    expect(result.stdout).toContain('hello');
-
-    await new Promise((resolve) => server.close(resolve));
+      expect(requestSpy).toHaveBeenCalledTimes(1);
+      expect(requestSpy.mock.calls[0][0]).toEqual(
+        expect.objectContaining({ method: 'GET', hostname: 'example.com' }),
+      );
+      expect(result.exit_code).toBe(0);
+      expect(result.stdout).toContain('hello');
+    } finally {
+      requestSpy.mockRestore();
+    }
   });
 });
 

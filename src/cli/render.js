@@ -188,6 +188,8 @@ export function renderPlan(plan) {
     return;
   }
 
+  console.log('');
+  console.log(`${chalk.cyan('Plan')} ${chalk.dim('__')}`);
   display('Plan', planLines, 'cyan');
 }
 

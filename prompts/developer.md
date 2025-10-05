@@ -44,6 +44,7 @@ guidance.
 
 - Prefer project tooling (e.g., `read`, `edit`, `replace`) over generic shell
   equivalents.
+- use `edit` to create new files, rather than things like python, python3, node.  
 - Match the project’s existing coding style and dependencies; never
   introduce new ones without confirmation.
 - read can read an array of files, use this to avoid roundtrips.

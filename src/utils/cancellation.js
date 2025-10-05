@@ -6,6 +6,7 @@
 
 const state = {
   stack: [],
+  tokens: new Map(),
 };
 
 function cleanupStack() {
@@ -13,6 +14,11 @@ function cleanupStack() {
     const entry = state.stack[i];
     if (!entry || entry.removed) {
       state.stack.splice(i, 1);
+      if (entry && entry.token) {
+        if (!entry.canceled) {
+          state.tokens.delete(entry.token);
+        }
+      }
     }
   }
 }
@@ -34,6 +40,9 @@ function removeEntry(entry) {
     state.stack.splice(index, 1);
   }
   entry.removed = true;
+  if (entry.token && !entry.canceled) {
+    state.tokens.delete(entry.token);
+  }
 }
 
 function markCanceled(entry, reason) {
@@ -72,6 +81,7 @@ export function register({ description = 'operation', onCancel } = {}) {
   };
 
   state.stack.push(entry);
+  state.tokens.set(token, entry);
 
   return {
     token,
@@ -107,7 +117,7 @@ export function cancel(reason) {
 export function isCanceled(token) {
   cleanupStack();
   if (token) {
-    const entry = state.stack.find((candidate) => candidate && candidate.token === token);
+    const entry = state.tokens.get(token);
     return entry ? entry.canceled : false;
   }
   const active = getTopEntry();
