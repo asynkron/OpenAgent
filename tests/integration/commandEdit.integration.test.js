@@ -17,7 +17,7 @@ describe('applyFileEdits integration', () => {
   test('applies edits and writes file', async () => {
     const edits = [
       { start: 4, end: 9, newText: 'slow' },
-      { start: 16, end: 19, newText: 'dog' }
+      { start: 16, end: 19, newText: 'dog' },
     ];
     const spec = { path: TEST_FILE, edits };
     const result = await applyFileEdits(spec, process.cwd());

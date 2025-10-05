@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 /**
  * Implements the interactive agent loop that powers the CLI experience.
@@ -19,12 +19,7 @@ const { SYSTEM_PROMPT } = require('../config/systemPrompt');
 const { getOpenAIClient, MODEL } = require('../openai/client');
 const { startThinking, stopThinking } = require('../cli/thinking');
 const { createInterface, askHuman } = require('../cli/io');
-const {
-  renderPlan,
-  renderMessage,
-  renderCommand,
-  renderCommandResult,
-} = require('../cli/render');
+const { renderPlan, renderMessage, renderCommand, renderCommandResult } = require('../cli/render');
 const { runCommand, runBrowse, runEdit, runRead, runReplace } = require('../commands/run');
 const { applyFilter, tailLines, shellSplit } = require('../utils/text');
 const {
@@ -291,7 +286,7 @@ Approve running this command?
   1) Yes (run once)
   2) Yes, for entire session (add to in-memory approvals)
   3) No, tell the AI to do something else
-Select 1, 2, or 3: `
+Select 1, 2, or 3: `,
         )
       )
         .trim()
@@ -312,9 +307,7 @@ Select 1, 2, or 3: `
     }
 
     if (selection === 3) {
-      console.log(
-        chalk.yellow('Command execution canceled by human (requested alternative).')
-      );
+      console.log(chalk.yellow('Command execution canceled by human (requested alternative).'));
       const observation = {
         observation_for_llm: {
           canceled_by_human: true,
@@ -386,7 +379,7 @@ Select 1, 2, or 3: `
         parsed.command.run,
         parsed.command.cwd || '.',
         parsed.command.timeout_sec ?? 60,
-        parsed.command.shell
+        parsed.command.shell,
       );
     }
   }
@@ -411,7 +404,7 @@ Select 1, 2, or 3: `
   const combined = outputUtils.combineStdStreams(
     filteredStdout,
     filteredStderr,
-    result.exit_code ?? 0
+    result.exit_code ?? 0,
   );
   filteredStdout = combined.stdout;
   filteredStderr = combined.stderr;
@@ -489,7 +482,7 @@ function createAgentLoop({
   preapprovedCfg = PREAPPROVED_CFG,
   getAutoApproveFlag = () => false,
   getNoHumanFlag = () => false,
-  setNoHumanFlag = () => { },
+  setNoHumanFlag = () => {},
 } = {}) {
   return async function agentLoop() {
     const history = [
@@ -516,24 +509,22 @@ function createAgentLoop({
     if (getAutoApproveFlag()) {
       console.log(
         chalk.yellow(
-          'Full auto-approval mode enabled via CLI flag. All commands will run without prompting.'
-        )
+          'Full auto-approval mode enabled via CLI flag. All commands will run without prompting.',
+        ),
       );
     }
     if (getNoHumanFlag()) {
       console.log(
         chalk.yellow(
-          'No-human mode enabled (--nohuman). Agent will auto-respond with "continue or say \'done\'" until the AI replies "done".'
-        )
+          'No-human mode enabled (--nohuman). Agent will auto-respond with "continue or say \'done\'" until the AI replies "done".',
+        ),
       );
     }
 
     try {
       while (true) {
         const noHumanActive = getNoHumanFlag();
-        const userInput = noHumanActive
-          ? NO_HUMAN_AUTO_MESSAGE
-          : await askHumanFn(rl, '\n ▷ ');
+        const userInput = noHumanActive ? NO_HUMAN_AUTO_MESSAGE : await askHumanFn(rl, '\n ▷ ');
 
         if (!userInput) {
           if (noHumanActive) {

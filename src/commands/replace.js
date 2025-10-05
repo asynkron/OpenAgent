@@ -1,14 +1,14 @@
-"use strict";
+'use strict';
 
-const fs = require("fs");
-const path = require("path");
+const fs = require('fs');
+const path = require('path');
 
 function normalizeFlags(flags) {
   if (flags === undefined || flags === null) {
-    return "g";
+    return 'g';
   }
-  if (typeof flags !== "string") {
-    throw new Error("flags must be a string");
+  if (typeof flags !== 'string') {
+    throw new Error('flags must be a string');
   }
   const seen = new Set();
   for (const char of flags) {
@@ -16,15 +16,15 @@ function normalizeFlags(flags) {
       seen.add(char);
     }
   }
-  if (!seen.has("g")) {
-    seen.add("g");
+  if (!seen.has('g')) {
+    seen.add('g');
   }
-  return Array.from(seen).join("");
+  return Array.from(seen).join('');
 }
 
 function createRegex(pattern, flags) {
-  if (typeof pattern !== "string" || pattern.trim() === "") {
-    throw new Error("pattern must be a non-empty string");
+  if (typeof pattern !== 'string' || pattern.trim() === '') {
+    throw new Error('pattern must be a non-empty string');
   }
 
   try {
@@ -36,11 +36,11 @@ function createRegex(pattern, flags) {
 
 function validateFiles(files) {
   if (!Array.isArray(files) || files.length === 0) {
-    throw new Error("files must be a non-empty array of paths");
+    throw new Error('files must be a non-empty array of paths');
   }
 
   files.forEach((file, index) => {
-    if (typeof file !== "string" || file.trim() === "") {
+    if (typeof file !== 'string' || file.trim() === '') {
       throw new Error(`files[${index}] must be a non-empty string`);
     }
   });
@@ -50,36 +50,27 @@ function buildResultSummary(results, dryRun) {
   const totalMatches = results.reduce((acc, item) => acc + item.matches, 0);
   const touchedFiles = results.filter((item) => item.matches > 0).length;
 
-  const lines = [
-    `Total matches: ${totalMatches}`,
-    `Files with changes: ${touchedFiles}`,
-  ];
+  const lines = [`Total matches: ${totalMatches}`, `Files with changes: ${touchedFiles}`];
 
   results.forEach((item) => {
-    lines.push(`${item.path}: ${item.matches} matches${dryRun ? " (dry-run)" : ""}`);
+    lines.push(`${item.path}: ${item.matches} matches${dryRun ? ' (dry-run)' : ''}`);
   });
 
   if (dryRun) {
-    lines.push("Dry-run: no files were modified.");
+    lines.push('Dry-run: no files were modified.');
   }
 
-  return lines.join("\n");
+  return lines.join('\n');
 }
 
-function runReplace(spec, cwd = ".") {
+function runReplace(spec, cwd = '.') {
   const startTime = Date.now();
   try {
-    if (!spec || typeof spec !== "object") {
-      throw new Error("replace spec must be an object");
+    if (!spec || typeof spec !== 'object') {
+      throw new Error('replace spec must be an object');
     }
 
-    const {
-      pattern,
-      replacement = "",
-      flags,
-      files,
-      encoding = "utf8",
-    } = spec;
+    const { pattern, replacement = '', flags, files, encoding = 'utf8' } = spec;
     const dryRun = spec.dry_run ?? spec.dryRun ?? false;
 
     validateFiles(files);
@@ -90,7 +81,7 @@ function runReplace(spec, cwd = ".") {
     const results = [];
 
     for (const relPath of files) {
-      const absPath = path.resolve(cwd || ".", relPath);
+      const absPath = path.resolve(cwd || '.', relPath);
       let original;
       try {
         original = fs.readFileSync(absPath, { encoding });
@@ -98,7 +89,7 @@ function runReplace(spec, cwd = ".") {
         throw new Error(`Unable to read file: ${absPath} — ${err.message}`);
       }
 
-      if (typeof original !== "string") {
+      if (typeof original !== 'string') {
         throw new Error(`File is not textual: ${absPath}`);
       }
 
@@ -128,14 +119,14 @@ function runReplace(spec, cwd = ".") {
 
     return {
       stdout: buildResultSummary(results, dryRun),
-      stderr: "",
+      stderr: '',
       exit_code: 0,
       killed: false,
       runtime_ms: Date.now() - startTime,
     };
   } catch (err) {
     return {
-      stdout: "",
+      stdout: '',
       stderr: err && err.message ? err.message : String(err),
       exit_code: 1,
       killed: false,

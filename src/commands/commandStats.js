@@ -1,10 +1,10 @@
-"use strict";
+'use strict';
 
 const fs = require('fs');
 const fsp = fs.promises;
 const path = require('path');
 const os = require('os');
-const crypto = require('crypto');
+const nodeCrypto = require('crypto');
 
 function resolveDefaultStatsPath() {
   const xdgDataHome = process.env.XDG_DATA_HOME && process.env.XDG_DATA_HOME.trim();
@@ -46,7 +46,7 @@ async function incrementCommandCount(cmdKey, logPath = null) {
     }
     data[cmdKey] = nextValue;
 
-    const randomSuffix = crypto.randomBytes(6).toString('hex');
+    const randomSuffix = nodeCrypto.randomBytes(6).toString('hex');
     const tempFile = path.join(dir, `._cmdstats_${Date.now()}_${randomSuffix}`);
     let handle = null;
     try {
@@ -58,11 +58,9 @@ async function incrementCommandCount(cmdKey, logPath = null) {
       await fsp.rename(tempFile, targetPath);
       return true;
     } finally {
-      try {
-        if (handle) {
-          await handle.close().catch(() => {});
-        }
-      } catch (err) {}
+      if (handle) {
+        await handle.close().catch(() => {});
+      }
       await fsp.unlink(tempFile).catch(() => {});
     }
   } catch (err) {

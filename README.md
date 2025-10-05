@@ -64,6 +64,7 @@ Auto-approved by allowlist (approved_commands.json)
 ```
 
 ## Table of Contents
+
 - [Features](#features)
 - [Getting Started](#getting-started)
 - [Configuration](#configuration)
@@ -74,6 +75,7 @@ Auto-approved by allowlist (approved_commands.json)
 - [License](#license)
 
 ## Features
+
 - **Structured JSON Protocol** for deterministic LLM↔agent communication
 - **Command Execution with Timeouts** and interactive approval
 - **Plan Visualization** showing task progress as a checklist
@@ -81,6 +83,7 @@ Auto-approved by allowlist (approved_commands.json)
 - **Conversation History** persisted across steps for context retention
 
 ## Getting Started
+
 1. Clone the repository:
    ```bash
    git clone <your-fork-url>
@@ -102,19 +105,25 @@ Auto-approved by allowlist (approved_commands.json)
 - `npm run format:check` — verifies committed files already match the Prettier style.
 
 ## Configuration
+
 Edit `.env` to include the required secrets:
+
 ```
 OPENAI_API_KEY=sk-...
 ```
+
 Adjust other environment variables as needed (e.g., model selection, timeouts).
 
 ## Usage
+
 Start the CLI agent:
+
 ```bash
 npm start
 ```
 
 Interaction loop:
+
 1. Type a task and press **Enter**
 2. Review the agent’s explanation and plan
 3. Inspect proposed commands (they won’t run without approval)
@@ -124,13 +133,13 @@ Interaction loop:
 To exit, type `exit` or `quit` at any prompt.
 
 ## JSON Protocol
+
 **LLM → Agent** messages look like:
+
 ```json
 {
   "message": "status update",
-  "plan": [
-    {"step": 1, "title": "Describe goal", "status": "running"}
-  ],
+  "plan": [{ "step": 1, "title": "Describe goal", "status": "running" }],
   "command": {
     "shell": "bash",
     "run": "ls -a",
@@ -143,6 +152,7 @@ To exit, type `exit` or `quit` at any prompt.
 ```
 
 **Agent → LLM** observations:
+
 ```json
 {
   "observation_for_llm": {
@@ -160,6 +170,7 @@ To exit, type `exit` or `quit` at any prompt.
 ```
 
 ## Templates & Shortcuts
+
 - **Command templates** in `templates/command-templates.json`:
   - List: `node index.js templates list`
   - Show: `node index.js templates show <id>`
@@ -170,10 +181,12 @@ To exit, type `exit` or `quit` at any prompt.
   - Run (prints command): `node index.js shortcuts run <id>`
 
 ## Safety
+
 - Every command has a configurable timeout
 - Execution always requires explicit user confirmation
 - Outputs can be limited or filtered to avoid flooding
 - Errors are captured and surfaced cleanly
 
 ## License
+
 This project is released under the [MIT License](LICENSE).

@@ -1,13 +1,13 @@
 // Preload mock for 'openai' module so the agent uses our stubbed client
 const Module = require('module');
 const originalLoad = Module._load;
-Module._load = function(request, parent, isMain) {
+Module._load = function (request, _parent, _isMain) {
   if (request === 'openai') {
     // Return a constructor function compatible with `new OpenAI({ apiKey, baseURL })`
-    return function OpenAIMock(options) {
+    return function OpenAIMock(_options) {
       return {
         responses: {
-          create: async function(opts) {
+          create: async function (_opts) {
             // Simulate a single assistant response that instructs running a harmless command
             const payload = {
               output: [
@@ -23,17 +23,17 @@ Module._load = function(request, parent, isMain) {
                           shell: 'bash',
                           run: 'echo "MOCKED_OK"',
                           cwd: '.',
-                          timeout_sec: 5
-                        }
-                      })
-                    }
-                  ]
-                }
-              ]
+                          timeout_sec: 5,
+                        },
+                      }),
+                    },
+                  ],
+                },
+              ],
             };
             return payload;
-          }
-        }
+          },
+        },
       };
     };
   }

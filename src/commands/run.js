@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 /**
  * Hosts the side-effecting primitives that execute shell commands and exposes

@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 /**
  * Root entry point for the OpenAgent CLI.
@@ -16,16 +16,8 @@
 
 require('dotenv').config();
 
-const {
-  getOpenAIClient,
-  resetOpenAIClient,
-  MODEL,
-} = require('./src/openai/client');
-const {
-  startThinking,
-  stopThinking,
-  formatElapsedTime,
-} = require('./src/cli/thinking');
+const { getOpenAIClient, resetOpenAIClient, MODEL } = require('./src/openai/client');
+const { startThinking, stopThinking, formatElapsedTime } = require('./src/cli/thinking');
 const { createInterface, askHuman } = require('./src/cli/io');
 const {
   display,
@@ -38,13 +30,7 @@ const {
   inferLanguageFromDetectors,
   detectLanguage,
 } = require('./src/cli/render');
-const {
-  runCommand,
-  runBrowse,
-  runEdit,
-  runRead,
-  runReplace,
-} = require('./src/commands/run');
+const { runCommand, runBrowse, runEdit, runRead, runReplace } = require('./src/commands/run');
 const {
   loadPreapprovedConfig,
   isPreapprovedCommand,
@@ -61,46 +47,27 @@ const {
   BASE_SYSTEM_PROMPT,
   SYSTEM_PROMPT,
 } = require('./src/config/systemPrompt');
-const {
-  createAgentLoop,
-  extractResponseText,
-} = require('./src/agent/loop');
-const {
-  loadTemplates,
-  renderTemplateCommand,
-  handleTemplatesCli,
-} = require('./src/templates/cli');
-const {
-  loadShortcutsFile,
-  findShortcut,
-  handleShortcutsCli,
-} = require('./src/shortcuts/cli');
+const { createAgentLoop, extractResponseText } = require('./src/agent/loop');
+const { loadTemplates, renderTemplateCommand, handleTemplatesCli } = require('./src/templates/cli');
+const { loadShortcutsFile, findShortcut, handleShortcutsCli } = require('./src/shortcuts/cli');
 const { incrementCommandCount } = require('./src/commands/commandStats');
 
-let startupForceAutoApprove = process.argv
-  .slice(2)
-  .some((arg) => {
-    if (!arg) return false;
-    const normalized = String(arg).trim().toLowerCase();
-    return (
-      normalized === 'auto' ||
-      normalized === '--auto' ||
-      normalized === '--auto-approve' ||
-      normalized === '--auto-approval'
-    );
-  });
+let startupForceAutoApprove = process.argv.slice(2).some((arg) => {
+  if (!arg) return false;
+  const normalized = String(arg).trim().toLowerCase();
+  return (
+    normalized === 'auto' ||
+    normalized === '--auto' ||
+    normalized === '--auto-approve' ||
+    normalized === '--auto-approval'
+  );
+});
 
-let startupNoHuman = process.argv
-  .slice(2)
-  .some((arg) => {
-    if (!arg) return false;
-    const normalized = String(arg).trim().toLowerCase();
-    return (
-      normalized === 'nohuman' ||
-      normalized === '--nohuman' ||
-      normalized === '--no-human'
-    );
-  });
+let startupNoHuman = process.argv.slice(2).some((arg) => {
+  if (!arg) return false;
+  const normalized = String(arg).trim().toLowerCase();
+  return normalized === 'nohuman' || normalized === '--nohuman' || normalized === '--no-human';
+});
 
 async function runCommandAndTrack(run, cwd = '.', timeoutSec = 60) {
   const result = await runCommand(run, cwd, timeoutSec);

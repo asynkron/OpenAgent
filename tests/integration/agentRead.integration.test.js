@@ -6,14 +6,14 @@ const mockInterface = {
     const next = mockAnswersQueue.shift() || '';
     process.nextTick(() => cb(next));
   }),
-  close: jest.fn()
+  close: jest.fn(),
 };
 
 jest.resetModules();
 jest.mock('readline', () => ({
   createInterface: jest.fn(() => mockInterface),
   clearLine: jest.fn(),
-  cursorTo: jest.fn()
+  cursorTo: jest.fn(),
 }));
 
 jest.mock('openai', () => {
@@ -23,23 +23,24 @@ jest.mock('openai', () => {
       responses: {
         create: async () => {
           callCount += 1;
-          const payload = callCount === 1
-            ? {
-                message: 'Mocked read response',
-                plan: [],
-                command: {
-                  read: {
-                    path: 'sample.txt',
-                    encoding: 'utf8'
+          const payload =
+            callCount === 1
+              ? {
+                  message: 'Mocked read response',
+                  plan: [],
+                  command: {
+                    read: {
+                      path: 'sample.txt',
+                      encoding: 'utf8',
+                    },
+                    cwd: '.',
                   },
-                  cwd: '.'
                 }
-              }
-            : {
-                message: 'Mocked follow-up',
-                plan: [],
-                command: null
-              };
+              : {
+                  message: 'Mocked follow-up',
+                  plan: [],
+                  command: null,
+                };
 
           return {
             output: [
@@ -48,14 +49,14 @@ jest.mock('openai', () => {
                 content: [
                   {
                     type: 'output_text',
-                    text: JSON.stringify(payload)
-                  }
-                ]
-              }
-            ]
+                    text: JSON.stringify(payload),
+                  },
+                ],
+              },
+            ],
           };
-        }
-      }
+        },
+      },
     };
   };
 });
@@ -79,7 +80,7 @@ test('agent loop invokes runRead for read commands', async () => {
     stderr: '',
     exit_code: 0,
     killed: false,
-    runtime_ms: 2
+    runtime_ms: 2,
   });
   agent.runRead = runReadMock;
 

@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 function combineStdStreams(filteredStdout, filteredStderr, exitCode) {
   if (exitCode === 0 && filteredStderr && String(filteredStderr).trim().length > 0) {

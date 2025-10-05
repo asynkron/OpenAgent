@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 /**
  * Shortcut CLI utilities mirroring the legacy behaviour from index.js.

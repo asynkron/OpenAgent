@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 /**
  * OpenAI client factory shared across the CLI runtime.

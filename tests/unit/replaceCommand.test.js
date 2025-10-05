@@ -14,11 +14,14 @@ describe('runReplace', () => {
     const file = path.join(dir, 'sample.txt');
     fs.writeFileSync(file, 'foo and foo again', 'utf8');
 
-    const result = await runReplace({
-      pattern: 'foo',
-      replacement: 'bar',
-      files: ['sample.txt'],
-    }, dir);
+    const result = await runReplace(
+      {
+        pattern: 'foo',
+        replacement: 'bar',
+        files: ['sample.txt'],
+      },
+      dir,
+    );
 
     expect(result.exit_code).toBe(0);
     expect(fs.readFileSync(file, 'utf8')).toBe('bar and bar again');
@@ -29,12 +32,15 @@ describe('runReplace', () => {
     const file = path.join(dir, 'dry.txt');
     fs.writeFileSync(file, 'hello world', 'utf8');
 
-    const result = await runReplace({
-      pattern: 'world',
-      replacement: 'universe',
-      files: ['dry.txt'],
-      dry_run: true,
-    }, dir);
+    const result = await runReplace(
+      {
+        pattern: 'world',
+        replacement: 'universe',
+        files: ['dry.txt'],
+        dry_run: true,
+      },
+      dir,
+    );
 
     expect(result.exit_code).toBe(0);
     expect(result.stdout).toMatch(/Dry-run/);
@@ -42,10 +48,13 @@ describe('runReplace', () => {
   });
 
   test('reports invalid patterns with exit_code 1', async () => {
-    const result = await runReplace({
-      pattern: '(',
-      files: ['whatever.txt'],
-    }, '.');
+    const result = await runReplace(
+      {
+        pattern: '(',
+        files: ['whatever.txt'],
+      },
+      '.',
+    );
 
     expect(result.exit_code).toBe(1);
     expect(result.stderr).toMatch(/Invalid regex pattern/);

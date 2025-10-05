@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 /**
  * Template CLI helpers for the agent entry point.

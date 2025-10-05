@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 /**
  * Builds the system prompt that governs the agent runtime.
@@ -12,8 +12,8 @@
  * - Root `index.js` re-exports the discovery helpers for unit tests.
  */
 
-const fs = require("fs");
-const path = require("path");
+const fs = require('fs');
+const path = require('path');
 
 function findAgentFiles(rootDir) {
   const discovered = [];
@@ -27,7 +27,7 @@ function findAgentFiles(rootDir) {
     }
 
     for (const entry of entries) {
-      if (entry.name === "node_modules" || entry.name === ".git") {
+      if (entry.name === 'node_modules' || entry.name === '.git') {
         continue;
       }
 
@@ -38,7 +38,7 @@ function findAgentFiles(rootDir) {
         continue;
       }
 
-      if (entry.isFile() && entry.name.toLowerCase() === "agents.md") {
+      if (entry.isFile() && entry.name.toLowerCase() === 'agents.md') {
         discovered.push(fullPath);
       }
     }
@@ -51,36 +51,36 @@ function findAgentFiles(rootDir) {
 function buildAgentsPrompt(rootDir) {
   const agentFiles = findAgentFiles(rootDir);
   if (agentFiles.length === 0) {
-    return "";
+    return '';
   }
 
   const sections = agentFiles
     .map((filePath) => {
       try {
-        const content = fs.readFileSync(filePath, "utf8").trim();
+        const content = fs.readFileSync(filePath, 'utf8').trim();
         if (!content) {
-          return "";
+          return '';
         }
         return `File: ${path.relative(rootDir, filePath)}\n${content}`;
       } catch (err) {
-        return "";
+        return '';
       }
     })
     .filter(Boolean);
 
   if (sections.length === 0) {
-    return "";
+    return '';
   }
 
-  return sections.join("\n\n---\n\n");
+  return sections.join('\n\n---\n\n');
 }
 
 function readFileIfExists(filePath) {
   try {
-    const content = fs.readFileSync(filePath, "utf8").trim();
-    return content ? content : "";
+    const content = fs.readFileSync(filePath, 'utf8').trim();
+    return content ? content : '';
   } catch (err) {
-    return "";
+    return '';
   }
 }
 
@@ -88,8 +88,8 @@ function buildBaseSystemPrompt(rootDir) {
   const sections = [];
 
   const promptFiles = [
-    path.join(rootDir, "prompts", "system.md"),
-    path.join(rootDir, "prompts", "developer.md"),
+    path.join(rootDir, 'prompts', 'system.md'),
+    path.join(rootDir, 'prompts', 'developer.md'),
   ];
 
   for (const promptFile of promptFiles) {
@@ -99,12 +99,12 @@ function buildBaseSystemPrompt(rootDir) {
     }
   }
 
-  const brainDir = path.join(rootDir, "brain");
+  const brainDir = path.join(rootDir, 'brain');
   let brainFiles = [];
   try {
     brainFiles = fs
       .readdirSync(brainDir)
-      .filter((fileName) => fileName.toLowerCase().endsWith(".md"))
+      .filter((fileName) => fileName.toLowerCase().endsWith('.md'))
       .sort();
   } catch (err) {
     brainFiles = [];
@@ -119,10 +119,10 @@ function buildBaseSystemPrompt(rootDir) {
   }
 
   if (sections.length === 0) {
-    return "You are an AI agent that helps users by executing commands and completing tasks.";
+    return 'You are an AI agent that helps users by executing commands and completing tasks.';
   }
 
-  return sections.join("\n\n");
+  return sections.join('\n\n');
 }
 
 const BASE_SYSTEM_PROMPT = buildBaseSystemPrompt(process.cwd());
