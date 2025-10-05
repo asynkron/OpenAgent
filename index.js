@@ -90,6 +90,18 @@ let startupForceAutoApprove = process.argv
     );
   });
 
+let startupNoHuman = process.argv
+  .slice(2)
+  .some((arg) => {
+    if (!arg) return false;
+    const normalized = String(arg).trim().toLowerCase();
+    return (
+      normalized === 'nohuman' ||
+      normalized === '--nohuman' ||
+      normalized === '--no-human'
+    );
+  });
+
 async function runCommandAndTrack(run, cwd = '.', timeoutSec = 60) {
   const result = await runCommand(run, cwd, timeoutSec);
   try {
@@ -122,6 +134,12 @@ const exported = {
   },
   set STARTUP_FORCE_AUTO_APPROVE(value) {
     startupForceAutoApprove = Boolean(value);
+  },
+  get STARTUP_NO_HUMAN() {
+    return startupNoHuman;
+  },
+  set STARTUP_NO_HUMAN(value) {
+    startupNoHuman = Boolean(value);
   },
   MODEL,
   getOpenAIClient,
@@ -172,6 +190,10 @@ const exported = {
 async function runAgentLoopWithCurrentDependencies() {
   const loop = createAgentLoop({
     getAutoApproveFlag: () => exported.STARTUP_FORCE_AUTO_APPROVE,
+    getNoHumanFlag: () => exported.STARTUP_NO_HUMAN,
+    setNoHumanFlag: (value) => {
+      exported.STARTUP_NO_HUMAN = Boolean(value);
+    },
     createInterfaceFn: exported.createInterface,
     askHumanFn: exported.askHuman,
     startThinkingFn: exported.startThinking,

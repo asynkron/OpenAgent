@@ -35,6 +35,8 @@ const {
 } = require('../commands/preapproval');
 const { incrementCommandCount } = require('../commands/commandStats');
 
+const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
+
 function extractResponseText(response) {
   if (!response || typeof response !== 'object') {
     return '';
@@ -159,6 +161,8 @@ function createAgentLoop({
   approveForSessionFn = approveForSession,
   preapprovedCfg = PREAPPROVED_CFG,
   getAutoApproveFlag = () => false,
+  getNoHumanFlag = () => false,
+  setNoHumanFlag = () => {},
 } = {}) {
   return async function agentLoop() {
     const history = [
@@ -186,6 +190,13 @@ function createAgentLoop({
       console.log(
         chalk.yellow(
           'Full auto-approval mode enabled via CLI flag. All commands will run without prompting.'
+        )
+      );
+    }
+    if (getNoHumanFlag()) {
+      console.log(
+        chalk.yellow(
+          'No-human mode enabled (--nohuman). Agent will auto-respond with "continue or say \'done\'" until the AI replies "done".'
         )
       );
     }
