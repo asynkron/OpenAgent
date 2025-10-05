@@ -79,8 +79,7 @@ export function runEscapeString(spec, cwd = '.') {
   }
 }
 
-export function runUnescapeString(spec, _cwd = '.') {
-  void _cwd;
+export function runUnescapeString(spec, cwd = '.') {
   const start = Date.now();
   try {
     const raw = extractStringInput(spec, 'unescapeString', UNESCAPE_INPUT_KEYS);
@@ -98,6 +97,18 @@ export function runUnescapeString(spec, _cwd = '.') {
 
     if (typeof parsed !== 'string') {
       throw new Error('Parsed JSON value must be a string.');
+    }
+
+    if (spec && typeof spec === 'object' && typeof spec.path === 'string') {
+      const relPath = spec.path.trim();
+      if (!relPath) {
+        throw new Error('unescapeString path must be a non-empty string.');
+      }
+      const encodingInput =
+        typeof spec.encoding === 'string' ? spec.encoding.trim() : '';
+      const encoding = encodingInput || 'utf8';
+      const absPath = path.resolve(cwd || '.', relPath);
+      fs.writeFileSync(absPath, parsed, { encoding });
     }
 
     return {

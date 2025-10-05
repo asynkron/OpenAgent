@@ -194,13 +194,16 @@ All special commands are issued through the `"command"` object in the response J
 
 - Use `command.unescape_string` (alias: `unquoteString`) to parse a JSON string literal and recover the original text.
 - Accepts either a raw JSON string literal or an object with `text`, `value`, `input`, `string`, or `json` properties.
-- Emits the decoded string on `stdout`; `stderr` stays empty unless parsing fails or the JSON value is not a string.
-- Produces an error with `exit_code: 1` if the input is empty, malformed JSON, or does not decode to a string value.
+- To write the decoded text into a file, supply an object spec with `path` (and optional `encoding`, default `utf8`); the command will save the content and still return it on stdout.
+- Produces an error with `exit_code`: 1 if the input is empty, malformed JSON, does not decode to a string value, or if the provided `path` is empty.
 
 ```json
 {
   "command": {
-    "unescape_string": "\"escaped\\nvalue\""
+    "unescape_string": {
+      "text": "\"escaped\nvalue\"",
+      "path": "docs/output.txt"
+    }
   }
 }
 ```
