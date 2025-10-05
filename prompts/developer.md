@@ -169,9 +169,41 @@ All special commands are issued through the `"command"` object in the response J
         "dry_run": false
       },
       "cwd": "."
+  }
+}
+```
+
+### escapeString
+
+- Use `command.escape_string` (alias: `quoteString`) to JSON-escape arbitrary text for safe embedding in other commands or payloads.
+- Accepts either a direct string input or an object with one of `text`, `value`, `input`, or `string` properties.
+- Writes the escaped JSON string literal to `stdout` and leaves `stderr` empty on success.
+- Returns a non-zero `exit_code` with an explanatory `stderr` message if the input is missing or cannot be coerced to a string.
+
+```json
+{
+  "command": {
+    "escape_string": {
+      "text": "multi-line\nvalue"
     }
   }
-  ```
+}
+```
+
+### unquoteString
+
+- Use `command.unescape_string` (alias: `unquoteString`) to parse a JSON string literal and recover the original text.
+- Accepts either a raw JSON string literal or an object with `text`, `value`, `input`, `string`, or `json` properties.
+- Emits the decoded string on `stdout`; `stderr` stays empty unless parsing fails or the JSON value is not a string.
+- Produces an error with `exit_code: 1` if the input is empty, malformed JSON, or does not decode to a string value.
+
+```json
+{
+  "command": {
+    "unescape_string": "\"escaped\\nvalue\""
+  }
+}
+```
 
 ## Planning
 
