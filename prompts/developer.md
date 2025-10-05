@@ -82,11 +82,56 @@ You must respond ONLY with valid JSON in this format:
 }
 ```
 
-## Special built in commands:
-browse "some url"
-- allows you to search the web using http get.
-read "path/to/file"
-- allows you to read a file's content.
+## Special built-in commands
+
+All special commands are issued through the `"command"` object in the response JSON. Only include the fields shown in the examples below.
+
+### browse
+- Perform an HTTP GET request against a URL.
+```json
+{
+  "command": {
+    "run": "browse https://example.com",
+    "cwd": ".",
+    "timeout_sec": 60
+  }
+}
+```
+
+### read
+- Read file contents from disk. Optional fields: `encoding`, `max_bytes`, `max_lines`.
+```json
+{
+  "command": {
+    "cwd": ".",
+    "read": {
+      "path": "path/to/file.txt",
+      "encoding": "utf8",
+      "max_bytes": 4096,
+      "max_lines": 200
+    }
+  }
+}
+```
+
+### edit
+- Apply textual edits by providing `path`, optional `encoding`, and an `edits` array.
+- Each edit object must include integer `start`/`end` offsets referencing the original file contents (before modifications) and optional `newText`.
+```json
+{
+  "command": {
+    "cwd": ".",
+    "edit": {
+      "path": "path/to/file.txt",
+      "encoding": "utf8",
+      "edits": [
+        { "start": 4, "end": 9, "newText": "slow" },
+        { "start": 16, "end": 19, "newText": "dog" }
+      ]
+    }
+  }
+}
+```
 
 
 Rules:
