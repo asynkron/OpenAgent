@@ -1,5 +1,5 @@
-import fs from 'node:fs';
-import path from 'node:path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 export function validateRange(text, start, end) {
   if (!Number.isInteger(start) || !Number.isInteger(end)) {

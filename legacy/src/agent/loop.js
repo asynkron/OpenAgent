@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Implements the interactive agent loop that powers the CLI experience.
  *
@@ -13,27 +11,27 @@
  * - Integration tests re-export the same function to run mocked scenarios.
  */
 
-const chalk = require('chalk');
+import chalk from 'chalk';
 
-const { SYSTEM_PROMPT } = require('../config/systemPrompt');
-const { getOpenAIClient, MODEL } = require('../openai/client');
-const { startThinking, stopThinking } = require('../cli/thinking');
-const { createInterface, askHuman } = require('../cli/io');
-const { renderPlan, renderMessage, renderCommand } = require('../cli/render');
-const { runCommand, runBrowse, runEdit, runRead, runReplace } = require('../commands/run');
-const { applyFilter, tailLines, shellSplit } = require('../utils/text');
-const {
+import { SYSTEM_PROMPT } from '../config/systemPrompt.js';
+import { getOpenAIClient, MODEL } from '../openai/client.js';
+import { startThinking, stopThinking } from '../cli/thinking.js';
+import { createInterface, askHuman } from '../cli/io.js';
+import { renderPlan, renderMessage, renderCommand } from '../cli/render.js';
+import { runCommand, runBrowse, runEdit, runRead, runReplace } from '../commands/run.js';
+import { applyFilter, tailLines, shellSplit } from '../utils/text.js';
+import {
   isPreapprovedCommand,
   isSessionApproved,
   approveForSession,
   PREAPPROVED_CFG,
-} = require('../commands/preapproval');
-const { incrementCommandCount } = require('../commands/commandStats');
-const outputUtils = require('../utils/output');
+} from '../commands/preapproval.js';
+import { incrementCommandCount } from '../commands/commandStats.js';
+import { combineStdStreams } from '../utils/output.js';
 
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 
-function extractResponseText(response) {
+export function extractResponseText(response) {
   if (!response || typeof response !== 'object') {
     return '';
   }
@@ -405,7 +403,7 @@ Select 1, 2, or 3: `,
   let filteredStdout = result.stdout;
   let filteredStderr = result.stderr;
 
-  const combined = outputUtils.combineStdStreams(
+  const combined = combineStdStreams(
     filteredStdout,
     filteredStderr,
     result.exit_code ?? 0,
@@ -467,7 +465,7 @@ Select 1, 2, or 3: `,
   return true;
 }
 
-function createAgentLoop({
+export function createAgentLoop({
   systemPrompt = SYSTEM_PROMPT,
   getClient = getOpenAIClient,
   model = MODEL,
@@ -599,7 +597,7 @@ function createAgentLoop({
   };
 }
 
-module.exports = {
+export default {
   createAgentLoop,
   extractResponseText,
 };

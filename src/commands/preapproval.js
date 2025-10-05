@@ -11,8 +11,8 @@
  * - Unit tests exercise the individual helpers via root re-exports.
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import chalk from 'chalk';
 
 import { shellSplit } from '../utils/text.js';

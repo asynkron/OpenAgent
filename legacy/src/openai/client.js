@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * OpenAI client factory shared across the CLI runtime.
  *
@@ -12,11 +10,11 @@
  * - Unit tests call `resetOpenAIClient()` via the root `index.js` re-export when they need a clean slate.
  */
 
-const OpenAI = require('openai');
+import OpenAI from 'openai';
 
 let memoizedClient = null;
 
-function getOpenAIClient() {
+export function getOpenAIClient() {
   if (!memoizedClient) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
@@ -30,13 +28,14 @@ function getOpenAIClient() {
   return memoizedClient;
 }
 
-function resetOpenAIClient() {
+export function resetOpenAIClient() {
   memoizedClient = null;
 }
 
-const MODEL = process.env.OPENAI_MODEL || process.env.OPENAI_CHAT_MODEL || 'gpt-5-codex';
+export const MODEL =
+  process.env.OPENAI_MODEL || process.env.OPENAI_CHAT_MODEL || 'gpt-5-codex';
 
-module.exports = {
+export default {
   getOpenAIClient,
   resetOpenAIClient,
   MODEL,

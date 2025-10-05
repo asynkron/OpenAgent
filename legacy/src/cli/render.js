@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Terminal rendering helpers responsible for formatting assistant output.
  *
@@ -12,9 +10,9 @@
  * - Root `index.js` re-exports the helpers for unit testing.
  */
 
-const chalk = require('chalk');
-const { marked } = require('marked');
-const markedTerminal = require('marked-terminal');
+import chalk from 'chalk';
+import { marked } from 'marked';
+import markedTerminal from 'marked-terminal';
 const TerminalRenderer = markedTerminal.default || markedTerminal;
 
 const terminalRenderer = new TerminalRenderer({
@@ -22,7 +20,7 @@ const terminalRenderer = new TerminalRenderer({
   tab: 2,
 });
 
-function display(label, content, color = 'white') {
+export function display(label, content, color = 'white') {
   if (!content || (Array.isArray(content) && content.length === 0)) {
     return;
   }
@@ -69,7 +67,7 @@ const CONTENT_TYPE_DETECTORS = [
   { pattern: /^#!\s*.*(?:bash|sh).*/i, language: 'bash' },
 ];
 
-function inferLanguageFromDetectors(content) {
+export function inferLanguageFromDetectors(content) {
   for (const detector of CONTENT_TYPE_DETECTORS) {
     if (detector.pattern.test(content)) {
       return detector.language;
@@ -78,7 +76,7 @@ function inferLanguageFromDetectors(content) {
 
   return null;
 }
-function wrapStructuredContent(message) {
+export function wrapStructuredContent(message) {
   if (!message) {
     return '';
   }
@@ -96,7 +94,7 @@ function wrapStructuredContent(message) {
 
   return trimmed;
 }
-function detectLanguage(content, fallbackLanguage = 'plaintext') {
+export function detectLanguage(content, fallbackLanguage = 'plaintext') {
   if (!content) {
     return fallbackLanguage;
   }
@@ -106,7 +104,7 @@ function detectLanguage(content, fallbackLanguage = 'plaintext') {
 
   return detected || fallbackLanguage;
 }
-function wrapWithLanguageFence(text, language = 'plaintext') {
+export function wrapWithLanguageFence(text, language = 'plaintext') {
   if (text === undefined || text === null) {
     return '';
   }
@@ -119,12 +117,12 @@ function wrapWithLanguageFence(text, language = 'plaintext') {
   return `\`\`\`${language}\n${content}\n\`\`\``;
 }
 
-function renderMarkdownMessage(message) {
+export function renderMarkdownMessage(message) {
   const prepared = wrapStructuredContent(message);
   return marked.parse(prepared, { renderer: terminalRenderer });
 }
 
-function renderPlan(plan) {
+export function renderPlan(plan) {
   if (!plan || !Array.isArray(plan) || plan.length === 0) return;
 
   const planLines = plan.map((item) => {
@@ -142,7 +140,7 @@ function renderPlan(plan) {
   display('Plan', planLines, 'cyan');
 }
 
-function renderMessage(message) {
+export function renderMessage(message) {
   if (!message) return;
 
   const rendered = renderMarkdownMessage(message);
@@ -329,7 +327,7 @@ function appendStdErr(summaryLines, stderrPreview) {
   }
 }
 
-function renderCommand(command, result, output) {
+export function renderCommand(command, result, output) {
   if (!command || typeof command !== 'object') {
     return;
   }
@@ -407,7 +405,7 @@ function renderCommand(command, result, output) {
   console.log(lines.join('\n'));
 }
 
-module.exports = {
+export default {
   display,
   wrapStructuredContent,
   renderMarkdownMessage,

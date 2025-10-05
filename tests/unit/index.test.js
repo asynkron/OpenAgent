@@ -1,13 +1,15 @@
-import fs from 'node:fs';
-import http from 'node:http';
-import os from 'node:os';
-import path from 'node:path';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { jest } from '@jest/globals';
 
 const defaultEnv = { ...process.env };
 
-async function loadModule(envOverrides = {}, { commandStatsMock, runCommandMock } = {}) {
+async function loadModule(
+  envOverrides = {},
+  { commandStatsMock, runCommandMock, httpModuleFactory } = {},
+) {
   jest.resetModules();
 
   process.env = { ...defaultEnv };
@@ -27,6 +29,11 @@ async function loadModule(envOverrides = {}, { commandStatsMock, runCommandMock 
 
   jest.unstable_mockModule('dotenv/config', () => ({}));
   jest.unstable_mockModule('openai', () => ({ default: MockOpenAI }));
+
+  if (typeof httpModuleFactory === 'function') {
+    const httpModule = await httpModuleFactory();
+    jest.unstable_mockModule('node:http', () => httpModule);
+  }
 
   let commandStatsMockFn;
   if (typeof commandStatsMock === 'function') {
@@ -210,7 +217,7 @@ describe('runBrowse', () => {
     jest.resetModules();
     delete global.fetch;
 
-    const requestSpy = jest.spyOn(http, 'request').mockImplementation((options, callback) => {
+    const requestSpy = jest.fn((options, callback) => {
       const response = new EventEmitter();
       response.statusCode = 200;
 
@@ -228,20 +235,21 @@ describe('runBrowse', () => {
     });
 
     const url = 'http://example.com/test';
-    const { mod } = await loadModule();
+    const { mod } = await loadModule({}, {
+      httpModuleFactory: async () => {
+        const actual = await import('node:http');
+        return { ...actual, request: requestSpy };
+      },
+    });
 
-    try {
-      const result = await mod.runBrowse(url, 1);
+    const result = await mod.runBrowse(url, 1);
 
-      expect(requestSpy).toHaveBeenCalledTimes(1);
-      expect(requestSpy.mock.calls[0][0]).toEqual(
-        expect.objectContaining({ method: 'GET', hostname: 'example.com' }),
-      );
-      expect(result.exit_code).toBe(0);
-      expect(result.stdout).toContain('hello');
-    } finally {
-      requestSpy.mockRestore();
-    }
+    expect(requestSpy).toHaveBeenCalledTimes(1);
+    expect(requestSpy.mock.calls[0][0]).toEqual(
+      expect.objectContaining({ method: 'GET', hostname: 'example.com' }),
+    );
+    expect(result.exit_code).toBe(0);
+    expect(result.stdout).toContain('hello');
   });
 });
 
