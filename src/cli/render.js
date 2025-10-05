@@ -37,7 +37,7 @@ function display(label, content, color = 'white') {
   console.log(text);
 }
 
-const COMMAND_READERS = ['sed', 'cat', 'read'];
+const COMMAND_READERS = ['sed', 'cat', 'read', 'edit'];
 const COMMAND_EXTENSION_MAPPINGS = [
   { extensions: ['md', 'markdown'], language: 'markdown' },
   { extensions: ['diff', 'patch'], language: 'diff' },
@@ -51,7 +51,7 @@ const COMMAND_EXTENSION_MAPPINGS = [
 const COMMAND_DETECTORS = COMMAND_EXTENSION_MAPPINGS.map(({ extensions, language }) => {
   const joinedExtensions = extensions.join('|');
   const pattern = new RegExp(
-    `^\s*(?:${COMMAND_READERS.join('|')})\s+.*\.(${joinedExtensions})\b`,
+    String.raw`^\s*(?:${COMMAND_READERS.join('|')})\s+.*\.(${joinedExtensions})\b`,
     'i',
   );
 
@@ -61,8 +61,8 @@ const COMMAND_DETECTORS = COMMAND_EXTENSION_MAPPINGS.map(({ extensions, language
 const CONTENT_TYPE_DETECTORS = [
   { pattern: /(^|\n)diff --git /, language: 'diff' },
   ...COMMAND_DETECTORS,
-  { pattern: /python3\s*-+\s*<<\s*['"]?PY['"]?/i, language: 'python' },
-  { pattern: /node\s*-+\s*<<\s*['"]?NODE['"]?/i, language: 'javascript' },
+  { pattern: /python3\s*-*\s*<<\s*['"]?PY['"]?/i, language: 'python' },
+  { pattern: /node\s*-*\s*<<\s*['"]?NODE['"]?/i, language: 'javascript' },
   { pattern: /^\s*(\{[\s\S]*\}|\[[\s\S]*\])\s*$/, language: 'json' },
   { pattern: /^\s*<[^>]+>/, language: 'html' },
   { pattern: /^#!\s*.*python.*/i, language: 'python' },
@@ -204,4 +204,6 @@ module.exports = {
   renderCommand,
   renderCommandResult,
   wrapWithLanguageFence,
+  inferLanguageFromDetectors,
+  detectLanguage,
 };

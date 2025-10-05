@@ -35,6 +35,8 @@ const {
   renderMessage,
   renderCommand,
   renderCommandResult,
+  inferLanguageFromDetectors,
+  detectLanguage,
 } = require('./src/cli/render');
 const { runCommand, runBrowse, runEdit, runRead } = require('./src/commands/run');
 const {
@@ -141,6 +143,8 @@ const exported = {
   renderMessage,
   renderCommand,
   renderCommandResult,
+  inferLanguageFromDetectors,
+  detectLanguage,
   loadPreapprovedConfig,
   isPreapprovedCommand,
   __commandSignature,
