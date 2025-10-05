@@ -152,39 +152,20 @@ export function renderMessage(message) {
 }
 
 export function renderCommand(command) {
-  if (!command) return;
-
-  const commandLines = [command.run];
-  display('Command', commandLines, 'yellow');
-}
-
-export function renderCommandResult(command, result, stdout, stderr) {
-function renderCommand(command) {
   if (!command || typeof command !== 'object') {
     return;
   }
 
-  const sections = [];
-
   const runText = command.run || 'missing:' + JSON.stringify(command);
-
   const fenced = wrapWithLanguageFence(runText, 'bash');
-  sections.push(renderMarkdownMessage(fenced));
+  const renderedCommand = renderMarkdownMessage(fenced);
 
-  display('Command', sections, 'yellow');
+  display('Command', renderedCommand, 'yellow');
 }
 
-function renderCommandResult(command, result, stdout, stderr) {
-  // const statusLines = [
-  //   `${chalk.cyan('Exit Code')}: ${result.exit_code}`,
-  //   `${chalk.cyan('Runtime')}: ${result.runtime_ms}ms`,
-  //   `${chalk.cyan('Status')}: ${result.killed ? chalk.red('KILLED (timeout)') : chalk.green('COMPLETED')}`,
-  // ];
-
-  // display('Command Result', statusLines, 'green');
-
-
-  const language = detectLanguage(command.command);
+export function renderCommandResult(command, result, stdout, stderr) {
+  const runText = typeof command?.run === 'string' ? command.run : '';
+  const language = detectLanguage(runText);
 
   if (stdout) {
     const fencedStdout = wrapWithLanguageFence(stdout, language);

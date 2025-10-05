@@ -12,7 +12,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-const { execSync } = require('child_process');
+import { execSync } from 'node:child_process';
 
 function detectWorkspaceRoot(startDir = process.cwd()) {
   try {
@@ -140,8 +140,8 @@ export function buildBaseSystemPrompt(rootDir) {
   return sections.join('\n\n');
 }
 
-const WORKSPACE_ROOT_INFO = detectWorkspaceRoot(process.cwd());
-const BASE_SYSTEM_PROMPT = buildBaseSystemPrompt(WORKSPACE_ROOT_INFO.root);
+export const WORKSPACE_ROOT_INFO = detectWorkspaceRoot(process.cwd());
+export const BASE_SYSTEM_PROMPT = buildBaseSystemPrompt(WORKSPACE_ROOT_INFO.root);
 
 const agentsGuidance = buildAgentsPrompt(WORKSPACE_ROOT_INFO.root);
 
@@ -152,14 +152,4 @@ const combinedPrompt =
 
 const workspaceMetadata = `Workspace metadata:\n- workspace_root: ${WORKSPACE_ROOT_INFO.root}\n- detection_source: ${WORKSPACE_ROOT_INFO.source}`;
 
-const SYSTEM_PROMPT = [combinedPrompt, workspaceMetadata].filter(Boolean).join('\n\n');
-
-module.exports = {
-  detectWorkspaceRoot,
-  findAgentFiles,
-  buildAgentsPrompt,
-  buildBaseSystemPrompt,
-  BASE_SYSTEM_PROMPT,
-  SYSTEM_PROMPT,
-  WORKSPACE_ROOT_INFO,
-};
+export const SYSTEM_PROMPT = [combinedPrompt, workspaceMetadata].filter(Boolean).join('\n\n');
