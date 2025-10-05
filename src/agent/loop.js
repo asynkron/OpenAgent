@@ -31,6 +31,37 @@ import { combineStdStreams } from '../utils/output.js';
 import { register as registerCancellation } from '../utils/cancellation.js';
 
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
+const PLAN_PENDING_REMINDER = "There are open tasks in the plan. Do you need help or more info? If not, please continue working.";
+
+function planHasOpenSteps(plan) {
+  const hasOpen = (items) => {
+    if (!Array.isArray(items)) {
+      return false;
+    }
+
+    for (const item of items) {
+      if (!item || typeof item !== 'object') {
+        continue;
+      }
+
+      const normalizedStatus =
+        typeof item.status === 'string' ? item.status.trim().toLowerCase() : '';
+
+      if (Array.isArray(item.substeps) && hasOpen(item.substeps)) {
+        return true;
+      }
+
+      if (normalizedStatus !== 'completed') {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  return hasOpen(plan);
+}
+
 
 function createEscWaiter(escState) {
   if (!escState || typeof escState !== 'object') {
@@ -407,6 +438,16 @@ async function executeAgentPass({
         setNoHumanFlag(false);
       }
     }
+
+    if (Array.isArray(parsed.plan) && planHasOpenSteps(parsed.plan)) {
+      console.log(chalk.yellow(PLAN_PENDING_REMINDER));
+      history.push({
+        role: 'user',
+        content: PLAN_PENDING_REMINDER,
+      });
+      return true;
+    }
+
     return false;
   }
 
