@@ -184,7 +184,7 @@ describe('runRead', () => {
       fs.writeFileSync(path.join(tmpDir, 'sample.txt'), 'hello world');
       const result = await mod.runRead({ path: 'sample.txt' }, tmpDir);
       expect(result.exit_code).toBe(0);
-      expect(result.stdout).toBe('hello world');
+      expect(result.stdout).toBe('sample.txt:::\nhello world');
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -197,7 +197,21 @@ describe('runRead', () => {
       fs.writeFileSync(path.join(tmpDir, 'sample.txt'), 'line1\nline2\nline3');
       const result = await mod.runRead({ path: 'sample.txt', max_lines: 2 }, tmpDir);
       expect(result.exit_code).toBe(0);
-      expect(result.stdout).toBe('line1\nline2');
+      expect(result.stdout).toBe('sample.txt:::\nline1\nline2');
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('reads multiple files and concatenates results', async () => {
+    const { mod } = loadModule();
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openagent-read-'));
+    try {
+      fs.writeFileSync(path.join(tmpDir, 'alpha.txt'), 'alpha');
+      fs.writeFileSync(path.join(tmpDir, 'beta.txt'), 'beta');
+      const result = await mod.runRead({ path: 'alpha.txt', paths: ['beta.txt'] }, tmpDir);
+      expect(result.exit_code).toBe(0);
+      expect(result.stdout).toBe('alpha.txt:::\nalpha\nbeta.txt:::\nbeta');
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }

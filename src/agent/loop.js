@@ -70,6 +70,7 @@ function extractResponseText(response) {
 
 function parseReadSpecTokens(tokens) {
   const spec = {};
+  const positional = [];
 
   for (let i = 0; i < tokens.length; i += 1) {
     const token = tokens[i];
@@ -107,8 +108,13 @@ function parseReadSpecTokens(tokens) {
       continue;
     }
 
-    if (!spec.path) {
-      spec.path = token;
+    positional.push(token);
+  }
+
+  if (positional.length > 0) {
+    spec.path = positional[0];
+    if (positional.length > 1) {
+      spec.paths = positional.slice(1);
     }
   }
 
@@ -118,8 +124,45 @@ function parseReadSpecTokens(tokens) {
 function mergeReadSpecs(base, override) {
   const merged = { ...base };
 
-  if (override.path && !merged.path) {
-    merged.path = override.path;
+  const orderedPaths = [];
+  const addPath = (candidate) => {
+    if (typeof candidate !== 'string') {
+      return;
+    }
+    const trimmed = candidate.trim();
+    if (!trimmed || orderedPaths.includes(trimmed)) {
+      return;
+    }
+    orderedPaths.push(trimmed);
+  };
+
+  const addPathsFromSpec = (spec) => {
+    if (!spec || typeof spec !== 'object') {
+      return;
+    }
+    if (typeof spec.path === 'string') {
+      addPath(spec.path);
+    }
+    if (Array.isArray(spec.paths)) {
+      for (const candidate of spec.paths) {
+        addPath(candidate);
+      }
+    }
+  };
+
+  addPathsFromSpec(base);
+  addPathsFromSpec(override);
+
+  if (orderedPaths.length > 0) {
+    merged.path = orderedPaths[0];
+    if (orderedPaths.length > 1) {
+      merged.paths = orderedPaths.slice(1);
+    } else {
+      delete merged.paths;
+    }
+  } else {
+    delete merged.path;
+    delete merged.paths;
   }
 
   if (override.encoding && merged.encoding === undefined) {

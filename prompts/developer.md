@@ -95,13 +95,14 @@ All special commands are issued through the `"command"` object in the response J
 ```
 
 ### read
-- Read file contents from disk. Optional fields: `encoding`, `max_bytes`, `max_lines`.
+- Read one or more files from disk. Required field: `path` for the first file. Optional fields: `paths` (array of additional files), `encoding`, `max_bytes`, `max_lines`. Output is concatenated as `filepath:::\ncontent` per file.
 ```json
 {
   "command": {
     "cwd": ".",
     "read": {
-      "path": "path/to/file.txt",
+      "path": "path/to/file1.txt",
+      "paths": ["path/to/file2.txt"],
       "encoding": "utf8",
       "max_bytes": 4096,
       "max_lines": 200

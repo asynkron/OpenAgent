@@ -3,6 +3,39 @@
 const fs = require('fs');
 const path = require('path');
 
+function normalizePaths(readSpec) {
+  const paths = [];
+  if (!readSpec || typeof readSpec !== 'object') {
+    return paths;
+  }
+
+  const seen = new Set();
+
+  const addPath = (relPath) => {
+    if (typeof relPath !== 'string') {
+      return;
+    }
+    const trimmed = relPath.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      return;
+    }
+    seen.add(trimmed);
+    paths.push(trimmed);
+  };
+
+  if (typeof readSpec.path === 'string') {
+    addPath(readSpec.path);
+  }
+
+  if (Array.isArray(readSpec.paths)) {
+    for (const candidate of readSpec.paths) {
+      addPath(candidate);
+    }
+  }
+
+  return paths;
+}
+
 async function runRead(readSpec, cwd = '.') {
   const start = Date.now();
   try {
@@ -10,27 +43,33 @@ async function runRead(readSpec, cwd = '.') {
       throw new Error('read spec must be an object');
     }
 
-    const relPath = readSpec.path;
-    if (typeof relPath !== 'string' || relPath.trim() === '') {
-      throw new Error('readSpec.path must be a non-empty string');
+    const relPaths = normalizePaths(readSpec);
+    if (relPaths.length === 0) {
+      throw new Error('readSpec.path or readSpec.paths must include at least one path');
     }
 
     const encoding = readSpec.encoding || 'utf8';
-    const absPath = path.resolve(cwd || '.', relPath);
-    let content = fs.readFileSync(absPath, { encoding });
+    const segments = [];
 
-    if (typeof readSpec.max_bytes === 'number' && readSpec.max_bytes >= 0) {
-      const buffer = Buffer.from(content, encoding);
-      content = buffer.slice(0, readSpec.max_bytes).toString(encoding);
-    }
+    for (const relPath of relPaths) {
+      const absPath = path.resolve(cwd || '.', relPath);
+      let content = fs.readFileSync(absPath, { encoding });
 
-    if (typeof readSpec.max_lines === 'number' && readSpec.max_lines >= 0) {
-      const lines = content.split('\n').slice(0, readSpec.max_lines);
-      content = lines.join('\n');
+      if (typeof readSpec.max_bytes === 'number' && readSpec.max_bytes >= 0) {
+        const buffer = Buffer.from(content, encoding);
+        content = buffer.slice(0, readSpec.max_bytes).toString(encoding);
+      }
+
+      if (typeof readSpec.max_lines === 'number' && readSpec.max_lines >= 0) {
+        const lines = content.split('\n').slice(0, readSpec.max_lines);
+        content = lines.join('\n');
+      }
+
+      segments.push(`${relPath}:::\n${content}`);
     }
 
     return {
-      stdout: content,
+      stdout: segments.join('\n'),
       stderr: '',
       exit_code: 0,
       killed: false,
