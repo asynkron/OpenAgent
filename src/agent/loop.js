@@ -240,7 +240,20 @@ async function executeAgentPass({
   } catch (err) {
     console.error(chalk.red('Error: LLM returned invalid JSON'));
     console.error('Response:', responseContent);
-    return false;
+
+    const observation = {
+      observation_for_llm: {
+        json_parse_error: true,
+        message: `Failed to parse assistant JSON: ${err instanceof Error ? err.message : String(err)}`,
+        response_snippet: responseContent.slice(0, 4000),
+      },
+      observation_metadata: {
+        timestamp: new Date().toISOString(),
+      },
+    };
+
+    history.push({ role: 'user', content: JSON.stringify(observation) });
+    return true;
   }
 
   // This is correct. AI message is just vanilla markdown.

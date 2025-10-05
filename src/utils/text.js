@@ -13,7 +13,7 @@
 export function applyFilter(text, regex) {
   if (!regex) return text;
   try {
-    const pattern = new RegExp(regex, 'i');
+    const pattern = regex instanceof RegExp ? regex : new RegExp(regex, 'i');
     return text
       .split('\n')
       .filter((line) => pattern.test(line))
@@ -51,12 +51,12 @@ export function truncateOutput(text, { head = 200, tail = 200, snipMarker = '<sn
   const headSlice = head > 0 ? lines.slice(0, head) : [];
 
   const parts = [];
-  if (tailSlice.length) {
-    parts.push(tailSlice.join('\n'));
-  }
-  parts.push(snipMarker);
   if (headSlice.length) {
     parts.push(headSlice.join('\n'));
+  }
+  parts.push(snipMarker);
+  if (tailSlice.length) {
+    parts.push(tailSlice.join('\n'));
   }
 
   return parts.join('\n');
