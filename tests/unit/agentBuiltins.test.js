@@ -24,18 +24,14 @@ function createLoopWithQueue(queue, overrides = {}) {
     return queue.shift();
   });
 
-  const askHumanFn = jest
-    .fn()
-    .mockResolvedValueOnce('Initial prompt')
-    .mockResolvedValueOnce('exit');
-
   const closeFn = jest.fn();
 
-  const loop = createAgentLoop({
-    getClient: () => ({ responses: { create: responsesCreate } }),
-    model: 'test-model',
+  const defaults = {
     createInterfaceFn: () => ({ close: closeFn }),
-    askHumanFn,
+    askHumanFn: jest
+      .fn()
+      .mockResolvedValueOnce('Initial prompt')
+      .mockResolvedValueOnce('exit'),
     startThinkingFn: jest.fn(),
     stopThinkingFn: jest.fn(),
     renderPlanFn: jest.fn(),
@@ -71,11 +67,28 @@ function createLoopWithQueue(queue, overrides = {}) {
     approveForSessionFn: jest.fn(),
     preapprovedCfg: { allowlist: [] },
     getAutoApproveFlag: () => true,
-    ...overrides,
+    getNoHumanFlag: () => false,
+    setNoHumanFlag: jest.fn(),
+  };
+
+  const config = { ...defaults, ...overrides };
+
+  const loop = createAgentLoop({
+    getClient: () => ({ responses: { create: responsesCreate } }),
+    model: 'test-model',
+    ...config,
   });
 
-  return { loop, responsesCreate, closeFn, askHumanFn };
+  return {
+    loop,
+    responsesCreate,
+    closeFn,
+    askHumanFn: config.askHumanFn,
+    getNoHumanFlag: config.getNoHumanFlag,
+    setNoHumanFlag: config.setNoHumanFlag,
+  };
 }
+
 
 describe('agent built-in command parsing', () => {
   test('read built-in with quoted path uses runRead', async () => {

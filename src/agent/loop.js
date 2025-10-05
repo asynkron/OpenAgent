@@ -162,7 +162,7 @@ function createAgentLoop({
   preapprovedCfg = PREAPPROVED_CFG,
   getAutoApproveFlag = () => false,
   getNoHumanFlag = () => false,
-  setNoHumanFlag = () => {},
+  setNoHumanFlag = () => { },
 } = {}) {
   return async function agentLoop() {
     const history = [
@@ -267,11 +267,23 @@ function createAgentLoop({
             renderPlanFn(parsed.plan);
 
             if (!parsed.command) {
+              if (
+                typeof getNoHumanFlag === 'function' &&
+                typeof setNoHumanFlag === 'function' &&
+                getNoHumanFlag()
+              ) {
+                const maybeMessage =
+                  typeof parsed.message === 'string' ? parsed.message.trim().toLowerCase() : '';
+                const normalizedMessage = maybeMessage.replace(/[.!]+$/, '');
+                if (normalizedMessage === 'done') {
+                  setNoHumanFlag(false);
+                }
+              }
               continueLoop = false;
               continue;
             }
 
-            
+
             renderCommandFn(parsed.command);
 
             const autoApprovedAllowlist = isPreapprovedCommandFn(parsed.command, preapprovedCfg);
