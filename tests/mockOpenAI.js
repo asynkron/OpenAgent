@@ -1,8 +1,8 @@
 // Preload mock for 'openai' module so the agent uses our stubbed client
-import Module from 'node:module';
+import * as nodeModule from 'node:module';
 
-const originalLoad = Module._load;
-Module._load = function (request, parent, isMain) {
+const originalLoad = nodeModule._load;
+nodeModule._load = function (request, parent, isMain) {
   if (request === 'openai') {
     return function OpenAIMock(_options) {
       return {

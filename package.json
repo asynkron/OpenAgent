@@ -7,8 +7,9 @@
   "exports": {
     ".": {
       "import": "./index.js",
-      "require": "./legacy/index.cjs"
+      "default": "./index.js"
     },
+    "./legacy": "./legacy/index.js",
     "./legacy/*": "./legacy/*",
     "./package.json": "./package.json"
   },

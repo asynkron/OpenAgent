@@ -1,10 +1,9 @@
-'use strict';
-
-const fs = require('fs');
-const fsp = fs.promises;
-const path = require('path');
-const os = require('os');
-const nodeCrypto = require('crypto');
+import * as path from 'node:path';
+import * as os from 'node:os';
+import { randomBytes } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import * as fsp from 'node:fs/promises';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function resolveDefaultStatsPath() {
   const xdgDataHome = process.env.XDG_DATA_HOME && process.env.XDG_DATA_HOME.trim();
@@ -22,7 +21,7 @@ function resolveDefaultStatsPath() {
 
 const DEFAULT_STATS_PATH = resolveDefaultStatsPath();
 
-async function incrementCommandCount(cmdKey, logPath = null) {
+export async function incrementCommandCount(cmdKey, logPath = null) {
   try {
     const targetPath = logPath ? path.resolve(logPath) : DEFAULT_STATS_PATH;
     const dir = path.dirname(targetPath);
@@ -46,7 +45,7 @@ async function incrementCommandCount(cmdKey, logPath = null) {
     }
     data[cmdKey] = nextValue;
 
-    const randomSuffix = nodeCrypto.randomBytes(6).toString('hex');
+    const randomSuffix = randomBytes(6).toString('hex');
     const tempFile = path.join(dir, `._cmdstats_${Date.now()}_${randomSuffix}`);
     let handle = null;
     try {
@@ -68,4 +67,4 @@ async function incrementCommandCount(cmdKey, logPath = null) {
   }
 }
 
-module.exports = { incrementCommandCount };
+export default { incrementCommandCount };

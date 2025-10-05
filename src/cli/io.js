@@ -10,7 +10,7 @@
  * - Tests mock these helpers through the root index re-exports.
  */
 
-import readline from 'node:readline';
+import * as readline from 'node:readline';
 import chalk from 'chalk';
 
 import { cancel as cancelActive } from '../utils/cancellation.js';

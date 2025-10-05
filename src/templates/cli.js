@@ -10,8 +10,8 @@
  * - Integration tests cover the JSON shape via the exported helpers.
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 const TEMPLATES_PATH = path.join(process.cwd(), 'templates', 'command-templates.json');
 

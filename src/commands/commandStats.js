@@ -1,10 +1,8 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import os from 'node:os';
-import nodeCrypto from 'node:crypto';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-
-const fsp = fs.promises;
+import * as fsp from 'node:fs/promises';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function resolveDefaultStatsPath() {
@@ -47,7 +45,7 @@ export async function incrementCommandCount(cmdKey, logPath = null) {
     }
     data[cmdKey] = nextValue;
 
-    const randomSuffix = nodeCrypto.randomBytes(6).toString('hex');
+    const randomSuffix = randomBytes(6).toString('hex');
     const tempFile = path.join(dir, `._cmdstats_${Date.now()}_${randomSuffix}`);
     let handle = null;
     try {

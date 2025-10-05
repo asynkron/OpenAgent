@@ -10,8 +10,8 @@
  * - Root `index.js` re-exports the discovery helpers for unit tests.
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { execSync } from 'node:child_process';
 
 function detectWorkspaceRoot(startDir = process.cwd()) {

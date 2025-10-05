@@ -12,7 +12,7 @@
  * - `src/commands`, `src/cli`, and `src/config` supply focused utilities that the loop depends upon.
  */
 
-import path from 'node:path';
+import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import 'dotenv/config';

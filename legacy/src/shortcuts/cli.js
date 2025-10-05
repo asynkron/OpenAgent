@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Shortcut CLI utilities mirroring the legacy behaviour from index.js.
  *
@@ -12,12 +10,12 @@
  * - Integration tests rely on `loadShortcutsFile()` via the index re-export.
  */
 
-const fs = require('fs');
-const path = require('path');
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 const SHORTCUTS_PATH = path.join(process.cwd(), 'shortcuts', 'shortcuts.json');
 
-function loadShortcutsFile() {
+export function loadShortcutsFile() {
   try {
     const raw = fs.readFileSync(SHORTCUTS_PATH, 'utf8');
     const parsed = JSON.parse(raw);
@@ -28,12 +26,12 @@ function loadShortcutsFile() {
   }
 }
 
-function findShortcut(id) {
+export function findShortcut(id) {
   const list = loadShortcutsFile();
   return list.find((s) => s.id === id);
 }
 
-function handleShortcutsCli(argv = process.argv) {
+export function handleShortcutsCli(argv = process.argv) {
   const sub = argv[3] || 'list';
   const shortcuts = loadShortcutsFile();
   if (sub === 'list') {
@@ -65,7 +63,7 @@ function handleShortcutsCli(argv = process.argv) {
   process.exit(0);
 }
 
-module.exports = {
+export default {
   loadShortcutsFile,
   findShortcut,
   handleShortcutsCli,

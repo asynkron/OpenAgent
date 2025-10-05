@@ -10,7 +10,7 @@
  * - Tests rely on the root re-exports to stub these behaviours.
  */
 
-import readline from 'node:readline';
+import * as readline from 'node:readline';
 import chalk from 'chalk';
 
 let intervalHandle = null;

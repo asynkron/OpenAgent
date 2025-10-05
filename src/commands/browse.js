@@ -1,5 +1,5 @@
-import http from 'node:http';
-import https from 'node:https';
+import * as http from 'node:http';
+import * as https from 'node:https';
 
 export async function runBrowse(url, timeoutSec) {
   const startTime = Date.now();

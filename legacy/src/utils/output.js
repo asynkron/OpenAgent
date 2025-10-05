@@ -1,6 +1,4 @@
-'use strict';
-
-function combineStdStreams(filteredStdout, filteredStderr, exitCode) {
+export function combineStdStreams(filteredStdout, filteredStderr, exitCode) {
   if (exitCode === 0 && filteredStderr && String(filteredStderr).trim().length > 0) {
     const left = filteredStdout ? String(filteredStdout) : '';
     const right = String(filteredStderr);
@@ -10,4 +8,4 @@ function combineStdStreams(filteredStdout, filteredStderr, exitCode) {
   return { stdout: filteredStdout || '', stderr: filteredStderr || '' };
 }
 
-module.exports = { combineStdStreams };
+export default { combineStdStreams };
