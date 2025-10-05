@@ -152,17 +152,17 @@ export function renderMessage(message) {
 }
 
 function formatHeading(label, detail) {
-  const padded = label.padEnd(8);
+  const padded = label.padEnd(1);
   const suffix = detail ? ` ${detail}` : '';
-  return ` ${chalk.bold(padded)}${suffix}`;
+  return ` ${chalk.blueBright(chalk.bold(padded))}${suffix}`;
 }
 
 function arrowLine(text) {
-  return ` ↳ ${text}`;
+  return chalk.grey(` ↳ ${text}`);
 }
 
 function indentLine(text) {
-  return `   ${text}`;
+  return chalk.grey(`   ${text}`);
 }
 
 function pluralize(word, count) {

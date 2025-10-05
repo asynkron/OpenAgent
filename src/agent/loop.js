@@ -16,7 +16,7 @@ import chalk from 'chalk';
 import { SYSTEM_PROMPT } from '../config/systemPrompt.js';
 import { getOpenAIClient, MODEL } from '../openai/client.js';
 import { startThinking, stopThinking } from '../cli/thinking.js';
-import { createInterface, askHuman } from '../cli/io.js';
+import { createInterface, askHuman, ESCAPE_EVENT } from '../cli/io.js';
 import { renderPlan, renderMessage, renderCommand } from '../cli/render.js';
 import { runCommand, runBrowse, runEdit, runRead, runReplace } from '../commands/run.js';
 import { applyFilter, tailLines, shellSplit } from '../utils/text.js';
@@ -28,6 +28,7 @@ import {
 } from '../commands/preapproval.js';
 import { incrementCommandCount } from '../commands/commandStats.js';
 import { combineStdStreams } from '../utils/output.js';
+import { register as registerCancellation } from '../utils/cancellation.js';
 
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 
@@ -201,17 +202,25 @@ async function executeAgentPass({
   stopThinkingFn,
 }) {
   startThinkingFn();
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  const cancellationOp = registerCancellation({
+    description: 'openai.responses.create',
+    onCancel: controller ? () => controller.abort() : null,
+  });
   console.log('Sending request to AI');
   let completion;
   try {
-    completion = await openai.responses.create({
+    const requestParams = {
       model,
       input: history,
       text: {
         format: { type: 'json_object' },
       },
-    });
+    };
+    const requestOptions = controller ? { signal: controller.signal } : undefined;
+    completion = await openai.responses.create(requestParams, requestOptions);
   } finally {
+    cancellationOp.unregister();
     stopThinkingFn();
   }
   console.log('Received response from AI');
@@ -277,11 +286,11 @@ async function executeAgentPass({
 
   if (autoApproved) {
     if (autoApprovedAllowlist) {
-      console.log(chalk.green('Auto-approved by allowlist (approved_commands.json)'));
+      //console.log(chalk.green('Auto-approved by allowlist (approved_commands.json)'));
     } else if (autoApprovedSession) {
-      console.log(chalk.green('Auto-approved by session approvals'));
+      //console.log(chalk.green('Auto-approved by session approvals'));
     } else {
-      console.log(chalk.green('Auto-approved by CLI flag (--auto-approve)'));
+      //console.log(chalk.green('Auto-approved by CLI flag (--auto-approve)'));
     }
   } else {
     let selection;
@@ -427,11 +436,11 @@ async function executeAgentPass({
 
   const stdoutPreview = filteredStdout
     ? filteredStdout.split('\n').slice(0, 20).join('\n') +
-      (filteredStdout.split('\n').length > 20 ? '\n…' : '')
+    (filteredStdout.split('\n').length > 20 ? '\n…' : '')
     : '';
   const stderrPreview = filteredStderr
     ? filteredStderr.split('\n').slice(0, 20).join('\n') +
-      (filteredStderr.split('\n').length > 20 ? '\n…' : '')
+    (filteredStderr.split('\n').length > 20 ? '\n…' : '')
     : '';
 
   renderCommandFn(parsed.command, result, {
@@ -493,7 +502,7 @@ export function createAgentLoop({
   preapprovedCfg = PREAPPROVED_CFG,
   getAutoApproveFlag = () => false,
   getNoHumanFlag = () => false,
-  setNoHumanFlag = () => {},
+  setNoHumanFlag = () => { },
 } = {}) {
   return async function agentLoop() {
     const history = [
@@ -504,6 +513,16 @@ export function createAgentLoop({
     ];
 
     const rl = createInterfaceFn();
+
+    const escState = {
+      triggered: false,
+      payload: null,
+    };
+
+    rl.on(ESCAPE_EVENT, (payload) => {
+      escState.triggered = true;
+      escState.payload = payload ?? null;
+    });
 
     let openai;
     try {
