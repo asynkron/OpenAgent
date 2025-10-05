@@ -31,10 +31,21 @@ describe('applyFileEdits integration', () => {
     expect(result.stdout).toMatch(/Edited/);
   });
 
-  test('returns error result when file is missing', async () => {
-    const spec = { path: 'nonexistent_file.txt', edits: [{ start: 0, end: 0, newText: 'x' }] };
+  test('creates file when missing', async () => {
+    const tmpDir = path.join(__dirname, 'tmp_missing');
+    const targetPath = path.join(tmpDir, 'nonexistent_file.txt');
+
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    const spec = { path: targetPath, edits: [{ start: 0, end: 0, newText: 'x' }] };
     const result = await applyFileEdits(spec, process.cwd());
-    expect(result.exit_code).toBe(1);
-    expect(result.stderr).toMatch(/Unable to read file/);
+
+    expect(result.exit_code).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout).toMatch(/Created/);
+    expect(fs.existsSync(targetPath)).toBe(true);
+    expect(fs.readFileSync(targetPath, 'utf8')).toBe('x');
+
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 });

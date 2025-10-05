@@ -32,6 +32,38 @@ import { register as registerCancellation } from '../utils/cancellation.js';
 
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 
+function createEscWaiter(escState) {
+  if (!escState || typeof escState !== 'object') {
+    return { promise: null, cleanup: () => {} };
+  }
+
+  if (escState.triggered) {
+    return {
+      promise: Promise.resolve(escState.payload ?? null),
+      cleanup: () => {},
+    };
+  }
+
+  if (!escState.waiters || typeof escState.waiters.add !== 'function') {
+    return { promise: null, cleanup: () => {} };
+  }
+
+  let resolver;
+  const promise = new Promise((resolve) => {
+    resolver = (payload) => resolve(payload ?? null);
+  });
+
+  escState.waiters.add(resolver);
+
+  const cleanup = () => {
+    if (resolver && escState.waiters && typeof escState.waiters.delete === 'function') {
+      escState.waiters.delete(resolver);
+    }
+  };
+
+  return { promise, cleanup };
+}
+
 export function extractResponseText(response) {
   if (!response || typeof response !== 'object') {
     return '';
@@ -200,7 +232,10 @@ async function executeAgentPass({
   rl,
   startThinkingFn,
   stopThinkingFn,
+  escState,
 }) {
+  const { promise: escPromise, cleanup: cleanupEscWaiter } = createEscWaiter(escState);
+
   startThinkingFn();
   const controller = typeof AbortController === 'function' ? new AbortController() : null;
   const cancellationOp = registerCancellation({
@@ -208,20 +243,118 @@ async function executeAgentPass({
     onCancel: controller ? () => controller.abort() : null,
   });
   console.log('Sending request to AI');
+
+  const requestParams = {
+    model,
+    input: history,
+    text: {
+      format: { type: 'json_object' },
+    },
+  };
+  const requestOptions = controller ? { signal: controller.signal } : undefined;
+  const requestPromise = openai.responses.create(requestParams, requestOptions);
+
   let completion;
+
   try {
-    const requestParams = {
-      model,
-      input: history,
-      text: {
-        format: { type: 'json_object' },
-      },
-    };
-    const requestOptions = controller ? { signal: controller.signal } : undefined;
-    completion = await openai.responses.create(requestParams, requestOptions);
+    const raceCandidates = [
+      requestPromise.then((value) => ({ kind: 'completion', value })),
+    ];
+
+    if (escPromise) {
+      raceCandidates.push(
+        escPromise.then((payload) => ({ kind: 'escape', payload })),
+      );
+    }
+
+    const outcome = await Promise.race(raceCandidates);
+
+    if (outcome.kind === 'escape') {
+      if (cancellationOp && typeof cancellationOp.cancel === 'function') {
+        cancellationOp.cancel('esc-key');
+      }
+
+      await requestPromise.catch((error) => {
+        if (!error) return null;
+        if (error.name === 'APIUserAbortError') return null;
+        if (typeof error.message === 'string' && error.message.includes('aborted')) {
+          return null;
+        }
+        throw error;
+      });
+
+      if (escState) {
+        escState.triggered = false;
+        escState.payload = null;
+      }
+
+      console.log(chalk.yellow('Operation canceled via ESC key.'));
+
+      if (typeof setNoHumanFlag === 'function') {
+        setNoHumanFlag(false);
+      }
+
+      const observation = {
+        observation_for_llm: {
+          operation_canceled: true,
+          reason: 'escape_key',
+          message: 'Human pressed ESC to cancel the in-flight request.',
+        },
+        observation_metadata: {
+          timestamp: new Date().toISOString(),
+          esc_payload: outcome.payload ?? null,
+        },
+      };
+
+      history.push({ role: 'user', content: JSON.stringify(observation) });
+      return false;
+    }
+
+    completion = outcome.value;
+  } catch (error) {
+    if (
+      error &&
+      (error.name === 'APIUserAbortError' ||
+        (typeof error.message === 'string' && error.message.includes('aborted')))
+    ) {
+      if (escState) {
+        escState.triggered = false;
+        escState.payload = null;
+      }
+
+      console.log(chalk.yellow('Operation canceled.'));
+
+      if (typeof setNoHumanFlag === 'function') {
+        setNoHumanFlag(false);
+      }
+
+      const observation = {
+        observation_for_llm: {
+          operation_canceled: true,
+          reason: 'abort',
+          message: 'The in-flight request was aborted before completion.',
+        },
+        observation_metadata: {
+          timestamp: new Date().toISOString(),
+        },
+      };
+
+      history.push({ role: 'user', content: JSON.stringify(observation) });
+      return false;
+    }
+
+    throw error;
   } finally {
-    cancellationOp.unregister();
+    cleanupEscWaiter();
+    if (cancellationOp && typeof cancellationOp.unregister === 'function') {
+      cancellationOp.unregister();
+    }
     stopThinkingFn();
+  }
+
+  if (escState) {
+    escState.triggered = false;
+    escState.payload = null;
   }
   console.log('Received response from AI');
 
@@ -286,11 +419,11 @@ async function executeAgentPass({
 
   if (autoApproved) {
     if (autoApprovedAllowlist) {
-      //console.log(chalk.green('Auto-approved by allowlist (approved_commands.json)'));
+      console.log(chalk.green('Auto-approved by allowlist (approved_commands.json)'));
     } else if (autoApprovedSession) {
-      //console.log(chalk.green('Auto-approved by session approvals'));
+      console.log(chalk.green('Auto-approved by session approvals'));
     } else {
-      //console.log(chalk.green('Auto-approved by CLI flag (--auto-approve)'));
+      console.log(chalk.green('Auto-approved by CLI flag (--auto-approve)'));
     }
   } else {
     let selection;
@@ -298,7 +431,11 @@ async function executeAgentPass({
       const input = (
         await askHumanFn(
           rl,
-          `Approve running this command?\n  1) Yes (run once)\n  2) Yes, for entire session (add to in-memory approvals)\n  3) No, tell the AI to do something else\nSelect 1, 2, or 3: `,
+          `Approve running this command?
+  1) Yes (run once)
+  2) Yes, for entire session (add to in-memory approvals)
+  3) No, tell the AI to do something else
+Select 1, 2, or 3: `,
         )
       )
         .trim()
@@ -436,11 +573,11 @@ async function executeAgentPass({
 
   const stdoutPreview = filteredStdout
     ? filteredStdout.split('\n').slice(0, 20).join('\n') +
-    (filteredStdout.split('\n').length > 20 ? '\n…' : '')
+      (filteredStdout.split('\n').length > 20 ? '\n…' : '')
     : '';
   const stderrPreview = filteredStderr
     ? filteredStderr.split('\n').slice(0, 20).join('\n') +
-    (filteredStderr.split('\n').length > 20 ? '\n…' : '')
+      (filteredStderr.split('\n').length > 20 ? '\n…' : '')
     : '';
 
   renderCommandFn(parsed.command, result, {
@@ -477,6 +614,7 @@ async function executeAgentPass({
 
   return true;
 }
+
 
 export function createAgentLoop({
   systemPrompt = SYSTEM_PROMPT,
@@ -517,12 +655,25 @@ export function createAgentLoop({
     const escState = {
       triggered: false,
       payload: null,
+      waiters: new Set(),
     };
 
-    rl.on(ESCAPE_EVENT, (payload) => {
-      escState.triggered = true;
-      escState.payload = payload ?? null;
-    });
+    if (rl && typeof rl.on === 'function') {
+      rl.on(ESCAPE_EVENT, (payload) => {
+        escState.triggered = true;
+        escState.payload = payload ?? null;
+        if (escState.waiters.size > 0) {
+          for (const resolve of Array.from(escState.waiters)) {
+            try {
+              resolve(payload ?? null);
+            } catch (err) {
+              // Ignore resolver errors.
+            }
+          }
+          escState.waiters.clear();
+        }
+      });
+    }
 
     let openai;
     try {
@@ -602,6 +753,7 @@ export function createAgentLoop({
               rl,
               startThinkingFn,
               stopThinkingFn,
+              escState,
             });
 
             continueLoop = shouldContinue;

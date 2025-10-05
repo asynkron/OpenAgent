@@ -47,18 +47,32 @@ export async function applyFileEdits(editSpec, cwd = '.') {
     const encoding = editSpec.encoding || 'utf8';
     const absPath = path.resolve(cwd || '.', relPath);
 
-    let original;
+    let original = '';
+    let fileExisted = true;
+
     try {
       original = fs.readFileSync(absPath, { encoding });
     } catch (err) {
-      throw new Error(`Unable to read file: ${absPath} — ${err.message}`);
+      if (err && err.code === 'ENOENT') {
+        fileExisted = false;
+        const dir = path.dirname(absPath);
+        if (dir && dir !== absPath) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        original = '';
+      } else {
+        throw new Error(`Unable to read file: ${absPath} — ${err.message}`);
+      }
     }
 
     const updated = applyEdits(original, edits);
     fs.writeFileSync(absPath, updated, { encoding });
 
+    const relOutputPath = path.relative(process.cwd(), absPath);
+    const header = fileExisted ? `Edited ${relOutputPath}` : `Created ${relOutputPath}`;
+
     return {
-      stdout: `Edited ${path.relative(process.cwd(), absPath)}\n${updated}`,
+      stdout: `${header}\n${updated}`,
       stderr: '',
       exit_code: 0,
       killed: false,
