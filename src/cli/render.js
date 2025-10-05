@@ -153,32 +153,32 @@ function renderMessage(message) {
 function renderCommand(command) {
   if (!command) return;
 
-  const commandLines = [
-    `${chalk.cyan('Shell')}: ${command.shell || 'bash'}`,
-    `${chalk.cyan('Directory')}: ${command.cwd || '.'}`,
-    `${chalk.cyan('Timeout')}: ${command.timeout_sec ?? 60}s`,
-  ];
+  const commandLines = [command.run];
+  //   `${chalk.cyan('Shell')}: ${command.shell || 'bash'}`,
+  //   `${chalk.cyan('Directory')}: ${command.cwd || '.'}`,
+  //   `${chalk.cyan('Timeout')}: ${command.timeout_sec ?? 60}s`,
+  // ];
 
 
-  if (command.run) {
-    //this is correct, command should be bash/sh whatever shell we are running in
-    const fencedCommand = wrapWithLanguageFence(command.run, 'bash');
-    const renderedCommand = renderMarkdownMessage(fencedCommand);
-    commandLines.push('');
-    commandLines.push(renderedCommand);
-  }
+  // if (command.run) {
+  //   //this is correct, command should be bash/sh whatever shell we are running in
+  //   const fencedCommand = wrapWithLanguageFence(command.run, 'bash');
+  //   const renderedCommand = renderMarkdownMessage(fencedCommand);
+  //   commandLines.push('');
+  //   commandLines.push(renderedCommand);
+  // }
 
   display('Command', commandLines, 'yellow');
 }
 
 function renderCommandResult(command, result, stdout, stderr) {
-  const statusLines = [
-    `${chalk.cyan('Exit Code')}: ${result.exit_code}`,
-    `${chalk.cyan('Runtime')}: ${result.runtime_ms}ms`,
-    `${chalk.cyan('Status')}: ${result.killed ? chalk.red('KILLED (timeout)') : chalk.green('COMPLETED')}`,
-  ];
+  // const statusLines = [
+  //   `${chalk.cyan('Exit Code')}: ${result.exit_code}`,
+  //   `${chalk.cyan('Runtime')}: ${result.runtime_ms}ms`,
+  //   `${chalk.cyan('Status')}: ${result.killed ? chalk.red('KILLED (timeout)') : chalk.green('COMPLETED')}`,
+  // ];
 
-  display('Command Result', statusLines, 'green');
+  // display('Command Result', statusLines, 'green');
 
   let language = detectLanguage(command.command);
 

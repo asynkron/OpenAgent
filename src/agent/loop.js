@@ -203,9 +203,15 @@ function createAgentLoop({
 
     try {
       while (true) {
-        const userInput = await askHumanFn(rl, '\n ▷ ');
+        const noHumanActive = getNoHumanFlag();
+        const userInput = noHumanActive
+          ? NO_HUMAN_AUTO_MESSAGE
+          : await askHumanFn(rl, '\n ▷ ');
 
         if (!userInput) {
+          if (noHumanActive) {
+            continue;
+          }
           continue;
         }
 
