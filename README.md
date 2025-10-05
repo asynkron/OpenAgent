@@ -110,6 +110,8 @@ Edit `.env` to include the required secrets:
 
 ```
 OPENAI_API_KEY=sk-...
+# Optional: override the default model (defaults to gpt-5-codex)
+# OPENAI_MODEL=gpt-4.1-mini
 ```
 
 Adjust other environment variables as needed (e.g., model selection, timeouts).

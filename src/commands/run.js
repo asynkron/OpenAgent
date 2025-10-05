@@ -20,13 +20,71 @@ import { runEdit } from './edit.js';
 import { runRead } from './read.js';
 import { runReplace } from './replace.js';
 
-export async function runCommand(cmd, cwd, timeoutSec, shellOpt) {
+export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
   return new Promise((resolve) => {
     const startTime = Date.now();
     const isStringCommand = typeof cmd === 'string';
+
+    const options =
+      shellOrOptions &&
+      typeof shellOrOptions === 'object' &&
+      !Array.isArray(shellOrOptions)
+        ? { ...shellOrOptions }
+        : { shell: shellOrOptions };
+
+    const {
+      shell,
+      stdin,
+      closeStdin,
+      commandLabel: providedLabel,
+      description: providedDescription,
+    } = options;
+
     const spawnOptions = {
       cwd,
-      shell: shellOpt !== undefined ? shellOpt : isStringCommand,
+      shell: shell !== undefined ? shell : isStringCommand,
+    };
+
+    const commandLabel = providedLabel
+      ? String(providedLabel).trim()
+      : isStringCommand
+      ? String(cmd || '').trim()
+      : Array.isArray(cmd)
+      ? cmd.map((part) => String(part)).join(' ').trim()
+      : '';
+
+    const operationDescription =
+      providedDescription && String(providedDescription).trim()
+        ? String(providedDescription).trim()
+        : commandLabel
+        ? `shell: ${commandLabel}`
+        : 'shell command';
+
+    const appendLine = (output, line) => {
+      if (!line) {
+        return output;
+      }
+      const normalized = String(line);
+      if (!normalized) {
+        return output;
+      }
+      const needsNewline = output && !output.endsWith('\n');
+      return `${output || ''}${needsNewline ? '\n' : ''}${normalized}`;
+    };
+
+    const detailFor = (kind) => {
+      if (!kind) {
+        return null;
+      }
+      const suffix = commandLabel ? ` (${commandLabel})` : '';
+      if (kind === 'timeout') {
+        const seconds = timeoutSec ?? 60;
+        return `Command timed out after ${seconds}s${suffix}.`;
+      }
+      if (kind === 'canceled') {
+        return `Command was canceled${suffix}.`;
+      }
+      return null;
     };
 
     let child;
@@ -39,6 +97,9 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOpt) {
     let timeoutHandle;
     let forceKillHandle;
     let cancellation;
+
+    const effectiveCloseStdin =
+      closeStdin !== undefined ? Boolean(closeStdin) : stdin === undefined;
 
     const clearPendingTimers = () => {
       if (timeoutHandle) {
@@ -64,12 +125,14 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOpt) {
     const complete = (code) => {
       let finalStderr = stderr;
       if (timedOut || canceled) {
-        const marker = timedOut
+        const baseMarker = timedOut
           ? 'Command timed out and was terminated.'
           : 'Command was canceled.';
-        if (!finalStderr.includes(marker)) {
-          const needsNewline = finalStderr && !finalStderr.endsWith('\n');
-          finalStderr = `${finalStderr}${needsNewline ? '\n' : ''}${marker}`;
+        finalStderr = appendLine(finalStderr, baseMarker);
+
+        const detailMarker = detailFor(timedOut ? 'timeout' : 'canceled');
+        if (detailMarker) {
+          finalStderr = appendLine(finalStderr, detailMarker);
         }
       }
 
@@ -102,7 +165,9 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOpt) {
           }
         }, 1000);
       } else {
-        const message = reason ? String(reason) : 'Command canceled before start.';
+        const message =
+          detailFor('canceled') ||
+          (reason ? `Command was canceled: ${String(reason)}` : 'Command was canceled.');
         finalize({
           stdout: '',
           stderr: message,
@@ -113,14 +178,8 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOpt) {
       }
     };
 
-    const commandLabel = isStringCommand
-      ? String(cmd || '').trim()
-      : Array.isArray(cmd)
-      ? cmd.map((part) => String(part)).join(' ').trim()
-      : '';
-
     cancellation = registerCancellation({
-      description: commandLabel ? `shell: ${commandLabel}` : 'shell command',
+      description: operationDescription,
       onCancel: handleCancel,
     });
 
@@ -144,7 +203,18 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOpt) {
       return;
     }
 
-    child.stdin?.end();
+    if (child.stdin) {
+      if (stdin !== undefined) {
+        try {
+          child.stdin.write(stdin);
+        } catch (err) {
+          stderr = appendLine(stderr, err instanceof Error ? err.message : String(err));
+        }
+      }
+      if (effectiveCloseStdin) {
+        child.stdin.end();
+      }
+    }
 
     if (cancellation && typeof cancellation.isCanceled === 'function' && cancellation.isCanceled()) {
       handleCancel('Command canceled before start.');
@@ -165,8 +235,7 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOpt) {
     child.on('error', (error) => {
       if (settled) return;
       const message = error instanceof Error ? error.message : String(error);
-      const needsNewline = stderr && !stderr.endsWith('\n');
-      stderr = `${stderr}${needsNewline ? '\n' : ''}${message}`;
+      stderr = appendLine(stderr, message);
       complete(null);
     });
 

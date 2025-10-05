@@ -10,7 +10,8 @@ import {
 describe('cancellation manager', () => {
   afterEach(() => {
     cancel();
-    if (getActiveOperation()) {
+    const active = getActiveOperation();
+    if (active) {
       const handle = register({ description: 'cleanup' });
       handle.unregister();
     }
@@ -44,7 +45,7 @@ describe('cancellation manager', () => {
 
     expect(result).toBe(true);
     expect(onCancel).toHaveBeenCalledWith('manual cancel');
-    expect(getActiveOperation().canceled).toBe(true);
+    expect(getActiveOperation()).toBeNull();
   });
 
   test('updateDescription and unregister clean state', () => {
@@ -67,5 +68,22 @@ describe('cancellation manager', () => {
     cancel('swap');
 
     expect(callback).toHaveBeenCalledWith('swap');
+    expect(getActiveOperation()).toBeNull();
+  });
+
+  test('supports nested registrations with stack semantics', () => {
+    const first = register({ description: 'first' });
+    const second = register({ description: 'second' });
+
+    const active = getActiveOperation();
+    expect(active.description).toBe('second');
+
+    cancel('stop-second');
+
+    expect(first.isCanceled()).toBe(false);
+    expect(getActiveOperation().description).toBe('first');
+
+    first.cancel('stop-first');
+    expect(getActiveOperation()).toBeNull();
   });
 });
