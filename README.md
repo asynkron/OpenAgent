@@ -95,6 +95,12 @@ Auto-approved by allowlist (approved_commands.json)
    cp .env.example .env
    ```
 
+### Quality tooling
+
+- `npm run lint` — runs ESLint with the shared configuration.
+- `npm run format` — formats the repository with Prettier.
+- `npm run format:check` — verifies committed files already match the Prettier style.
+
 ## Configuration
 Edit `.env` to include the required secrets:
 ```
