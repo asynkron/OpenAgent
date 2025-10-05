@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Builds the system prompt that governs the agent runtime.
  *
@@ -12,10 +10,10 @@
  * - Root `index.js` re-exports the discovery helpers for unit tests.
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
 
-function findAgentFiles(rootDir) {
+export function findAgentFiles(rootDir) {
   const discovered = [];
 
   function walk(current) {
@@ -48,7 +46,7 @@ function findAgentFiles(rootDir) {
   return discovered;
 }
 
-function buildAgentsPrompt(rootDir) {
+export function buildAgentsPrompt(rootDir) {
   const agentFiles = findAgentFiles(rootDir);
   if (agentFiles.length === 0) {
     return '';
@@ -84,7 +82,7 @@ function readFileIfExists(filePath) {
   }
 }
 
-function buildBaseSystemPrompt(rootDir) {
+export function buildBaseSystemPrompt(rootDir) {
   const sections = [];
 
   const promptFiles = [
@@ -125,16 +123,16 @@ function buildBaseSystemPrompt(rootDir) {
   return sections.join('\n\n');
 }
 
-const BASE_SYSTEM_PROMPT = buildBaseSystemPrompt(process.cwd());
+export const BASE_SYSTEM_PROMPT = buildBaseSystemPrompt(process.cwd());
 
 const agentsGuidance = buildAgentsPrompt(process.cwd());
 
-const SYSTEM_PROMPT =
+export const SYSTEM_PROMPT =
   agentsGuidance.trim().length > 0
     ? `${BASE_SYSTEM_PROMPT}\n\nThe following local operating rules are mandatory. They are sourced from AGENTS.md files present in the workspace:\n\n${agentsGuidance}`
     : BASE_SYSTEM_PROMPT;
 
-module.exports = {
+export default {
   findAgentFiles,
   buildAgentsPrompt,
   buildBaseSystemPrompt,

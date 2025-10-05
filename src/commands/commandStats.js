@@ -1,10 +1,11 @@
-'use strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import nodeCrypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 
-const fs = require('fs');
 const fsp = fs.promises;
-const path = require('path');
-const os = require('os');
-const nodeCrypto = require('crypto');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function resolveDefaultStatsPath() {
   const xdgDataHome = process.env.XDG_DATA_HOME && process.env.XDG_DATA_HOME.trim();
@@ -22,7 +23,7 @@ function resolveDefaultStatsPath() {
 
 const DEFAULT_STATS_PATH = resolveDefaultStatsPath();
 
-async function incrementCommandCount(cmdKey, logPath = null) {
+export async function incrementCommandCount(cmdKey, logPath = null) {
   try {
     const targetPath = logPath ? path.resolve(logPath) : DEFAULT_STATS_PATH;
     const dir = path.dirname(targetPath);
@@ -68,4 +69,4 @@ async function incrementCommandCount(cmdKey, logPath = null) {
   }
 }
 
-module.exports = { incrementCommandCount };
+export default { incrementCommandCount };

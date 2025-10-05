@@ -1,4 +1,4 @@
-const { applyEdit, applyEdits } = require('../../src/commands/edit');
+import { applyEdit, applyEdits } from '../../src/commands/edit.js';
 
 describe('applyEdit', () => {
   test('inserts text at position when start === end', () => {

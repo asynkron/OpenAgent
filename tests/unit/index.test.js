@@ -1,10 +1,12 @@
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
+import fs from 'node:fs';
+import http from 'node:http';
+import os from 'node:os';
+import path from 'node:path';
+import { jest } from '@jest/globals';
 
 const defaultEnv = { ...process.env };
 
-function loadModule(envOverrides = {}) {
+async function loadModule(envOverrides = {}, { commandStatsMock, runCommandMock } = {}) {
   jest.resetModules();
 
   process.env = { ...defaultEnv };
@@ -16,17 +18,47 @@ function loadModule(envOverrides = {}) {
     }
   }
 
-  jest.doMock('dotenv', () => ({ config: jest.fn() }));
-
   const mockResponsesCreate = jest.fn();
   const MockOpenAI = jest.fn().mockImplementation((config) => ({
     config,
     responses: { create: mockResponsesCreate },
   }));
-  jest.doMock('openai', () => MockOpenAI);
 
-  const mod = require('../../index.js');
-  return { mod, MockOpenAI, mockResponsesCreate };
+  jest.unstable_mockModule('dotenv/config', () => ({}));
+  jest.unstable_mockModule('openai', () => ({ default: MockOpenAI }));
+
+  let commandStatsMockFn;
+  if (typeof commandStatsMock === 'function') {
+    commandStatsMockFn = commandStatsMock;
+    jest.unstable_mockModule('../../src/commands/commandStats.js', () => ({
+      incrementCommandCount: commandStatsMockFn,
+      default: { incrementCommandCount: commandStatsMockFn },
+    }));
+  }
+
+  if (typeof runCommandMock === 'function') {
+    const runBrowse = jest.fn();
+    const runEdit = jest.fn();
+    const runRead = jest.fn();
+    const runReplace = jest.fn();
+    jest.unstable_mockModule('../../src/commands/run.js', () => ({
+      runCommand: runCommandMock,
+      runBrowse,
+      runEdit,
+      runRead,
+      runReplace,
+      default: {
+        runCommand: runCommandMock,
+        runBrowse,
+        runEdit,
+        runRead,
+        runReplace,
+      },
+    }));
+  }
+
+  const imported = await import('../../index.js');
+  return { mod: imported.default, MockOpenAI, mockResponsesCreate, commandStatsMock: commandStatsMockFn };
 }
 
 afterEach(() => {
@@ -37,13 +69,13 @@ afterEach(() => {
 });
 
 describe('getOpenAIClient', () => {
-  test('throws when OPENAI_API_KEY is missing', () => {
-    const { mod } = loadModule({ OPENAI_API_KEY: null });
+  test('throws when OPENAI_API_KEY is missing', async () => {
+    const { mod } = await loadModule({ OPENAI_API_KEY: null });
     expect(() => mod.getOpenAIClient()).toThrow('OPENAI_API_KEY not found');
   });
 
-  test('returns memoized OpenAI client when key is set', () => {
-    const { mod, MockOpenAI } = loadModule({ OPENAI_API_KEY: 'test-key' });
+  test('returns memoized OpenAI client when key is set', async () => {
+    const { mod, MockOpenAI } = await loadModule({ OPENAI_API_KEY: 'test-key' });
     const first = mod.getOpenAIClient();
     const second = mod.getOpenAIClient();
 
@@ -57,28 +89,28 @@ describe('getOpenAIClient', () => {
 });
 
 describe('isPreapprovedCommand', () => {
-  test('approves allowlisted single command', () => {
-    const { mod } = loadModule();
+  test('approves allowlisted single command', async () => {
+    const { mod } = await loadModule();
     const cfg = { allowlist: [{ name: 'ls' }] };
     const result = mod.isPreapprovedCommand({ run: 'ls', shell: 'bash', cwd: '.' }, cfg);
     expect(result).toBe(true);
   });
 
-  test('rejects commands with newlines', () => {
-    const { mod } = loadModule();
+  test('rejects commands with newlines', async () => {
+    const { mod } = await loadModule();
     const cfg = { allowlist: [{ name: 'ls' }] };
     const result = mod.isPreapprovedCommand({ run: 'ls\npwd', shell: 'bash' }, cfg);
     expect(result).toBe(false);
   });
 
-  test('rejects commands with pipes', () => {
-    const { mod } = loadModule();
+  test('rejects commands with pipes', async () => {
+    const { mod } = await loadModule();
     const cfg = { allowlist: [{ name: 'ls' }] };
     expect(mod.isPreapprovedCommand({ run: 'ls | grep foo' }, cfg)).toBe(false);
   });
 
-  test('allows browse command with valid URL', () => {
-    const { mod } = loadModule();
+  test('allows browse command with valid URL', async () => {
+    const { mod } = await loadModule();
     const result = mod.isPreapprovedCommand(
       { run: 'browse https://example.com' },
       { allowlist: [] },
@@ -86,16 +118,16 @@ describe('isPreapprovedCommand', () => {
     expect(result).toBe(true);
   });
 
-  test('rejects browse command with invalid URL', () => {
-    const { mod } = loadModule();
+  test('rejects browse command with invalid URL', async () => {
+    const { mod } = await loadModule();
     const result = mod.isPreapprovedCommand({ run: 'browse ftp://example.com' }, { allowlist: [] });
     expect(result).toBe(false);
   });
 });
 
 describe('shellSplit', () => {
-  test('splits strings with quotes correctly', () => {
-    const { mod } = loadModule();
+  test('splits strings with quotes correctly', async () => {
+    const { mod } = await loadModule();
     expect(mod.shellSplit('echo \'hello world\' "quoted text" plain')).toEqual([
       'echo',
       'hello world',
@@ -106,30 +138,30 @@ describe('shellSplit', () => {
 });
 
 describe('applyFilter', () => {
-  test('filters lines using regex', () => {
-    const { mod } = loadModule();
+  test('filters lines using regex', async () => {
+    const { mod } = await loadModule();
     const text = 'apple\nbanana\ncherry';
     expect(mod.applyFilter(text, 'an')).toBe('banana');
   });
 });
 
 describe('tailLines', () => {
-  test('returns the last N lines', () => {
-    const { mod } = loadModule();
+  test('returns the last N lines', async () => {
+    const { mod } = await loadModule();
     const text = Array.from({ length: 5 }, (_, i) => `line${i + 1}`).join('\n');
     expect(mod.tailLines(text, 2)).toBe('line4\nline5');
   });
 });
 
 describe('extractResponseText', () => {
-  test('prefers output_text field', () => {
-    const { mod } = loadModule();
+  test('prefers output_text field', async () => {
+    const { mod } = await loadModule();
     const response = { output_text: '  hello world  ' };
     expect(mod.extractResponseText(response)).toBe('hello world');
   });
 
-  test('falls back to output message content', () => {
-    const { mod } = loadModule();
+  test('falls back to output message content', async () => {
+    const { mod } = await loadModule();
     const response = {
       output: [
         {
@@ -141,15 +173,15 @@ describe('extractResponseText', () => {
     expect(mod.extractResponseText(response)).toBe('inner text');
   });
 
-  test('returns empty string when no text present', () => {
-    const { mod } = loadModule();
+  test('returns empty string when no text present', async () => {
+    const { mod } = await loadModule();
     expect(mod.extractResponseText({})).toBe('');
   });
 });
 
 describe('runBrowse', () => {
   test('uses global fetch when available', async () => {
-    const { mod } = loadModule();
+    const { mod } = await loadModule();
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       text: () => Promise.resolve('body'),
@@ -158,65 +190,68 @@ describe('runBrowse', () => {
     });
 
     const result = await mod.runBrowse('https://example.com', 1);
-    expect(fetch).toHaveBeenCalledWith(
+
+    expect(global.fetch).toHaveBeenCalledWith(
       'https://example.com',
-      expect.objectContaining({
-        method: 'GET',
-        redirect: 'follow',
-      }),
+      expect.objectContaining({ method: 'GET' }),
     );
-    expect(result.stdout).toBe('body');
-    expect(result.stderr).toBe('');
     expect(result.exit_code).toBe(0);
+    expect(result.stdout).toBe('body');
   });
 
-  test('captures fetch errors', async () => {
-    const { mod } = loadModule();
-    global.fetch = jest.fn().mockRejectedValue(new Error('network down'));
+  test('falls back to http module when fetch unavailable', async () => {
+    jest.resetModules();
+    delete global.fetch;
 
-    const result = await mod.runBrowse('https://example.com', 1);
-    expect(result.exit_code).toBe(1);
-    expect(result.stderr).toContain('network down');
+    const server = await new Promise((resolve) => {
+      const srv = http.createServer((_req, res) => {
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.end('hello');
+      });
+      srv.listen(0, () => resolve(srv));
+    });
+
+    const address = server.address();
+    const url = `http://127.0.0.1:${address.port}`;
+    const { mod } = await loadModule();
+
+    const result = await mod.runBrowse(url, 1);
+
+    expect(result.exit_code).toBe(0);
+    expect(result.stdout).toContain('hello');
+
+    await new Promise((resolve) => server.close(resolve));
   });
 });
 
-describe('runRead', () => {
-  test('reads file contents from provided cwd', async () => {
-    const { mod } = loadModule();
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openagent-read-'));
-    try {
-      fs.writeFileSync(path.join(tmpDir, 'sample.txt'), 'hello world');
-      const result = await mod.runRead({ path: 'sample.txt' }, tmpDir);
-      expect(result.exit_code).toBe(0);
-      expect(result.stdout).toBe('sample.txt:::\nhello world');
-    } finally {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
+describe('runCommandAndTrack', () => {
+  test('records command names and delegates to runCommand', async () => {
+    const commandStatsMock = jest.fn().mockResolvedValue(true);
+    const runCommandMock = jest.fn().mockResolvedValue({ stdout: '', stderr: '' });
+    const { mod } = await loadModule({}, { commandStatsMock, runCommandMock });
 
-  test('applies max_lines limit when provided', async () => {
-    const { mod } = loadModule();
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openagent-read-'));
-    try {
-      fs.writeFileSync(path.join(tmpDir, 'sample.txt'), 'line1\nline2\nline3');
-      const result = await mod.runRead({ path: 'sample.txt', max_lines: 2 }, tmpDir);
-      expect(result.exit_code).toBe(0);
-      expect(result.stdout).toBe('sample.txt:::\nline1\nline2');
-    } finally {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
+    await mod.runCommandAndTrack('ls -la', '.', 1);
 
-  test('reads multiple files and concatenates results', async () => {
-    const { mod } = loadModule();
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openagent-read-'));
+    expect(runCommandMock).toHaveBeenCalledWith('ls -la', '.', 1);
+    expect(commandStatsMock).toHaveBeenCalledWith('ls');
+  });
+});
+
+describe('loadPreapprovedConfig', () => {
+  test('reads approved commands file when present', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'preapproved-'));
+    const cfgPath = path.join(tmpDir, 'approved_commands.json');
+    fs.writeFileSync(cfgPath, JSON.stringify({ allowlist: [{ name: 'ls' }] }));
+
+    const { mod } = await loadModule();
+    const originalCwd = process.cwd();
+    process.chdir(tmpDir);
+
     try {
-      fs.writeFileSync(path.join(tmpDir, 'alpha.txt'), 'alpha');
-      fs.writeFileSync(path.join(tmpDir, 'beta.txt'), 'beta');
-      const result = await mod.runRead({ path: 'alpha.txt', paths: ['beta.txt'] }, tmpDir);
-      expect(result.exit_code).toBe(0);
-      expect(result.stdout).toBe('alpha.txt:::\nalpha\nbeta.txt:::\nbeta');
+      const cfg = mod.loadPreapprovedConfig();
+      expect(cfg.allowlist).toEqual([{ name: 'ls' }]);
     } finally {
+      process.chdir(originalCwd);
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });

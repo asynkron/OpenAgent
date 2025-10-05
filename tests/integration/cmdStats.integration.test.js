@@ -1,6 +1,6 @@
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 describe('runCommandAndTrack', () => {
   test('tracks command invocation counts', async () => {
@@ -9,7 +9,8 @@ describe('runCommandAndTrack', () => {
     process.env.XDG_DATA_HOME = tmpBase;
 
     try {
-      const index = require('../../index.js');
+      const indexModule = await import('../../index.js');
+      const index = indexModule.default;
       expect(typeof index.runCommandAndTrack).toBe('function');
 
       await index.runCommandAndTrack('node -v', process.cwd(), 30);

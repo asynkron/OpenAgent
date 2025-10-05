@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Implements the allowlist validation and in-memory approvals for command execution.
  *
@@ -13,13 +11,13 @@
  * - Unit tests exercise the individual helpers via root re-exports.
  */
 
-const fs = require('fs');
-const path = require('path');
-const chalk = require('chalk');
+import fs from 'node:fs';
+import path from 'node:path';
+import chalk from 'chalk';
 
-const { shellSplit } = require('../utils/text');
+import { shellSplit } from '../utils/text.js';
 
-function loadPreapprovedConfig() {
+export function loadPreapprovedConfig() {
   const cfgPath = path.join(process.cwd(), 'approved_commands.json');
   try {
     if (fs.existsSync(cfgPath)) {
@@ -33,7 +31,7 @@ function loadPreapprovedConfig() {
   return { allowlist: [] };
 }
 
-function isPreapprovedCommand(command, cfg) {
+export function isPreapprovedCommand(command, cfg) {
   try {
     const runRaw = (command && command.run ? String(command.run) : '').trim();
     if (!runRaw) return false;
@@ -151,7 +149,7 @@ function isPreapprovedCommand(command, cfg) {
 
 const sessionApprovals = new Set();
 
-function commandSignature(cmd) {
+export function commandSignature(cmd) {
   return JSON.stringify({
     shell: cmd.shell || 'bash',
     run: typeof cmd.run === 'string' ? cmd.run : '',
@@ -159,7 +157,7 @@ function commandSignature(cmd) {
   });
 }
 
-function isSessionApproved(cmd) {
+export function isSessionApproved(cmd) {
   try {
     return sessionApprovals.has(commandSignature(cmd));
   } catch (err) {
@@ -167,7 +165,7 @@ function isSessionApproved(cmd) {
   }
 }
 
-function approveForSession(cmd) {
+export function approveForSession(cmd) {
   try {
     sessionApprovals.add(commandSignature(cmd));
   } catch (err) {
@@ -175,13 +173,13 @@ function approveForSession(cmd) {
   }
 }
 
-function resetSessionApprovals() {
+export function resetSessionApprovals() {
   sessionApprovals.clear();
 }
 
-const PREAPPROVED_CFG = loadPreapprovedConfig();
+export const PREAPPROVED_CFG = loadPreapprovedConfig();
 
-module.exports = {
+export default {
   loadPreapprovedConfig,
   isPreapprovedCommand,
   isSessionApproved,

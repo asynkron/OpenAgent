@@ -1,4 +1,6 @@
-const { createAgentLoop } = require('../../src/agent/loop');
+import { jest } from '@jest/globals';
+
+import { createAgentLoop } from '../../src/agent/loop.js';
 
 function buildResponsePayload(payload) {
   return Promise.resolve({

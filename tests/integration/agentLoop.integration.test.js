@@ -1,3 +1,5 @@
+import { jest } from '@jest/globals';
+
 jest.setTimeout(20000);
 
 const mockAnswersQueue = [];
@@ -9,61 +11,73 @@ const mockInterface = {
   close: jest.fn(),
 };
 
-jest.resetModules();
-jest.mock('readline', () => ({
-  createInterface: jest.fn(() => mockInterface),
-  clearLine: jest.fn(),
-  cursorTo: jest.fn(),
-}));
+async function loadAgent() {
+  jest.resetModules();
 
-jest.mock('openai', () => {
+  const createInterface = jest.fn(() => mockInterface);
+  const clearLine = jest.fn();
+  const cursorTo = jest.fn();
+
+  jest.unstable_mockModule('node:readline', () => ({
+    default: { createInterface, clearLine, cursorTo },
+    createInterface,
+    clearLine,
+    cursorTo,
+  }));
+
   let mockCallCount = 0;
-  return function OpenAIMock() {
-    return {
-      responses: {
-        create: async () => {
-          mockCallCount += 1;
-          const payload =
-            mockCallCount === 1
-              ? {
-                  message: 'Mocked response',
-                  plan: [],
-                  command: {
-                    shell: 'bash',
-                    run: 'echo "MOCKED_OK"',
-                    cwd: '.',
-                    timeout_sec: 5,
-                  },
-                }
-              : {
-                  message: 'Mocked follow-up',
-                  plan: [],
-                  command: null,
-                };
+  jest.unstable_mockModule('openai', () => ({
+    default: function OpenAIMock() {
+      return {
+        responses: {
+          create: async () => {
+            mockCallCount += 1;
+            const payload =
+              mockCallCount === 1
+                ? {
+                    message: 'Mocked response',
+                    plan: [],
+                    command: {
+                      shell: 'bash',
+                      run: 'echo "MOCKED_OK"',
+                      cwd: '.',
+                      timeout_sec: 5,
+                    },
+                  }
+                : {
+                    message: 'Mocked follow-up',
+                    plan: [],
+                    command: null,
+                  };
 
-          return {
-            output: [
-              {
-                type: 'message',
-                content: [
-                  {
-                    type: 'output_text',
-                    text: JSON.stringify(payload),
-                  },
-                ],
-              },
-            ],
-          };
+            return {
+              output: [
+                {
+                  type: 'message',
+                  content: [
+                    {
+                      type: 'output_text',
+                      text: JSON.stringify(payload),
+                    },
+                  ],
+                },
+              ],
+            };
+          },
         },
-      },
-    };
-  };
-});
+      };
+    },
+  }));
 
-const agent = require('../../index.js');
+  jest.unstable_mockModule('dotenv/config', () => ({}));
+
+  const agentModule = await import('../../index.js');
+  return agentModule.default;
+}
 
 test('agent loop executes one mocked command then exits on user request', async () => {
   process.env.OPENAI_API_KEY = 'test-key';
+  const agent = await loadAgent();
   agent.STARTUP_FORCE_AUTO_APPROVE = true;
 
   mockAnswersQueue.length = 0;

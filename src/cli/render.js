@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Terminal rendering helpers responsible for formatting assistant output.
  *
@@ -12,9 +10,10 @@
  * - Root `index.js` re-exports the helpers for unit testing.
  */
 
-const chalk = require('chalk');
-const { marked } = require('marked');
-const markedTerminal = require('marked-terminal');
+import chalk from 'chalk';
+import { marked } from 'marked';
+import markedTerminal from 'marked-terminal';
+
 const TerminalRenderer = markedTerminal.default || markedTerminal;
 
 const terminalRenderer = new TerminalRenderer({
@@ -22,7 +21,7 @@ const terminalRenderer = new TerminalRenderer({
   tab: 2,
 });
 
-function display(label, content, color = 'white') {
+export function display(label, content, color = 'white') {
   if (!content || (Array.isArray(content) && content.length === 0)) {
     return;
   }
@@ -69,7 +68,7 @@ const CONTENT_TYPE_DETECTORS = [
   { pattern: /^#!\s*.*(?:bash|sh).*/i, language: 'bash' },
 ];
 
-function inferLanguageFromDetectors(content) {
+export function inferLanguageFromDetectors(content) {
   for (const detector of CONTENT_TYPE_DETECTORS) {
     if (detector.pattern.test(content)) {
       return detector.language;
@@ -78,7 +77,8 @@ function inferLanguageFromDetectors(content) {
 
   return null;
 }
-function wrapStructuredContent(message) {
+
+export function wrapStructuredContent(message) {
   if (!message) {
     return '';
   }
@@ -96,7 +96,8 @@ function wrapStructuredContent(message) {
 
   return trimmed;
 }
-function detectLanguage(content, fallbackLanguage = 'plaintext') {
+
+export function detectLanguage(content, fallbackLanguage = 'plaintext') {
   if (!content) {
     return fallbackLanguage;
   }
@@ -106,7 +107,8 @@ function detectLanguage(content, fallbackLanguage = 'plaintext') {
 
   return detected || fallbackLanguage;
 }
-function wrapWithLanguageFence(text, language = 'plaintext') {
+
+export function wrapWithLanguageFence(text, language = 'plaintext') {
   if (text === undefined || text === null) {
     return '';
   }
@@ -119,12 +121,12 @@ function wrapWithLanguageFence(text, language = 'plaintext') {
   return `\`\`\`${language}\n${content}\n\`\`\``;
 }
 
-function renderMarkdownMessage(message) {
+export function renderMarkdownMessage(message) {
   const prepared = wrapStructuredContent(message);
   return marked.parse(prepared, { renderer: terminalRenderer });
 }
 
-function renderPlan(plan) {
+export function renderPlan(plan) {
   if (!plan || !Array.isArray(plan) || plan.length === 0) return;
 
   const planLines = plan.map((item) => {
@@ -142,42 +144,21 @@ function renderPlan(plan) {
   display('Plan', planLines, 'cyan');
 }
 
-function renderMessage(message) {
+export function renderMessage(message) {
   if (!message) return;
 
   const rendered = renderMarkdownMessage(message);
   display('AI', rendered, 'magenta');
 }
 
-function renderCommand(command) {
+export function renderCommand(command) {
   if (!command) return;
 
   const commandLines = [command.run];
-  //   `${chalk.cyan('Shell')}: ${command.shell || 'bash'}`,
-  //   `${chalk.cyan('Directory')}: ${command.cwd || '.'}`,
-  //   `${chalk.cyan('Timeout')}: ${command.timeout_sec ?? 60}s`,
-  // ];
-
-  // if (command.run) {
-  //   //this is correct, command should be bash/sh whatever shell we are running in
-  //   const fencedCommand = wrapWithLanguageFence(command.run, 'bash');
-  //   const renderedCommand = renderMarkdownMessage(fencedCommand);
-  //   commandLines.push('');
-  //   commandLines.push(renderedCommand);
-  // }
-
   display('Command', commandLines, 'yellow');
 }
 
-function renderCommandResult(command, result, stdout, stderr) {
-  // const statusLines = [
-  //   `${chalk.cyan('Exit Code')}: ${result.exit_code}`,
-  //   `${chalk.cyan('Runtime')}: ${result.runtime_ms}ms`,
-  //   `${chalk.cyan('Status')}: ${result.killed ? chalk.red('KILLED (timeout)') : chalk.green('COMPLETED')}`,
-  // ];
-
-  // display('Command Result', statusLines, 'green');
-
+export function renderCommandResult(command, result, stdout, stderr) {
   const language = detectLanguage(command.command);
 
   if (stdout) {
@@ -193,7 +174,7 @@ function renderCommandResult(command, result, stdout, stderr) {
   }
 }
 
-module.exports = {
+export default {
   display,
   wrapStructuredContent,
   renderMarkdownMessage,

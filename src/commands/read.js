@@ -1,9 +1,7 @@
-'use strict';
+import fs from 'node:fs';
+import path from 'node:path';
 
-const fs = require('fs');
-const path = require('path');
-
-function normalizePaths(readSpec) {
+export function normalizePaths(readSpec) {
   const paths = [];
   if (!readSpec || typeof readSpec !== 'object') {
     return paths;
@@ -36,7 +34,7 @@ function normalizePaths(readSpec) {
   return paths;
 }
 
-async function runRead(readSpec, cwd = '.') {
+export async function runRead(readSpec, cwd = '.') {
   const start = Date.now();
   try {
     if (!readSpec || typeof readSpec !== 'object') {
@@ -86,4 +84,4 @@ async function runRead(readSpec, cwd = '.') {
   }
 }
 
-module.exports = { runRead };
+export default { runRead };

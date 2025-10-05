@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Hosts the side-effecting primitives that execute shell commands and exposes
  * higher-level helpers for browse, edit, and read operations.
@@ -13,13 +11,14 @@
  * - Root `index.js` re-exports them for unit and integration tests.
  */
 
-const { spawn } = require('child_process');
-const { runBrowse } = require('./browse');
-const { runEdit } = require('./edit');
-const { runRead } = require('./read');
-const { runReplace } = require('./replace');
+import { spawn } from 'node:child_process';
 
-async function runCommand(cmd, cwd, timeoutSec, shellOpt) {
+import { runBrowse } from './browse.js';
+import { runEdit } from './edit.js';
+import { runRead } from './read.js';
+import { runReplace } from './replace.js';
+
+export async function runCommand(cmd, cwd, timeoutSec, shellOpt) {
   return new Promise((resolve) => {
     const startTime = Date.now();
     const proc = spawn(cmd, { cwd, shell: shellOpt ?? true });
@@ -53,7 +52,9 @@ async function runCommand(cmd, cwd, timeoutSec, shellOpt) {
   });
 }
 
-module.exports = {
+export { runBrowse, runEdit, runRead, runReplace };
+
+export default {
   runCommand,
   runBrowse,
   runEdit,

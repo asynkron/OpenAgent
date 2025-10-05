@@ -1,6 +1,7 @@
-'use strict';
+import http from 'node:http';
+import https from 'node:https';
 
-async function runBrowse(url, timeoutSec) {
+export async function runBrowse(url, timeoutSec) {
   const startTime = Date.now();
   let stdout = '';
   let stderr = '';
@@ -47,10 +48,7 @@ async function runBrowse(url, timeoutSec) {
       return buildResult();
     }
 
-    const urlModule = require('url');
-    const http = require('http');
-    const https = require('https');
-    const parsed = urlModule.parse(url);
+    const parsed = new URL(url);
     const lib = parsed.protocol === 'https:' ? https : http;
 
     await new Promise((resolve) => {
@@ -59,7 +57,7 @@ async function runBrowse(url, timeoutSec) {
           method: 'GET',
           hostname: parsed.hostname,
           port: parsed.port,
-          path: parsed.path,
+          path: `${parsed.pathname}${parsed.search}`,
           headers: {},
           timeout: (timeoutSec ?? 60) * 1000,
         },
@@ -102,4 +100,4 @@ async function runBrowse(url, timeoutSec) {
   }
 }
 
-module.exports = { runBrowse };
+export default { runBrowse };

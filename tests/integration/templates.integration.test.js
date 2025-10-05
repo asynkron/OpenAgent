@@ -1,6 +1,6 @@
-const fs = require('fs');
-const path = require('path');
-const child = require('child_process');
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 test('load templates file exists and is array', () => {
   const p = path.join(process.cwd(), 'templates', 'command-templates.json');
@@ -13,10 +13,8 @@ test('load templates file exists and is array', () => {
 test('render template via CLI', () => {
   const node = process.execPath;
   const vars = JSON.stringify({ package: 'lodash' });
-  const out = child
-    .execFileSync(node, ['index.js', 'templates', 'render', 'install-deps', vars], {
-      encoding: 'utf8',
-    })
-    .trim();
+  const out = execFileSync(node, ['index.js', 'templates', 'render', 'install-deps', vars], {
+    encoding: 'utf8',
+  }).trim();
   expect(out).toContain('npm install');
 });
