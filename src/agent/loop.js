@@ -34,6 +34,7 @@ const {
   PREAPPROVED_CFG,
 } = require('../commands/preapproval');
 const { incrementCommandCount } = require('../commands/commandStats');
+const outputUtils = require('../utils/output');
 
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 
@@ -180,6 +181,289 @@ function mergeReadSpecs(base, override) {
   return merged;
 }
 
+async function executeAgentPass({
+  openai,
+  model,
+  history,
+  renderPlanFn,
+  renderMessageFn,
+  renderCommandFn,
+  renderCommandResultFn,
+  runCommandFn,
+  runBrowseFn,
+  runEditFn,
+  runReadFn,
+  runReplaceFn,
+  applyFilterFn,
+  tailLinesFn,
+  isPreapprovedCommandFn,
+  isSessionApprovedFn,
+  approveForSessionFn,
+  preapprovedCfg,
+  getAutoApproveFlag,
+  getNoHumanFlag,
+  setNoHumanFlag,
+  askHumanFn,
+  rl,
+  startThinkingFn,
+  stopThinkingFn,
+}) {
+  startThinkingFn();
+  console.log('Sending request to AI');
+  let completion;
+  try {
+    completion = await openai.responses.create({
+      model,
+      input: history,
+      text: {
+        format: { type: 'json_object' },
+      },
+    });
+  } finally {
+    stopThinkingFn();
+  }
+  console.log('Received response from AI');
+
+  const responseContent = extractResponseText(completion);
+
+  if (!responseContent) {
+    console.error(chalk.red('Error: OpenAI response did not include text output.'));
+    return false;
+  }
+
+  history.push({
+    role: 'assistant',
+    content: responseContent,
+  });
+
+  let parsed;
+  try {
+    parsed = JSON.parse(responseContent);
+  } catch (err) {
+    console.error(chalk.red('Error: LLM returned invalid JSON'));
+    console.error('Response:', responseContent);
+    return false;
+  }
+
+  //This is correct. AI message is just vanilla markdown.
+  renderMessageFn(parsed.message);
+  renderPlanFn(parsed.plan);
+
+  if (!parsed.command) {
+    if (
+      typeof getNoHumanFlag === 'function' &&
+      typeof setNoHumanFlag === 'function' &&
+      getNoHumanFlag()
+    ) {
+      const maybeMessage =
+        typeof parsed.message === 'string' ? parsed.message.trim().toLowerCase() : '';
+      const normalizedMessage = maybeMessage.replace(/[.!]+$/, '');
+      if (normalizedMessage === 'done') {
+        setNoHumanFlag(false);
+      }
+    }
+    return false;
+  }
+
+  renderCommandFn(parsed.command);
+
+  const autoApprovedAllowlist = isPreapprovedCommandFn(parsed.command, preapprovedCfg);
+  const autoApprovedSession = isSessionApprovedFn(parsed.command);
+  const autoApprovedCli = getAutoApproveFlag();
+  const autoApproved = autoApprovedAllowlist || autoApprovedSession || autoApprovedCli;
+
+  if (autoApproved) {
+    if (autoApprovedAllowlist) {
+      console.log(chalk.green('Auto-approved by allowlist (approved_commands.json)'));
+    } else if (autoApprovedSession) {
+      console.log(chalk.green('Auto-approved by session approvals'));
+    } else {
+      console.log(chalk.green('Auto-approved by CLI flag (--auto-approve)'));
+    }
+  } else {
+    let selection;
+    while (true) {
+      const input = (
+        await askHumanFn(
+          rl,
+          `
+Approve running this command?
+  1) Yes (run once)
+  2) Yes, for entire session (add to in-memory approvals)
+  3) No, tell the AI to do something else
+Select 1, 2, or 3: `
+        )
+      )
+        .trim()
+        .toLowerCase();
+      if (input === '1' || input === 'y' || input === 'yes') {
+        selection = 1;
+        break;
+      }
+      if (input === '2') {
+        selection = 2;
+        break;
+      }
+      if (input === '3' || input === 'n' || input === 'no') {
+        selection = 3;
+        break;
+      }
+      console.log(chalk.yellow('Please enter 1, 2, or 3.'));
+    }
+
+    if (selection === 3) {
+      console.log(
+        chalk.yellow('Command execution canceled by human (requested alternative).')
+      );
+      const observation = {
+        observation_for_llm: {
+          canceled_by_human: true,
+          message:
+            'Human declined to execute the proposed command and asked the AI to propose an alternative approach without executing a command.',
+        },
+        observation_metadata: {
+          timestamp: new Date().toISOString(),
+        },
+      };
+      history.push({ role: 'user', content: JSON.stringify(observation) });
+      return true;
+    }
+    if (selection === 2) {
+      approveForSessionFn(parsed.command);
+      console.log(chalk.green('Approved and added to session approvals.'));
+    } else {
+      console.log(chalk.green('Approved (run once).'));
+    }
+  }
+
+  let result;
+  if (parsed.command && parsed.command.edit) {
+    result = await runEditFn(parsed.command.edit, parsed.command.cwd || '.');
+  }
+
+  if (typeof result === 'undefined' && parsed.command && parsed.command.read) {
+    result = await runReadFn(parsed.command.read, parsed.command.cwd || '.');
+  }
+
+  if (typeof result === 'undefined' && parsed.command && parsed.command.replace) {
+    result = await runReplaceFn(parsed.command.replace, parsed.command.cwd || '.');
+  }
+
+  if (typeof result === 'undefined') {
+    const runStrRaw = typeof parsed.command.run === 'string' ? parsed.command.run : '';
+    const runStr = runStrRaw.trim();
+
+    if (runStr) {
+      const tokens = shellSplit(runStr);
+      const commandKeyword = tokens[0] ? tokens[0].toLowerCase() : '';
+
+      if (commandKeyword === 'browse') {
+        const target = tokens.slice(1).join(' ').trim();
+        if (target) {
+          result = await runBrowseFn(target, parsed.command.timeout_sec ?? 60);
+        }
+      } else if (commandKeyword === 'read') {
+        const readTokens = tokens.slice(1);
+        const specFromTokens = parseReadSpecTokens(readTokens);
+        const mergedSpec = mergeReadSpecs(parsed.command.read || {}, specFromTokens);
+
+        if (mergedSpec.path) {
+          result = await runReadFn(mergedSpec, parsed.command.cwd || '.');
+        } else {
+          result = {
+            stdout: '',
+            stderr: 'read command requires a path argument',
+            exit_code: 1,
+            killed: false,
+            runtime_ms: 0,
+          };
+        }
+      }
+    }
+
+    if (typeof result === 'undefined') {
+      result = await runCommandFn(
+        parsed.command.run,
+        parsed.command.cwd || '.',
+        parsed.command.timeout_sec ?? 60,
+        parsed.command.shell
+      );
+    }
+  }
+
+  let key = parsed?.command?.key;
+  if (!key) {
+    if (typeof parsed?.command?.run === 'string') {
+      key = parsed.command.run.trim().split(/\s+/)[0] || 'unknown';
+    } else {
+      key = 'unknown';
+    }
+  }
+  try {
+    await incrementCommandCount(key);
+  } catch (error) {
+    // Ignore stats failures intentionally.
+  }
+
+  let filteredStdout = result.stdout;
+  let filteredStderr = result.stderr;
+
+  const combined = outputUtils.combineStdStreams(
+    filteredStdout,
+    filteredStderr,
+    result.exit_code ?? 0
+  );
+  filteredStdout = combined.stdout;
+  filteredStderr = combined.stderr;
+
+  if (parsed.command.filter_regex) {
+    filteredStdout = applyFilterFn(filteredStdout, parsed.command.filter_regex);
+    filteredStderr = applyFilterFn(filteredStderr, parsed.command.filter_regex);
+  }
+
+  if (parsed.command.tail_lines) {
+    filteredStdout = tailLinesFn(filteredStdout, parsed.command.tail_lines);
+    filteredStderr = tailLinesFn(filteredStderr, parsed.command.tail_lines);
+  }
+
+  const stdoutPreview = filteredStdout
+    ? filteredStdout.split('\n').slice(0, 20).join('\n') +
+      (filteredStdout.split('\n').length > 20 ? '\n…' : '')
+    : '';
+  const stderrPreview = filteredStderr
+    ? filteredStderr.split('\n').slice(0, 20).join('\n') +
+      (filteredStderr.split('\n').length > 20 ? '\n…' : '')
+    : '';
+
+  renderCommandResultFn(parsed.command, result, stdoutPreview, stderrPreview);
+
+  const observation = {
+    observation_for_llm: {
+      stdout: filteredStdout,
+      stderr: filteredStderr,
+      exit_code: result.exit_code,
+      truncated:
+        (parsed.command.filter_regex &&
+          (result.stdout !== filteredStdout || result.stderr !== filteredStderr)) ||
+        (parsed.command.tail_lines &&
+          (result.stdout.split('\n').length > parsed.command.tail_lines ||
+            result.stderr.split('\n').length > parsed.command.tail_lines)),
+    },
+    observation_metadata: {
+      runtime_ms: result.runtime_ms,
+      killed: result.killed,
+      timestamp: new Date().toISOString(),
+    },
+  };
+
+  history.push({
+    role: 'user',
+    content: JSON.stringify(observation),
+  });
+
+  return true;
+}
+
 function createAgentLoop({
   systemPrompt = SYSTEM_PROMPT,
   getClient = getOpenAIClient,
@@ -272,235 +556,35 @@ function createAgentLoop({
           let continueLoop = true;
 
           while (continueLoop) {
-            startThinkingFn();
-            console.log('Sending request to AI');
-            const completion = await openai.responses.create({
+            const shouldContinue = await executeAgentPass({
+              openai,
               model,
-              input: history,
-              text: {
-                format: { type: 'json_object' },
-              },
+              history,
+              renderPlanFn,
+              renderMessageFn,
+              renderCommandFn,
+              renderCommandResultFn,
+              runCommandFn,
+              runBrowseFn,
+              runEditFn,
+              runReadFn,
+              runReplaceFn,
+              applyFilterFn,
+              tailLinesFn,
+              isPreapprovedCommandFn,
+              isSessionApprovedFn,
+              approveForSessionFn,
+              preapprovedCfg,
+              getAutoApproveFlag,
+              getNoHumanFlag,
+              setNoHumanFlag,
+              askHumanFn,
+              rl,
+              startThinkingFn,
+              stopThinkingFn,
             });
-            stopThinkingFn();
-            console.log('Received response from AI');
 
-            const responseContent = extractResponseText(completion);
-
-            if (!responseContent) {
-              console.error(chalk.red('Error: OpenAI response did not include text output.'));
-              break;
-            }
-
-            history.push({
-              role: 'assistant',
-              content: responseContent,
-            });
-
-            let parsed;
-            try {
-              parsed = JSON.parse(responseContent);
-            } catch (err) {
-              console.error(chalk.red('Error: LLM returned invalid JSON'));
-              console.error('Response:', responseContent);
-              break;
-            }
-
-            //This is correct. AI message is just vanilla markdown.
-            renderMessageFn(parsed.message);
-            renderPlanFn(parsed.plan);
-
-            if (!parsed.command) {
-              if (
-                typeof getNoHumanFlag === 'function' &&
-                typeof setNoHumanFlag === 'function' &&
-                getNoHumanFlag()
-              ) {
-                const maybeMessage =
-                  typeof parsed.message === 'string' ? parsed.message.trim().toLowerCase() : '';
-                const normalizedMessage = maybeMessage.replace(/[.!]+$/, '');
-                if (normalizedMessage === 'done') {
-                  setNoHumanFlag(false);
-                }
-              }
-              continueLoop = false;
-              continue;
-            }
-
-
-            renderCommandFn(parsed.command);
-
-            const autoApprovedAllowlist = isPreapprovedCommandFn(parsed.command, preapprovedCfg);
-            const autoApprovedSession = isSessionApprovedFn(parsed.command);
-            const autoApprovedCli = getAutoApproveFlag();
-            const autoApproved = autoApprovedAllowlist || autoApprovedSession || autoApprovedCli;
-
-            if (autoApproved) {
-              if (autoApprovedAllowlist) {
-                console.log(chalk.green('Auto-approved by allowlist (approved_commands.json)'));
-              } else if (autoApprovedSession) {
-                console.log(chalk.green('Auto-approved by session approvals'));
-              } else {
-                console.log(chalk.green('Auto-approved by CLI flag (--auto-approve)'));
-              }
-            } else {
-              let selection;
-              while (true) {
-                const input = (await askHumanFn(rl, `
-Approve running this command?
-  1) Yes (run once)
-  2) Yes, for entire session (add to in-memory approvals)
-  3) No, tell the AI to do something else
-Select 1, 2, or 3: `)).trim().toLowerCase();
-                if (input === '1' || input === 'y' || input === 'yes') { selection = 1; break; }
-                if (input === '2') { selection = 2; break; }
-                if (input === '3' || input === 'n' || input === 'no') { selection = 3; break; }
-                console.log(chalk.yellow('Please enter 1, 2, or 3.'));
-              }
-
-              if (selection === 3) {
-                console.log(chalk.yellow('Command execution canceled by human (requested alternative).'));
-                const observation = {
-                  observation_for_llm: {
-                    canceled_by_human: true,
-                    message: 'Human declined to execute the proposed command and asked the AI to propose an alternative approach without executing a command.',
-                  },
-                  observation_metadata: {
-                    timestamp: new Date().toISOString(),
-                  },
-                };
-                history.push({ role: 'user', content: JSON.stringify(observation) });
-                continue;
-              } else if (selection === 2) {
-                approveForSessionFn(parsed.command);
-                console.log(chalk.green('Approved and added to session approvals.'));
-              } else {
-                console.log(chalk.green('Approved (run once).'));
-              }
-            }
-
-            let result;
-            if (parsed.command && parsed.command.edit) {
-              result = await runEditFn(parsed.command.edit, parsed.command.cwd || '.');
-            }
-
-            if (typeof result === 'undefined' && parsed.command && parsed.command.read) {
-              result = await runReadFn(parsed.command.read, parsed.command.cwd || '.');
-            }
-
-            if (typeof result === 'undefined' && parsed.command && parsed.command.replace) {
-              result = await runReplaceFn(parsed.command.replace, parsed.command.cwd || '.');
-            }
-
-            if (typeof result === 'undefined') {
-              const runStrRaw = typeof parsed.command.run === 'string' ? parsed.command.run : '';
-              const runStr = runStrRaw.trim();
-
-              if (runStr) {
-                const tokens = shellSplit(runStr);
-                const commandKeyword = tokens[0] ? tokens[0].toLowerCase() : '';
-
-                if (commandKeyword === 'browse') {
-                  const target = tokens.slice(1).join(' ').trim();
-                  if (target) {
-                    result = await runBrowseFn(target, parsed.command.timeout_sec ?? 60);
-                  }
-                } else if (commandKeyword === 'read') {
-                  const readTokens = tokens.slice(1);
-                  const specFromTokens = parseReadSpecTokens(readTokens);
-                  const mergedSpec = mergeReadSpecs(parsed.command.read || {}, specFromTokens);
-
-                  if (mergedSpec.path) {
-                    result = await runReadFn(mergedSpec, parsed.command.cwd || '.');
-                  } else {
-                    result = {
-                      stdout: '',
-                      stderr: 'read command requires a path argument',
-                      exit_code: 1,
-                      killed: false,
-                      runtime_ms: 0,
-                    };
-                  }
-                }
-              }
-
-              if (typeof result === 'undefined') {
-                result = await runCommandFn(
-                  parsed.command.run,
-                  parsed.command.cwd || '.',
-                  parsed.command.timeout_sec ?? 60,
-                  parsed.command.shell
-                );
-              }
-            }
-
-            let key = parsed?.command?.key;
-            if (!key) {
-              if (typeof parsed?.command?.run === 'string') {
-                key = parsed.command.run.trim().split(/\s+/)[0] || 'unknown';
-              } else {
-                key = 'unknown';
-              }
-            }
-            try {
-              await incrementCommandCount(key);
-            } catch (error) {
-              // Ignore stats failures intentionally.
-            }
-
-            let filteredStdout = result.stdout;
-            let filteredStderr = result.stderr;
-
-            const outputUtils = require('../utils/output');
-            const combined = outputUtils.combineStdStreams(
-              filteredStdout,
-              filteredStderr,
-              result.exit_code ?? 0
-            );
-            filteredStdout = combined.stdout;
-            filteredStderr = combined.stderr;
-
-            if (parsed.command.filter_regex) {
-              filteredStdout = applyFilterFn(filteredStdout, parsed.command.filter_regex);
-              filteredStderr = applyFilterFn(filteredStderr, parsed.command.filter_regex);
-            }
-
-            if (parsed.command.tail_lines) {
-              filteredStdout = tailLinesFn(filteredStdout, parsed.command.tail_lines);
-              filteredStderr = tailLinesFn(filteredStderr, parsed.command.tail_lines);
-            }
-
-            const stdoutPreview = filteredStdout
-              ? filteredStdout.split('\n').slice(0, 20).join('\n') + (filteredStdout.split('\n').length > 20 ? '\n…' : '')
-              : '';
-            const stderrPreview = filteredStderr
-              ? filteredStderr.split('\n').slice(0, 20).join('\n') + (filteredStderr.split('\n').length > 20 ? '\n…' : '')
-              : '';
-
-            renderCommandResultFn(parsed.command, result, stdoutPreview, stderrPreview);
-
-            const observation = {
-              observation_for_llm: {
-                stdout: filteredStdout,
-                stderr: filteredStderr,
-                exit_code: result.exit_code,
-                truncated:
-                  (parsed.command.filter_regex &&
-                    (result.stdout !== filteredStdout || result.stderr !== filteredStderr)) ||
-                  (parsed.command.tail_lines &&
-                    (result.stdout.split('\n').length > parsed.command.tail_lines ||
-                      result.stderr.split('\n').length > parsed.command.tail_lines)),
-              },
-              observation_metadata: {
-                runtime_ms: result.runtime_ms,
-                killed: result.killed,
-                timestamp: new Date().toISOString(),
-              },
-            };
-
-            history.push({
-              role: 'user',
-              content: JSON.stringify(observation),
-            });
+            continueLoop = shouldContinue;
           }
         } catch (error) {
           stopThinkingFn();
