@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 /**
  * Handles the lightweight CLI "thinking" animation shown while awaiting API calls.

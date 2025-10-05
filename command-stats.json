@@ -1,11 +1,11 @@
 {
-    "ls": 7,
-    "cat": 15,
-    "grep": 4,
-    "rg": 1,
-    "unknown": 1,
-    "node": 2,
-    "echo": 1,
-    "npm": 2,
-    "sed": 1
+  "ls": 7,
+  "cat": 15,
+  "grep": 4,
+  "rg": 1,
+  "unknown": 1,
+  "node": 2,
+  "echo": 1,
+  "npm": 2,
+  "sed": 1
 }

@@ -28,10 +28,7 @@ function createLoopWithQueue(queue, overrides = {}) {
 
   const defaults = {
     createInterfaceFn: () => ({ close: closeFn }),
-    askHumanFn: jest
-      .fn()
-      .mockResolvedValueOnce('Initial prompt')
-      .mockResolvedValueOnce('exit'),
+    askHumanFn: jest.fn().mockResolvedValueOnce('Initial prompt').mockResolvedValueOnce('exit'),
     startThinkingFn: jest.fn(),
     stopThinkingFn: jest.fn(),
     renderPlanFn: jest.fn(),
@@ -89,7 +86,6 @@ function createLoopWithQueue(queue, overrides = {}) {
   };
 }
 
-
 describe('agent built-in command parsing', () => {
   test('read built-in with quoted path uses runRead', async () => {
     const readCall = {
@@ -117,17 +113,14 @@ describe('agent built-in command parsing', () => {
 
     const { loop, responsesCreate } = createLoopWithQueue(
       [buildResponsePayload(readCall), buildResponsePayload(followUp)],
-      { runReadFn }
+      { runReadFn },
     );
 
     await loop();
 
     expect(responsesCreate).toHaveBeenCalledTimes(2);
     expect(runReadFn).toHaveBeenCalledTimes(1);
-    expect(runReadFn).toHaveBeenCalledWith(
-      { path: './docs/some file.md' },
-      '/repo'
-    );
+    expect(runReadFn).toHaveBeenCalledWith({ path: './docs/some file.md' }, '/repo');
   });
 
   test('read built-in parses numeric options', async () => {
@@ -155,7 +148,7 @@ describe('agent built-in command parsing', () => {
 
     const { loop } = createLoopWithQueue(
       [buildResponsePayload(readCall), buildResponsePayload(followUp)],
-      { runReadFn }
+      { runReadFn },
     );
 
     await loop();
@@ -167,7 +160,7 @@ describe('agent built-in command parsing', () => {
         max_bytes: 120,
         encoding: 'utf8',
       },
-      '.'
+      '.',
     );
   });
 
@@ -197,14 +190,11 @@ describe('agent built-in command parsing', () => {
 
     const { loop } = createLoopWithQueue(
       [buildResponsePayload(browseCall), buildResponsePayload(followUp)],
-      { runBrowseFn }
+      { runBrowseFn },
     );
 
     await loop();
 
-    expect(runBrowseFn).toHaveBeenCalledWith(
-      'https://example.com/search?q=open agent',
-      15
-    );
+    expect(runBrowseFn).toHaveBeenCalledWith('https://example.com/search?q=open agent', 15);
   });
 });

@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 /**
  * Implements the allowlist validation and in-memory approvals for command execution.
@@ -52,13 +52,7 @@ function isPreapprovedCommand(command, cfg) {
       return false;
     }
 
-    const forbidden = [
-      /;|&&|\|\|/,
-      /\|/,
-      /`/, 
-      /\$\(/,
-      /<\(/,
-    ];
+    const forbidden = [/;|&&|\|\|/, /\|/, /`/, /\$\(/, /<\(/];
     if (forbidden.some((re) => re.test(runRaw))) return false;
 
     if (/^\s*sudo\b/.test(runRaw)) return false;
@@ -106,7 +100,10 @@ function isPreapprovedCommand(command, cfg) {
         break;
       case 'curl': {
         if (/(^|\s)-X\s*(POST|PUT|PATCH|DELETE)\b/i.test(joined)) return false;
-        if (/(^|\s)(--data(-binary|-raw|-urlencode)?|-d|--form|-F|--upload-file|-T)\b/i.test(joined)) return false;
+        if (
+          /(^|\s)(--data(-binary|-raw|-urlencode)?|-d|--form|-F|--upload-file|-T)\b/i.test(joined)
+        )
+          return false;
         if (/(^|\s)(-O|--remote-name|--remote-header-name)\b/.test(joined)) return false;
         const tokensAfterBase = tokens.slice(1);
         for (let i = 0; i < tokensAfterBase.length; i++) {

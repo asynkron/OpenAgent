@@ -6,14 +6,14 @@ const mockInterface = {
     const next = mockAnswersQueue.shift() || '';
     process.nextTick(() => cb(next));
   }),
-  close: jest.fn()
+  close: jest.fn(),
 };
 
 jest.resetModules();
 jest.mock('readline', () => ({
   createInterface: jest.fn(() => mockInterface),
   clearLine: jest.fn(),
-  cursorTo: jest.fn()
+  cursorTo: jest.fn(),
 }));
 
 jest.mock('openai', () => {
@@ -23,22 +23,23 @@ jest.mock('openai', () => {
       responses: {
         create: async () => {
           mockCallCount += 1;
-          const payload = mockCallCount === 1
-            ? {
-                message: 'Mocked response',
-                plan: [],
-                command: {
-                  shell: 'bash',
-                  run: 'echo "MOCKED_OK"',
-                  cwd: '.',
-                  timeout_sec: 5
+          const payload =
+            mockCallCount === 1
+              ? {
+                  message: 'Mocked response',
+                  plan: [],
+                  command: {
+                    shell: 'bash',
+                    run: 'echo "MOCKED_OK"',
+                    cwd: '.',
+                    timeout_sec: 5,
+                  },
                 }
-              }
-            : {
-                message: 'Mocked follow-up',
-                plan: [],
-                command: null
-              };
+              : {
+                  message: 'Mocked follow-up',
+                  plan: [],
+                  command: null,
+                };
 
           return {
             output: [
@@ -47,14 +48,14 @@ jest.mock('openai', () => {
                 content: [
                   {
                     type: 'output_text',
-                    text: JSON.stringify(payload)
-                  }
-                ]
-              }
-            ]
+                    text: JSON.stringify(payload),
+                  },
+                ],
+              },
+            ],
           };
-        }
-      }
+        },
+      },
     };
   };
 });
@@ -78,7 +79,7 @@ test('agent loop executes one mocked command then exits on user request', async 
     stderr: '',
     exit_code: 0,
     killed: false,
-    runtime_ms: 5
+    runtime_ms: 5,
   });
   agent.runCommand = runCommandMock;
 

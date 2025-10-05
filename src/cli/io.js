@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 /**
  * Readline helpers that manage interactive user prompts.
@@ -13,7 +13,6 @@
  */
 
 const readline = require('readline');
-const { promisify } = require('util');
 const chalk = require('chalk');
 
 function createInterface() {

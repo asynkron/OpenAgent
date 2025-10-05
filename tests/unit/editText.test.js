@@ -32,7 +32,7 @@ describe('applyEdits', () => {
     const original = 'The quick brown fox';
     const edits = [
       { start: 4, end: 9, newText: 'slow' },
-      { start: 16, end: 19, newText: 'dog' }
+      { start: 16, end: 19, newText: 'dog' },
     ];
     const edited = applyEdits(original, edits);
     expect(edited).toBe('The slow brown dog');
@@ -42,7 +42,7 @@ describe('applyEdits', () => {
     const original = 'ABCDEFG';
     const edits = [
       { start: 1, end: 3, newText: 'xx' },
-      { start: 4, end: 6, newText: 'YY' }
+      { start: 4, end: 6, newText: 'YY' },
     ];
     const edited = applyEdits(original, edits);
     expect(edited).toBe('AxxDYYG');
@@ -52,7 +52,7 @@ describe('applyEdits', () => {
     const original = '0123456789';
     const edits = [
       { start: 2, end: 5, newText: 'X' },
-      { start: 3, end: 7, newText: 'Y' }
+      { start: 3, end: 7, newText: 'Y' },
     ];
     const edited = applyEdits(original, edits);
     expect(edited).toBe('01X89');

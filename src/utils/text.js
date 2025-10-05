@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 /**
  * Text and shell utility helpers used across the agent runtime.
@@ -32,14 +32,7 @@ function tailLines(text, lines) {
   return allLines.slice(-lines).join('\n');
 }
 
-function truncateOutput(
-  text,
-  {
-    head = 200,
-    tail = 200,
-    snipMarker = '<snip....>',
-  } = {}
-) {
+function truncateOutput(text, { head = 200, tail = 200, snipMarker = '<snip....>' } = {}) {
   if (text === undefined || text === null) {
     return '';
   }
@@ -70,7 +63,6 @@ function truncateOutput(
 
   return parts.join('\n');
 }
-
 
 function shellSplit(str) {
   const re = /"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|\S+/g;

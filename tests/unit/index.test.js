@@ -79,7 +79,10 @@ describe('isPreapprovedCommand', () => {
 
   test('allows browse command with valid URL', () => {
     const { mod } = loadModule();
-    const result = mod.isPreapprovedCommand({ run: 'browse https://example.com' }, { allowlist: [] });
+    const result = mod.isPreapprovedCommand(
+      { run: 'browse https://example.com' },
+      { allowlist: [] },
+    );
     expect(result).toBe(true);
   });
 
@@ -93,7 +96,7 @@ describe('isPreapprovedCommand', () => {
 describe('shellSplit', () => {
   test('splits strings with quotes correctly', () => {
     const { mod } = loadModule();
-    expect(mod.shellSplit("echo 'hello world' \"quoted text\" plain")).toEqual([
+    expect(mod.shellSplit('echo \'hello world\' "quoted text" plain')).toEqual([
       'echo',
       'hello world',
       'quoted text',
@@ -131,9 +134,7 @@ describe('extractResponseText', () => {
       output: [
         {
           type: 'message',
-          content: [
-            { type: 'output_text', text: '  inner text  ' },
-          ],
+          content: [{ type: 'output_text', text: '  inner text  ' }],
         },
       ],
     };
@@ -157,10 +158,13 @@ describe('runBrowse', () => {
     });
 
     const result = await mod.runBrowse('https://example.com', 1);
-    expect(fetch).toHaveBeenCalledWith('https://example.com', expect.objectContaining({
-      method: 'GET',
-      redirect: 'follow',
-    }));
+    expect(fetch).toHaveBeenCalledWith(
+      'https://example.com',
+      expect.objectContaining({
+        method: 'GET',
+        redirect: 'follow',
+      }),
+    );
     expect(result.stdout).toBe('body');
     expect(result.stderr).toBe('');
     expect(result.exit_code).toBe(0);

@@ -15,7 +15,11 @@ describe('runCommandAndTrack', () => {
       await index.runCommandAndTrack('node -v', process.cwd(), 30);
       await index.runCommandAndTrack('node -v', process.cwd(), 30);
 
-      const statsPath = path.join(process.env.XDG_DATA_HOME, 'command-tracker', 'command-stats.json');
+      const statsPath = path.join(
+        process.env.XDG_DATA_HOME,
+        'command-tracker',
+        'command-stats.json',
+      );
       const data = JSON.parse(fs.readFileSync(statsPath, 'utf8'));
       expect(data.node).toBe(2);
     } finally {

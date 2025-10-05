@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 /**
  * Terminal rendering helpers responsible for formatting assistant output.
@@ -68,7 +68,6 @@ const CONTENT_TYPE_DETECTORS = [
   { pattern: /^#!\s*.*python.*/i, language: 'python' },
   { pattern: /^#!\s*.*(?:bash|sh).*/i, language: 'bash' },
 ];
-
 
 function inferLanguageFromDetectors(content) {
   for (const detector of CONTENT_TYPE_DETECTORS) {
@@ -159,7 +158,6 @@ function renderCommand(command) {
   //   `${chalk.cyan('Timeout')}: ${command.timeout_sec ?? 60}s`,
   // ];
 
-
   // if (command.run) {
   //   //this is correct, command should be bash/sh whatever shell we are running in
   //   const fencedCommand = wrapWithLanguageFence(command.run, 'bash');
@@ -180,7 +178,7 @@ function renderCommandResult(command, result, stdout, stderr) {
 
   // display('Command Result', statusLines, 'green');
 
-  let language = detectLanguage(command.command);
+  const language = detectLanguage(command.command);
 
   if (stdout) {
     const fencedStdout = wrapWithLanguageFence(stdout, language);

@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 async function runBrowse(url, timeoutSec) {
   const startTime = Date.now();
@@ -18,10 +18,13 @@ async function runBrowse(url, timeoutSec) {
   try {
     if (typeof fetch === 'function') {
       const controller = new AbortController();
-      const timer = setTimeout(() => {
-        controller.abort();
-        killed = true;
-      }, (timeoutSec ?? 60) * 1000);
+      const timer = setTimeout(
+        () => {
+          controller.abort();
+          killed = true;
+        },
+        (timeoutSec ?? 60) * 1000,
+      );
 
       try {
         const res = await fetch(url, {
@@ -71,7 +74,7 @@ async function runBrowse(url, timeoutSec) {
             }
             resolve();
           });
-        }
+        },
       );
 
       req.on('timeout', () => {
