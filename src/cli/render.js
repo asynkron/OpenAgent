@@ -21,18 +21,12 @@ const terminalRenderer = new TerminalRenderer({
   tab: 2,
 });
 
-export function display(label, content, color = 'white') {
+export function display(_label, content, _color = 'white') {
   if (!content || (Array.isArray(content) && content.length === 0)) {
     return;
   }
 
   const text = Array.isArray(content) ? content.join('\n') : String(content);
-  const borderColor = typeof color === 'string' ? color : 'white';
-  const chalkColorFn = chalk[borderColor] || chalk.white;
-  const header = `${label} ______________`;
-
-  console.log('');
-  console.log(chalkColorFn.bold(header));
   console.log(text);
 }
 
