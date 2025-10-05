@@ -156,58 +156,12 @@ function renderCommand(command) {
 
   const sections = [];
 
-  const runText = typeof command.run === 'string' ? command.run.trim() : '';
-  if (runText) {
-    const fenced = wrapWithLanguageFence(runText, 'bash');
-    sections.push(renderMarkdownMessage(fenced));
-  }
+  const runText = command.run || 'missing:' + JSON.stringify(command);
 
-  const PARAM_KEYS = ['cwd', 'shell', 'timeout_sec', 'filter_regex', 'tail_lines'];
-  const metadata = {};
-  for (const key of PARAM_KEYS) {
-    const value = command[key];
-    if (value !== undefined && value !== null && value !== '') {
-      metadata[key] = value;
-    }
-  }
+  const fenced = wrapWithLanguageFence(runText, 'bash');
+  sections.push(renderMarkdownMessage(fenced));
 
-  if (Object.keys(metadata).length > 0) {
-    const fencedMetadata = wrapWithLanguageFence(JSON.stringify(metadata, null, 2), 'json');
-    sections.push(renderMarkdownMessage(fencedMetadata));
-  }
-
-  const STRUCTURED_KEYS = ['browse', 'read', 'edit', 'replace'];
-  const structuredPayload = {};
-  for (const key of STRUCTURED_KEYS) {
-    if (command[key] !== undefined) {
-      structuredPayload[key] = command[key];
-    }
-  }
-
-  if (Object.keys(structuredPayload).length > 0) {
-    const fencedStructured = wrapWithLanguageFence(JSON.stringify(structuredPayload, null, 2), 'json');
-    sections.push(renderMarkdownMessage(fencedStructured));
-  }
-
-  const knownKeys = new Set(['run', ...PARAM_KEYS, ...STRUCTURED_KEYS]);
-  const extraKeys = Object.keys(command).filter((key) => !knownKeys.has(key));
-  if (extraKeys.length > 0) {
-    const extra = {};
-    for (const key of extraKeys) {
-      extra[key] = command[key];
-    }
-    const fencedExtra = wrapWithLanguageFence(JSON.stringify(extra, null, 2), 'json');
-    sections.push(renderMarkdownMessage(fencedExtra));
-  }
-
-  if (sections.length === 0) {
-    const fallback = wrapWithLanguageFence(JSON.stringify(command, null, 2), 'json');
-    sections.push(renderMarkdownMessage(fallback));
-  }
-
-  const paddedSections = sections.flatMap((section, index) => (index === 0 ? [section] : ['', section]));
-
-  display('Command', paddedSections, 'yellow');
+  display('Command', sections, 'yellow');
 }
 
 function renderCommandResult(command, result, stdout, stderr) {
@@ -218,6 +172,7 @@ function renderCommandResult(command, result, stdout, stderr) {
   // ];
 
   // display('Command Result', statusLines, 'green');
+
 
   const language = detectLanguage(command.command);
 
