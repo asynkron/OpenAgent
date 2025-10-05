@@ -30,7 +30,7 @@ import {
   inferLanguageFromDetectors,
   detectLanguage,
 } from './src/cli/render.js';
-import { runCommand, runBrowse, runEdit, runRead, runReplace } from './src/commands/run.js';
+import { runCommand, runBrowse, runEdit, runRead, runReplace, runEscapeString, runUnescapeString } from './src/commands/run.js';
 import {
   loadPreapprovedConfig,
   isPreapprovedCommand,
@@ -75,7 +75,7 @@ export async function runCommandAndTrack(run, cwd = '.', timeoutSec = 60) {
     let key = 'unknown';
     if (Array.isArray(run) && run.length > 0) key = String(run[0]);
     else if (typeof run === 'string' && run.trim().length > 0) key = run.trim().split(/\s+/)[0];
-    await incrementCommandCount(key).catch(() => {});
+    await incrementCommandCount(key).catch(() => { });
   } catch (err) {
     // Ignore stats failures intentionally.
   }
@@ -114,6 +114,8 @@ async function runAgentLoopWithCurrentDependencies() {
     runEditFn: exported.runEdit,
     runReadFn: exported.runRead,
     runReplaceFn: exported.runReplace,
+    runEscapeStringFn: exported.runEscapeString,
+    runUnescapeStringFn: exported.runUnescapeString,
     applyFilterFn: exported.applyFilter,
     tailLinesFn: exported.tailLines,
     isPreapprovedCommandFn: exported.isPreapprovedCommand,
@@ -156,6 +158,8 @@ export const exported = {
   runEdit,
   runRead,
   runReplace,
+  runEscapeString,
+  runUnescapeString,
   applyFilter,
   tailLines,
   shellSplit,
@@ -203,6 +207,8 @@ export {
   runEdit,
   runRead,
   runReplace,
+  runEscapeString,
+  runUnescapeString,
   applyFilter,
   tailLines,
   shellSplit,

@@ -19,6 +19,7 @@ import { runBrowse } from './browse.js';
 import { runEdit } from './edit.js';
 import { runRead } from './read.js';
 import { runReplace } from './replace.js';
+import { runEscapeString, runUnescapeString } from './escapeString.js';
 
 export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
   return new Promise((resolve) => {
@@ -268,7 +269,7 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
   });
 }
 
-export { runBrowse, runEdit, runRead, runReplace };
+export { runBrowse, runEdit, runRead, runReplace, runEscapeString, runUnescapeString };
 
 export default {
   runCommand,
@@ -276,4 +277,6 @@ export default {
   runEdit,
   runRead,
   runReplace,
+  runEscapeString,
+  runUnescapeString,
 };

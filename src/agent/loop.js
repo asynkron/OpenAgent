@@ -18,7 +18,15 @@ import { getOpenAIClient, MODEL } from '../openai/client.js';
 import { startThinking, stopThinking } from '../cli/thinking.js';
 import { createInterface, askHuman, ESCAPE_EVENT } from '../cli/io.js';
 import { renderPlan, renderMessage, renderCommand } from '../cli/render.js';
-import { runCommand, runBrowse, runEdit, runRead, runReplace } from '../commands/run.js';
+import {
+  runCommand,
+  runBrowse,
+  runEdit,
+  runRead,
+  runReplace,
+  runEscapeString,
+  runUnescapeString,
+} from '../commands/run.js';
 import { applyFilter, tailLines, shellSplit } from '../utils/text.js';
 import {
   isPreapprovedCommand,
@@ -250,6 +258,8 @@ async function executeAgentPass({
   runEditFn,
   runReadFn,
   runReplaceFn,
+  runEscapeStringFn,
+  runUnescapeStringFn,
   applyFilterFn,
   tailLinesFn,
   isPreapprovedCommandFn,
@@ -529,6 +539,16 @@ Select 1, 2, or 3: `,
     executionDetails = { type: 'READ', spec: parsed.command.read };
   }
 
+  if (typeof result === 'undefined' && parsed.command && parsed.command.escape_string) {
+    result = await runEscapeStringFn(parsed.command.escape_string, parsed.command.cwd || '.');
+    executionDetails = { type: 'ESCAPE_STRING', spec: parsed.command.escape_string };
+  }
+
+  if (typeof result === 'undefined' && parsed.command && parsed.command.unescape_string) {
+    result = await runUnescapeStringFn(parsed.command.unescape_string, parsed.command.cwd || '.');
+    executionDetails = { type: 'UNESCAPE_STRING', spec: parsed.command.unescape_string };
+  }
+
   if (typeof result === 'undefined' && parsed.command && parsed.command.replace) {
     result = await runReplaceFn(parsed.command.replace, parsed.command.cwd || '.');
     executionDetails = { type: 'REPLACE', spec: parsed.command.replace };
@@ -671,6 +691,8 @@ export function createAgentLoop({
   runEditFn = runEdit,
   runReadFn = runRead,
   runReplaceFn = runReplace,
+  runEscapeStringFn = runEscapeString,
+  runUnescapeStringFn = runUnescapeString,
   applyFilterFn = applyFilter,
   tailLinesFn = tailLines,
   isPreapprovedCommandFn = isPreapprovedCommand,
@@ -779,6 +801,8 @@ export function createAgentLoop({
               runEditFn,
               runReadFn,
               runReplaceFn,
+              runEscapeStringFn,
+              runUnescapeStringFn,
               applyFilterFn,
               tailLinesFn,
               isPreapprovedCommandFn,
