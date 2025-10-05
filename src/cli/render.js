@@ -151,33 +151,262 @@ export function renderMessage(message) {
   display('AI', rendered, 'magenta');
 }
 
-export function renderCommand(command) {
+function formatHeading(label, detail) {
+  const padded = label.padEnd(8);
+  const suffix = detail ? ` ${detail}` : '';
+  return ` ${chalk.bold(padded)}${suffix}`;
+}
+
+function arrowLine(text) {
+  return ` ↳ ${text}`;
+}
+
+function indentLine(text) {
+  return `     ${text}`;
+}
+
+function pluralize(word, count) {
+  return `${word}${count === 1 ? '' : 's'}`;
+}
+
+function normalizePreviewLines(preview) {
+  if (!preview) {
+    return [];
+  }
+  const lines = String(preview).split('\n');
+  while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
+    lines.pop();
+  }
+  return lines;
+}
+
+function collectReadPaths(spec) {
+  const paths = [];
+  if (!spec || typeof spec !== 'object') {
+    return paths;
+  }
+
+  const addPath = (candidate) => {
+    if (typeof candidate !== 'string') {
+      return;
+    }
+    const trimmed = candidate.trim();
+    if (!trimmed || paths.includes(trimmed)) {
+      return;
+    }
+    paths.push(trimmed);
+  };
+
+  addPath(spec.path);
+  if (Array.isArray(spec.paths)) {
+    for (const candidate of spec.paths) {
+      addPath(candidate);
+    }
+  }
+
+  return paths;
+}
+
+function parseReadSegments(stdout) {
+  if (!stdout) {
+    return [];
+  }
+
+  const lines = String(stdout).split('\n');
+  const segments = [];
+  let current = null;
+
+  for (const line of lines) {
+    if (line.endsWith(':::')) {
+      if (current) {
+        const { path, content } = current;
+        while (content.length > 0 && content[content.length - 1] === '') {
+          content.pop();
+        }
+        segments.push({ path, lineCount: content.length });
+      }
+      current = { path: line.slice(0, -3), content: [] };
+    } else if (current) {
+      current.content.push(line);
+    }
+  }
+
+  if (current) {
+    const { path, content } = current;
+    while (content.length > 0 && content[content.length - 1] === '') {
+      content.pop();
+    }
+    segments.push({ path, lineCount: content.length });
+  }
+
+  return segments;
+}
+
+function inferCommandType(command) {
+  if (!command || typeof command !== 'object') {
+    return 'EXECUTE';
+  }
+
+  if (command.edit) return 'EDIT';
+  if (command.read) return 'READ';
+  if (command.replace) return 'REPLACE';
+
+  const runValue = typeof command.run === 'string' ? command.run.trim() : '';
+  if (runValue) {
+    const keyword = runValue.split(/\s+/)[0]?.toLowerCase();
+    if (keyword === 'browse') {
+      return 'BROWSE';
+    }
+    if (keyword === 'read') {
+      return 'READ';
+    }
+  }
+
+  return 'EXECUTE';
+}
+
+function buildHeadingDetail(type, execution, command) {
+  switch (type) {
+    case 'READ': {
+      const spec = execution?.spec || command?.read || {};
+      const paths = collectReadPaths(spec);
+      return `([${paths.join(', ')}])`;
+    }
+    case 'EDIT': {
+      const spec = execution?.spec || command?.edit || {};
+      const parts = [];
+      if (spec.path) {
+        parts.push(spec.path);
+      }
+      if (spec.encoding) {
+        parts.push(spec.encoding);
+      }
+      const editCount = Array.isArray(spec.edits) ? spec.edits.length : 0;
+      parts.push(`${editCount} ${pluralize('edit', editCount)}`);
+      return `(${parts.join(', ')})`;
+    }
+    case 'REPLACE': {
+      const spec = execution?.spec || command?.replace || {};
+      const parts = [];
+      if (spec.pattern !== undefined) {
+        parts.push(`pattern: ${JSON.stringify(spec.pattern ?? '')}`);
+      }
+      if (spec.replacement !== undefined) {
+        parts.push(`replacement: ${JSON.stringify(spec.replacement ?? '')}`);
+      }
+      const files = Array.isArray(spec.files) ? spec.files.filter(Boolean) : [];
+      if (files.length > 0) {
+        parts.push(`[${files.join(', ')}]`);
+      }
+      if (spec.dry_run || spec.dryRun) {
+        parts.push('dry-run');
+      }
+      return `(${parts.join(', ')})`;
+    }
+    case 'BROWSE': {
+      const target = execution?.target || '';
+      return `(${target})`;
+    }
+    default: {
+      const runValue =
+        (execution?.command && typeof execution.command.run === 'string'
+          ? execution.command.run
+          : typeof command?.run === 'string'
+            ? command.run
+            : '') || '';
+      const trimmed = runValue.trim();
+      return `(${trimmed || 'shell command'})`;
+    }
+  }
+}
+
+function appendStdErr(summaryLines, stderrPreview) {
+  const stderrLines = normalizePreviewLines(stderrPreview);
+  if (stderrLines.length === 0) {
+    return;
+  }
+  summaryLines.push(arrowLine(`STDERR: ${stderrLines[0]}`));
+  for (const line of stderrLines.slice(1)) {
+    summaryLines.push(indentLine(line));
+  }
+}
+
+export function renderCommand(command, result, output = {}) {
   if (!command || typeof command !== 'object') {
     return;
   }
 
-  const runText = command.run || 'missing:' + JSON.stringify(command);
-  const fenced = wrapWithLanguageFence(runText, 'bash');
-  const renderedCommand = renderMarkdownMessage(fenced);
+  const execution = output.execution || {};
+  const type = (execution.type || inferCommandType(command)).toUpperCase();
+  const detail = buildHeadingDetail(type, execution, command);
+  const summaryLines = [];
 
-  display('Command', renderedCommand, 'yellow');
-}
-
-export function renderCommandResult(command, result, stdout, stderr) {
-  const runText = typeof command?.run === 'string' ? command.run : '';
-  const language = detectLanguage(runText);
-
-  if (stdout) {
-    const fencedStdout = wrapWithLanguageFence(stdout, language);
-    const renderedStdout = renderMarkdownMessage(fencedStdout);
-    display('STDOUT', renderedStdout, 'white');
+  if (type === 'READ') {
+    const segments = parseReadSegments(output.stdout);
+    if (segments.length > 0) {
+      const totalLines = segments.reduce((acc, item) => acc + item.lineCount, 0);
+      summaryLines.push(
+        arrowLine(
+          `Read ${totalLines} ${pluralize('line', totalLines)} from ${segments.length} ${pluralize(
+            'file',
+            segments.length,
+          )}.`,
+        ),
+      );
+      for (const segment of segments) {
+        const label = segment.path || '(unknown path)';
+        summaryLines.push(
+          indentLine(`${label}: ${segment.lineCount} ${pluralize('line', segment.lineCount)}`),
+        );
+      }
+    }
+  } else if (type === 'EDIT' || type === 'REPLACE' || type === 'BROWSE') {
+    const stdoutLines = normalizePreviewLines(output.stdoutPreview);
+    if (stdoutLines.length > 0) {
+      summaryLines.push(arrowLine(stdoutLines[0]));
+      for (const line of stdoutLines.slice(1)) {
+        summaryLines.push(indentLine(line));
+      }
+    }
+  } else {
+    const stdoutLines = normalizePreviewLines(output.stdoutPreview);
+    if (stdoutLines.length > 0) {
+      summaryLines.push(arrowLine(stdoutLines[0]));
+      if (stdoutLines.length > 2) {
+        const middleCount = stdoutLines.length - 2;
+        summaryLines.push(indentLine(`+ ${middleCount} more ${pluralize('line', middleCount)}`));
+      }
+      if (stdoutLines.length > 1) {
+        summaryLines.push(indentLine(stdoutLines[stdoutLines.length - 1]));
+      }
+    }
   }
 
-  if (stderr) {
-    const fencedStderr = wrapWithLanguageFence(stderr, 'plaintext');
-    const renderedStderr = renderMarkdownMessage(fencedStderr);
-    display('STDERR', renderedStderr, 'red');
+  if (summaryLines.length === 0 && result?.exit_code === 0 && !output.stderrPreview) {
+    summaryLines.push(arrowLine('Command completed successfully.'));
   }
+
+  if (output.stderrPreview) {
+    appendStdErr(summaryLines, output.stderrPreview);
+  }
+
+  if (result) {
+    if (typeof result.exit_code === 'number' && result.exit_code !== 0) {
+      summaryLines.push(indentLine(`Exit code: ${result.exit_code}`));
+    }
+    if (result.killed) {
+      summaryLines.push(indentLine('Process terminated (timeout).'));
+    }
+  }
+
+  if (summaryLines.length === 0) {
+    summaryLines.push(arrowLine('No output.'));
+  }
+
+  const lines = [formatHeading(type, detail), ...summaryLines];
+
+  console.log('');
+  console.log(lines.join('\n'));
 }
 
 export default {
@@ -187,7 +416,6 @@ export default {
   renderPlan,
   renderMessage,
   renderCommand,
-  renderCommandResult,
   wrapWithLanguageFence,
   inferLanguageFromDetectors,
   detectLanguage,

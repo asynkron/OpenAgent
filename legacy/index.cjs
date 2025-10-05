@@ -26,7 +26,6 @@ const {
   renderPlan,
   renderMessage,
   renderCommand,
-  renderCommandResult,
   inferLanguageFromDetectors,
   detectLanguage,
 } = require('./src/cli/render');
@@ -134,7 +133,6 @@ const exported = {
   askHuman,
   renderMessage,
   renderCommand,
-  renderCommandResult,
   inferLanguageFromDetectors,
   detectLanguage,
   loadPreapprovedConfig,
@@ -168,7 +166,6 @@ async function runAgentLoopWithCurrentDependencies() {
     renderPlanFn: exported.renderPlan,
     renderMessageFn: exported.renderMessage,
     renderCommandFn: exported.renderCommand,
-    renderCommandResultFn: exported.renderCommandResult,
     runCommandFn: exported.runCommand,
     runBrowseFn: exported.runBrowse,
     runEditFn: exported.runEdit,

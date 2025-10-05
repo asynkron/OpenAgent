@@ -149,48 +149,262 @@ function renderMessage(message) {
   display('AI', rendered, 'magenta');
 }
 
-function renderCommand(command) {
-  if (!command) return;
-
-  const commandLines = [command.run];
-  //   `${chalk.cyan('Shell')}: ${command.shell || 'bash'}`,
-  //   `${chalk.cyan('Directory')}: ${command.cwd || '.'}`,
-  //   `${chalk.cyan('Timeout')}: ${command.timeout_sec ?? 60}s`,
-  // ];
-
-  // if (command.run) {
-  //   //this is correct, command should be bash/sh whatever shell we are running in
-  //   const fencedCommand = wrapWithLanguageFence(command.run, 'bash');
-  //   const renderedCommand = renderMarkdownMessage(fencedCommand);
-  //   commandLines.push('');
-  //   commandLines.push(renderedCommand);
-  // }
-
-  display('Command', commandLines, 'yellow');
+function formatHeading(label, detail) {
+  const padded = label.padEnd(8);
+  const suffix = detail ? ` ${detail}` : '';
+  return ` ${chalk.bold(padded)}${suffix}`;
 }
 
-function renderCommandResult(command, result, stdout, stderr) {
-  // const statusLines = [
-  //   `${chalk.cyan('Exit Code')}: ${result.exit_code}`,
-  //   `${chalk.cyan('Runtime')}: ${result.runtime_ms}ms`,
-  //   `${chalk.cyan('Status')}: ${result.killed ? chalk.red('KILLED (timeout)') : chalk.green('COMPLETED')}`,
-  // ];
+function arrowLine(text) {
+  return ` ↳ ${text}`;
+}
 
-  // display('Command Result', statusLines, 'green');
+function indentLine(text) {
+  return `     ${text}`;
+}
 
-  const language = detectLanguage(command.command);
+function pluralize(word, count) {
+  return `${word}${count === 1 ? '' : 's'}`;
+}
 
-  if (stdout) {
-    const fencedStdout = wrapWithLanguageFence(stdout, language);
-    const renderedStdout = renderMarkdownMessage(fencedStdout);
-    display('STDOUT', renderedStdout, 'white');
+function normalizePreviewLines(preview) {
+  if (!preview) {
+    return [];
+  }
+  const lines = String(preview).split('\n');
+  while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
+    lines.pop();
+  }
+  return lines;
+}
+
+function collectReadPaths(spec) {
+  const paths = [];
+  if (!spec || typeof spec !== 'object') {
+    return paths;
   }
 
-  if (stderr) {
-    const fencedStderr = wrapWithLanguageFence(stderr, 'plaintext');
-    const renderedStderr = renderMarkdownMessage(fencedStderr);
-    display('STDERR', renderedStderr, 'red');
+  const addPath = (candidate) => {
+    if (typeof candidate !== 'string') {
+      return;
+    }
+    const trimmed = candidate.trim();
+    if (!trimmed || paths.includes(trimmed)) {
+      return;
+    }
+    paths.push(trimmed);
+  };
+
+  addPath(spec.path);
+  if (Array.isArray(spec.paths)) {
+    for (const candidate of spec.paths) {
+      addPath(candidate);
+    }
   }
+
+  return paths;
+}
+
+function parseReadSegments(stdout) {
+  if (!stdout) {
+    return [];
+  }
+
+  const lines = String(stdout).split('\n');
+  const segments = [];
+  let current = null;
+
+  for (const line of lines) {
+    if (line.endsWith(':::')) {
+      if (current) {
+        const { path, content } = current;
+        while (content.length > 0 && content[content.length - 1] === '') {
+          content.pop();
+        }
+        segments.push({ path, lineCount: content.length });
+      }
+      current = { path: line.slice(0, -3), content: [] };
+    } else if (current) {
+      current.content.push(line);
+    }
+  }
+
+  if (current) {
+    const { path, content } = current;
+    while (content.length > 0 && content[content.length - 1] === '') {
+      content.pop();
+    }
+    segments.push({ path, lineCount: content.length });
+  }
+
+  return segments;
+}
+
+function inferCommandType(command) {
+  if (!command || typeof command !== 'object') {
+    return 'EXECUTE';
+  }
+
+  if (command.edit) return 'EDIT';
+  if (command.read) return 'READ';
+  if (command.replace) return 'REPLACE';
+
+  const runValue = typeof command.run === 'string' ? command.run.trim() : '';
+  if (runValue) {
+    const keyword = runValue.split(/\s+/)[0]?.toLowerCase();
+    if (keyword === 'browse') {
+      return 'BROWSE';
+    }
+    if (keyword === 'read') {
+      return 'READ';
+    }
+  }
+
+  return 'EXECUTE';
+}
+
+function buildHeadingDetail(type, execution, command) {
+  switch (type) {
+    case 'READ': {
+      const spec = (execution && execution.spec) || (command && command.read) || {};
+      const paths = collectReadPaths(spec);
+      return `([${paths.join(', ')}])`;
+    }
+    case 'EDIT': {
+      const spec = (execution && execution.spec) || (command && command.edit) || {};
+      const parts = [];
+      if (spec.path) {
+        parts.push(spec.path);
+      }
+      if (spec.encoding) {
+        parts.push(spec.encoding);
+      }
+      const editCount = Array.isArray(spec.edits) ? spec.edits.length : 0;
+      parts.push(`${editCount} ${pluralize('edit', editCount)}`);
+      return `(${parts.join(', ')})`;
+    }
+    case 'REPLACE': {
+      const spec = (execution && execution.spec) || (command && command.replace) || {};
+      const parts = [];
+      if (spec.pattern !== undefined) {
+        parts.push(`pattern: ${JSON.stringify(spec.pattern ?? '')}`);
+      }
+      if (spec.replacement !== undefined) {
+        parts.push(`replacement: ${JSON.stringify(spec.replacement ?? '')}`);
+      }
+      const files = Array.isArray(spec.files) ? spec.files.filter(Boolean) : [];
+      if (files.length > 0) {
+        parts.push(`[${files.join(', ')}]`);
+      }
+      if (spec.dry_run || spec.dryRun) {
+        parts.push('dry-run');
+      }
+      return `(${parts.join(', ')})`;
+    }
+    case 'BROWSE': {
+      const target = execution && execution.target ? execution.target : '';
+      return `(${target})`;
+    }
+    default: {
+      const runValue =
+        (execution && execution.command && typeof execution.command.run === 'string'
+          ? execution.command.run
+          : typeof command?.run === 'string'
+            ? command.run
+            : '') || '';
+      const trimmed = runValue.trim();
+      return `(${trimmed || 'shell command'})`;
+    }
+  }
+}
+
+function appendStdErr(summaryLines, stderrPreview) {
+  const stderrLines = normalizePreviewLines(stderrPreview);
+  if (stderrLines.length === 0) {
+    return;
+  }
+  summaryLines.push(arrowLine(`STDERR: ${stderrLines[0]}`));
+  for (const line of stderrLines.slice(1)) {
+    summaryLines.push(indentLine(line));
+  }
+}
+
+function renderCommand(command, result, output) {
+  if (!command || typeof command !== 'object') {
+    return;
+  }
+
+  const execution = (output && output.execution) || {};
+  const type = (execution.type || inferCommandType(command)).toUpperCase();
+  const detail = buildHeadingDetail(type, execution, command);
+  const summaryLines = [];
+
+  if (type === 'READ') {
+    const segments = parseReadSegments(output && output.stdout);
+    if (segments.length > 0) {
+      const totalLines = segments.reduce((acc, item) => acc + item.lineCount, 0);
+      summaryLines.push(
+        arrowLine(
+          `Read ${totalLines} ${pluralize('line', totalLines)} from ${segments.length} ${pluralize(
+            'file',
+            segments.length,
+          )}.`,
+        ),
+      );
+      for (const segment of segments) {
+        const label = segment.path || '(unknown path)';
+        summaryLines.push(
+          indentLine(`${label}: ${segment.lineCount} ${pluralize('line', segment.lineCount)}`),
+        );
+      }
+    }
+  } else if (type === 'EDIT' || type === 'REPLACE' || type === 'BROWSE') {
+    const stdoutLines = normalizePreviewLines(output && output.stdoutPreview);
+    if (stdoutLines.length > 0) {
+      summaryLines.push(arrowLine(stdoutLines[0]));
+      for (const line of stdoutLines.slice(1)) {
+        summaryLines.push(indentLine(line));
+      }
+    }
+  } else {
+    const stdoutLines = normalizePreviewLines(output && output.stdoutPreview);
+    if (stdoutLines.length > 0) {
+      summaryLines.push(arrowLine(stdoutLines[0]));
+      if (stdoutLines.length > 2) {
+        const middleCount = stdoutLines.length - 2;
+        summaryLines.push(indentLine(`+ ${middleCount} more ${pluralize('line', middleCount)}`));
+      }
+      if (stdoutLines.length > 1) {
+        summaryLines.push(indentLine(stdoutLines[stdoutLines.length - 1]));
+      }
+    }
+  }
+
+  if (summaryLines.length === 0 && result && result.exit_code === 0 && !(output && output.stderrPreview)) {
+    summaryLines.push(arrowLine('Command completed successfully.'));
+  }
+
+  if (output && output.stderrPreview) {
+    appendStdErr(summaryLines, output.stderrPreview);
+  }
+
+  if (result) {
+    if (typeof result.exit_code === 'number' && result.exit_code !== 0) {
+      summaryLines.push(indentLine(`Exit code: ${result.exit_code}`));
+    }
+    if (result.killed) {
+      summaryLines.push(indentLine('Process terminated (timeout).'));
+    }
+  }
+
+  if (summaryLines.length === 0) {
+    summaryLines.push(arrowLine('No output.'));
+  }
+
+  const lines = [formatHeading(type, detail)].concat(summaryLines);
+
+  console.log('');
+  console.log(lines.join('\n'));
 }
 
 module.exports = {
@@ -200,7 +414,6 @@ module.exports = {
   renderPlan,
   renderMessage,
   renderCommand,
-  renderCommandResult,
   wrapWithLanguageFence,
   inferLanguageFromDetectors,
   detectLanguage,
