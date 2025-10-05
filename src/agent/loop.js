@@ -174,6 +174,11 @@ function createAgentLoop({
 
     const rl = createInterfaceFn();
 
+    const noHumanInitiallyEnabled = Boolean(getNoHumanFlag());
+    let noHumanAutoRespondActive = noHumanInitiallyEnabled;
+    let noHumanInitialPromptCaptured = !noHumanAutoRespondActive;
+    let awaitingNoHumanCompletion = false;
+
     let openai;
     try {
       openai = getClient();
@@ -203,15 +208,37 @@ function createAgentLoop({
 
     try {
       while (true) {
-        const userInput = await askHumanFn(rl, '\n ▷ ');
+        let isAutoInput = false;
+        let userInput;
 
-        if (!userInput) {
-          continue;
+        if (noHumanAutoRespondActive && noHumanInitialPromptCaptured && !awaitingNoHumanCompletion) {
+          userInput = NO_HUMAN_AUTO_MESSAGE;
+          isAutoInput = true;
+          console.log(chalk.dim(`[no-human] ${NO_HUMAN_AUTO_MESSAGE}`));
+        } else {
+          userInput = await askHumanFn(rl, '\n ▷ ');
+
+          if (noHumanAutoRespondActive && !noHumanInitialPromptCaptured) {
+            noHumanInitialPromptCaptured = true;
+          } else if (noHumanAutoRespondActive && awaitingNoHumanCompletion) {
+            awaitingNoHumanCompletion = false;
+            noHumanAutoRespondActive = false;
+            setNoHumanFlag(false);
+          }
         }
 
-        if (userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
-          console.log(chalk.green('Goodbye!'));
-          break;
+        if (!userInput) {
+          if (!isAutoInput) {
+            continue;
+          }
+        }
+
+        if (!isAutoInput) {
+          const normalizedInput = userInput.toLowerCase();
+          if (normalizedInput === 'exit' || normalizedInput === 'quit') {
+            console.log(chalk.green('Goodbye!'));
+            break;
+          }
         }
 
         history.push({
@@ -260,6 +287,14 @@ function createAgentLoop({
             renderMessageFn(parsed.message);
             renderPlanFn(parsed.plan);
 
+            if (
+              noHumanAutoRespondActive &&
+              typeof parsed.message === 'string' &&
+              parsed.message.trim().toLowerCase() === 'done'
+            ) {
+              awaitingNoHumanCompletion = true;
+            }
+
             if (!parsed.command) {
               continueLoop = false;
               continue;
@@ -283,17 +318,22 @@ function createAgentLoop({
               }
             } else {
               let selection;
-              while (true) {
-                const input = (await askHumanFn(rl, `
+              if (noHumanAutoRespondActive && !awaitingNoHumanCompletion) {
+                selection = 1;
+                console.log(chalk.yellow('No-human mode: auto-selecting "Yes (run once)" for command execution.'));
+              } else {
+                while (true) {
+                  const input = (await askHumanFn(rl, `
 Approve running this command?
   1) Yes (run once)
   2) Yes, for entire session (add to in-memory approvals)
   3) No, tell the AI to do something else
 Select 1, 2, or 3: `)).trim().toLowerCase();
-                if (input === '1' || input === 'y' || input === 'yes') { selection = 1; break; }
-                if (input === '2') { selection = 2; break; }
-                if (input === '3' || input === 'n' || input === 'no') { selection = 3; break; }
-                console.log(chalk.yellow('Please enter 1, 2, or 3.'));
+                  if (input === '1' || input === 'y' || input === 'yes') { selection = 1; break; }
+                  if (input === '2') { selection = 2; break; }
+                  if (input === '3' || input === 'n' || input === 'no') { selection = 3; break; }
+                  console.log(chalk.yellow('Please enter 1, 2, or 3.'));
+                }
               }
 
               if (selection === 3) {
