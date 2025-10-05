@@ -1,7 +1,9 @@
-import fs from 'node:fs';
-import path from 'node:path';
+'use strict';
 
-export function normalizeFlags(flags) {
+const fs = require('fs');
+const path = require('path');
+
+function normalizeFlags(flags) {
   if (flags === undefined || flags === null) {
     return 'g';
   }
@@ -20,7 +22,7 @@ export function normalizeFlags(flags) {
   return Array.from(seen).join('');
 }
 
-export function createRegex(pattern, flags) {
+function createRegex(pattern, flags) {
   if (typeof pattern !== 'string' || pattern.trim() === '') {
     throw new Error('pattern must be a non-empty string');
   }
@@ -61,7 +63,7 @@ function buildResultSummary(results, dryRun) {
   return lines.join('\n');
 }
 
-export function runReplace(spec, cwd = '.') {
+function runReplace(spec, cwd = '.') {
   const startTime = Date.now();
   try {
     if (!spec || typeof spec !== 'object') {
@@ -133,12 +135,10 @@ export function runReplace(spec, cwd = '.') {
   }
 }
 
-export const _internal = {
-  normalizeFlags,
-  createRegex,
-};
-
-export default {
+module.exports = {
   runReplace,
-  _internal,
+  _internal: {
+    normalizeFlags,
+    createRegex,
+  },
 };

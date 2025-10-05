@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Template CLI helpers for the agent entry point.
  *
@@ -10,12 +12,12 @@
  * - Integration tests cover the JSON shape via the exported helpers.
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
+const fs = require('fs');
+const path = require('path');
 
 const TEMPLATES_PATH = path.join(process.cwd(), 'templates', 'command-templates.json');
 
-export function loadTemplates() {
+function loadTemplates() {
   try {
     const raw = fs.readFileSync(TEMPLATES_PATH, 'utf8');
     const parsed = JSON.parse(raw);
@@ -26,7 +28,7 @@ export function loadTemplates() {
   }
 }
 
-export function renderTemplateCommand(template, vars) {
+function renderTemplateCommand(template, vars) {
   let cmd = template.command || '';
   const varsMap = Object.assign({}, vars || {});
   (template.variables || []).forEach((variable) => {
@@ -42,7 +44,7 @@ export function renderTemplateCommand(template, vars) {
   return cmd;
 }
 
-export function handleTemplatesCli(argv = process.argv) {
+function handleTemplatesCli(argv = process.argv) {
   const sub = argv[3] || 'list';
   const templates = loadTemplates();
   if (sub === 'list') {
@@ -82,7 +84,7 @@ export function handleTemplatesCli(argv = process.argv) {
   process.exit(0);
 }
 
-export default {
+module.exports = {
   loadTemplates,
   renderTemplateCommand,
   handleTemplatesCli,

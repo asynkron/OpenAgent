@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Implements the allowlist validation and in-memory approvals for command execution.
  *
@@ -11,13 +13,13 @@
  * - Unit tests exercise the individual helpers via root re-exports.
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
-import chalk from 'chalk';
+const fs = require('fs');
+const path = require('path');
+const chalk = require('chalk');
 
-import { shellSplit } from '../utils/text.js';
+const { shellSplit } = require('../utils/text');
 
-export function loadPreapprovedConfig() {
+function loadPreapprovedConfig() {
   const cfgPath = path.join(process.cwd(), 'approved_commands.json');
   try {
     if (fs.existsSync(cfgPath)) {
@@ -31,7 +33,7 @@ export function loadPreapprovedConfig() {
   return { allowlist: [] };
 }
 
-export function isPreapprovedCommand(command, cfg) {
+function isPreapprovedCommand(command, cfg) {
   try {
     const runRaw = (command && command.run ? String(command.run) : '').trim();
     if (!runRaw) return false;
@@ -149,7 +151,7 @@ export function isPreapprovedCommand(command, cfg) {
 
 const sessionApprovals = new Set();
 
-export function commandSignature(cmd) {
+function commandSignature(cmd) {
   return JSON.stringify({
     shell: cmd.shell || 'bash',
     run: typeof cmd.run === 'string' ? cmd.run : '',
@@ -157,7 +159,7 @@ export function commandSignature(cmd) {
   });
 }
 
-export function isSessionApproved(cmd) {
+function isSessionApproved(cmd) {
   try {
     return sessionApprovals.has(commandSignature(cmd));
   } catch (err) {
@@ -165,7 +167,7 @@ export function isSessionApproved(cmd) {
   }
 }
 
-export function approveForSession(cmd) {
+function approveForSession(cmd) {
   try {
     sessionApprovals.add(commandSignature(cmd));
   } catch (err) {
@@ -173,13 +175,13 @@ export function approveForSession(cmd) {
   }
 }
 
-export function resetSessionApprovals() {
+function resetSessionApprovals() {
   sessionApprovals.clear();
 }
 
-export const PREAPPROVED_CFG = loadPreapprovedConfig();
+const PREAPPROVED_CFG = loadPreapprovedConfig();
 
-export default {
+module.exports = {
   loadPreapprovedConfig,
   isPreapprovedCommand,
   isSessionApproved,

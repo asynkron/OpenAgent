@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Builds the system prompt that governs the agent runtime.
  *
@@ -10,27 +12,10 @@
  * - Root `index.js` re-exports the discovery helpers for unit tests.
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
-const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 
-function detectWorkspaceRoot(startDir = process.cwd()) {
-  try {
-    const output = execSync('git rev-parse --show-toplevel', {
-      cwd: startDir,
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-    const candidate = output.toString().trim();
-    if (candidate) {
-      return { root: path.resolve(candidate), source: 'git' };
-    }
-  } catch (err) {
-    // ignored
-  }
-  return { root: path.resolve(startDir), source: 'cwd' };
-}
-
-export function findAgentFiles(rootDir) {
+function findAgentFiles(rootDir) {
   const discovered = [];
 
   function walk(current) {
@@ -63,7 +48,7 @@ export function findAgentFiles(rootDir) {
   return discovered;
 }
 
-export function buildAgentsPrompt(rootDir) {
+function buildAgentsPrompt(rootDir) {
   const agentFiles = findAgentFiles(rootDir);
   if (agentFiles.length === 0) {
     return '';
@@ -99,7 +84,7 @@ function readFileIfExists(filePath) {
   }
 }
 
-export function buildBaseSystemPrompt(rootDir) {
+function buildBaseSystemPrompt(rootDir) {
   const sections = [];
 
   const promptFiles = [
@@ -140,26 +125,19 @@ export function buildBaseSystemPrompt(rootDir) {
   return sections.join('\n\n');
 }
 
-const WORKSPACE_ROOT_INFO = detectWorkspaceRoot(process.cwd());
-const BASE_SYSTEM_PROMPT = buildBaseSystemPrompt(WORKSPACE_ROOT_INFO.root);
+const BASE_SYSTEM_PROMPT = buildBaseSystemPrompt(process.cwd());
 
-const agentsGuidance = buildAgentsPrompt(WORKSPACE_ROOT_INFO.root);
+const agentsGuidance = buildAgentsPrompt(process.cwd());
 
-const combinedPrompt =
+const SYSTEM_PROMPT =
   agentsGuidance.trim().length > 0
     ? `${BASE_SYSTEM_PROMPT}\n\nThe following local operating rules are mandatory. They are sourced from AGENTS.md files present in the workspace:\n\n${agentsGuidance}`
     : BASE_SYSTEM_PROMPT;
 
-const workspaceMetadata = `Workspace metadata:\n- workspace_root: ${WORKSPACE_ROOT_INFO.root}\n- detection_source: ${WORKSPACE_ROOT_INFO.source}`;
-
-const SYSTEM_PROMPT = [combinedPrompt, workspaceMetadata].filter(Boolean).join('\n\n');
-
 module.exports = {
-  detectWorkspaceRoot,
   findAgentFiles,
   buildAgentsPrompt,
   buildBaseSystemPrompt,
   BASE_SYSTEM_PROMPT,
   SYSTEM_PROMPT,
-  WORKSPACE_ROOT_INFO,
 };

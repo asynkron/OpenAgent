@@ -15,8 +15,9 @@ This roadmap captures a staged approach for cleaning up the OpenAgent codebase, 
 
 ## 3. Plan the CommonJS → ESM migration
 
-1. **Decide on module strategy.**
-   - Prefer flipping the project to ESM by adding `"type": "module"` in `package.json`.
+1. **Lock in the module strategy.**
+   - Standardize on Node's native `import`/`export` syntax by setting `"type": "module"` in `package.json`.
+   - Keep the legacy automation working by routing existing CommonJS entry points through the `.mjs` compatibility helper so both systems interoperate during the transition.
    - Where external libraries still publish CommonJS, use `createRequire` as a narrow compatibility shim.
 2. **Split migration into layers.**
    - Start with leaf utility modules in `src/utils` and `src/config`, rewrite `module.exports` → `export` and `require` → `import`.
@@ -39,11 +40,28 @@ This roadmap captures a staged approach for cleaning up the OpenAgent codebase, 
 
 Once the module migration stabilises, consider introducing TypeScript (or JSDoc typedefs) for key subsystems. This enables richer editor tooling and can surface interface mismatches early.
 
+1. **Pilot on leaf modules.** Start by annotating `src/utils` with TypeScript or JSDoc types so that the build tooling remains close to plain JavaScript while developers gain type-checking signal.
+2. **Adopt incremental compilation.** Introduce `ts-node` or Babel-based transpilation only after the initial pilots demonstrate value. Keep the TypeScript configuration (`tsconfig.json`) minimal—`strict: true`, `checkJs: true`—to avoid churn.
+3. **Bridge Jest and ESLint.** Update the Jest configuration to understand `.ts` and `.cts` files and enable ESLint's TypeScript parser with rules that reinforce the new types without blocking mixed JS/TS code.
+4. **Document contributor expectations.** Publish guidelines for when to author new modules in TypeScript, how to handle declaration files, and how to migrate existing CommonJS tests.
+
 ## 6. Rollout strategy
 
 1. Apply the tooling upgrades (formatting, lint) and document contributor expectations.
 2. Migrate utilities to ESM in small pull requests, running `npm run lint` + `npm test` to verify at each step.
 3. Introduce the service classes progressively while keeping function APIs intact; update the agent loop only after the supporting classes exist.
 4. Clean up residual TODOs, remove unused code paths, and document the final architecture.
+
+## 7. Observability and performance feedback loops
+
+1. **Instrument critical paths.** Add lightweight logging or metrics hooks around agent loop iterations, command execution, and OpenAI API interactions so regressions surface quickly during the migration.
+2. **Track performance baselines.** Capture baseline timings before each major refactor (module conversion, service extraction) and compare them post-change to avoid unintentional slowdowns.
+3. **Automate regression detection.** Where feasible, integrate simple benchmarks or synthetic tasks into CI to guard against significant runtime regressions.
+
+## 8. Change management and communication
+
+1. **Publish upgrade notes.** Maintain a running changelog that highlights ESM breaking changes, new service abstractions, and any CLI flag adjustments that downstream automation must incorporate.
+2. **Host knowledge-sharing sessions.** After each major phase, circulate internal walkthroughs or Loom videos explaining the new patterns so contributors can ramp up quickly.
+3. **Schedule regular retrospectives.** Every few iterations, review the modernization progress, re-evaluate scope, and decide whether future phases require resequencing based on lessons learned.
 
 Following these phases gives us quick quality wins now while charting a safe path towards a modern, modular architecture.

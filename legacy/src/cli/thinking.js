@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Handles the lightweight CLI "thinking" animation shown while awaiting API calls.
  *
@@ -10,13 +12,13 @@
  * - Tests rely on the root re-exports to stub these behaviours.
  */
 
-import readline from 'node:readline';
-import chalk from 'chalk';
+const readline = require('readline');
+const chalk = require('chalk');
 
 let intervalHandle = null;
 let animationStart = null;
 
-export function formatElapsedTime(startTime, now = Date.now()) {
+function formatElapsedTime(startTime, now = Date.now()) {
   if (!startTime || startTime > now) {
     return '00:00';
   }
@@ -27,7 +29,7 @@ export function formatElapsedTime(startTime, now = Date.now()) {
   return String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
 }
 
-export function startThinking() {
+function startThinking() {
   if (intervalHandle) return;
   animationStart = Date.now();
   const frames = ['Thinking.  ', 'Thinking.. ', 'Thinking...'];
@@ -46,7 +48,7 @@ export function startThinking() {
   }, 400);
 }
 
-export function stopThinking() {
+function stopThinking() {
   if (intervalHandle) {
     clearInterval(intervalHandle);
     intervalHandle = null;
@@ -60,7 +62,7 @@ export function stopThinking() {
   }
 }
 
-export default {
+module.exports = {
   startThinking,
   stopThinking,
   formatElapsedTime,

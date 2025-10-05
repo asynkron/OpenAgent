@@ -1,7 +1,9 @@
-import fs from 'node:fs';
-import path from 'node:path';
+'use strict';
 
-export function validateRange(text, start, end) {
+const fs = require('fs');
+const path = require('path');
+
+function validateRange(text, start, end) {
   if (!Number.isInteger(start) || !Number.isInteger(end)) {
     throw new Error('start and end must be integers');
   }
@@ -10,7 +12,7 @@ export function validateRange(text, start, end) {
   }
 }
 
-export function applyEdit(text, edit) {
+function applyEdit(text, edit) {
   if (!edit || typeof edit !== 'object') {
     throw new Error('edit must be an object');
   }
@@ -19,7 +21,7 @@ export function applyEdit(text, edit) {
   return text.slice(0, start) + newText + text.slice(end);
 }
 
-export function applyEdits(text, edits) {
+function applyEdits(text, edits) {
   if (!Array.isArray(edits)) {
     throw new Error('edits must be an array');
   }
@@ -27,7 +29,7 @@ export function applyEdits(text, edits) {
   return sorted.reduce((acc, edit) => applyEdit(acc, edit), text);
 }
 
-export async function applyFileEdits(editSpec, cwd = '.') {
+async function applyFileEdits(editSpec, cwd = '.') {
   const start = Date.now();
   try {
     if (!editSpec || typeof editSpec !== 'object') {
@@ -75,11 +77,11 @@ export async function applyFileEdits(editSpec, cwd = '.') {
   }
 }
 
-export async function runEdit(editSpec, cwd = '.') {
+async function runEdit(editSpec, cwd = '.') {
   return applyFileEdits(editSpec, cwd);
 }
 
-export default {
+module.exports = {
   applyEdit,
   applyEdits,
   applyFileEdits,

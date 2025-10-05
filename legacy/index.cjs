@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Root entry point for the OpenAgent CLI.
  *
@@ -12,15 +14,12 @@
  * - `src/commands`, `src/cli`, and `src/config` supply focused utilities that the loop depends upon.
  */
 
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+require('dotenv').config();
 
-import 'dotenv/config';
-
-import { getOpenAIClient, resetOpenAIClient, MODEL } from './src/openai/client.js';
-import { startThinking, stopThinking, formatElapsedTime } from './src/cli/thinking.js';
-import { createInterface, askHuman } from './src/cli/io.js';
-import {
+const { getOpenAIClient, resetOpenAIClient, MODEL } = require('./src/openai/client');
+const { startThinking, stopThinking, formatElapsedTime } = require('./src/cli/thinking');
+const { createInterface, askHuman } = require('./src/cli/io');
+const {
   display,
   wrapStructuredContent,
   renderMarkdownMessage,
@@ -30,28 +29,28 @@ import {
   renderCommandResult,
   inferLanguageFromDetectors,
   detectLanguage,
-} from './src/cli/render.js';
-import { runCommand, runBrowse, runEdit, runRead, runReplace } from './src/commands/run.js';
-import {
+} = require('./src/cli/render');
+const { runCommand, runBrowse, runEdit, runRead, runReplace } = require('./src/commands/run');
+const {
   loadPreapprovedConfig,
   isPreapprovedCommand,
   isSessionApproved,
   approveForSession,
   resetSessionApprovals,
-  commandSignature as __commandSignature,
+  commandSignature: __commandSignature,
   PREAPPROVED_CFG,
-} from './src/commands/preapproval.js';
-import { applyFilter, tailLines, shellSplit } from './src/utils/text.js';
-import {
+} = require('./src/commands/preapproval');
+const { applyFilter, tailLines, shellSplit } = require('./src/utils/text');
+const {
   findAgentFiles,
   buildAgentsPrompt,
   BASE_SYSTEM_PROMPT,
   SYSTEM_PROMPT,
-} from './src/config/systemPrompt.js';
-import { createAgentLoop, extractResponseText } from './src/agent/loop.js';
-import { loadTemplates, renderTemplateCommand, handleTemplatesCli } from './src/templates/cli.js';
-import { loadShortcutsFile, findShortcut, handleShortcutsCli } from './src/shortcuts/cli.js';
-import { incrementCommandCount } from './src/commands/commandStats.js';
+} = require('./src/config/systemPrompt');
+const { createAgentLoop, extractResponseText } = require('./src/agent/loop');
+const { loadTemplates, renderTemplateCommand, handleTemplatesCli } = require('./src/templates/cli');
+const { loadShortcutsFile, findShortcut, handleShortcutsCli } = require('./src/shortcuts/cli');
+const { incrementCommandCount } = require('./src/commands/commandStats');
 
 let startupForceAutoApprove = process.argv.slice(2).some((arg) => {
   if (!arg) return false;
@@ -70,7 +69,7 @@ let startupNoHuman = process.argv.slice(2).some((arg) => {
   return normalized === 'nohuman' || normalized === '--nohuman' || normalized === '--no-human';
 });
 
-export async function runCommandAndTrack(run, cwd = '.', timeoutSec = 60) {
+async function runCommandAndTrack(run, cwd = '.', timeoutSec = 60) {
   const result = await runCommand(run, cwd, timeoutSec);
   try {
     let key = 'unknown';
@@ -96,41 +95,7 @@ function maybeHandleCliExtensions(argv = process.argv) {
   return false;
 }
 
-async function runAgentLoopWithCurrentDependencies() {
-  const loop = createAgentLoop({
-    getAutoApproveFlag: () => exported.STARTUP_FORCE_AUTO_APPROVE,
-    getNoHumanFlag: () => exported.STARTUP_NO_HUMAN,
-    setNoHumanFlag: (value) => {
-      exported.STARTUP_NO_HUMAN = Boolean(value);
-    },
-    createInterfaceFn: exported.createInterface,
-    askHumanFn: exported.askHuman,
-    startThinkingFn: exported.startThinking,
-    stopThinkingFn: exported.stopThinking,
-    renderPlanFn: exported.renderPlan,
-    renderMessageFn: exported.renderMessage,
-    renderCommandFn: exported.renderCommand,
-    renderCommandResultFn: exported.renderCommandResult,
-    runCommandFn: exported.runCommand,
-    runBrowseFn: exported.runBrowse,
-    runEditFn: exported.runEdit,
-    runReadFn: exported.runRead,
-    runReplaceFn: exported.runReplace,
-    applyFilterFn: exported.applyFilter,
-    tailLinesFn: exported.tailLines,
-    isPreapprovedCommandFn: exported.isPreapprovedCommand,
-    isSessionApprovedFn: exported.isSessionApproved,
-    approveForSessionFn: exported.approveForSession,
-    preapprovedCfg: exported.PREAPPROVED_CFG,
-  });
-  return loop();
-}
-
-export async function agentLoop() {
-  return runAgentLoopWithCurrentDependencies();
-}
-
-export const exported = {
+const exported = {
   get STARTUP_FORCE_AUTO_APPROVE() {
     return startupForceAutoApprove;
   },
@@ -187,67 +152,52 @@ export const exported = {
   runCommandAndTrack,
   handleTemplatesCli,
   handleShortcutsCli,
-  agentLoop,
 };
 
-export {
-  MODEL,
-  getOpenAIClient,
-  resetOpenAIClient,
-  startThinking,
-  stopThinking,
-  formatElapsedTime,
-  findAgentFiles,
-  buildAgentsPrompt,
-  BASE_SYSTEM_PROMPT,
-  SYSTEM_PROMPT,
-  runCommand,
-  runBrowse,
-  runEdit,
-  runRead,
-  runReplace,
-  applyFilter,
-  tailLines,
-  shellSplit,
-  display,
-  wrapStructuredContent,
-  renderMarkdownMessage,
-  renderPlan,
-  createInterface,
-  askHuman,
-  renderMessage,
-  renderCommand,
-  renderCommandResult,
-  inferLanguageFromDetectors,
-  detectLanguage,
-  loadPreapprovedConfig,
-  isPreapprovedCommand,
-  __commandSignature,
-  isSessionApproved,
-  approveForSession,
-  resetSessionApprovals,
-  extractResponseText,
-  PREAPPROVED_CFG,
-  loadTemplates,
-  renderTemplateCommand,
-  loadShortcutsFile,
-  findShortcut,
-  handleTemplatesCli,
-  handleShortcutsCli,
+async function runAgentLoopWithCurrentDependencies() {
+  const loop = createAgentLoop({
+    getAutoApproveFlag: () => exported.STARTUP_FORCE_AUTO_APPROVE,
+    getNoHumanFlag: () => exported.STARTUP_NO_HUMAN,
+    setNoHumanFlag: (value) => {
+      exported.STARTUP_NO_HUMAN = Boolean(value);
+    },
+    createInterfaceFn: exported.createInterface,
+    askHumanFn: exported.askHuman,
+    startThinkingFn: exported.startThinking,
+    stopThinkingFn: exported.stopThinking,
+    renderPlanFn: exported.renderPlan,
+    renderMessageFn: exported.renderMessage,
+    renderCommandFn: exported.renderCommand,
+    renderCommandResultFn: exported.renderCommandResult,
+    runCommandFn: exported.runCommand,
+    runBrowseFn: exported.runBrowse,
+    runEditFn: exported.runEdit,
+    runReadFn: exported.runRead,
+    runReplaceFn: exported.runReplace,
+    applyFilterFn: exported.applyFilter,
+    tailLinesFn: exported.tailLines,
+    isPreapprovedCommandFn: exported.isPreapprovedCommand,
+    isSessionApprovedFn: exported.isSessionApproved,
+    approveForSessionFn: exported.approveForSession,
+    preapprovedCfg: exported.PREAPPROVED_CFG,
+  });
+  return loop();
+}
+
+exported.agentLoop = async function agentLoop() {
+  return runAgentLoopWithCurrentDependencies();
 };
 
-export default exported;
+module.exports = exported;
 
-const currentFilePath = fileURLToPath(import.meta.url);
-const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
-if (invokedPath && currentFilePath === invokedPath) {
+if (require.main === module) {
   const main = async () => {
     if (maybeHandleCliExtensions(process.argv)) {
       return;
     }
 
     try {
-      await agentLoop();
+      await exported.agentLoop();
     } catch (err) {
       if (err && err.message) {
         process.exitCode = 1;

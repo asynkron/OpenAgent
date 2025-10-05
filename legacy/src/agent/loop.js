@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Implements the interactive agent loop that powers the CLI experience.
  *
@@ -11,32 +13,27 @@
  * - Integration tests re-export the same function to run mocked scenarios.
  */
 
-import chalk from 'chalk';
+const chalk = require('chalk');
 
-import { SYSTEM_PROMPT } from '../config/systemPrompt.js';
-import { getOpenAIClient, MODEL } from '../openai/client.js';
-import { startThinking, stopThinking } from '../cli/thinking.js';
-import { createInterface, askHuman } from '../cli/io.js';
-import {
-  renderPlan,
-  renderMessage,
-  renderCommand,
-  renderCommandResult,
-} from '../cli/render.js';
-import { runCommand, runBrowse, runEdit, runRead, runReplace } from '../commands/run.js';
-import { applyFilter, tailLines, shellSplit } from '../utils/text.js';
-import {
+const { SYSTEM_PROMPT } = require('../config/systemPrompt');
+const { getOpenAIClient, MODEL } = require('../openai/client');
+const { startThinking, stopThinking } = require('../cli/thinking');
+const { createInterface, askHuman } = require('../cli/io');
+const { renderPlan, renderMessage, renderCommand, renderCommandResult } = require('../cli/render');
+const { runCommand, runBrowse, runEdit, runRead, runReplace } = require('../commands/run');
+const { applyFilter, tailLines, shellSplit } = require('../utils/text');
+const {
   isPreapprovedCommand,
   isSessionApproved,
   approveForSession,
   PREAPPROVED_CFG,
-} from '../commands/preapproval.js';
-import { incrementCommandCount } from '../commands/commandStats.js';
-import { combineStdStreams } from '../utils/output.js';
+} = require('../commands/preapproval');
+const { incrementCommandCount } = require('../commands/commandStats');
+const outputUtils = require('../utils/output');
 
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 
-export function extractResponseText(response) {
+function extractResponseText(response) {
   if (!response || typeof response !== 'object') {
     return '';
   }
@@ -243,7 +240,7 @@ async function executeAgentPass({
     return false;
   }
 
-  // This is correct. AI message is just vanilla markdown.
+  //This is correct. AI message is just vanilla markdown.
   renderMessageFn(parsed.message);
   renderPlanFn(parsed.plan);
 
@@ -284,7 +281,12 @@ async function executeAgentPass({
       const input = (
         await askHumanFn(
           rl,
-          `Approve running this command?\n  1) Yes (run once)\n  2) Yes, for entire session (add to in-memory approvals)\n  3) No, tell the AI to do something else\nSelect 1, 2, or 3: `,
+          `
+Approve running this command?
+  1) Yes (run once)
+  2) Yes, for entire session (add to in-memory approvals)
+  3) No, tell the AI to do something else
+Select 1, 2, or 3: `,
         )
       )
         .trim()
@@ -399,7 +401,11 @@ async function executeAgentPass({
   let filteredStdout = result.stdout;
   let filteredStderr = result.stderr;
 
-  const combined = combineStdStreams(filteredStdout, filteredStderr, result.exit_code ?? 0);
+  const combined = outputUtils.combineStdStreams(
+    filteredStdout,
+    filteredStderr,
+    result.exit_code ?? 0,
+  );
   filteredStdout = combined.stdout;
   filteredStderr = combined.stderr;
 
@@ -451,7 +457,7 @@ async function executeAgentPass({
   return true;
 }
 
-export function createAgentLoop({
+function createAgentLoop({
   systemPrompt = SYSTEM_PROMPT,
   getClient = getOpenAIClient,
   model = MODEL,
@@ -585,7 +591,7 @@ export function createAgentLoop({
   };
 }
 
-export default {
+module.exports = {
   createAgentLoop,
   extractResponseText,
 };

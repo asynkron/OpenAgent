@@ -1,8 +1,8 @@
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
-const { runReplace } = require('../../src/commands/replace');
+import { runReplace } from '../../src/commands/replace.js';
 
 function createTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));

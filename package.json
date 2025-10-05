@@ -2,10 +2,19 @@
   "name": "openagent",
   "version": "1.0.0",
   "description": "Simple Node.JS based AI agent",
+  "type": "module",
   "main": "index.js",
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "require": "./legacy/index.cjs"
+    },
+    "./legacy/*": "./legacy/*",
+    "./package.json": "./package.json"
+  },
   "scripts": {
     "start": "node index.js",
-    "test": "jest",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

@@ -1,7 +1,11 @@
-const fs = require('fs');
-const path = require('path');
-const { applyFileEdits } = require('../../src/commands/edit');
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+import { applyFileEdits } from '../../src/commands/edit.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const TEST_FILE = path.resolve(__dirname, 'tmp_edit_test.txt');
 
 describe('applyFileEdits integration', () => {

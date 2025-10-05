@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Readline helpers that manage interactive user prompts.
  *
@@ -10,10 +12,10 @@
  * - Tests mock these helpers through the root index re-exports.
  */
 
-import readline from 'node:readline';
-import chalk from 'chalk';
+const readline = require('readline');
+const chalk = require('chalk');
 
-export function createInterface() {
+function createInterface() {
   return readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -21,7 +23,7 @@ export function createInterface() {
   });
 }
 
-export async function askHuman(rl, prompt) {
+async function askHuman(rl, prompt) {
   const answer = await new Promise((resolve) => {
     rl.question(chalk.bold.blue(prompt), (response) => {
       resolve(response);
@@ -30,7 +32,7 @@ export async function askHuman(rl, prompt) {
   return String(answer).trim();
 }
 
-export default {
+module.exports = {
   createInterface,
   askHuman,
 };

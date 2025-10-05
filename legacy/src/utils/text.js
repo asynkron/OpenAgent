@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Text and shell utility helpers used across the agent runtime.
  *
@@ -10,7 +12,7 @@
  * - `src/commands/preapproval.js` depends on `shellSplit` to parse allow-listed commands.
  */
 
-export function applyFilter(text, regex) {
+function applyFilter(text, regex) {
   if (!regex) return text;
   try {
     const pattern = new RegExp(regex, 'i');
@@ -24,13 +26,13 @@ export function applyFilter(text, regex) {
   }
 }
 
-export function tailLines(text, lines) {
+function tailLines(text, lines) {
   if (!lines) return text;
   const allLines = text.split('\n');
   return allLines.slice(-lines).join('\n');
 }
 
-export function truncateOutput(text, { head = 200, tail = 200, snipMarker = '<snip....>' } = {}) {
+function truncateOutput(text, { head = 200, tail = 200, snipMarker = '<snip....>' } = {}) {
   if (text === undefined || text === null) {
     return '';
   }
@@ -62,7 +64,7 @@ export function truncateOutput(text, { head = 200, tail = 200, snipMarker = '<sn
   return parts.join('\n');
 }
 
-export function shellSplit(str) {
+function shellSplit(str) {
   const re = /"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|\S+/g;
   const out = [];
   let match;
@@ -72,7 +74,7 @@ export function shellSplit(str) {
   return out;
 }
 
-export default {
+module.exports = {
   applyFilter,
   tailLines,
   truncateOutput,
