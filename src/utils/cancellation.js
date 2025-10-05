@@ -5,8 +5,36 @@
  */
 
 const state = {
-  current: null,
+  stack: [],
 };
+
+function cleanupStack() {
+  for (let i = state.stack.length - 1; i >= 0; i -= 1) {
+    const entry = state.stack[i];
+    if (!entry || entry.removed) {
+      state.stack.splice(i, 1);
+    }
+  }
+}
+
+function getTopEntry() {
+  cleanupStack();
+  if (state.stack.length === 0) {
+    return null;
+  }
+  return state.stack[state.stack.length - 1];
+}
+
+function removeEntry(entry) {
+  if (!entry) {
+    return;
+  }
+  const index = state.stack.findIndex((candidate) => candidate === entry);
+  if (index !== -1) {
+    state.stack.splice(index, 1);
+  }
+  entry.removed = true;
+}
 
 function markCanceled(entry, reason) {
   if (!entry || entry.canceled) {
@@ -24,10 +52,13 @@ function markCanceled(entry, reason) {
     }
   }
 
+  removeEntry(entry);
   return true;
 }
 
 export function register({ description = 'operation', onCancel } = {}) {
+  cleanupStack();
+
   const token = Symbol('cancellation-operation');
   const entry = {
     token,
@@ -36,9 +67,11 @@ export function register({ description = 'operation', onCancel } = {}) {
     canceled: false,
     reason: null,
     createdAt: Date.now(),
+    cancelError: null,
+    removed: false,
   };
 
-  state.current = entry;
+  state.stack.push(entry);
 
   return {
     token,
@@ -56,29 +89,33 @@ export function register({ description = 'operation', onCancel } = {}) {
       }
     },
     unregister: () => {
-      if (state.current && state.current.token === token) {
-        state.current = null;
+      if (!entry.removed) {
+        removeEntry(entry);
       }
     },
   };
 }
 
 export function cancel(reason) {
-  if (!state.current) {
+  const active = getTopEntry();
+  if (!active) {
     return false;
   }
-  return markCanceled(state.current, reason);
+  return markCanceled(active, reason);
 }
 
 export function isCanceled(token) {
-  if (token && state.current && state.current.token === token) {
-    return state.current.canceled;
+  cleanupStack();
+  if (token) {
+    const entry = state.stack.find((candidate) => candidate && candidate.token === token);
+    return entry ? entry.canceled : false;
   }
-  return Boolean(state.current && state.current.canceled);
+  const active = getTopEntry();
+  return active ? active.canceled : false;
 }
 
 export function getActiveOperation() {
-  return state.current;
+  return getTopEntry();
 }
 
 export default {

@@ -34,18 +34,18 @@ const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 
 function createEscWaiter(escState) {
   if (!escState || typeof escState !== 'object') {
-    return { promise: null, cleanup: () => {} };
+    return { promise: null, cleanup: () => { } };
   }
 
   if (escState.triggered) {
     return {
       promise: Promise.resolve(escState.payload ?? null),
-      cleanup: () => {},
+      cleanup: () => { },
     };
   }
 
   if (!escState.waiters || typeof escState.waiters.add !== 'function') {
-    return { promise: null, cleanup: () => {} };
+    return { promise: null, cleanup: () => { } };
   }
 
   let resolver;
@@ -242,7 +242,6 @@ async function executeAgentPass({
     description: 'openai.responses.create',
     onCancel: controller ? () => controller.abort() : null,
   });
-  console.log('Sending request to AI');
 
   const requestParams = {
     model,
@@ -356,7 +355,6 @@ async function executeAgentPass({
     escState.triggered = false;
     escState.payload = null;
   }
-  console.log('Received response from AI');
 
   const responseContent = extractResponseText(completion);
 
@@ -418,13 +416,13 @@ async function executeAgentPass({
   const autoApproved = autoApprovedAllowlist || autoApprovedSession || autoApprovedCli;
 
   if (autoApproved) {
-    if (autoApprovedAllowlist) {
-      console.log(chalk.green('Auto-approved by allowlist (approved_commands.json)'));
-    } else if (autoApprovedSession) {
-      console.log(chalk.green('Auto-approved by session approvals'));
-    } else {
-      console.log(chalk.green('Auto-approved by CLI flag (--auto-approve)'));
-    }
+    // if (autoApprovedAllowlist) {
+    //   console.log(chalk.green('Auto-approved by allowlist (approved_commands.json)'));
+    // } else if (autoApprovedSession) {
+    //   console.log(chalk.green('Auto-approved by session approvals'));
+    // } else {
+    //   console.log(chalk.green('Auto-approved by CLI flag (--auto-approve)'));
+    // }
   } else {
     let selection;
     while (true) {
@@ -573,11 +571,11 @@ Select 1, 2, or 3: `,
 
   const stdoutPreview = filteredStdout
     ? filteredStdout.split('\n').slice(0, 20).join('\n') +
-      (filteredStdout.split('\n').length > 20 ? '\n…' : '')
+    (filteredStdout.split('\n').length > 20 ? '\n…' : '')
     : '';
   const stderrPreview = filteredStderr
     ? filteredStderr.split('\n').slice(0, 20).join('\n') +
-      (filteredStderr.split('\n').length > 20 ? '\n…' : '')
+    (filteredStderr.split('\n').length > 20 ? '\n…' : '')
     : '';
 
   renderCommandFn(parsed.command, result, {
