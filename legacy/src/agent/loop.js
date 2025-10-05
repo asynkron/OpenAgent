@@ -19,7 +19,7 @@ const { SYSTEM_PROMPT } = require('../config/systemPrompt');
 const { getOpenAIClient, MODEL } = require('../openai/client');
 const { startThinking, stopThinking } = require('../cli/thinking');
 const { createInterface, askHuman } = require('../cli/io');
-const { renderPlan, renderMessage, renderCommand, renderCommandResult } = require('../cli/render');
+const { renderPlan, renderMessage, renderCommand } = require('../cli/render');
 const { runCommand, runBrowse, runEdit, runRead, runReplace } = require('../commands/run');
 const { applyFilter, tailLines, shellSplit } = require('../utils/text');
 const {
@@ -183,7 +183,6 @@ async function executeAgentPass({
   renderPlanFn,
   renderMessageFn,
   renderCommandFn,
-  renderCommandResultFn,
   runCommandFn,
   runBrowseFn,
   runEditFn,
@@ -260,8 +259,6 @@ async function executeAgentPass({
     return false;
   }
 
-  renderCommandFn(parsed.command);
-
   const autoApprovedAllowlist = isPreapprovedCommandFn(parsed.command, preapprovedCfg);
   const autoApprovedSession = isSessionApprovedFn(parsed.command);
   const autoApprovedCli = getAutoApproveFlag();
@@ -330,16 +327,20 @@ Select 1, 2, or 3: `,
   }
 
   let result;
+  let executionDetails = { type: 'EXECUTE', command: parsed.command };
   if (parsed.command && parsed.command.edit) {
     result = await runEditFn(parsed.command.edit, parsed.command.cwd || '.');
+    executionDetails = { type: 'EDIT', spec: parsed.command.edit };
   }
 
   if (typeof result === 'undefined' && parsed.command && parsed.command.read) {
     result = await runReadFn(parsed.command.read, parsed.command.cwd || '.');
+    executionDetails = { type: 'READ', spec: parsed.command.read };
   }
 
   if (typeof result === 'undefined' && parsed.command && parsed.command.replace) {
     result = await runReplaceFn(parsed.command.replace, parsed.command.cwd || '.');
+    executionDetails = { type: 'REPLACE', spec: parsed.command.replace };
   }
 
   if (typeof result === 'undefined') {
@@ -354,6 +355,7 @@ Select 1, 2, or 3: `,
         const target = tokens.slice(1).join(' ').trim();
         if (target) {
           result = await runBrowseFn(target, parsed.command.timeout_sec ?? 60);
+          executionDetails = { type: 'BROWSE', target };
         }
       } else if (commandKeyword === 'read') {
         const readTokens = tokens.slice(1);
@@ -362,6 +364,7 @@ Select 1, 2, or 3: `,
 
         if (mergedSpec.path) {
           result = await runReadFn(mergedSpec, parsed.command.cwd || '.');
+          executionDetails = { type: 'READ', spec: mergedSpec };
         } else {
           result = {
             stdout: '',
@@ -381,6 +384,7 @@ Select 1, 2, or 3: `,
         parsed.command.timeout_sec ?? 60,
         parsed.command.shell,
       );
+      executionDetails = { type: 'EXECUTE', command: parsed.command };
     }
   }
 
@@ -428,7 +432,13 @@ Select 1, 2, or 3: `,
       (filteredStderr.split('\n').length > 20 ? '\n…' : '')
     : '';
 
-  renderCommandResultFn(parsed.command, result, stdoutPreview, stderrPreview);
+  renderCommandFn(parsed.command, result, {
+    stdout: filteredStdout,
+    stderr: filteredStderr,
+    stdoutPreview,
+    stderrPreview,
+    execution: executionDetails,
+  });
 
   const observation = {
     observation_for_llm: {
@@ -468,7 +478,6 @@ function createAgentLoop({
   renderPlanFn = renderPlan,
   renderMessageFn = renderMessage,
   renderCommandFn = renderCommand,
-  renderCommandResultFn = renderCommandResult,
   runCommandFn = runCommand,
   runBrowseFn = runBrowse,
   runEditFn = runEdit,
@@ -554,7 +563,6 @@ function createAgentLoop({
               renderPlanFn,
               renderMessageFn,
               renderCommandFn,
-              renderCommandResultFn,
               runCommandFn,
               runBrowseFn,
               runEditFn,
