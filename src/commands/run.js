@@ -17,6 +17,7 @@ const { spawn } = require('child_process');
 const { runBrowse } = require('./browse');
 const { runEdit } = require('./edit');
 const { runRead } = require('./read');
+const { runReplace } = require('./replace');
 
 async function runCommand(cmd, cwd, timeoutSec, shellOpt) {
   return new Promise((resolve) => {
@@ -57,4 +58,5 @@ module.exports = {
   runBrowse,
   runEdit,
   runRead,
+  runReplace,
 };

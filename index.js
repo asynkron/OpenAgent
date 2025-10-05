@@ -38,7 +38,13 @@ const {
   inferLanguageFromDetectors,
   detectLanguage,
 } = require('./src/cli/render');
-const { runCommand, runBrowse, runEdit, runRead } = require('./src/commands/run');
+const {
+  runCommand,
+  runBrowse,
+  runEdit,
+  runRead,
+  runReplace,
+} = require('./src/commands/run');
 const {
   loadPreapprovedConfig,
   isPreapprovedCommand,
@@ -131,6 +137,7 @@ const exported = {
   runBrowse,
   runEdit,
   runRead,
+  runReplace,
   applyFilter,
   tailLines,
   shellSplit,
@@ -177,6 +184,7 @@ async function runAgentLoopWithCurrentDependencies() {
     runBrowseFn: exported.runBrowse,
     runEditFn: exported.runEdit,
     runReadFn: exported.runRead,
+    runReplaceFn: exported.runReplace,
     applyFilterFn: exported.applyFilter,
     tailLinesFn: exported.tailLines,
     isPreapprovedCommandFn: exported.isPreapprovedCommand,

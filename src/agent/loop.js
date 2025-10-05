@@ -25,7 +25,7 @@ const {
   renderCommand,
   renderCommandResult,
 } = require('../cli/render');
-const { runCommand, runBrowse, runEdit, runRead } = require('../commands/run');
+const { runCommand, runBrowse, runEdit, runRead, runReplace } = require('../commands/run');
 const { applyFilter, tailLines, shellSplit } = require('../utils/text');
 const {
   isPreapprovedCommand,
@@ -151,6 +151,7 @@ function createAgentLoop({
   runBrowseFn = runBrowse,
   runEditFn = runEdit,
   runReadFn = runRead,
+  runReplaceFn = runReplace,
   applyFilterFn = applyFilter,
   tailLinesFn = tailLines,
   isPreapprovedCommandFn = isPreapprovedCommand,
@@ -312,6 +313,10 @@ Select 1, 2, or 3: `)).trim().toLowerCase();
 
             if (typeof result === 'undefined' && parsed.command && parsed.command.read) {
               result = await runReadFn(parsed.command.read, parsed.command.cwd || '.');
+            }
+
+            if (typeof result === 'undefined' && parsed.command && parsed.command.replace) {
+              result = await runReplaceFn(parsed.command.replace, parsed.command.cwd || '.');
             }
 
             if (typeof result === 'undefined') {
