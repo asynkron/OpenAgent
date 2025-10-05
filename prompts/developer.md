@@ -71,7 +71,7 @@ You must respond ONLY with valid JSON in this format:
 ```json
 {
   "message": "Optional Markdown message to display to the user",
-  "plan": [{ "step": 1, "title": "Description of step", "status": "pending|running|completed" }],
+  "plan": [{ "step": "1", "title": "Description of step", "status": "pending|running|completed", "substeps": [{ "step": "1.1", "title": "Optional child step", "status": "pending" }] }],
   "command": {
     "shell": "bash",
     "run": "command to execute",

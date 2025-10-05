@@ -127,19 +127,72 @@ export function renderMarkdownMessage(message) {
 }
 
 export function renderPlan(plan) {
-  if (!plan || !Array.isArray(plan) || plan.length === 0) return;
+  if (!Array.isArray(plan) || plan.length === 0) return;
 
-  const planLines = plan.map((item) => {
-    const statusSymbol =
-      item.status === 'completed'
-        ? chalk.green('✔')
-        : item.status === 'running'
-          ? chalk.yellow('▶')
-          : chalk.gray('•');
-    const stepLabel = chalk.cyan(`Step ${item.step}`);
-    const title = chalk.white(item.title);
-    return `${statusSymbol} ${stepLabel} ${chalk.dim('-')} ${title}`;
-  });
+  const planLines = [];
+
+  const resolveStatusSymbol = (status) => {
+    const normalized = typeof status === 'string' ? status.toLowerCase() : '';
+
+    if (normalized === 'completed' || normalized === 'done') {
+      return chalk.green('✔');
+    }
+
+    if (normalized === 'running' || normalized === 'in_progress' || normalized === 'in-progress') {
+      return chalk.yellow('▶');
+    }
+
+    if (normalized === 'blocked' || normalized === 'failed' || normalized === 'error') {
+      return chalk.red('✖');
+    }
+
+    return chalk.gray('•');
+  };
+
+  const childKeys = ['substeps', 'children', 'steps'];
+
+  const traverse = (items, ancestors = [], depth = 0) => {
+    if (!Array.isArray(items) || items.length === 0) {
+      return;
+    }
+
+    items.forEach((item, index) => {
+      if (!item || typeof item !== 'object') {
+        return;
+      }
+
+      const rawStep =
+        item.step !== undefined && item.step !== null ? String(item.step).trim() : '';
+      const sanitizedStep = rawStep.replace(/\.+$/, '');
+      const hasExplicitStep = sanitizedStep.length > 0;
+
+      const baseStep = hasExplicitStep ? sanitizedStep : String(index + 1);
+      const usesAbsolutePath = hasExplicitStep && sanitizedStep.includes('.');
+
+      const labelParts = usesAbsolutePath
+        ? sanitizedStep.split('.').filter((part) => part.length > 0)
+        : [...ancestors, baseStep];
+
+      const stepLabel = labelParts.join('.');
+
+      const indent = '  '.repeat(depth);
+      const statusSymbol = resolveStatusSymbol(item.status);
+      const title = chalk.white(item.title ?? '');
+
+      planLines.push(`${indent}${statusSymbol} ${chalk.cyan(`Step ${stepLabel}`)} ${chalk.dim('-')} ${title}`);
+
+      const childKey = childKeys.find((key) => Array.isArray(item[key]));
+      if (childKey) {
+        traverse(item[childKey], labelParts, depth + 1);
+      }
+    });
+  };
+
+  traverse(plan);
+
+  if (planLines.length === 0) {
+    return;
+  }
 
   display('Plan', planLines, 'cyan');
 }
@@ -158,11 +211,11 @@ function formatHeading(label, detail) {
 }
 
 function arrowLine(text) {
-  return chalk.grey(` ↳ ${text}`);
+  return chalk.dim(` ↳ ${text}`);
 }
 
 function indentLine(text) {
-  return chalk.grey(`   ${text}`);
+  return chalk.dim(`   ${text}`);
 }
 
 function pluralize(word, count) {
