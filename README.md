@@ -41,10 +41,10 @@ STDOUT ______________
    * - Integration tests re-export the same function to run mocked scenarios.
    */
 
-  const chalk = require('chalk');
+  import chalk from 'chalk';
 
-  const { SYSTEM_PROMPT } = require('../config/systemPrompt');
-  const { getOpenAIClient, MODEL } = require('../openai/client');
+  import { SYSTEM_PROMPT } from '../config/systemPrompt.js';
+  import { getOpenAIClient, MODEL } from '../openai/client.js';
   …
 
 

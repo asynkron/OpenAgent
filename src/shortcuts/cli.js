@@ -10,30 +10,32 @@
  * - Integration tests rely on `loadShortcutsFile()` via the index re-export.
  */
 
-import fs from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const SHORTCUTS_PATH = path.join(process.cwd(), 'shortcuts', 'shortcuts.json');
 
-export function loadShortcutsFile() {
+/**
+ * Read the shortcuts manifest asynchronously to mirror the ESM import style elsewhere.
+ */
+export async function loadShortcutsFile() {
   try {
-    const raw = fs.readFileSync(SHORTCUTS_PATH, 'utf8');
+    const raw = await readFile(SHORTCUTS_PATH, 'utf8');
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed;
+    return Array.isArray(parsed) ? parsed : [];
   } catch (err) {
     return [];
   }
 }
 
-export function findShortcut(id) {
-  const list = loadShortcutsFile();
+export async function findShortcut(id) {
+  const list = await loadShortcutsFile();
   return list.find((s) => s.id === id);
 }
 
-export function handleShortcutsCli(argv = process.argv) {
+export async function handleShortcutsCli(argv = process.argv) {
   const sub = argv[3] || 'list';
-  const shortcuts = loadShortcutsFile();
+  const shortcuts = await loadShortcutsFile();
   if (sub === 'list') {
     shortcuts.forEach((s) => console.log(`${s.id} - ${s.name}: ${s.description || ''}`));
     process.exit(0);

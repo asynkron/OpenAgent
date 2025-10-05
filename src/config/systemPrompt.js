@@ -10,7 +10,7 @@
  * - Root `index.js` re-exports the discovery helpers for unit tests.
  */
 
-import fs from 'node:fs';
+import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 
@@ -30,13 +30,13 @@ function detectWorkspaceRoot(startDir = process.cwd()) {
   return { root: path.resolve(startDir), source: 'cwd' };
 }
 
-export function findAgentFiles(rootDir) {
+export async function findAgentFiles(rootDir) {
   const discovered = [];
 
-  function walk(current) {
+  async function walk(current) {
     let entries = [];
     try {
-      entries = fs.readdirSync(current, { withFileTypes: true });
+      entries = await readdir(current, { withFileTypes: true });
     } catch (err) {
       return;
     }
@@ -49,7 +49,7 @@ export function findAgentFiles(rootDir) {
       const fullPath = path.join(current, entry.name);
 
       if (entry.isDirectory()) {
-        walk(fullPath);
+        await walk(fullPath);
         continue;
       }
 
@@ -59,20 +59,20 @@ export function findAgentFiles(rootDir) {
     }
   }
 
-  walk(rootDir);
+  await walk(rootDir);
   return discovered;
 }
 
-export function buildAgentsPrompt(rootDir) {
-  const agentFiles = findAgentFiles(rootDir);
+export async function buildAgentsPrompt(rootDir) {
+  const agentFiles = await findAgentFiles(rootDir);
   if (agentFiles.length === 0) {
     return '';
   }
 
-  const sections = agentFiles
-    .map((filePath) => {
+  const sections = await Promise.all(
+    agentFiles.map(async (filePath) => {
       try {
-        const content = fs.readFileSync(filePath, 'utf8').trim();
+        const content = (await readFile(filePath, 'utf8')).trim();
         if (!content) {
           return '';
         }
@@ -80,26 +80,27 @@ export function buildAgentsPrompt(rootDir) {
       } catch (err) {
         return '';
       }
-    })
-    .filter(Boolean);
+    }),
+  );
 
-  if (sections.length === 0) {
+  const filtered = sections.filter(Boolean);
+  if (filtered.length === 0) {
     return '';
   }
 
-  return sections.join('\n\n---\n\n');
+  return filtered.join('\n\n---\n\n');
 }
 
-function readFileIfExists(filePath) {
+async function readFileIfExists(filePath) {
   try {
-    const content = fs.readFileSync(filePath, 'utf8').trim();
+    const content = (await readFile(filePath, 'utf8')).trim();
     return content ? content : '';
   } catch (err) {
     return '';
   }
 }
 
-export function buildBaseSystemPrompt(rootDir) {
+export async function buildBaseSystemPrompt(rootDir) {
   const sections = [];
 
   const promptFiles = [
@@ -108,7 +109,7 @@ export function buildBaseSystemPrompt(rootDir) {
   ];
 
   for (const promptFile of promptFiles) {
-    const content = readFileIfExists(promptFile);
+    const content = await readFileIfExists(promptFile);
     if (content) {
       sections.push(content);
     }
@@ -117,8 +118,7 @@ export function buildBaseSystemPrompt(rootDir) {
   const brainDir = path.join(rootDir, 'brain');
   let brainFiles = [];
   try {
-    brainFiles = fs
-      .readdirSync(brainDir)
+    brainFiles = (await readdir(brainDir))
       .filter((fileName) => fileName.toLowerCase().endsWith('.md'))
       .sort();
   } catch (err) {
@@ -127,7 +127,7 @@ export function buildBaseSystemPrompt(rootDir) {
 
   for (const fileName of brainFiles) {
     const filePath = path.join(brainDir, fileName);
-    const content = readFileIfExists(filePath);
+    const content = await readFileIfExists(filePath);
     if (content) {
       sections.push(content);
     }
@@ -141,9 +141,9 @@ export function buildBaseSystemPrompt(rootDir) {
 }
 
 export const WORKSPACE_ROOT_INFO = detectWorkspaceRoot(process.cwd());
-export const BASE_SYSTEM_PROMPT = buildBaseSystemPrompt(WORKSPACE_ROOT_INFO.root);
+export const BASE_SYSTEM_PROMPT = await buildBaseSystemPrompt(WORKSPACE_ROOT_INFO.root);
 
-const agentsGuidance = buildAgentsPrompt(WORKSPACE_ROOT_INFO.root);
+const agentsGuidance = await buildAgentsPrompt(WORKSPACE_ROOT_INFO.root);
 
 const combinedPrompt =
   agentsGuidance.trim().length > 0

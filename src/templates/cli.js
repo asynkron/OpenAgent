@@ -10,17 +10,19 @@
  * - Integration tests cover the JSON shape via the exported helpers.
  */
 
-import fs from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const TEMPLATES_PATH = path.join(process.cwd(), 'templates', 'command-templates.json');
 
-export function loadTemplates() {
+/**
+ * Load template definitions without blocking the event loop on synchronous IO.
+ */
+export async function loadTemplates() {
   try {
-    const raw = fs.readFileSync(TEMPLATES_PATH, 'utf8');
+    const raw = await readFile(TEMPLATES_PATH, 'utf8');
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed;
+    return Array.isArray(parsed) ? parsed : [];
   } catch (err) {
     return [];
   }
@@ -42,9 +44,9 @@ export function renderTemplateCommand(template, vars) {
   return cmd;
 }
 
-export function handleTemplatesCli(argv = process.argv) {
+export async function handleTemplatesCli(argv = process.argv) {
   const sub = argv[3] || 'list';
-  const templates = loadTemplates();
+  const templates = await loadTemplates();
   if (sub === 'list') {
     templates.forEach((t) => console.log(`${t.id} - ${t.name}: ${t.description || ''}`));
     process.exit(0);

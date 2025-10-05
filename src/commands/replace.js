@@ -1,4 +1,4 @@
-import fs from 'node:fs';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 export function normalizeFlags(flags) {
@@ -61,7 +61,7 @@ function buildResultSummary(results, dryRun) {
   return lines.join('\n');
 }
 
-export function runReplace(spec, cwd = '.') {
+export async function runReplace(spec, cwd = '.') {
   const startTime = Date.now();
   try {
     if (!spec || typeof spec !== 'object') {
@@ -82,9 +82,10 @@ export function runReplace(spec, cwd = '.') {
       const absPath = path.resolve(cwd || '.', relPath);
       let original;
       try {
-        original = fs.readFileSync(absPath, { encoding });
+        original = await readFile(absPath, { encoding });
       } catch (err) {
-        throw new Error(`Unable to read file: ${absPath} — ${err.message}`);
+        const reason = err && err.message ? err.message : String(err);
+        throw new Error(`Unable to read file: ${absPath} — ${reason}`);
       }
 
       if (typeof original !== 'string') {
@@ -103,9 +104,10 @@ export function runReplace(spec, cwd = '.') {
 
       if (!dryRun && matches > 0 && replaced !== original) {
         try {
-          fs.writeFileSync(absPath, replaced, { encoding });
+          await writeFile(absPath, replaced, { encoding });
         } catch (err) {
-          throw new Error(`Unable to write file: ${absPath} — ${err.message}`);
+          const reason = err && err.message ? err.message : String(err);
+          throw new Error(`Unable to write file: ${absPath} — ${reason}`);
         }
       }
 

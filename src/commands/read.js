@@ -1,4 +1,4 @@
-import fs from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 export function normalizePaths(readSpec) {
@@ -51,7 +51,7 @@ export async function runRead(readSpec, cwd = '.') {
 
     for (const relPath of relPaths) {
       const absPath = path.resolve(cwd || '.', relPath);
-      let content = fs.readFileSync(absPath, { encoding });
+      let content = await readFile(absPath, { encoding });
 
       if (typeof readSpec.max_bytes === 'number' && readSpec.max_bytes >= 0) {
         const buffer = Buffer.from(content, encoding);

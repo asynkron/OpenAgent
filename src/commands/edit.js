@@ -1,4 +1,4 @@
-import fs from 'node:fs';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 export function validateRange(text, start, end) {
@@ -49,13 +49,19 @@ export async function applyFileEdits(editSpec, cwd = '.') {
 
     let original;
     try {
-      original = fs.readFileSync(absPath, { encoding });
+      original = await readFile(absPath, { encoding });
     } catch (err) {
-      throw new Error(`Unable to read file: ${absPath} — ${err.message}`);
+      const reason = err && err.message ? err.message : String(err);
+      throw new Error(`Unable to read file: ${absPath} — ${reason}`);
     }
 
     const updated = applyEdits(original, edits);
-    fs.writeFileSync(absPath, updated, { encoding });
+    try {
+      await writeFile(absPath, updated, { encoding });
+    } catch (err) {
+      const reason = err && err.message ? err.message : String(err);
+      throw new Error(`Unable to write file: ${absPath} — ${reason}`);
+    }
 
     return {
       stdout: `Edited ${path.relative(process.cwd(), absPath)}\n${updated}`,

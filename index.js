@@ -83,14 +83,14 @@ export async function runCommandAndTrack(run, cwd = '.', timeoutSec = 60) {
   return result;
 }
 
-function maybeHandleCliExtensions(argv = process.argv) {
+async function maybeHandleCliExtensions(argv = process.argv) {
   const mode = argv[2] || '';
   if (mode === 'templates') {
-    handleTemplatesCli(argv);
+    await handleTemplatesCli(argv);
     return true;
   }
   if (mode === 'shortcuts') {
-    handleShortcutsCli(argv);
+    await handleShortcutsCli(argv);
     return true;
   }
   return false;
@@ -242,7 +242,7 @@ const currentFilePath = fileURLToPath(import.meta.url);
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
 if (invokedPath && currentFilePath === invokedPath) {
   const main = async () => {
-    if (maybeHandleCliExtensions(process.argv)) {
+    if (await maybeHandleCliExtensions(process.argv)) {
       return;
     }
 
