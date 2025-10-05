@@ -14,6 +14,23 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
+
+function detectWorkspaceRoot(startDir = process.cwd()) {
+  try {
+    const output = execSync('git rev-parse --show-toplevel', {
+      cwd: startDir,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    const candidate = output.toString().trim();
+    if (candidate) {
+      return { root: path.resolve(candidate), source: 'git' };
+    }
+  } catch (err) {
+    // ignored
+  }
+  return { root: path.resolve(startDir), source: 'cwd' };
+}
 
 function findAgentFiles(rootDir) {
   const discovered = [];
@@ -125,19 +142,26 @@ function buildBaseSystemPrompt(rootDir) {
   return sections.join('\n\n');
 }
 
-const BASE_SYSTEM_PROMPT = buildBaseSystemPrompt(process.cwd());
+const WORKSPACE_ROOT_INFO = detectWorkspaceRoot(process.cwd());
+const BASE_SYSTEM_PROMPT = buildBaseSystemPrompt(WORKSPACE_ROOT_INFO.root);
 
-const agentsGuidance = buildAgentsPrompt(process.cwd());
+const agentsGuidance = buildAgentsPrompt(WORKSPACE_ROOT_INFO.root);
 
-const SYSTEM_PROMPT =
+const combinedPrompt =
   agentsGuidance.trim().length > 0
     ? `${BASE_SYSTEM_PROMPT}\n\nThe following local operating rules are mandatory. They are sourced from AGENTS.md files present in the workspace:\n\n${agentsGuidance}`
     : BASE_SYSTEM_PROMPT;
 
+const workspaceMetadata = `Workspace metadata:\n- workspace_root: ${WORKSPACE_ROOT_INFO.root}\n- detection_source: ${WORKSPACE_ROOT_INFO.source}`;
+
+const SYSTEM_PROMPT = [combinedPrompt, workspaceMetadata].filter(Boolean).join('\n\n');
+
 module.exports = {
+  detectWorkspaceRoot,
   findAgentFiles,
   buildAgentsPrompt,
   buildBaseSystemPrompt,
   BASE_SYSTEM_PROMPT,
   SYSTEM_PROMPT,
+  WORKSPACE_ROOT_INFO,
 };
