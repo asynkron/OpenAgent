@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
 const ESCAPE_INPUT_KEYS = ['text', 'value', 'input', 'string'];
 const UNESCAPE_INPUT_KEYS = ['text', 'value', 'input', 'string', 'json'];
 
@@ -38,11 +41,25 @@ function extractStringInput(spec, commandName, allowedKeys) {
   throw new Error(`${commandName} spec must supply ${description}.`);
 }
 
-export function runEscapeString(spec, _cwd = '.') {
-  void _cwd;
+export function runEscapeString(spec, cwd = '.') {
   const start = Date.now();
   try {
-    const input = extractStringInput(spec, 'escapeString', ESCAPE_INPUT_KEYS);
+    let input;
+
+    if (spec && typeof spec === 'object' && typeof spec.path === 'string') {
+      const relPath = spec.path.trim();
+      if (!relPath) {
+        throw new Error('escapeString path must be a non-empty string.');
+      }
+      const encodingInput =
+        typeof spec.encoding === 'string' ? spec.encoding.trim() : '';
+      const encoding = encodingInput || 'utf8';
+      const absPath = path.resolve(cwd || '.', relPath);
+      input = fs.readFileSync(absPath, { encoding });
+    } else {
+      input = extractStringInput(spec, 'escapeString', ESCAPE_INPUT_KEYS);
+    }
+
     const escaped = JSON.stringify(input);
     return {
       stdout: escaped,

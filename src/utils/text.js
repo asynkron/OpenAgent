@@ -30,7 +30,7 @@ export function tailLines(text, lines) {
   return allLines.slice(-lines).join('\n');
 }
 
-export function truncateOutput(text, { head = 200, tail = 200, snipMarker = '<snip....>' } = {}) {
+export function truncateOutput(text, { head = 5000, tail = 5000, snipMarker = '<snip....>' } = {}) {
   if (text === undefined || text === null) {
     return '';
   }

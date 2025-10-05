@@ -1,40 +1,34 @@
 # OpenAgent Codebase Context
 
-## Overview
-- **Purpose**: Node.js CLI agent that communicates with an LLM via a structured JSON protocol, rendering plans/messages and executing commands with human approval.
-- **Key Features**: JSON protocol, command execution with timeouts and approvals, plan visualization, output filtering, and conversation history persistence.
+## Purpose & Scope
+- Node.js CLI agent that converses with an LLM using a strict JSON protocol, renders assistant plans/messages, and executes shell commands under human approval.
+- Current codebase lives under `src/` (ESM). `legacy/` retains the CommonJS mirror for backward compatibility.
 
-## Core Entry Point
-- `index.js` wires subsystems (OpenAI client, CLI render/input, command runners, preapproval) and starts the interactive agent loop unless handling `templates`/`shortcuts` subcommands.
-- Handles startup flags (`--auto-approve`, `--nohuman`) and re-exports helpers for tests.
+## Quick Directory Map
+- Core runtime: [`src/context.md`](src/context.md)
+- Tests: [`tests/context.md`](tests/context.md)
+- Prompt/brain guidance: [`prompts/context.md`](prompts/context.md), [`brain/context.md`](brain/context.md)
+- CLI assets: [`templates/context.md`](templates/context.md), [`shortcuts/context.md`](shortcuts/context.md)
+- Legacy mirror: [`legacy/context.md`](legacy/context.md)
+- IDE settings: [`./.idea/context.md`](.idea/context.md)
+- Additional docs: [`docs/context.md`](docs/context.md)
 
-## Conversation Loop (`src/agent/loop.js`)
-- Seeds chat history with `SYSTEM_PROMPT`, calls OpenAI Responses API expecting JSON.
-- Renders messages/plans, enforces approvals (allowlist, session, CLI flag), and executes commands (`run`, `edit`, `read`, `replace`, `browse`).
-- Applies filters/tail settings, records observations back to the model, and tracks command usage statistics.
+## Key Entry Points
+- `index.js`: bootstraps the agent loop, handles `templates`/`shortcuts` subcommands, exposes helpers for tests, honours startup flags (`--auto-approve`, `--nohuman`).
+- `src/agent/loop.js`: orchestrates OpenAI interactions (AbortController cancellation, approval flow, built-ins including `quote_string`/`unquote_string`).
+- `src/commands/run.js`: sandbox for process execution with timeout + cancellation; re-exports specialised helpers (browse/read/edit/replace/escape-string).
 
-## Command Execution Layer (`src/commands`)
-- `run.js`: spawns shell commands with timeout handling.
-- Specialized helpers (`browse.js`, `read.js`, `edit.js`, `replace.js`).
-- `preapproval.js`: loads `approved_commands.json`, validates commands, manages session approvals.
-- `commandStats.js`: persists per-command usage counts (XDG-compliant paths).
+## Positive Signals
+- Comprehensive documentation inside modules and fresh `context.md` hierarchy accelerates ramp-up for agents and humans alike.
+- Cancellation support aligns with findings in `docs/openai-cancellation.md`, giving ESC handling a solid foundation.
+- Tests cover major utilities and end-to-end agent flows (command execution, reads, stats, CLI wrappers).
 
-## CLI Utilities (`src/cli`)
-- `io.js`: readline prompts for human interaction.
-- `render.js`: terminal formatting using `marked` + `marked-terminal` for messages, plans, and command outputs.
-- `thinking.js`: manages "thinking" indicators (spinner/logging).
+## Risks / Gaps
+- `src/agent/loop.js` remains monolithic (~800 lines), limiting testability and readability.
+- Newly introduced string quoting built-ins (`escape_string`/`unescape_string`) lack direct unit/integration coverage.
+- Dual code paths (`src/` vs `legacy/src/`) can drift without tooling to keep them synchronized.
 
-## Configuration & Prompts
-- `src/config/systemPrompt.js`: builds base system prompt from `prompts/` and `brain/`, discovers `AGENTS.md`, appends workspace metadata.
-
-## OpenAI Client (`src/openai/client.js`)
-- Memoizes OpenAI SDK using `OPENAI_API_KEY`, optional base URL/model overrides.
-
-## Utilities (`src/utils`)
-- `text.js`: regex filtering, tailing, truncation, shell argument splitter.
-- `output.js`: combines stdout/stderr streams.
-
-## Project Tooling
-- `package.json` scripts: `start`, `test` (Jest), `lint` (ESLint), `format` (Prettier).
-- Dependencies: `openai`, `chalk`, `dotenv`, `marked`, etc.; dev dependencies for linting/testing/formatting.
-- Supporting directories: `docs/`, `prompts/`, `templates/`, `shortcuts/`, `tests/`, plus knowledge notes in `brain/`.
+## Suggested First Reads for Agents
+1. This file for the global picture.
+2. Relevant subdirectory `context.md` files (linked above) to narrow focus quickly.
+3. Associated tests (see [`tests/context.md`](tests/context.md)) to understand behavioural expectations before editing code.
