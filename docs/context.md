@@ -7,6 +7,7 @@
 ## Key Files
 - `modernization-plan.md`: staged roadmap covering lint/format adoption, ESM migration, service extraction, observability.
 - `openai-cancellation.md`: research note confirming AbortSignal support in `openai@6.x` and fallback strategies.
+- `js-dependency-graph.md`: Mermaid diagram mapping relative imports among ESM modules.
 
 ## Positive Signals
 - Modernization plan outlines concrete sequencing, making large refactors less risky.
