@@ -5,10 +5,8 @@
   "type": "module",
   "main": "index.js",
   "exports": {
-    ".": {
-      "import": "./index.js",
-      "require": "./legacy/index.cjs"
-    },
+    ".": "./index.js",
+    "./legacy": "./legacy/index.js",
     "./legacy/*": "./legacy/*",
     "./package.json": "./package.json"
   },

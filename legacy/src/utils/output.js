@@ -1,13 +1,6 @@
-'use strict';
-
-function combineStdStreams(filteredStdout, filteredStderr, exitCode) {
-  if (exitCode === 0 && filteredStderr && String(filteredStderr).trim().length > 0) {
-    const left = filteredStdout ? String(filteredStdout) : '';
-    const right = String(filteredStderr);
-    const combined = left ? `${left}\n${right}` : right;
-    return { stdout: combined, stderr: '' };
-  }
-  return { stdout: filteredStdout || '', stderr: filteredStderr || '' };
-}
-
-module.exports = { combineStdStreams };
+/**
+ * Legacy compatibility wrapper that now re-exports the modern ESM module.
+ * This keeps existing import paths working while the implementation lives in src/.
+ */
+export * from '../../../src/utils/output.js';
+export { default } from '../../../src/utils/output.js';
