@@ -48,10 +48,7 @@ function buildResultOutput(results, dryRun) {
   const totalMatches = results.reduce((acc, item) => acc + item.matches, 0);
   const touchedFiles = results.filter((item) => item.matches > 0).length;
 
-  const summaryLines = [
-    `Total matches: ${totalMatches}`,
-    `Files with changes: ${touchedFiles}`,
-  ];
+  const summaryLines = [`Total matches: ${totalMatches}`, `Files with changes: ${touchedFiles}`];
 
   results.forEach((item) => {
     summaryLines.push(`${item.path}: ${item.matches} matches${dryRun ? ' (dry-run)' : ''}`);

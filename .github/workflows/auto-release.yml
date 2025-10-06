@@ -14,7 +14,7 @@ jobs:
     if: github.event.head_commit.message != null && !startsWith(github.event.head_commit.message, 'chore(release):')
     runs-on: ubuntu-latest
     env:
-      NODE_VERSION: '20'
+      NODE_VERSION: "20"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -31,10 +31,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Bump minor version
+      - name: Bump revision version
         id: version
         run: |
-          tag=$(npm version minor -m "chore(release): %s")
+          tag=$(npm version revision -m "chore(release): %s")
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Push release commit and tag

@@ -178,8 +178,10 @@ function formatPlanLine(item, index, ancestors, depth, lines) {
 
   const stepLabel = labelParts.join('.');
   const indent = '  '.repeat(depth);
-  const title = typeof item.title === 'string' && item.title.trim().length > 0 ? item.title.trim() : '';
-  const status = typeof item.status === 'string' && item.status.trim().length > 0 ? item.status.trim() : '';
+  const title =
+    typeof item.title === 'string' && item.title.trim().length > 0 ? item.title.trim() : '';
+  const status =
+    typeof item.status === 'string' && item.status.trim().length > 0 ? item.status.trim() : '';
 
   const lineParts = [];
   if (stepLabel) {

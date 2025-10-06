@@ -50,7 +50,11 @@ describe('Approval flow integration', () => {
         timeout_sec: 5,
       },
     };
-    const secondPayload = { message: 'Follow-up', plan: buildPlan('completed', 'completed'), command: null };
+    const secondPayload = {
+      message: 'Follow-up',
+      plan: buildPlan('completed', 'completed'),
+      command: null,
+    };
 
     queueModelResponse(firstPayload);
     queueModelResponse(secondPayload);
@@ -102,7 +106,11 @@ describe('Approval flow integration', () => {
         timeout_sec: 5,
       },
     };
-    const secondPayload = { message: 'Alternative requested', plan: buildPlan('completed', 'completed'), command: null };
+    const secondPayload = {
+      message: 'Alternative requested',
+      plan: buildPlan('completed', 'completed'),
+      command: null,
+    };
 
     queueModelResponse(firstPayload);
     queueModelResponse(secondPayload);
@@ -150,7 +158,11 @@ describe('Approval flow integration', () => {
     };
 
     queueModelResponse(preapprovedCommand);
-    queueModelResponse({ message: 'Follow-up', plan: buildPlan('completed', 'completed'), command: null });
+    queueModelResponse({
+      message: 'Follow-up',
+      plan: buildPlan('completed', 'completed'),
+      command: null,
+    });
 
     const runCommandMock = jest.fn().mockResolvedValue({
       stdout: 'ok\n',

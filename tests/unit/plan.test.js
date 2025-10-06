@@ -31,9 +31,7 @@ describe('plan utilities', () => {
   });
 
   test('mergePlanTrees clears plan when incoming plan is empty', () => {
-    const existingPlan = [
-      { step: '1', title: 'done work', status: 'completed' },
-    ];
+    const existingPlan = [{ step: '1', title: 'done work', status: 'completed' }];
 
     const merged = mergePlanTrees(existingPlan, []);
     expect(merged).toEqual([]);
