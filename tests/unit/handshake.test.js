@@ -59,6 +59,7 @@ describe('performInitialHandshake', () => {
       performInitialHandshake({
         history,
         prompt: 'PROMPT',
+        systemPrompt: 'SYSTEM_PROMPT',
         executePass,
         ...args,
       }),
@@ -66,7 +67,8 @@ describe('performInitialHandshake', () => {
 
     expect(args.stopThinkingFn).toHaveBeenCalledTimes(1);
     expect(args.logger.error).toHaveBeenCalledTimes(2);
-    expect(history).toHaveLength(0);
+    expect(history).toHaveLength(1);
+    expect(history[0]).toEqual({ role: 'system', content: 'SYSTEM_PROMPT' });
   });
 
   test('throws when history is not an array', async () => {
@@ -82,7 +84,31 @@ describe('performInitialHandshake', () => {
 
   test('throws when executePass is missing', async () => {
     await expect(
-      performInitialHandshake({ history: [], prompt: 'PROMPT', executePass: null, ...baseArgs() }),
+      performInitialHandshake({
+        history: [],
+        prompt: 'PROMPT',
+        systemPrompt: 'SYSTEM_PROMPT',
+        executePass: null,
+        ...baseArgs(),
+      }),
     ).rejects.toThrow('Handshake requires an executePass function');
+  });
+
+  test('injects system prompt when history lacks one', async () => {
+    const history = [];
+    const executePass = jest.fn().mockResolvedValue(undefined);
+
+    await performInitialHandshake({
+      history,
+      prompt: 'PROMPT',
+      systemPrompt: 'SYSTEM_PROMPT',
+      executePass,
+      ...baseArgs(),
+    });
+
+    expect(history[0]).toEqual({ role: 'system', content: 'SYSTEM_PROMPT' });
+    expect(executePass).toHaveBeenCalledTimes(1);
+    const call = executePass.mock.calls[0][0];
+    expect(call.history[0]).toEqual({ role: 'system', content: 'SYSTEM_PROMPT' });
   });
 });

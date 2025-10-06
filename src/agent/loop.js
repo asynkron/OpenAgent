@@ -205,6 +205,7 @@ export function createAgentRuntime({
       await performInitialHandshake({
         history,
         prompt: INITIAL_HANDSHAKE_PROMPT,
+        systemPrompt,
         executePass: executeAgentPass,
         openai,
         model,
