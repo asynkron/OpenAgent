@@ -10,6 +10,7 @@
 - `promptCoordinator.js`: provides the `PromptCoordinator` class that mediates prompt requests/responses between the runtime and UI surfaces.
 - `escState.js`: centralises cancellation state, allowing UI-triggered events to notify in-flight operations.
 - `passExecutor.js`: performs an agent pass (OpenAI request, JSON parsing, plan updates, approvals, command execution, observation logging).
+- `responseValidator.js`: verifies assistant JSON payloads follow the CLI response protocol before execution.
 - `historyCompactor.js`: auto-compacts older history entries when context usage exceeds the configured threshold by summarizing them into long-term memory snapshots.
 - `commandExecution.js`: routes assistant commands to the correct runner (edit/read/browse/escape/etc.) through dedicated handler classes so built-ins are interpreted before falling back to shell execution.
 - `commands/`: concrete command handler classes implementing the shared `ICommand` contract used by `commandExecution.js`.

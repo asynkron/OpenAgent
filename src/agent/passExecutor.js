@@ -6,6 +6,7 @@ import { requestModelCompletion } from './openaiRequest.js';
 import { executeAgentCommand } from './commandExecution.js';
 import { summarizeContextUsage } from '../utils/contextUsage.js';
 import { extractResponseText } from '../openai/responseUtils.js';
+import { validateAssistantResponse } from './responseValidator.js';
 
 export async function executeAgentPass({
   openai,
@@ -112,6 +113,35 @@ export async function executeAgentPass({
       observation_for_llm: {
         json_parse_error: true,
         message: `Failed to parse assistant JSON: ${err instanceof Error ? err.message : String(err)}`,
+        response_snippet: responseContent.slice(0, 4000),
+      },
+      observation_metadata: {
+        timestamp: new Date().toISOString(),
+      },
+    };
+
+    history.push({ role: 'user', content: JSON.stringify(observation) });
+    return true;
+  }
+
+  const validation = validateAssistantResponse(parsed);
+  if (!validation.valid) {
+    const details = validation.errors.join(' ');
+    emitEvent({
+      type: 'error',
+      message: 'Assistant response failed protocol validation.',
+      details,
+      raw: responseContent,
+    });
+
+    const observation = {
+      observation_for_llm: {
+        response_validation_error: true,
+        message:
+          validation.errors.length === 1
+            ? validation.errors[0]
+            : `Detected ${validation.errors.length} validation issues. Please fix them and resend a compliant response.`,
+        details: validation.errors,
         response_snippet: responseContent.slice(0, 4000),
       },
       observation_metadata: {
