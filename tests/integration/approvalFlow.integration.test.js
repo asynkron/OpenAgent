@@ -5,13 +5,11 @@ import {
   queueModelResponse,
   resetQueuedResponses,
 } from './agentRuntimeTestHarness.js';
+import { createTestRunnerUI } from './testRunnerUI.js';
 
 jest.setTimeout(20000);
 
-const mockAnswersQueue = [];
-
 beforeEach(() => {
-  mockAnswersQueue.length = 0;
   resetQueuedResponses();
 });
 
@@ -54,28 +52,16 @@ describe('Approval flow integration', () => {
       runCommandFn: runCommandMock,
     });
 
-    const prompts = [];
-    const statuses = [];
+    const ui = createTestRunnerUI(runtime);
+    ui.queueUserInput('Please run the command');
+    ui.queueApprovalResponse('1');
+    ui.queueUserInput('exit');
 
-    const outputProcessor = (async () => {
-      for await (const event of runtime.outputs) {
-        if (event.type === 'status') {
-          statuses.push(event.message);
-        }
-        if (event.type === 'request-input') {
-          prompts.push(event.prompt);
-          const next = mockAnswersQueue.shift() || '';
-          runtime.submitPrompt(next);
-        }
-      }
-    })();
-
-    mockAnswersQueue.push('Please run the command', '1', 'exit');
-
-    await runtime.start();
-    await outputProcessor;
+    await ui.start();
 
     expect(runCommandMock).toHaveBeenCalledTimes(1);
+    const prompts = ui.events.filter((event) => event.type === 'request-input').map((event) => event.prompt);
+    const statuses = ui.events.filter((event) => event.type === 'status').map((event) => event.message);
     expect(prompts[1]).toContain('Approve running this command?');
     expect(statuses.some((msg) => msg && msg.includes('approved for single execution'))).toBe(true);
   });
@@ -112,28 +98,16 @@ describe('Approval flow integration', () => {
       runCommandFn: runCommandMock,
     });
 
-    const prompts = [];
-    const statuses = [];
+    const ui = createTestRunnerUI(runtime);
+    ui.queueUserInput('Attempt command');
+    ui.queueApprovalResponse('3');
+    ui.queueUserInput('exit');
 
-    const outputProcessor = (async () => {
-      for await (const event of runtime.outputs) {
-        if (event.type === 'status') {
-          statuses.push(event.message);
-        }
-        if (event.type === 'request-input') {
-          prompts.push(event.prompt);
-          const next = mockAnswersQueue.shift() || '';
-          runtime.submitPrompt(next);
-        }
-      }
-    })();
-
-    mockAnswersQueue.push('Attempt command', '3', 'exit');
-
-    await runtime.start();
-    await outputProcessor;
+    await ui.start();
 
     expect(runCommandMock).not.toHaveBeenCalled();
+    const prompts = ui.events.filter((event) => event.type === 'request-input').map((event) => event.prompt);
+    const statuses = ui.events.filter((event) => event.type === 'status').map((event) => event.message);
     expect(prompts[1]).toContain('Approve running this command?');
     expect(statuses.some((msg) => msg && msg.includes('canceled by human'))).toBe(true);
   });
@@ -176,24 +150,13 @@ describe('Approval flow integration', () => {
       isPreapprovedCommandFn: () => true,
     });
 
-    const prompts = [];
+    const ui = createTestRunnerUI(runtime);
+    ui.queueUserInput('Please handle this', 'exit');
 
-    const outputProcessor = (async () => {
-      for await (const event of runtime.outputs) {
-        if (event.type === 'request-input') {
-          prompts.push(event.prompt);
-          const next = mockAnswersQueue.shift() || '';
-          runtime.submitPrompt(next);
-        }
-      }
-    })();
-
-    mockAnswersQueue.push('Please handle this', 'exit');
-
-    await runtime.start();
-    await outputProcessor;
+    await ui.start();
 
     expect(runCommandMock).toHaveBeenCalledTimes(1);
+    const prompts = ui.events.filter((event) => event.type === 'request-input').map((event) => event.prompt);
     expect(prompts.some((prompt) => prompt && prompt.includes('Approve running this command?'))).toBe(false);
   });
 });

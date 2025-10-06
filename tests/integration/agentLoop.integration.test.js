@@ -5,17 +5,11 @@ import {
   queueModelResponse,
   resetQueuedResponses,
 } from './agentRuntimeTestHarness.js';
+import { createTestRunnerUI } from './testRunnerUI.js';
 
 jest.setTimeout(20000);
 
-const mockAnswersQueue = [];
-
-function queueAnswer(answer) {
-  mockAnswersQueue.push(answer);
-}
-
 beforeEach(() => {
-  mockAnswersQueue.length = 0;
   resetQueuedResponses();
 });
 
@@ -58,25 +52,12 @@ test('agent runtime executes one mocked command then exits on user request', asy
     runCommandFn: runCommandMock,
   });
 
-  const observedEvents = [];
+  const ui = createTestRunnerUI(runtime);
+  ui.queueUserInput('Run the test command', 'exit');
 
-  const outputProcessor = (async () => {
-    for await (const event of runtime.outputs) {
-      observedEvents.push(event);
-      if (event.type === 'request-input') {
-        const next = mockAnswersQueue.shift() || '';
-        runtime.submitPrompt(next);
-      }
-    }
-  })();
-
-  queueAnswer('Run the test command');
-  queueAnswer('exit');
-
-  await runtime.start();
-  await outputProcessor;
+  await ui.start();
 
   expect(runCommandMock).toHaveBeenCalledTimes(1);
-  const commandEvent = observedEvents.find((evt) => evt.type === 'command-result');
+  const commandEvent = ui.events.find((evt) => evt.type === 'command-result');
   expect(commandEvent).toBeTruthy();
 });

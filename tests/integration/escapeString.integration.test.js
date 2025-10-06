@@ -5,13 +5,11 @@ import {
   queueModelResponse,
   resetQueuedResponses,
 } from './agentRuntimeTestHarness.js';
+import { createTestRunnerUI } from './testRunnerUI.js';
 
 jest.setTimeout(20000);
 
-const mockAnswersQueue = [];
-
 beforeEach(() => {
-  mockAnswersQueue.length = 0;
   resetQueuedResponses();
 });
 
@@ -40,8 +38,6 @@ test('runtime delegates escape_string command to runEscapeString', async () => {
     command: null,
   });
 
-  mockAnswersQueue.push('escape this', 'exit');
-
   const runEscapeStringMock = jest.fn().mockResolvedValue({
     stdout: '"Needs escaping\\"\\n"',
     stderr: '',
@@ -57,17 +53,10 @@ test('runtime delegates escape_string command to runEscapeString', async () => {
     runCommandFn: runCommandMock,
   });
 
-  const outputProcessor = (async () => {
-    for await (const event of runtime.outputs) {
-      if (event.type === 'request-input') {
-        const next = mockAnswersQueue.shift() || '';
-        runtime.submitPrompt(next);
-      }
-    }
-  })();
+  const ui = createTestRunnerUI(runtime);
+  ui.queueUserInput('escape this', 'exit');
 
-  await runtime.start();
-  await outputProcessor;
+  await ui.start();
 
   expect(runEscapeStringMock).toHaveBeenCalledTimes(1);
   expect(runEscapeStringMock).toHaveBeenCalledWith({ text: 'Needs escaping"\n' }, '.');
@@ -99,8 +88,6 @@ test('runtime delegates unescape_string command to runUnescapeString', async () 
     command: null,
   });
 
-  mockAnswersQueue.push('unescape this', 'exit');
-
   const runUnescapeStringMock = jest.fn().mockResolvedValue({
     stdout: 'hello\nworld',
     stderr: '',
@@ -116,17 +103,10 @@ test('runtime delegates unescape_string command to runUnescapeString', async () 
     runCommandFn: runCommandMock,
   });
 
-  const outputProcessor = (async () => {
-    for await (const event of runtime.outputs) {
-      if (event.type === 'request-input') {
-        const next = mockAnswersQueue.shift() || '';
-        runtime.submitPrompt(next);
-      }
-    }
-  })();
+  const ui = createTestRunnerUI(runtime);
+  ui.queueUserInput('unescape this', 'exit');
 
-  await runtime.start();
-  await outputProcessor;
+  await ui.start();
 
   expect(runUnescapeStringMock).toHaveBeenCalledTimes(1);
   expect(runUnescapeStringMock).toHaveBeenCalledWith({ text: '"hello\\nworld"' }, '.');

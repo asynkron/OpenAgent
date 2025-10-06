@@ -5,13 +5,11 @@ import {
   queueModelResponse,
   resetQueuedResponses,
 } from './agentRuntimeTestHarness.js';
+import { createTestRunnerUI } from './testRunnerUI.js';
 
 jest.setTimeout(20000);
 
-const mockAnswersQueue = [];
-
 beforeEach(() => {
-  mockAnswersQueue.length = 0;
   resetQueuedResponses();
 });
 
@@ -57,19 +55,10 @@ test('agent runtime invokes runRead for read commands', async () => {
     runCommandFn: runCommandMock,
   });
 
-  const outputProcessor = (async () => {
-    for await (const event of runtime.outputs) {
-      if (event.type === 'request-input') {
-        const next = mockAnswersQueue.shift() || '';
-        runtime.submitPrompt(next);
-      }
-    }
-  })();
+  const ui = createTestRunnerUI(runtime);
+  ui.queueUserInput('Read sample file', 'exit');
 
-  mockAnswersQueue.push('Read sample file', 'exit');
-
-  await runtime.start();
-  await outputProcessor;
+  await ui.start();
 
   expect(runReadMock).toHaveBeenCalledTimes(1);
   expect(runReadMock).toHaveBeenCalledWith({ path: 'sample.txt', encoding: 'utf8' }, '.');
