@@ -6,8 +6,6 @@
 
 ## Key Files
 
-- `validate-json-assets.js`: runs JSON schema validation and prompt copy synchronization checks.
-
 ## Related Context
 
 - Schemas: [`../schemas/context.md`](../schemas/context.md)

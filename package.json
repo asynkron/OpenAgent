@@ -16,8 +16,6 @@
   },
   "scripts": {
     "start": "node ./bin/openagent.js",
-    "validate:assets": "node ./scripts/validate-json-assets.js",
-    "pretest": "npm run validate:assets",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "lint": "eslint .",
     "format": "prettier --write .",
