@@ -12,6 +12,7 @@
 - Prompt/brain guidance: [`prompts/context.md`](prompts/context.md), [`brain/context.md`](brain/context.md)
 - JSON schema definitions: [`schemas/context.md`](schemas/context.md)
 - Release notes: [`CHANGELOG.md`](CHANGELOG.md)
+- Release automation: merging to `main` triggers `.github/workflows/auto-release.yml`, which bumps the minor npm version, tags the commit, and lets `.github/workflows/publish.yml` push the release to npm.
 - IDE settings: [`./.idea/context.md`](.idea/context.md)
 - Additional docs: [`docs/context.md`](docs/context.md); root-level `README.md` and `openagent-example.md` now highlight ESM `import` snippets so newcomers avoid legacy CommonJS patterns.
 
