@@ -17,9 +17,11 @@ import { fileURLToPath } from 'node:url';
 
 import 'dotenv/config';
 
+import chalk from 'chalk';
+
 import { getOpenAIClient, resetOpenAIClient, MODEL } from './src/openai/client.js';
 import { startThinking, stopThinking, formatElapsedTime } from './src/cli/thinking.js';
-import { createInterface, askHuman } from './src/cli/io.js';
+import { createInterface, askHuman, ESCAPE_EVENT } from './src/cli/io.js';
 import {
   display,
   wrapStructuredContent,
@@ -54,7 +56,7 @@ import {
   BASE_SYSTEM_PROMPT,
   SYSTEM_PROMPT,
 } from './src/config/systemPrompt.js';
-import { createAgentLoop, extractResponseText } from './src/agent/loop.js';
+import { createAgentLoop, createAgentRuntime, extractResponseText } from './src/agent/loop.js';
 import { loadTemplates, renderTemplateCommand, handleTemplatesCli } from './src/templates/cli.js';
 import { loadShortcutsFile, findShortcut, handleShortcutsCli } from './src/shortcuts/cli.js';
 import { incrementCommandCount } from './src/commands/commandStats.js';
@@ -103,20 +105,12 @@ function maybeHandleCliExtensions(argv = process.argv) {
 }
 
 async function runAgentLoopWithCurrentDependencies() {
-  const loop = createAgentLoop({
+  const runtime = createAgentRuntime({
     getAutoApproveFlag: () => exported.STARTUP_FORCE_AUTO_APPROVE,
     getNoHumanFlag: () => exported.STARTUP_NO_HUMAN,
     setNoHumanFlag: (value) => {
       exported.STARTUP_NO_HUMAN = Boolean(value);
     },
-    createInterfaceFn: exported.createInterface,
-    askHumanFn: exported.askHuman,
-    startThinkingFn: exported.startThinking,
-    stopThinkingFn: exported.stopThinking,
-    renderPlanFn: exported.renderPlan,
-    renderMessageFn: exported.renderMessage,
-    renderCommandFn: exported.renderCommand,
-    renderContextUsageFn: exported.renderRemainingContext,
     runCommandFn: exported.runCommand,
     runBrowseFn: exported.runBrowse,
     runEditFn: exported.runEdit,
@@ -131,7 +125,107 @@ async function runAgentLoopWithCurrentDependencies() {
     approveForSessionFn: exported.approveForSession,
     preapprovedCfg: exported.PREAPPROVED_CFG,
   });
-  return loop();
+
+  const rl = exported.createInterface();
+  const handleEscape = (payload) => {
+    runtime.cancel({ reason: 'escape-key', payload });
+  };
+  rl.on(ESCAPE_EVENT, handleEscape);
+
+  const outputProcessor = (async () => {
+    for await (const event of runtime.outputs) {
+      if (!event || typeof event !== 'object') continue;
+
+      switch (event.type) {
+        case 'banner':
+          if (event.title) {
+            console.log(chalk.bold.blue(`\n${event.title}`));
+          }
+          if (event.subtitle) {
+            console.log(chalk.dim(event.subtitle));
+          }
+          break;
+        case 'status': {
+          const message = event.message ?? '';
+          if (!message) break;
+          if (event.level === 'warn') {
+            console.log(chalk.yellow(message));
+          } else if (event.level === 'error') {
+            console.log(chalk.red(message));
+          } else if (event.level === 'success') {
+            console.log(chalk.green(message));
+          } else {
+            console.log(message);
+          }
+          if (event.details) {
+            console.log(chalk.dim(String(event.details)));
+          }
+          break;
+        }
+        case 'thinking':
+          if (event.state === 'start') {
+            exported.startThinking();
+          } else {
+            exported.stopThinking();
+          }
+          break;
+        case 'assistant-message':
+          exported.renderMessage(event.message ?? '');
+          break;
+        case 'plan':
+          exported.renderPlan(Array.isArray(event.plan) ? event.plan : []);
+          break;
+        case 'context-usage':
+          if (event.usage) {
+            exported.renderRemainingContext(event.usage);
+          }
+          break;
+        case 'command-result':
+          exported.renderCommand(event.command, event.result, {
+            ...(event.preview || {}),
+            execution: event.execution,
+          });
+          break;
+        case 'error': {
+          const base = event.message || 'Agent error encountered.';
+          console.error(chalk.red(base));
+          if (event.details) {
+            console.error(chalk.dim(String(event.details)));
+          }
+          if (event.raw) {
+            console.error(chalk.dim(String(event.raw))); // raw JSON snippet
+          }
+          break;
+        }
+        case 'request-input': {
+          const prompt = event.prompt ?? '\n ▷ ';
+          const answer = await exported.askHuman(rl, prompt);
+          runtime.submitPrompt(answer);
+          break;
+        }
+        default:
+          break;
+      }
+    }
+  })();
+
+  let outputError = null;
+  try {
+    await runtime.start();
+  } finally {
+    rl.off?.(ESCAPE_EVENT, handleEscape);
+    rl.close?.();
+    exported.stopThinking();
+    try {
+      await outputProcessor;
+    } catch (err) {
+      outputError = err;
+    }
+  }
+
+  if (outputError) {
+    throw outputError;
+  }
 }
 
 export async function agentLoop() {
@@ -187,6 +281,7 @@ export const exported = {
   approveForSession,
   resetSessionApprovals,
   extractResponseText,
+  createAgentRuntime,
   PREAPPROVED_CFG,
   loadTemplates,
   renderTemplateCommand,

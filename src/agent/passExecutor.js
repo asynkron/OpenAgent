@@ -1,5 +1,3 @@
-import chalk from 'chalk';
-
 import { planHasOpenSteps } from '../utils/plan.js';
 import { incrementCommandCount } from '../commands/commandStats.js';
 import { combineStdStreams, buildPreview } from '../utils/output.js';
@@ -13,10 +11,7 @@ export async function executeAgentPass({
   openai,
   model,
   history,
-  renderPlanFn,
-  renderMessageFn,
-  renderCommandFn,
-  renderContextUsageFn,
+  emitEvent = () => {},
   runCommandFn,
   runBrowseFn,
   runEditFn,
@@ -29,7 +24,6 @@ export async function executeAgentPass({
   getNoHumanFlag,
   setNoHumanFlag,
   planReminderMessage,
-  rl,
   startThinkingFn,
   stopThinkingFn,
   escState,
@@ -47,20 +41,27 @@ export async function executeAgentPass({
     try {
       await historyCompactor.compactIfNeeded({ history });
     } catch (error) {
-      console.error(chalk.yellow('[history-compactor] Unexpected error during history compaction.'));
-      console.error(error);
+      emitEvent({
+        type: 'status',
+        level: 'warn',
+        message: '[history-compactor] Unexpected error during history compaction.',
+        details: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
-  if (typeof renderContextUsageFn === 'function') {
-    try {
-      const usage = summarizeContextUsage({ history, model });
-      if (usage && usage.total) {
-        renderContextUsageFn(usage);
-      }
-    } catch (error) {
-      // Rendering context usage is best-effort; swallow errors to avoid interrupting the loop.
+  try {
+    const usage = summarizeContextUsage({ history, model });
+    if (usage && usage.total) {
+      emitEvent({ type: 'context-usage', usage });
     }
+  } catch (error) {
+    emitEvent({
+      type: 'status',
+      level: 'warn',
+      message: 'Failed to summarize context usage.',
+      details: error instanceof Error ? error.message : String(error),
+    });
   }
 
   const completionResult = await requestModelCompletion({
@@ -72,6 +73,7 @@ export async function executeAgentPass({
     startThinkingFn,
     stopThinkingFn,
     setNoHumanFlag,
+    emitEvent,
   });
 
   if (completionResult.status === 'canceled') {
@@ -82,7 +84,10 @@ export async function executeAgentPass({
   const responseContent = extractResponseText(completion);
 
   if (!responseContent) {
-    console.error(chalk.red('Error: OpenAI response did not include text output.'));
+    emitEvent({
+      type: 'error',
+      message: 'OpenAI response did not include text output.',
+    });
     return false;
   }
 
@@ -95,15 +100,17 @@ export async function executeAgentPass({
   try {
     parsed = JSON.parse(responseContent);
   } catch (err) {
-    console.error(chalk.red('Error: LLM returned invalid JSON'));
-    console.error('Response:', responseContent);
+    emitEvent({
+      type: 'error',
+      message: 'LLM returned invalid JSON.',
+      details: err instanceof Error ? err.message : String(err),
+      raw: responseContent,
+    });
 
     const observation = {
       observation_for_llm: {
         json_parse_error: true,
-        message: `Failed to parse assistant JSON: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
+        message: `Failed to parse assistant JSON: ${err instanceof Error ? err.message : String(err)}`,
         response_snippet: responseContent.slice(0, 4000),
       },
       observation_metadata: {
@@ -115,8 +122,8 @@ export async function executeAgentPass({
     return true;
   }
 
-  renderMessageFn(parsed.message);
-  renderPlanFn(parsed.plan);
+  emitEvent({ type: 'assistant-message', message: parsed.message ?? '' });
+  emitEvent({ type: 'plan', plan: Array.isArray(parsed.plan) ? parsed.plan : [] });
 
   if (!parsed.command) {
     if (
@@ -124,8 +131,7 @@ export async function executeAgentPass({
       typeof setNoHumanFlag === 'function' &&
       getNoHumanFlag()
     ) {
-      const maybeMessage =
-        typeof parsed.message === 'string' ? parsed.message.trim().toLowerCase() : '';
+      const maybeMessage = typeof parsed.message === 'string' ? parsed.message.trim().toLowerCase() : '';
       const normalizedMessage = maybeMessage.replace(/[.!]+$/, '');
       if (normalizedMessage === 'done') {
         setNoHumanFlag(false);
@@ -133,7 +139,11 @@ export async function executeAgentPass({
     }
 
     if (Array.isArray(parsed.plan) && planHasOpenSteps(parsed.plan)) {
-      console.log(chalk.yellow(planReminderMessage));
+      emitEvent({
+        type: 'status',
+        level: 'warn',
+        message: planReminderMessage,
+      });
       history.push({ role: 'user', content: planReminderMessage });
       return true;
     }
@@ -145,9 +155,15 @@ export async function executeAgentPass({
     const autoApproval = approvalManager.shouldAutoApprove(parsed.command);
 
     if (!autoApproval.approved) {
-      const outcome = await approvalManager.requestHumanDecision({ rl, command: parsed.command });
+      const outcome = await approvalManager.requestHumanDecision({ command: parsed.command });
 
       if (outcome.decision === 'reject') {
+        emitEvent({
+          type: 'status',
+          level: 'warn',
+          message: 'Command execution canceled by human request.',
+        });
+
         const observation = {
           observation_for_llm: {
             canceled_by_human: true,
@@ -162,6 +178,26 @@ export async function executeAgentPass({
         history.push({ role: 'user', content: JSON.stringify(observation) });
         return true;
       }
+
+      if (outcome.decision === 'approve_session') {
+        emitEvent({
+          type: 'status',
+          level: 'info',
+          message: 'Command approved for the remainder of the session.',
+        });
+      } else {
+        emitEvent({
+          type: 'status',
+          level: 'info',
+          message: 'Command approved for single execution.',
+        });
+      }
+    } else {
+      emitEvent({
+        type: 'status',
+        level: 'info',
+        message: `Command auto-approved via ${autoApproval.source || 'policy'}.`,
+      });
     }
   }
 
@@ -188,7 +224,12 @@ export async function executeAgentPass({
   try {
     await incrementCommandCount(key);
   } catch (error) {
-    // Ignore stats failures intentionally.
+    emitEvent({
+      type: 'status',
+      level: 'warn',
+      message: 'Failed to record command usage statistics.',
+      details: error instanceof Error ? error.message : String(error),
+    });
   }
 
   const { renderPayload, observation } = observationBuilder.build({
@@ -196,8 +237,11 @@ export async function executeAgentPass({
     result,
   });
 
-  renderCommandFn(parsed.command, result, {
-    ...renderPayload,
+  emitEvent({
+    type: 'command-result',
+    command: parsed.command,
+    result,
+    preview: renderPayload,
     execution: executionDetails,
   });
 

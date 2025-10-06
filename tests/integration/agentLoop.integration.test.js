@@ -3,18 +3,15 @@ import { jest } from '@jest/globals';
 jest.setTimeout(20000);
 
 const mockAnswersQueue = [];
-const mockInterface = {
-  question: jest.fn((prompt, cb) => {
-    const next = mockAnswersQueue.shift() || '';
-    process.nextTick(() => cb(next));
-  }),
-  close: jest.fn(),
-};
 
 async function loadAgent() {
   jest.resetModules();
 
-  const createInterface = jest.fn(() => mockInterface);
+  const createInterface = jest.fn(() => ({
+    on: jest.fn(),
+    off: jest.fn(),
+    close: jest.fn(),
+  }));
   const clearLine = jest.fn();
   const cursorTo = jest.fn();
 
@@ -23,19 +20,6 @@ async function loadAgent() {
     createInterface,
     clearLine,
     cursorTo,
-  }));
-
-  const detachMock = jest.fn();
-  const createEscStateMock = jest.fn(() => ({
-    state: { triggered: false, payload: null, waiters: new Set() },
-    detach: detachMock,
-  }));
-  const createEscWaiterMock = jest.fn(() => ({ promise: Promise.resolve(null), cleanup: jest.fn() }));
-
-  jest.unstable_mockModule('../../src/agent/escState.js', () => ({
-    createEscState: createEscStateMock,
-    createEscWaiter: createEscWaiterMock,
-    resetEscState: jest.fn(),
   }));
 
   let mockCallCount = 0;
@@ -91,21 +75,18 @@ async function loadAgent() {
   jest.unstable_mockModule('dotenv/config', () => ({}));
 
   const agentModule = await import('../../index.js');
-  return { agent: agentModule.default, createEscStateMock, detachMock };
+  return agentModule.default;
 }
 
-test('agent loop executes one mocked command then exits on user request', async () => {
+function queueAnswer(answer) {
+  mockAnswersQueue.push(answer);
+}
+
+test('agent runtime executes one mocked command then exits on user request', async () => {
   process.env.OPENAI_API_KEY = 'test-key';
-  const { agent, createEscStateMock, detachMock } = await loadAgent();
+  const agent = await loadAgent();
   agent.STARTUP_FORCE_AUTO_APPROVE = true;
-
   mockAnswersQueue.length = 0;
-  mockAnswersQueue.push('Run the test command', 'exit');
-  mockInterface.question.mockClear();
-  mockInterface.close.mockClear();
-
-  agent.startThinking = () => {};
-  agent.stopThinking = () => {};
 
   const runCommandMock = jest.fn().mockResolvedValue({
     stdout: 'MOCKED_OK\n',
@@ -114,12 +95,31 @@ test('agent loop executes one mocked command then exits on user request', async 
     killed: false,
     runtime_ms: 5,
   });
-  agent.runCommand = runCommandMock;
 
-  await agent.agentLoop();
+  const runtime = agent.createAgentRuntime({
+    getAutoApproveFlag: () => agent.STARTUP_FORCE_AUTO_APPROVE,
+    runCommandFn: runCommandMock,
+  });
 
-  expect(createEscStateMock).toHaveBeenCalledTimes(1);
+  const observedEvents = [];
+
+  const outputProcessor = (async () => {
+    for await (const event of runtime.outputs) {
+      observedEvents.push(event);
+      if (event.type === 'request-input') {
+        const next = mockAnswersQueue.shift() || '';
+        runtime.submitPrompt(next);
+      }
+    }
+  })();
+
+  queueAnswer('Run the test command');
+  queueAnswer('exit');
+
+  await runtime.start();
+  await outputProcessor;
+
   expect(runCommandMock).toHaveBeenCalledTimes(1);
-  expect(detachMock).toHaveBeenCalledTimes(1);
-  expect(mockInterface.close).toHaveBeenCalled();
+  const commandEvent = observedEvents.find((evt) => evt.type === 'command-result');
+  expect(commandEvent).toBeTruthy();
 });

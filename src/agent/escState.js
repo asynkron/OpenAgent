@@ -1,51 +1,54 @@
-import { ESCAPE_EVENT } from '../cli/io.js';
-
 /**
- * Creates and wires ESC cancellation state for the agent loop.
- * Returns the state object alongside a cleanup helper to detach listeners.
+ * Creates and manages cancellation state that can be triggered by UI events.
+ *
+ * Instead of wiring directly to CLI readline events, the returned helpers expose
+ * a `trigger` function that consumers call when a cancellation signal arrives
+ * (e.g. from the UI input stream).
  */
-export function createEscState(rl) {
+export function createEscState({ onTrigger } = {}) {
   const state = {
     triggered: false,
     payload: null,
     waiters: new Set(),
   };
 
-  if (!rl || typeof rl.on !== 'function') {
-    return { state, detach: () => {} };
-  }
-
-  const handleEscape = (payload) => {
+  const trigger = (payload = null) => {
     state.triggered = true;
-    state.payload = payload ?? null;
+    state.payload = payload;
     if (state.waiters.size > 0) {
       for (const resolve of Array.from(state.waiters)) {
         try {
-          resolve(payload ?? null);
-        } catch (error) {
-          void error;
+          resolve(payload);
+        } catch {
+          // Ignore waiter resolution errors.
         }
       }
       state.waiters.clear();
     }
   };
 
-  rl.on(ESCAPE_EVENT, handleEscape);
+  let unsubscribe = null;
+  if (typeof onTrigger === 'function') {
+    try {
+      unsubscribe = onTrigger(trigger);
+    } catch {
+      unsubscribe = null;
+    }
+  }
 
   const detach = () => {
-    if (typeof rl.off === 'function') {
-      rl.off(ESCAPE_EVENT, handleEscape);
-    } else if (typeof rl.removeListener === 'function') {
-      rl.removeListener(ESCAPE_EVENT, handleEscape);
+    if (typeof unsubscribe === 'function') {
+      try {
+        unsubscribe();
+      } catch {
+        // Ignore cleanup errors.
+      }
     }
   };
 
-  return { state, detach };
+  return { state, trigger, detach };
 }
 
-export default {
-  createEscState,
-};
 export function createEscWaiter(escState) {
   if (!escState || typeof escState !== 'object') {
     return { promise: null, cleanup: () => {} };
@@ -86,3 +89,9 @@ export function resetEscState(escState) {
   escState.triggered = false;
   escState.payload = null;
 }
+
+export default {
+  createEscState,
+  createEscWaiter,
+  resetEscState,
+};

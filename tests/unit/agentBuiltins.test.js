@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 
-import { createAgentLoop } from '../../src/agent/loop.js';
+import { createAgentRuntime } from '../../src/agent/loop.js';
 
 function buildResponsePayload(payload) {
   return Promise.resolve({
@@ -18,7 +18,7 @@ function buildResponsePayload(payload) {
   });
 }
 
-function createLoopWithQueue(queue, overrides = {}) {
+function createRuntimeWithQueue(queue, overrides = {}) {
   const responsesCreate = jest.fn(() => {
     if (!queue.length) {
       throw new Error('Response queue exhausted');
@@ -26,17 +26,9 @@ function createLoopWithQueue(queue, overrides = {}) {
     return queue.shift();
   });
 
-  const closeFn = jest.fn();
-
   const defaults = {
-    createInterfaceFn: () => ({ close: closeFn }),
-    askHumanFn: jest.fn().mockResolvedValueOnce('Initial prompt').mockResolvedValueOnce('exit'),
-    startThinkingFn: jest.fn(),
-    stopThinkingFn: jest.fn(),
-    renderPlanFn: jest.fn(),
-    renderMessageFn: jest.fn(),
-    renderCommandFn: jest.fn(),
-    renderContextUsageFn: jest.fn(),
+    getClient: () => ({ responses: { create: responsesCreate } }),
+    model: 'test-model',
     runCommandFn: jest.fn().mockResolvedValue({
       stdout: '',
       stderr: '',
@@ -59,6 +51,9 @@ function createLoopWithQueue(queue, overrides = {}) {
       killed: false,
       runtime_ms: 1,
     }),
+    runReplaceFn: jest.fn(),
+    runEscapeStringFn: jest.fn(),
+    runUnescapeStringFn: jest.fn(),
     applyFilterFn: (text) => text,
     tailLinesFn: (text) => text,
     isPreapprovedCommandFn: () => false,
@@ -72,19 +67,30 @@ function createLoopWithQueue(queue, overrides = {}) {
 
   const config = { ...defaults, ...overrides };
 
-  const loop = createAgentLoop({
-    getClient: () => ({ responses: { create: responsesCreate } }),
-    model: 'test-model',
-    ...config,
-  });
+  const runtime = createAgentRuntime(config);
+
+  async function runWithPrompts(answers = ['Initial prompt', 'exit']) {
+    const answerQueue = [...answers];
+    const outputProcessor = (async () => {
+      for await (const event of runtime.outputs) {
+        if (event.type === 'request-input') {
+          const next = answerQueue.shift() || '';
+          runtime.submitPrompt(next);
+        }
+      }
+    })();
+
+    await runtime.start();
+    await outputProcessor;
+  }
 
   return {
-    loop,
+    runtime,
     responsesCreate,
-    closeFn,
-    askHumanFn: config.askHumanFn,
-    getNoHumanFlag: config.getNoHumanFlag,
-    setNoHumanFlag: config.setNoHumanFlag,
+    runWithPrompts,
+    runCommandFn: config.runCommandFn,
+    runBrowseFn: config.runBrowseFn,
+    runReadFn: config.runReadFn,
   };
 }
 
@@ -113,16 +119,16 @@ describe('agent built-in command parsing', () => {
       runtime_ms: 2,
     });
 
-    const { loop, responsesCreate } = createLoopWithQueue(
+    const { runWithPrompts, runReadFn: configuredRead, responsesCreate } = createRuntimeWithQueue(
       [buildResponsePayload(readCall), buildResponsePayload(followUp)],
       { runReadFn },
     );
 
-    await loop();
+    await runWithPrompts();
 
     expect(responsesCreate).toHaveBeenCalledTimes(2);
-    expect(runReadFn).toHaveBeenCalledTimes(1);
-    expect(runReadFn).toHaveBeenCalledWith({ path: './docs/some file.md' }, '/repo');
+    expect(configuredRead).toHaveBeenCalledTimes(1);
+    expect(configuredRead).toHaveBeenCalledWith({ path: './docs/some file.md' }, '/repo');
   });
 
   test('read built-in parses numeric options', async () => {
@@ -148,14 +154,14 @@ describe('agent built-in command parsing', () => {
       runtime_ms: 2,
     });
 
-    const { loop } = createLoopWithQueue(
+    const { runWithPrompts, runReadFn: configuredRead } = createRuntimeWithQueue(
       [buildResponsePayload(readCall), buildResponsePayload(followUp)],
       { runReadFn },
     );
 
-    await loop();
+    await runWithPrompts();
 
-    expect(runReadFn).toHaveBeenCalledWith(
+    expect(configuredRead).toHaveBeenCalledWith(
       {
         path: './logs/app.log',
         max_lines: 5,
@@ -190,13 +196,13 @@ describe('agent built-in command parsing', () => {
       runtime_ms: 3,
     });
 
-    const { loop } = createLoopWithQueue(
+    const { runWithPrompts, runBrowseFn: configuredBrowse } = createRuntimeWithQueue(
       [buildResponsePayload(browseCall), buildResponsePayload(followUp)],
       { runBrowseFn },
     );
 
-    await loop();
+    await runWithPrompts();
 
-    expect(runBrowseFn).toHaveBeenCalledWith('https://example.com/search?q=open agent', 15);
+    expect(configuredBrowse).toHaveBeenCalledWith('https://example.com/search?q=open agent', 15);
   });
 });

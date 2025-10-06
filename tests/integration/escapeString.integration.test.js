@@ -3,29 +3,10 @@ import { jest } from '@jest/globals';
 jest.setTimeout(20000);
 
 const mockAnswersQueue = [];
-const mockInterface = {
-  question: jest.fn((prompt, cb) => {
-    const next = mockAnswersQueue.shift() || '';
-    process.nextTick(() => cb(next));
-  }),
-  close: jest.fn(),
-};
-
 const mockPayloads = [];
 
 async function loadAgent() {
   jest.resetModules();
-
-  const createInterface = jest.fn(() => mockInterface);
-  const clearLine = jest.fn();
-  const cursorTo = jest.fn();
-
-  jest.unstable_mockModule('node:readline', () => ({
-    default: { createInterface, clearLine, cursorTo },
-    createInterface,
-    clearLine,
-    cursorTo,
-  }));
 
   jest.unstable_mockModule('openai', () => ({
     default: function OpenAIMock() {
@@ -64,11 +45,9 @@ async function loadAgent() {
 beforeEach(() => {
   mockAnswersQueue.length = 0;
   mockPayloads.length = 0;
-  mockInterface.question.mockClear();
-  mockInterface.close.mockClear();
 });
 
-test('agent loop delegates escape_string command to runEscapeString', async () => {
+test('runtime delegates escape_string command to runEscapeString', async () => {
   process.env.OPENAI_API_KEY = 'test-key';
 
   mockPayloads.push(
@@ -96,8 +75,6 @@ test('agent loop delegates escape_string command to runEscapeString', async () =
 
   const agent = await loadAgent();
   agent.STARTUP_FORCE_AUTO_APPROVE = true;
-  agent.startThinking = () => {};
-  agent.stopThinking = () => {};
 
   const runEscapeStringMock = jest.fn().mockResolvedValue({
     stdout: '"Needs escaping\\"\\n"',
@@ -106,20 +83,32 @@ test('agent loop delegates escape_string command to runEscapeString', async () =
     killed: false,
     runtime_ms: 2,
   });
+  const runCommandMock = jest.fn();
 
-  agent.runEscapeString = runEscapeStringMock;
-  agent.runUnescapeString = jest.fn();
-  agent.runCommand = jest.fn();
+  const runtime = agent.createAgentRuntime({
+    getAutoApproveFlag: () => agent.STARTUP_FORCE_AUTO_APPROVE,
+    runEscapeStringFn: runEscapeStringMock,
+    runCommandFn: runCommandMock,
+  });
 
-  await agent.agentLoop();
+  const outputProcessor = (async () => {
+    for await (const event of runtime.outputs) {
+      if (event.type === 'request-input') {
+        const next = mockAnswersQueue.shift() || '';
+        runtime.submitPrompt(next);
+      }
+    }
+  })();
+
+  await runtime.start();
+  await outputProcessor;
 
   expect(runEscapeStringMock).toHaveBeenCalledTimes(1);
   expect(runEscapeStringMock).toHaveBeenCalledWith({ text: 'Needs escaping"\n' }, '.');
-  expect(agent.runCommand).not.toHaveBeenCalled();
-  expect(mockInterface.close).toHaveBeenCalled();
+  expect(runCommandMock).not.toHaveBeenCalled();
 });
 
-test('agent loop delegates unescape_string command to runUnescapeString', async () => {
+test('runtime delegates unescape_string command to runUnescapeString', async () => {
   process.env.OPENAI_API_KEY = 'test-key';
 
   mockPayloads.push(
@@ -147,8 +136,6 @@ test('agent loop delegates unescape_string command to runUnescapeString', async 
 
   const agent = await loadAgent();
   agent.STARTUP_FORCE_AUTO_APPROVE = true;
-  agent.startThinking = () => {};
-  agent.stopThinking = () => {};
 
   const runUnescapeStringMock = jest.fn().mockResolvedValue({
     stdout: 'hello\nworld',
@@ -157,15 +144,27 @@ test('agent loop delegates unescape_string command to runUnescapeString', async 
     killed: false,
     runtime_ms: 3,
   });
+  const runCommandMock = jest.fn();
 
-  agent.runEscapeString = jest.fn();
-  agent.runUnescapeString = runUnescapeStringMock;
-  agent.runCommand = jest.fn();
+  const runtime = agent.createAgentRuntime({
+    getAutoApproveFlag: () => agent.STARTUP_FORCE_AUTO_APPROVE,
+    runUnescapeStringFn: runUnescapeStringMock,
+    runCommandFn: runCommandMock,
+  });
 
-  await agent.agentLoop();
+  const outputProcessor = (async () => {
+    for await (const event of runtime.outputs) {
+      if (event.type === 'request-input') {
+        const next = mockAnswersQueue.shift() || '';
+        runtime.submitPrompt(next);
+      }
+    }
+  })();
+
+  await runtime.start();
+  await outputProcessor;
 
   expect(runUnescapeStringMock).toHaveBeenCalledTimes(1);
   expect(runUnescapeStringMock).toHaveBeenCalledWith({ text: '"hello\\nworld"' }, '.');
-  expect(agent.runCommand).not.toHaveBeenCalled();
-  expect(mockInterface.close).toHaveBeenCalled();
+  expect(runCommandMock).not.toHaveBeenCalled();
 });

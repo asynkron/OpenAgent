@@ -123,11 +123,11 @@ describe('requestModelCompletion', () => {
     const result = await requestPromise;
 
     expect(result).toEqual({ status: 'canceled' });
-    expect(cancellationHandle.cancel).toHaveBeenCalledWith('esc-key');
+    expect(cancellationHandle.cancel).toHaveBeenCalledWith('ui-cancel');
     expect(cancellationHandle.unregister).toHaveBeenCalledTimes(1);
     expect(observationBuilder.buildCancellationObservation).toHaveBeenCalledWith({
       reason: 'escape_key',
-      message: 'Human pressed ESC to cancel the in-flight request.',
+      message: 'Human canceled the in-flight request.',
       metadata: { esc_payload: 'payload' },
     });
     expect(history).toHaveLength(1);

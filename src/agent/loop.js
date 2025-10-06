@@ -1,24 +1,11 @@
 /**
- * Implements the interactive agent loop that powers the CLI experience.
+ * Implements the interactive agent loop that now emits structured events instead of
+ * writing directly to the CLI.
  */
-
-import chalk from 'chalk';
 
 import { SYSTEM_PROMPT } from '../config/systemPrompt.js';
 import { getOpenAIClient, MODEL } from '../openai/client.js';
-import { startThinking, stopThinking } from '../cli/thinking.js';
-import { createInterface, askHuman } from '../cli/io.js';
-import { renderPlan, renderMessage, renderCommand } from '../cli/render.js';
-import { renderRemainingContext } from '../cli/status.js';
-import {
-  runCommand,
-  runBrowse,
-  runEdit,
-  runRead,
-  runReplace,
-  runEscapeString,
-  runUnescapeString,
-} from '../commands/run.js';
+import { runCommand, runBrowse, runEdit, runRead, runReplace, runEscapeString, runUnescapeString } from '../commands/run.js';
 import {
   isPreapprovedCommand,
   isSessionApproved,
@@ -32,6 +19,8 @@ import { ApprovalManager } from './approvalManager.js';
 import { HistoryCompactor } from './historyCompactor.js';
 import { createEscState } from './escState.js';
 import { performInitialHandshake } from './handshake.js';
+import { createAsyncQueue, QUEUE_DONE } from '../utils/asyncQueue.js';
+import { cancel as cancelActive } from '../utils/cancellation.js';
 
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 const PLAN_PENDING_REMINDER =
@@ -39,18 +28,54 @@ const PLAN_PENDING_REMINDER =
 const INITIAL_HANDSHAKE_PROMPT =
   'SYSTEM HANDSHAKE: Provide a brief greeting that confirms you are ready to help and invite the human to share their task. Respond with JSON containing "message" for the greeting, set "plan" to an empty array, and set "command" to null. Do not execute or propose any commands during this handshake, then wait for the human\'s input. Ignore this message after you have responded.';
 
-export function createAgentLoop({
+function createPromptCoordinator({ emitEvent, escState }) {
+  const buffered = [];
+  const waiters = [];
+
+  const resolveNext = (value) => {
+    if (waiters.length > 0) {
+      const resolve = waiters.shift();
+      resolve(value);
+      return true;
+    }
+    buffered.push(value);
+    return false;
+  };
+
+  const request = (prompt, metadata = {}) => {
+    emitEvent({ type: 'request-input', prompt, metadata });
+    if (buffered.length > 0) {
+      return Promise.resolve(buffered.shift());
+    }
+    return new Promise((resolve) => {
+      waiters.push(resolve);
+    });
+  };
+
+  const handlePrompt = (value) => {
+    resolveNext(typeof value === 'string' ? value : '');
+  };
+
+  const handleCancel = (payload = null) => {
+    cancelActive('ui-cancel');
+    escState?.trigger?.(payload ?? { reason: 'ui-cancel' });
+    emitEvent({ type: 'status', level: 'warn', message: 'Cancellation requested by UI.' });
+  };
+
+  const close = () => {
+    while (waiters.length > 0) {
+      const resolve = waiters.shift();
+      resolve('');
+    }
+  };
+
+  return { request, handlePrompt, handleCancel, close };
+}
+
+export function createAgentRuntime({
   systemPrompt = SYSTEM_PROMPT,
   getClient = getOpenAIClient,
   model = MODEL,
-  createInterfaceFn = createInterface,
-  askHumanFn = askHuman,
-  startThinkingFn = startThinking,
-  stopThinkingFn = stopThinking,
-  renderPlanFn = renderPlan,
-  renderMessageFn = renderMessage,
-  renderCommandFn = renderCommand,
-  renderContextUsageFn = renderRemainingContext,
   runCommandFn = runCommand,
   runBrowseFn = runBrowse,
   runEditFn = runEdit,
@@ -70,62 +95,111 @@ export function createAgentLoop({
   createHistoryCompactorFn = ({ openai: client, currentModel }) =>
     new HistoryCompactor({ openai: client, model: currentModel, logger: console }),
 } = {}) {
-  return async function agentLoop() {
-    const history = [
-      {
-        role: 'system',
-        content: systemPrompt,
-      },
-    ];
+  const outputs = createAsyncQueue();
+  const inputs = createAsyncQueue();
 
-    const rl = createInterfaceFn();
-    const { state: escState, detach: detachEscListener } = createEscState(rl);
+  const { state: escState, trigger: triggerEsc, detach: detachEscListener } = createEscState();
+  const promptCoordinator = createPromptCoordinator({
+    emitEvent: (event) => outputs.push(event),
+    escState: { ...escState, trigger: triggerEsc },
+  });
 
-    const approvalManager = new ApprovalManager({
-      isPreapprovedCommand: isPreapprovedCommandFn,
-      isSessionApproved: isSessionApprovedFn,
-      approveForSession: approveForSessionFn,
-      getAutoApproveFlag,
-      askHuman: askHumanFn,
-      preapprovedCfg,
-      logWarn: (message) => console.log(chalk.yellow(message)),
-      logSuccess: (message) => console.log(chalk.green(message)),
+  let openai;
+  try {
+    openai = getClient();
+  } catch (err) {
+    outputs.push({
+      type: 'error',
+      message: 'Failed to initialize OpenAI client. Ensure API key is configured.',
+      details: err instanceof Error ? err.message : String(err),
     });
+    outputs.close();
+    inputs.close();
+    throw err;
+  }
 
-    let openai;
+  const approvalManager = new ApprovalManager({
+    isPreapprovedCommand: isPreapprovedCommandFn,
+    isSessionApproved: isSessionApprovedFn,
+    approveForSession: approveForSessionFn,
+    getAutoApproveFlag,
+    askHuman: async (prompt) => promptCoordinator.request(prompt, { scope: 'approval' }),
+    preapprovedCfg,
+    logWarn: (message) => outputs.push({ type: 'status', level: 'warn', message }),
+    logSuccess: (message) => outputs.push({ type: 'status', level: 'info', message }),
+  });
+
+  const history = [
+    {
+      role: 'system',
+      content: systemPrompt,
+    },
+  ];
+
+  const historyCompactor =
+    typeof createHistoryCompactorFn === 'function'
+      ? createHistoryCompactorFn({ openai, currentModel: model })
+      : null;
+
+  let running = false;
+  let inputProcessorPromise = null;
+
+  async function processInputEvents() {
     try {
-      openai = getClient();
-    } catch (err) {
-      console.error('Error:', err.message);
-      console.error('Please create a .env file with your OpenAI API key.');
-      detachEscListener?.();
-      if (rl && typeof rl.close === 'function') {
-        rl.close();
+      while (true) {
+        const event = await inputs.next();
+        if (event === QUEUE_DONE) {
+          promptCoordinator.close();
+          return;
+        }
+        if (!event || typeof event !== 'object') {
+          continue;
+        }
+        if (event.type === 'cancel') {
+          promptCoordinator.handleCancel(event.payload ?? null);
+        } else if (event.type === 'prompt') {
+          promptCoordinator.handlePrompt(event.prompt ?? event.value ?? '');
+        }
       }
-      throw err;
+    } catch (error) {
+      outputs.push({
+        type: 'error',
+        message: 'Input processing terminated unexpectedly.',
+        details: error instanceof Error ? error.message : String(error),
+      });
     }
+  }
 
-    const historyCompactor =
-      typeof createHistoryCompactorFn === 'function'
-        ? createHistoryCompactorFn({ openai, currentModel: model })
-        : null;
+  const emit = (event) => outputs.push(event);
 
-    console.log(chalk.bold.blue('\nOpenAgent - AI Agent with JSON Protocol'));
-    console.log(chalk.dim('Type "exit" or "quit" to end the conversation.'));
+  async function start() {
+    if (running) {
+      throw new Error('Agent runtime already started.');
+    }
+    running = true;
+    inputProcessorPromise = processInputEvents();
+
+    emit({ type: 'banner', title: 'OpenAgent - AI Agent with JSON Protocol' });
+    emit({ type: 'status', level: 'info', message: 'Submit prompts to drive the conversation.' });
     if (getAutoApproveFlag()) {
-      console.log(
-        chalk.yellow(
+      emit({
+        type: 'status',
+        level: 'warn',
+        message:
           'Full auto-approval mode enabled via CLI flag. All commands will run without prompting.',
-        ),
-      );
+      });
     }
     if (getNoHumanFlag()) {
-      console.log(
-        chalk.yellow(
+      emit({
+        type: 'status',
+        level: 'warn',
+        message:
           'No-human mode enabled (--nohuman). Agent will auto-respond with "continue or say \'done\'" until the AI replies "done".',
-        ),
-      );
+      });
     }
+
+    const startThinkingEvent = () => emit({ type: 'thinking', state: 'start' });
+    const stopThinkingEvent = () => emit({ type: 'thinking', state: 'stop' });
 
     try {
       await performInitialHandshake({
@@ -134,10 +208,7 @@ export function createAgentLoop({
         executePass: executeAgentPass,
         openai,
         model,
-        renderPlanFn,
-        renderMessageFn,
-        renderCommandFn,
-        renderContextUsageFn,
+        emitEvent: emit,
         runCommandFn,
         runBrowseFn,
         runEditFn,
@@ -150,9 +221,8 @@ export function createAgentLoop({
         getNoHumanFlag,
         setNoHumanFlag,
         planReminderMessage: PLAN_PENDING_REMINDER,
-        rl,
-        startThinkingFn,
-        stopThinkingFn,
+        startThinkingFn: startThinkingEvent,
+        stopThinkingFn: stopThinkingEvent,
         escState,
         approvalManager,
         historyCompactor,
@@ -160,7 +230,9 @@ export function createAgentLoop({
 
       while (true) {
         const noHumanActive = getNoHumanFlag();
-        const userInput = noHumanActive ? NO_HUMAN_AUTO_MESSAGE : await askHumanFn(rl, '\n ▷ ');
+        const userInput = noHumanActive
+          ? NO_HUMAN_AUTO_MESSAGE
+          : await promptCoordinator.request('\n ▷ ', { scope: 'user-input' });
 
         if (!userInput) {
           if (noHumanActive) {
@@ -170,7 +242,7 @@ export function createAgentLoop({
         }
 
         if (userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
-          console.log(chalk.green('Goodbye!'));
+          emit({ type: 'status', level: 'info', message: 'Goodbye!' });
           break;
         }
 
@@ -187,10 +259,7 @@ export function createAgentLoop({
               openai,
               model,
               history,
-              renderPlanFn,
-              renderMessageFn,
-              renderCommandFn,
-              renderContextUsageFn,
+              emitEvent: emit,
               runCommandFn,
               runBrowseFn,
               runEditFn,
@@ -203,9 +272,8 @@ export function createAgentLoop({
               getNoHumanFlag,
               setNoHumanFlag,
               planReminderMessage: PLAN_PENDING_REMINDER,
-              rl,
-              startThinkingFn,
-              stopThinkingFn,
+              startThinkingFn: startThinkingEvent,
+              stopThinkingFn: stopThinkingEvent,
               escState,
               approvalManager,
               historyCompactor,
@@ -214,19 +282,34 @@ export function createAgentLoop({
             continueLoop = shouldContinue;
           }
         } catch (error) {
-          stopThinkingFn();
-          console.error(error);
-          if (error.response) {
-            console.error('Response:', error.response.data);
-          }
+          emit({
+            type: 'error',
+            message: 'Agent loop encountered an error.',
+            details: error instanceof Error ? error.message : String(error),
+          });
         }
       }
     } finally {
+      inputs.close();
+      outputs.close();
       detachEscListener?.();
-      if (rl && typeof rl.close === 'function') {
-        rl.close();
-      }
+      await inputProcessorPromise;
     }
+  }
+
+  return {
+    outputs,
+    inputs,
+    start,
+    submitPrompt: (value) => inputs.push({ type: 'prompt', prompt: value }),
+    cancel: (payload = null) => inputs.push({ type: 'cancel', payload }),
+  };
+}
+
+export function createAgentLoop(options = {}) {
+  const runtime = createAgentRuntime(options);
+  return async function agentLoop() {
+    await runtime.start();
   };
 }
 
@@ -234,5 +317,6 @@ export { extractResponseText } from '../openai/responseUtils.js';
 
 export default {
   createAgentLoop,
+  createAgentRuntime,
   extractResponseText,
 };
