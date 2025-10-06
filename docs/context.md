@@ -11,6 +11,8 @@
 - `openai-cancellation.md`: research note confirming AbortSignal support in `openai@6.x` and fallback strategies.
 - `js-dependency-graph.md`: Mermaid diagram mapping relative imports among ESM modules.
 - `publishing.md`: documents the GitHub Actions-powered npm release pipeline plus the manual fallback procedure.
+- `class-interface-refactor-ideas.md`: outlines stateful modules that could graduate into classes/interfaces for clearer
+  encapsulation.
 
 ## Positive Signals
 

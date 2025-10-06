@@ -6,14 +6,26 @@
 
 const DONE = Symbol('async-queue-done');
 
-export function createAsyncQueue() {
-  const values = [];
-  const waiters = [];
-  let closed = false;
+/**
+ * Tiny async queue class used by the runtime to shuttle events between the
+ * agent loop and whichever UI is consuming them.
+ */
+export class AsyncQueue {
+  constructor() {
+    this.values = [];
+    this.waiters = [];
+    this.closed = false;
+  }
 
-  function flushWaiters(value) {
-    while (waiters.length > 0) {
-      const resolve = waiters.shift();
+  /**
+   * Flush all queued waiters with the provided value.
+   * The helper is shared by `push` and `close` so we keep the behaviour identical
+   * to the previous closure-based implementation.
+   * @param {*} value
+   */
+  flushWaiters(value) {
+    while (this.waiters.length > 0) {
+      const resolve = this.waiters.shift();
       try {
         resolve(value);
       } catch {
@@ -22,39 +34,54 @@ export function createAsyncQueue() {
     }
   }
 
-  function push(value) {
-    if (closed) {
+  /**
+   * Enqueue a value, resolving a pending waiter immediately when present.
+   * @param {*} value
+   * @returns {boolean} Whether the value was accepted.
+   */
+  push(value) {
+    if (this.closed) {
       return false;
     }
-    if (waiters.length > 0) {
-      flushWaiters(value);
+    if (this.waiters.length > 0) {
+      this.flushWaiters(value);
     } else {
-      values.push(value);
+      this.values.push(value);
     }
     return true;
   }
 
-  function close() {
-    if (closed) return;
-    closed = true;
-    flushWaiters(DONE);
+  /**
+   * Close the queue and notify any pending waiters.
+   */
+  close() {
+    if (this.closed) return;
+    this.closed = true;
+    this.flushWaiters(DONE);
   }
 
-  async function next() {
-    if (values.length > 0) {
-      return values.shift();
+  /**
+   * Retrieve the next value, awaiting producers when necessary.
+   * @returns {Promise<*>}
+   */
+  async next() {
+    if (this.values.length > 0) {
+      return this.values.shift();
     }
-    if (closed) {
+    if (this.closed) {
       return DONE;
     }
     return new Promise((resolve) => {
-      waiters.push(resolve);
+      this.waiters.push(resolve);
     });
   }
 
-  async function *iterate() {
+  /**
+   * Allow `for await` iteration directly on the queue instance.
+   */
+  async *[Symbol.asyncIterator]() {
     while (true) {
-      const value = await next();
+      const value = await this.next();
       if (value === DONE) {
         return;
       }
@@ -62,14 +89,22 @@ export function createAsyncQueue() {
     }
   }
 
-  return {
-    push,
-    close,
-    next,
-    [Symbol.asyncIterator]: iterate,
-  };
+  /**
+   * Provide the sentinel for consumers that need to detect completion.
+   */
+  static get DONE() {
+    return DONE;
+  }
 }
 
-export const QUEUE_DONE = DONE;
+/**
+ * Backwards-compatible factory for callers that still expect the helper
+ * function. Internal consumers are moving to the class directly.
+ */
+export function createAsyncQueue() {
+  return new AsyncQueue();
+}
 
-export default { createAsyncQueue, QUEUE_DONE };
+export const QUEUE_DONE = AsyncQueue.DONE;
+
+export default { createAsyncQueue, QUEUE_DONE, AsyncQueue };

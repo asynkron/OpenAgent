@@ -6,6 +6,7 @@
 
 ## Modules
 
+- `asyncQueue.js`: exposes the `AsyncQueue` class (with a compatibility factory) used to shuttle events between the agent loop and UIs.
 - `cancellation.js`: stack-based cancellation manager enabling ESC-triggered aborts and nested operations.
 - `output.js`: merges stdout/stderr and provides preview builders used when rendering command results.
 - `plan.js`: supplies plan inspection helpers (e.g., `planHasOpenSteps`).
