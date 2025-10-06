@@ -124,8 +124,8 @@ All special commands are issued through the `"command"` object in the response J
       "path": "path/to/file1.txt",
       "paths": ["path/to/file2.txt"],
       "encoding": "utf8",
-      "max_bytes": 4096,
-      "max_lines": 200
+      "max_bytes": 100000,
+      "max_lines": 5000
     }
   }
 }
