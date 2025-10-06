@@ -115,6 +115,11 @@ All special commands are issued through the `"command"` object in the response J
 ### read
 
 - Read one or more files from disk. Required field: `path` for the first file. Optional fields: `paths` (array of additional files), `encoding`, `max_bytes`, `max_lines`. Output is concatenated as `filepath:::\ncontent` per file.
+- When you need wide coverage (e.g., “all .js files”), follow this workflow:
+  1. Run a discovery command such as `ls`, `find`, or `rg --files '*.js'` (add sensible ignores) to list candidate files so the human can review them.
+  2. Decide which files are relevant for the current task; summarize your selection rationale in the message.
+  3. Call `read` with those explicit paths (using `path` + `paths`) and, if needed, apply `max_bytes`/`max_lines` to keep the output manageable.
+  This prevents massive dumps and keeps intent visible to the human.
 
 ```json
 {

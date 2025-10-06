@@ -30,89 +30,12 @@ export function display(_label, content, _color = 'white') {
   console.log(text);
 }
 
-const COMMAND_READERS = ['sed', 'cat', 'read', 'edit'];
-const COMMAND_EXTENSION_MAPPINGS = [
-  { extensions: ['md', 'markdown'], language: 'markdown' },
-  { extensions: ['diff', 'patch'], language: 'diff' },
-  { extensions: ['py'], language: 'python' },
-  { extensions: ['js', 'jsx', 'mjs', 'cjs'], language: 'javascript' },
-  { extensions: ['json'], language: 'json' },
-  { extensions: ['html', 'htm'], language: 'html' },
-  { extensions: ['sh', 'bash'], language: 'bash' },
-];
-
-const COMMAND_DETECTORS = COMMAND_EXTENSION_MAPPINGS.map(({ extensions, language }) => {
-  const joinedExtensions = extensions.join('|');
-  const pattern = new RegExp(
-    String.raw`^\s*(?:${COMMAND_READERS.join('|')})\s+.*\.(${joinedExtensions})\b`,
-    'i',
-  );
-
-  return { pattern, language };
-});
-
-const CONTENT_TYPE_DETECTORS = [
-  { pattern: /(^|\n)diff --git /, language: 'diff' },
-  ...COMMAND_DETECTORS,
-  { pattern: /python3\s*-*\s*<<\s*['"]?PY['"]?/i, language: 'python' },
-  { pattern: /node\s*-*\s*<<\s*['"]?NODE['"]?/i, language: 'javascript' },
-  { pattern: /^\s*(\{[\s\S]*\}|\[[\s\S]*\])\s*$/, language: 'json' },
-  { pattern: /^\s*<[^>]+>/, language: 'html' },
-  { pattern: /^#!\s*.*python.*/i, language: 'python' },
-  { pattern: /^#!\s*.*(?:bash|sh).*/i, language: 'bash' },
-];
-
-export function inferLanguageFromDetectors(content) {
-  for (const detector of CONTENT_TYPE_DETECTORS) {
-    if (detector.pattern.test(content)) {
-      return detector.language;
-    }
-  }
-
-  return null;
-}
-
 export function wrapStructuredContent(message) {
   if (!message) {
     return '';
   }
 
-  const trimmed = message.trim();
-
-  if (/```/.test(trimmed)) {
-    return trimmed;
-  }
-
-  const detectedLanguage = inferLanguageFromDetectors(trimmed);
-  if (detectedLanguage) {
-    return '```' + detectedLanguage + '\n' + trimmed + '\n```';
-  }
-
-  return trimmed;
-}
-
-export function detectLanguage(content, fallbackLanguage = 'plaintext') {
-  if (!content) {
-    return fallbackLanguage;
-  }
-
-  const trimmed = content.trim();
-  const detected = inferLanguageFromDetectors(trimmed);
-
-  return detected || fallbackLanguage;
-}
-
-export function wrapWithLanguageFence(text, language = 'plaintext') {
-  if (text === undefined || text === null) {
-    return '';
-  }
-
-  const content = String(text);
-  if (!content.trim() || /```/.test(content)) {
-    return content;
-  }
-
-  return `\`\`\`${language}\n${content}\n\`\`\``;
+  return String(message).trim();
 }
 
 export function renderMarkdownMessage(message) {
@@ -466,7 +389,4 @@ export default {
   renderPlan,
   renderMessage,
   renderCommand,
-  wrapWithLanguageFence,
-  inferLanguageFromDetectors,
-  detectLanguage,
 };

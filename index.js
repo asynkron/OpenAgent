@@ -26,9 +26,7 @@ import {
   renderMarkdownMessage,
   renderPlan,
   renderMessage,
-  renderCommand,
-  inferLanguageFromDetectors,
-  detectLanguage,
+  renderCommand
 } from './src/cli/render.js';
 import { renderRemainingContext } from './src/cli/status.js';
 import {
@@ -182,9 +180,6 @@ export const exported = {
   askHuman,
   renderMessage,
   renderCommand,
-  renderRemainingContext,
-  inferLanguageFromDetectors,
-  detectLanguage,
   loadPreapprovedConfig,
   isPreapprovedCommand,
   __commandSignature,
@@ -232,8 +227,6 @@ export {
   askHuman,
   renderMessage,
   renderCommand,
-  inferLanguageFromDetectors,
-  detectLanguage,
   loadPreapprovedConfig,
   isPreapprovedCommand,
   __commandSignature,

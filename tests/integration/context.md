@@ -20,7 +20,7 @@
 ## Risks / Gaps
 
 - Tests mock `process.exit` indirectly via `execFileSync`; failures could exit the runner if not caught.
-- No integration coverage for cancellation paths (ESC) or new string quoting built-ins.
+- No integration coverage for cancellation paths (ESC); string quoting built-ins now covered by dedicated tests.
 
 ## Related Context
 

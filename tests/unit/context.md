@@ -11,6 +11,7 @@
 - `cancellation.test.js`: exercises stack-based cancellation semantics.
 - `renderLanguage.test.js`, `renderPlan.test.js`: guard CLI rendering edge cases.
 - `replaceCommand.test.js`, `runCommand.test.js`: verify replacement logic and process management.
+- `httpClient.test.js`: exercises fetch vs Node fallbacks, timeout aborts, and timeout resolution for the shared HTTP client.
 - `index.test.js`, `esmEntry.test.js`: confirm root exports and ESM package surface remain intact.
 - `openaiResponses.test.js`: validates the shared OpenAI response helper respects reasoning environment overrides.
 - `historyCompactor.test.js`: asserts old history is summarized and that the generated summary is surfaced to the human via logging.
@@ -21,7 +22,7 @@
 
 ## Risks / Gaps
 
-- Missing tests for `escapeString`/`unescapeString` helpers, `runBrowse` timeout handling, and prompt builder behaviour.
+- Remaining gaps include `runBrowse` timeout handling and prompt builder behaviour; string quoting helpers now have dedicated coverage.
 - Some tests mock modules heavily, making them brittle when file paths or module boundaries shift.
 
 ## Related Context

@@ -1,0 +1,32 @@
+- [x] Stabilize string quoting helpers with comprehensive tests
+  - [x] Add unit tests covering escape/unescape nominal, edge, and error paths
+  - [x] Introduce integration test exercising quote/unquote via agent command flow
+  - [x] Document helper behaviour in relevant context.md files
+- [x] Consolidate browse command networking and improve coverage
+  - [x] Refactor runBrowse to reuse a single fetch implementation
+  - [x] Add unit tests for timeout, error handling, and fetch polyfill paths
+  - [x] Update command documentation and context summaries
+- [ ] Modularize agent loop for maintainability
+  - [x] Identify cohesive subsets (rendering, approvals, execution) and extract dedicated modules
+  - [ ] Adjust integration tests and mocks to new module boundaries
+  - [ ] Document new architecture in src/agent/context.md
+- [ ] Strengthen approval safety and coverage
+  - [ ] Audit regex heuristics and add tests for emerging shell-injection patterns
+  - [ ] Add validation layer for templates/shortcuts command payloads
+  - [ ] Expand integration scenarios for approval rejections and preapproved commands
+- [ ] Close cancellation (ESC) coverage gaps
+  - [ ] Design integration test simulating ESC-triggered aborts during command execution
+  - [ ] Add regression tests for nested cancellation stacks
+  - [ ] Update docs/openai-cancellation.md with verified behaviours
+- [ ] Introduce schema validation and sync safeguards for JSON assets
+  - [ ] Define JSON schemas for prompts, templates, and shortcuts
+  - [ ] Add validation step to CI or startup flow
+  - [ ] Automate prompt copy synchronization checks
+- [ ] Improve OpenAI client robustness
+  - [ ] Add configuration validation for model/endpoint compatibility
+  - [ ] Implement per-request timeout/retry options with tests
+  - [ ] Document configuration expectations in src/openai/context.md
+- [ ] Refresh roadmap and operational documentation
+  - [ ] Reconcile modernization checklist with current codebase status
+  - [ ] Add cross-links between docs and implementation hotspots
+  - [ ] Clarify maintenance process for prompt copies and context indexes

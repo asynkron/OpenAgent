@@ -6,6 +6,46 @@ import { jest } from '@jest/globals';
 
 const defaultEnv = { ...process.env };
 
+async function runWithFetchDisabled(callback) {
+  const descriptor = Object.getOwnPropertyDescriptor(global, 'fetch');
+  const originalFetch = global.fetch;
+  const hadFetch = typeof originalFetch !== 'undefined';
+
+  const restore = () => {
+    if (descriptor) {
+      try {
+        Object.defineProperty(global, 'fetch', descriptor);
+        return;
+      } catch (error) {
+        void error;
+      }
+    }
+
+    if (hadFetch) {
+      global.fetch = originalFetch;
+    } else {
+      delete global.fetch;
+    }
+  };
+
+  try {
+    if (descriptor && descriptor.configurable) {
+      Object.defineProperty(global, 'fetch', {
+        value: undefined,
+        configurable: true,
+        writable: true,
+        enumerable: descriptor.enumerable ?? true,
+      });
+    } else {
+      global.fetch = undefined;
+    }
+
+    return await callback();
+  } finally {
+    restore();
+  }
+}
+
 async function loadModule(
   envOverrides = {},
   { commandStatsMock, runCommandMock, httpModuleFactory } = {},
@@ -199,65 +239,83 @@ describe('extractResponseText', () => {
 });
 
 describe('runBrowse', () => {
-  test('uses global fetch when available', async () => {
+  const url = 'https://example.com/resource';
+
+  const createClient = ({ response, error, isAbortLike } = {}) => {
+    const fetch = jest.fn();
+
+    if (error) {
+      fetch.mockRejectedValue(error);
+    } else {
+      fetch.mockResolvedValue(
+        response ?? { body: '', status: 200, statusText: 'OK', ok: true },
+      );
+    }
+
+    return {
+      fetch,
+      isAbortLike: jest.fn(isAbortLike ?? (() => false)),
+    };
+  };
+
+  test('delegates to provided http client fetch', async () => {
     const { mod } = await loadModule();
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      text: () => Promise.resolve('body'),
-      status: 200,
-      statusText: 'OK',
+    const client = createClient({
+      response: { body: 'body', status: 200, statusText: 'OK', ok: true },
     });
 
-    const result = await mod.runBrowse('https://example.com', 1);
+    const result = await mod.runBrowse(url, 5, client);
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      'https://example.com',
-      expect.objectContaining({ method: 'GET' }),
-    );
+    expect(client.fetch).toHaveBeenCalledWith(url, { timeoutSec: 5, method: 'GET' });
     expect(result.exit_code).toBe(0);
     expect(result.stdout).toBe('body');
+    expect(result.stderr).toBe('');
+    expect(result.killed).toBe(false);
   });
 
-  test('falls back to http module when fetch unavailable', async () => {
-    jest.resetModules();
-    delete global.fetch;
-
-    const requestSpy = jest.fn((options, callback) => {
-      const response = new EventEmitter();
-      response.statusCode = 200;
-
-      const request = new EventEmitter();
-      request.destroy = jest.fn();
-      request.end = () => {
-        setImmediate(() => {
-          callback(response);
-          response.emit('data', Buffer.from('hello'));
-          response.emit('end');
-        });
-      };
-
-      return request;
+  test('propagates non-2xx status from client response', async () => {
+    const { mod } = await loadModule();
+    const client = createClient({
+      response: { body: 'missing', status: 404, statusText: 'Not Found', ok: false },
     });
 
-    const url = 'http://example.com/test';
-    const { mod } = await loadModule(
-      {},
-      {
-        httpModuleFactory: async () => {
-          const actual = await import('node:http');
-          return { ...actual, request: requestSpy };
-        },
-      },
-    );
+    const result = await mod.runBrowse(url, 1, client);
 
-    const result = await mod.runBrowse(url, 1);
+    expect(result.exit_code).toBe(404);
+    expect(result.stderr).toBe('HTTP 404 Not Found');
+    expect(result.stdout).toBe('missing');
+    expect(result.killed).toBe(false);
+  });
 
-    expect(requestSpy).toHaveBeenCalledTimes(1);
-    expect(requestSpy.mock.calls[0][0]).toEqual(
-      expect.objectContaining({ method: 'GET', hostname: 'example.com' }),
-    );
-    expect(result.exit_code).toBe(0);
-    expect(result.stdout).toContain('hello');
+  test('marks request as killed when client reports abort', async () => {
+    const { mod } = await loadModule();
+    const error = Object.assign(new Error('Aborted'), { name: 'AbortError' });
+    const client = createClient({
+      error,
+      isAbortLike: (received) => received === error,
+    });
+
+    const result = await mod.runBrowse(url, 1, client);
+
+    expect(client.fetch).toHaveBeenCalledWith(url, { timeoutSec: 1, method: 'GET' });
+    expect(client.isAbortLike).toHaveBeenCalledWith(error);
+    expect(result.exit_code).toBe(1);
+    expect(result.stderr).toBe('Aborted');
+    expect(result.killed).toBe(true);
+  });
+
+  test('falls back to unknown error message when client throws empty error', async () => {
+    const { mod } = await loadModule();
+    const error = new Error('');
+    error.message = '';
+    const client = createClient({ error });
+
+    const result = await mod.runBrowse(url, 1, client);
+
+    expect(result.exit_code).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toBe('Unknown browse error');
+    expect(result.killed).toBe(false);
   });
 });
 

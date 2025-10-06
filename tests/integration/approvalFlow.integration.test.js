@@ -25,6 +25,19 @@ async function loadAgent({ firstPayload, secondPayload }) {
     cursorTo,
   }));
 
+  const detachMock = jest.fn();
+  const createEscStateMock = jest.fn(() => ({
+    state: { triggered: false, payload: null, waiters: new Set() },
+    detach: detachMock,
+  }));
+  const createEscWaiterMock = jest.fn(() => ({ promise: Promise.resolve(null), cleanup: jest.fn() }));
+
+  jest.unstable_mockModule('../../src/agent/escState.js', () => ({
+    createEscState: createEscStateMock,
+    createEscWaiter: createEscWaiterMock,
+    resetEscState: jest.fn(),
+  }));
+
   let callCount = 0;
   jest.unstable_mockModule('openai', () => ({
     default: function OpenAIMock() {
@@ -32,7 +45,16 @@ async function loadAgent({ firstPayload, secondPayload }) {
         responses: {
           create: async () => {
             callCount += 1;
-            const payload = callCount === 1 ? firstPayload : secondPayload;
+            const payload =
+              callCount === 1
+                ? {
+                    message: 'Handshake',
+                    plan: [],
+                    command: null,
+                  }
+                : callCount === 2
+                ? firstPayload
+                : secondPayload;
 
             return {
               output: [
@@ -56,7 +78,7 @@ async function loadAgent({ firstPayload, secondPayload }) {
   jest.unstable_mockModule('dotenv/config', () => ({}));
 
   const agentModule = await import('../../index.js');
-  return agentModule.default;
+  return { agent: agentModule.default, createEscStateMock, detachMock };
 }
 
 describe('Approval flow integration', () => {
@@ -80,7 +102,7 @@ describe('Approval flow integration', () => {
     };
     const secondPayload = { message: 'Follow-up', plan: [], command: null };
 
-    const agent = await loadAgent({ firstPayload, secondPayload });
+    const { agent, createEscStateMock, createEscWaiterMock, detachMock } = await loadAgent({ firstPayload, secondPayload });
     agent.STARTUP_FORCE_AUTO_APPROVE = false;
 
     mockAnswersQueue.push('Please run the command', '1', 'exit');
@@ -99,6 +121,8 @@ describe('Approval flow integration', () => {
 
     await agent.agentLoop();
 
+    expect(createEscStateMock).toHaveBeenCalledTimes(1);
+    expect(detachMock).toHaveBeenCalledTimes(1);
     expect(runCommandMock).toHaveBeenCalledTimes(1);
     expect(mockInterface.question.mock.calls[1][0]).toContain('Approve running this command?');
     expect(mockInterface.close).toHaveBeenCalled();
@@ -118,7 +142,7 @@ describe('Approval flow integration', () => {
     };
     const secondPayload = { message: 'Alternative requested', plan: [], command: null };
 
-    const agent = await loadAgent({ firstPayload, secondPayload });
+    const { agent, createEscStateMock, createEscWaiterMock, detachMock } = await loadAgent({ firstPayload, secondPayload });
     agent.STARTUP_FORCE_AUTO_APPROVE = false;
 
     mockAnswersQueue.push('Attempt command', '3', 'exit');
@@ -131,6 +155,8 @@ describe('Approval flow integration', () => {
 
     await agent.agentLoop();
 
+    expect(createEscStateMock).toHaveBeenCalledTimes(1);
+    expect(detachMock).toHaveBeenCalledTimes(1);
     expect(runCommandMock).not.toHaveBeenCalled();
     expect(mockInterface.question.mock.calls[1][0]).toContain('Approve running this command?');
     expect(mockInterface.close).toHaveBeenCalled();

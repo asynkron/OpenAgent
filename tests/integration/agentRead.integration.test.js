@@ -25,6 +25,19 @@ async function loadAgent() {
     cursorTo,
   }));
 
+  const detachMock = jest.fn();
+  const createEscStateMock = jest.fn(() => ({
+    state: { triggered: false, payload: null, waiters: new Set() },
+    detach: detachMock,
+  }));
+  const createEscWaiterMock = jest.fn(() => ({ promise: Promise.resolve(null), cleanup: jest.fn() }));
+
+  jest.unstable_mockModule('../../src/agent/escState.js', () => ({
+    createEscState: createEscStateMock,
+    createEscWaiter: createEscWaiterMock,
+    resetEscState: jest.fn(),
+  }));
+
   let callCount = 0;
   jest.unstable_mockModule('openai', () => ({
     default: function OpenAIMock() {
@@ -34,6 +47,12 @@ async function loadAgent() {
             callCount += 1;
             const payload =
               callCount === 1
+                ? {
+                    message: 'Mocked handshake',
+                    plan: [],
+                    command: null,
+                  }
+                : callCount === 2
                 ? {
                     message: 'Mocked read response',
                     plan: [],
@@ -73,12 +92,12 @@ async function loadAgent() {
   jest.unstable_mockModule('dotenv/config', () => ({}));
 
   const agentModule = await import('../../index.js');
-  return agentModule.default;
+  return { agent: agentModule.default, createEscStateMock, detachMock };
 }
 
 test('agent loop invokes runRead for read commands', async () => {
   process.env.OPENAI_API_KEY = 'test-key';
-  const agent = await loadAgent();
+  const { agent, createEscStateMock, detachMock } = await loadAgent();
   agent.STARTUP_FORCE_AUTO_APPROVE = true;
 
   mockAnswersQueue.length = 0;
@@ -97,12 +116,12 @@ test('agent loop invokes runRead for read commands', async () => {
     runtime_ms: 2,
   });
   agent.runRead = runReadMock;
-
-  // Prevent accidental shell execution if something goes wrong.
   agent.runCommand = jest.fn();
 
   await agent.agentLoop();
 
+  expect(createEscStateMock).toHaveBeenCalledTimes(1);
+  expect(detachMock).toHaveBeenCalledTimes(1);
   expect(runReadMock).toHaveBeenCalledTimes(1);
   expect(runReadMock).toHaveBeenCalledWith({ path: 'sample.txt', encoding: 'utf8' }, '.');
   expect(agent.runCommand).not.toHaveBeenCalled();

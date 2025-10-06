@@ -53,7 +53,7 @@ jest.unstable_mockModule = (specifier, factory, options) => {
   return originalUnstableMockModule(specifier, factory, options);
 };
 
-function createMockResponse() {
+function buildResponsePayload(payload) {
   return {
     output: [
       {
@@ -61,16 +61,7 @@ function createMockResponse() {
         content: [
           {
             type: 'output_text',
-            text: JSON.stringify({
-              message: 'Mocked response',
-              plan: [],
-              command: {
-                shell: 'bash',
-                run: 'echo "MOCKED_OK"',
-                cwd: '.',
-                timeout_sec: 5,
-              },
-            }),
+            text: JSON.stringify(payload),
           },
         ],
       },
@@ -79,9 +70,32 @@ function createMockResponse() {
 }
 
 function OpenAIMock() {
+  let callCount = 0;
+
   return {
     responses: {
-      create: async () => createMockResponse(),
+      create: async () => {
+        callCount += 1;
+
+        if (callCount === 1) {
+          return buildResponsePayload({
+            message: 'Handshake ready',
+            plan: [],
+            command: null,
+          });
+        }
+
+        return buildResponsePayload({
+          message: 'Mocked response',
+          plan: [],
+          command: {
+            shell: 'bash',
+            run: 'echo "MOCKED_OK"',
+            cwd: '.',
+            timeout_sec: 5,
+          },
+        });
+      },
     },
   };
 }

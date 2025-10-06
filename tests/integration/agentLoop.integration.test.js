@@ -25,6 +25,19 @@ async function loadAgent() {
     cursorTo,
   }));
 
+  const detachMock = jest.fn();
+  const createEscStateMock = jest.fn(() => ({
+    state: { triggered: false, payload: null, waiters: new Set() },
+    detach: detachMock,
+  }));
+  const createEscWaiterMock = jest.fn(() => ({ promise: Promise.resolve(null), cleanup: jest.fn() }));
+
+  jest.unstable_mockModule('../../src/agent/escState.js', () => ({
+    createEscState: createEscStateMock,
+    createEscWaiter: createEscWaiterMock,
+    resetEscState: jest.fn(),
+  }));
+
   let mockCallCount = 0;
   jest.unstable_mockModule('openai', () => ({
     default: function OpenAIMock() {
@@ -34,6 +47,12 @@ async function loadAgent() {
             mockCallCount += 1;
             const payload =
               mockCallCount === 1
+                ? {
+                    message: 'Mocked handshake',
+                    plan: [],
+                    command: null,
+                  }
+                : mockCallCount === 2
                 ? {
                     message: 'Mocked response',
                     plan: [],
@@ -72,12 +91,12 @@ async function loadAgent() {
   jest.unstable_mockModule('dotenv/config', () => ({}));
 
   const agentModule = await import('../../index.js');
-  return agentModule.default;
+  return { agent: agentModule.default, createEscStateMock, detachMock };
 }
 
 test('agent loop executes one mocked command then exits on user request', async () => {
   process.env.OPENAI_API_KEY = 'test-key';
-  const agent = await loadAgent();
+  const { agent, createEscStateMock, detachMock } = await loadAgent();
   agent.STARTUP_FORCE_AUTO_APPROVE = true;
 
   mockAnswersQueue.length = 0;
@@ -99,6 +118,8 @@ test('agent loop executes one mocked command then exits on user request', async 
 
   await agent.agentLoop();
 
+  expect(createEscStateMock).toHaveBeenCalledTimes(1);
   expect(runCommandMock).toHaveBeenCalledTimes(1);
+  expect(detachMock).toHaveBeenCalledTimes(1);
   expect(mockInterface.close).toHaveBeenCalled();
 });

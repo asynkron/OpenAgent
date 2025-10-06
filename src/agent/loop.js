@@ -7,7 +7,7 @@ import chalk from 'chalk';
 import { SYSTEM_PROMPT } from '../config/systemPrompt.js';
 import { getOpenAIClient, MODEL } from '../openai/client.js';
 import { startThinking, stopThinking } from '../cli/thinking.js';
-import { createInterface, askHuman, ESCAPE_EVENT } from '../cli/io.js';
+import { createInterface, askHuman } from '../cli/io.js';
 import { renderPlan, renderMessage, renderCommand } from '../cli/render.js';
 import { renderRemainingContext } from '../cli/status.js';
 import {
@@ -30,10 +30,14 @@ import { executeAgentPass } from './passExecutor.js';
 import { extractResponseText } from '../openai/responseUtils.js';
 import { ApprovalManager } from './approvalManager.js';
 import { HistoryCompactor } from './historyCompactor.js';
+import { createEscState } from './escState.js';
+import { performInitialHandshake } from './handshake.js';
 
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 const PLAN_PENDING_REMINDER =
   'There are open tasks in the plan. Do you need help or more info? If not, please continue working.';
+const INITIAL_HANDSHAKE_PROMPT =
+  'SYSTEM HANDSHAKE: Provide a brief greeting that confirms you are ready to help and invite the human to share their task. Respond with JSON containing "message" for the greeting, set "plan" to an empty array, and set "command" to null. Do not execute or propose any commands during this handshake, then wait for the human\'s input. Ignore this message after you have responded.';
 
 export function createAgentLoop({
   systemPrompt = SYSTEM_PROMPT,
@@ -75,29 +79,7 @@ export function createAgentLoop({
     ];
 
     const rl = createInterfaceFn();
-
-    const escState = {
-      triggered: false,
-      payload: null,
-      waiters: new Set(),
-    };
-
-    if (rl && typeof rl.on === 'function') {
-      rl.on(ESCAPE_EVENT, (payload) => {
-        escState.triggered = true;
-        escState.payload = payload ?? null;
-        if (escState.waiters.size > 0) {
-          for (const resolve of Array.from(escState.waiters)) {
-            try {
-              resolve(payload ?? null);
-            } catch (err) {
-              // Ignore resolver errors.
-            }
-          }
-          escState.waiters.clear();
-        }
-      });
-    }
+    const { state: escState, detach: detachEscListener } = createEscState(rl);
 
     const approvalManager = new ApprovalManager({
       isPreapprovedCommand: isPreapprovedCommandFn,
@@ -116,6 +98,7 @@ export function createAgentLoop({
     } catch (err) {
       console.error('Error:', err.message);
       console.error('Please create a .env file with your OpenAI API key.');
+      detachEscListener?.();
       if (rl && typeof rl.close === 'function') {
         rl.close();
       }
@@ -145,6 +128,36 @@ export function createAgentLoop({
     }
 
     try {
+      await performInitialHandshake({
+        history,
+        prompt: INITIAL_HANDSHAKE_PROMPT,
+        executePass: executeAgentPass,
+        openai,
+        model,
+        renderPlanFn,
+        renderMessageFn,
+        renderCommandFn,
+        renderContextUsageFn,
+        runCommandFn,
+        runBrowseFn,
+        runEditFn,
+        runReadFn,
+        runReplaceFn,
+        runEscapeStringFn,
+        runUnescapeStringFn,
+        applyFilterFn,
+        tailLinesFn,
+        getNoHumanFlag,
+        setNoHumanFlag,
+        planReminderMessage: PLAN_PENDING_REMINDER,
+        rl,
+        startThinkingFn,
+        stopThinkingFn,
+        escState,
+        approvalManager,
+        historyCompactor,
+      });
+
       while (true) {
         const noHumanActive = getNoHumanFlag();
         const userInput = noHumanActive ? NO_HUMAN_AUTO_MESSAGE : await askHumanFn(rl, '\n ▷ ');
@@ -209,6 +222,7 @@ export function createAgentLoop({
         }
       }
     } finally {
+      detachEscListener?.();
       if (rl && typeof rl.close === 'function') {
         rl.close();
       }

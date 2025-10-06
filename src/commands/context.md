@@ -7,7 +7,7 @@
 ## Notable Modules
 
 - `run.js`: spawns shell commands with timeouts, cancellation hooks, stdin piping, and exposes re-exports for specialised helpers.
-- `browse.js`: HTTP/HTTPS GET helper with optional global `fetch` fast path.
+- `browse.js`: HTTP/HTTPS helper that now delegates to the shared `HttpClient`, enabling consistent timeout/abort handling across fetch and Node fallbacks.
 - `read.js`: streams file contents with path normalization and optional limits.
 - `readSpec.js`: parses shell-style `read` command invocations into normalized specs for the loop and tests.
 - `edit.js`: applies positional edits, creating files/directories as needed.
@@ -19,14 +19,15 @@
 ## Positive Signals
 
 - `run.js` cancellation integrates with `utils/cancellation`, ensuring process cleanup on timeouts/ESC.
+- `browse.js` now reuses the shared `HttpClient`, consolidating networking behaviour and improving testability.
 - `replace.js` enforces `g` flag and supports dry-run reporting.
 - `escapeString.js` centralises string coercion, enabling new built-ins without touching `loop.js` internals.
 
 ## Risks / Gaps
 
-- `runBrowse` contains redundant networking logic; ideally rely solely on `fetch` with polyfill for Node <18.
 - `preapproval.js` heuristics are regex-heavy and may miss emerging shell injection vectors.
-- Lack of unit tests for `escapeString` helpers and `runBrowse` timeout edge cases.
+- HttpClient centralises networking, but additional integration tests may be needed for non-GET verbs or custom headers.
+- Run command safety still depends on human approvals; browser fetch remains limited to GET.
 
 ## Related Context
 

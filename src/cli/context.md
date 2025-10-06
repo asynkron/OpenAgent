@@ -7,7 +7,7 @@
 ## Modules
 
 - `io.js`: readline wrapper with ESC detection (emits `ESCAPE_EVENT`, cancels active operations, highlights prompts).
-- `render.js`: Markdown-based renderer for plans/messages/command summaries; heuristically detects languages for fenced code blocks.
+- `render.js`: Markdown-based renderer for plans/messages/command summaries.
 - `thinking.js`: spinner that displays elapsed time while awaiting API responses.
 - `status.js`: prints transient status lines such as the remaining context window before issuing model requests.
 
@@ -18,7 +18,7 @@
 
 ## Risks / Gaps
 
-- `render.js` heuristics rely on regexes; language detection may drift from actual file types.
+- Rendering assumes the assistant provides correctly fenced Markdown; malformed snippets may lead to plain-text output.
 - Spinner writes directly to stdout; behaviour in non-TTY environments is only partially guarded.
 
 ## Related Context
