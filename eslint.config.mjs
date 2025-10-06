@@ -1,5 +1,6 @@
 import js from '@eslint/js';
 import globals from 'globals';
+import importPlugin from 'eslint-plugin-import';
 import prettierRecommended from 'eslint-plugin-prettier/recommended';
 
 export default [
@@ -12,10 +13,13 @@ export default [
     files: ['**/*.js'],
     languageOptions: {
       ecmaVersion: 2021,
-      sourceType: 'script',
+      sourceType: 'module',
       globals: {
         ...globals.node,
       },
+    },
+    plugins: {
+      import: importPlugin,
     },
     rules: {
       'no-undef': 'error',
@@ -29,6 +33,7 @@ export default [
       ],
       'no-constant-condition': ['error', { checkLoops: false }],
       'prefer-const': 'error',
+      'import/no-commonjs': 'error',
     },
   },
   {
