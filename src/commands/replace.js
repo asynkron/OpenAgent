@@ -44,21 +44,37 @@ function validateFiles(files) {
   });
 }
 
-function buildResultSummary(results, dryRun) {
+function buildResultOutput(results, dryRun) {
   const totalMatches = results.reduce((acc, item) => acc + item.matches, 0);
   const touchedFiles = results.filter((item) => item.matches > 0).length;
 
-  const lines = [`Total matches: ${totalMatches}`, `Files with changes: ${touchedFiles}`];
+  const summaryLines = [
+    `Total matches: ${totalMatches}`,
+    `Files with changes: ${touchedFiles}`,
+  ];
 
   results.forEach((item) => {
-    lines.push(`${item.path}: ${item.matches} matches${dryRun ? ' (dry-run)' : ''}`);
+    summaryLines.push(`${item.path}: ${item.matches} matches${dryRun ? ' (dry-run)' : ''}`);
   });
 
   if (dryRun) {
-    lines.push('Dry-run: no files were modified.');
+    summaryLines.push('Dry-run: no files were modified.');
   }
 
-  return lines.join('\n');
+  const detailSections = results.map((item) => {
+    const status = dryRun
+      ? item.matches > 0
+        ? `Preview ${item.path}`
+        : `Preview (no matches) ${item.path}`
+      : item.changed
+        ? `Updated ${item.path}`
+        : `Unchanged ${item.path}`;
+
+    const header = `--- ${item.path}`;
+    return `${status}\n\n${header}\n${item.content}`;
+  });
+
+  return summaryLines.concat('', detailSections).join('\n');
 }
 
 export function runReplace(spec, cwd = '.') {
@@ -101,7 +117,10 @@ export function runReplace(spec, cwd = '.') {
         return replacement;
       });
 
-      if (!dryRun && matches > 0 && replaced !== original) {
+      const relOutputPath = path.relative(process.cwd(), absPath);
+      const wouldChange = matches > 0 && replaced !== original;
+
+      if (!dryRun && wouldChange) {
         try {
           fs.writeFileSync(absPath, replaced, { encoding });
         } catch (err) {
@@ -109,14 +128,18 @@ export function runReplace(spec, cwd = '.') {
         }
       }
 
+      const finalContent = dryRun ? replaced : wouldChange ? replaced : original;
+
       results.push({
-        path: path.relative(process.cwd(), absPath),
+        path: relOutputPath,
         matches,
+        content: finalContent,
+        changed: !dryRun && wouldChange,
       });
     }
 
     return {
-      stdout: buildResultSummary(results, dryRun),
+      stdout: buildResultOutput(results, dryRun),
       stderr: '',
       exit_code: 0,
       killed: false,
