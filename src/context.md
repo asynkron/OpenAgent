@@ -34,4 +34,3 @@
   - [`shortcuts/context.md`](shortcuts/context.md)
   - [`templates/context.md`](templates/context.md)
   - [`utils/context.md`](utils/context.md)
-- Legacy mirror: [`../legacy/src/context.md`](../legacy/src/context.md)

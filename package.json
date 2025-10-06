@@ -1,6 +1,6 @@
 {
   "name": "openagent",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Simple Node.JS based AI agent",
   "type": "module",
   "main": "index.js",
@@ -9,8 +9,6 @@
       "import": "./index.js",
       "default": "./index.js"
     },
-    "./legacy": "./legacy/index.js",
-    "./legacy/*": "./legacy/*",
     "./package.json": "./package.json"
   },
   "scripts": {

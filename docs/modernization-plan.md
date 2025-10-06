@@ -17,7 +17,7 @@ This roadmap captures a staged approach for cleaning up the OpenAgent codebase, 
 
 1. **Lock in the module strategy.**
    - Standardize on Node's native `import`/`export` syntax by setting `"type": "module"` in `package.json`.
-   - Keep the legacy automation working by routing existing CommonJS entry points through the `.mjs` compatibility helper so both systems interoperate during the transition.
+   - During the transition we routed CommonJS entry points through a compatibility helper; as of v2.0 that shim has been removed along with the `legacy/` tree.
    - Where external libraries still publish CommonJS, use `createRequire` as a narrow compatibility shim.
 2. **Split migration into layers.**
    - Start with leaf utility modules in `src/utils` and `src/config`, rewrite `module.exports` → `export` and `require` → `import`.
@@ -26,7 +26,7 @@ This roadmap captures a staged approach for cleaning up the OpenAgent codebase, 
 3. **Update toolchain support.**
    - Switch Jest to the ESM-aware configuration (`"type": "module"`, `transform` stubs, or migrate to `ts-jest` alternative) so the suite still runs.
    - Enable ESLint's ESM parser mode (`sourceType: "module"`) and add `import/order` checks to keep imports tidy.
-4. **Validate and deprecate CommonJS exports.** Provide compatibility notes in the README for downstream consumers who may still rely on `require()`.
+4. **Validate and deprecate CommonJS exports.** Provide compatibility notes in the README for downstream consumers who may still rely on `require()`; mark the breaking change when removing support entirely.
 
 ## 4. Tame the runtime structure
 
