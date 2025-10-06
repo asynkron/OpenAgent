@@ -1,7 +1,7 @@
 # Directory Context: legacy/src/cli
 
 ## Purpose
-- CommonJS versions of the CLI helpers (readline prompts, renderer, thinking animation).
+- Archived copies of the CLI helpers (readline prompts, renderer, thinking animation) from the pre-ESM build.
 
 ## Modules
 - `io.js`: readline wrapper with ESC support via event emitters.
@@ -9,10 +9,10 @@
 - `thinking.js`: spinner with elapsed time display.
 
 ## Positive Signals
-- Feature parity with ESM `src/cli` ensures UI behaviour is consistent across builds.
+- Useful when tracing UI changes back through time without touching the active ESM helpers.
 
 ## Risks / Gaps
-- Duplication: adjustments to the renderer/spinner must be copied manually from ESM sources.
+- Duplication invites drift; prefer editing the active ESM helpers and treat this directory as reference material only.
 
 ## Related Context
 - ESM CLI helpers: [`../../../src/cli/context.md`](../../../src/cli/context.md)

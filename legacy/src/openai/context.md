@@ -1,16 +1,16 @@
 # Directory Context: legacy/src/openai
 
 ## Purpose
-- CommonJS OpenAI client wrapper mirroring `src/openai/client.js`.
+- Archived OpenAI client wrapper mirroring `src/openai/client.js` prior to the pure-ESM transition.
 
 ## Key Module
 - `client.js`: memoizes the OpenAI SDK instance using environment variables; exports `MODEL`, `getOpenAIClient`, `resetOpenAIClient`.
 
 ## Positive Signals
-- Behaviour parity with ESM code keeps legacy entry point stable.
+- Captures how the client was previously instantiated, useful when tracing historical bugs.
 
 ## Risks / Gaps
-- Requires manual updates if environment handling changes in the ESM build.
+- Manual updates would be required to keep it aligned with the active ESM client; prefer the live code for authoritative behaviour.
 
 ## Related Context
 - ESM client: [`../../../src/openai/context.md`](../../../src/openai/context.md)

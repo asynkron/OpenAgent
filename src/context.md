@@ -1,7 +1,7 @@
 # Directory Context: src
 
 ## Purpose
-- Primary ESM implementation of OpenAgent, replacing the legacy CommonJS tree.
+- Primary ESM implementation of OpenAgent; the former CommonJS tree now survives only in the archived `legacy/` snapshot.
 - Contains agent runtime, CLI presentation, command runners, configuration, and supporting utilities.
 
 ## Structure

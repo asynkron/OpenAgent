@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 - Node.js CLI agent that converses with an LLM using a strict JSON protocol, renders assistant plans/messages, and executes shell commands under human approval.
-- Current codebase lives under `src/` (ESM). `legacy/` retains the CommonJS mirror for backward compatibility.
+- Current codebase lives under `src/` (ESM). `legacy/` now serves as an archived snapshot of the pre-ESM tree rather than an actively supported CommonJS build.
 
 ## Quick Directory Map
 - Core runtime: [`src/context.md`](src/context.md)

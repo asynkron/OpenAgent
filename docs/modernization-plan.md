@@ -1,6 +1,6 @@
 # Modernization roadmap
 
-This roadmap captures a staged approach for cleaning up the OpenAgent codebase, migrating to ECMAScript modules, and introducing automated quality gates.
+This roadmap captures a staged approach for cleaning up the OpenAgent codebase, reinforcing its ECMAScript module architecture, and introducing automated quality gates.
 
 ## 1. Stabilize the current surface
 
@@ -10,23 +10,21 @@ This roadmap captures a staged approach for cleaning up the OpenAgent codebase, 
 ## 2. Introduce automatic formatting and linting (this change)
 
 - [x] **Prettier for consistent formatting.** Add a repo-wide Prettier configuration and `npm run format` helper so files are easy to normalize after refactors.
-- [x] **ESLint for structural issues.** Configure ESLint with the Prettier bridge and a `npm run lint` script. The initial configuration targets our CommonJS code today but can be tightened as we migrate.
+- [x] **ESLint for structural issues.** Configure ESLint with the Prettier bridge and a `npm run lint` script. The configuration already targets our ESM sources and can now enable `import/*` rules to keep the surface tidy.
 - [ ] **CI integration.** Follow up by wiring the lint and format checks into the existing automation (e.g. GitHub Actions) so every PR gets signal automatically.
 
-## 3. Plan the CommonJS → ESM migration
+## 3. Preserve a pure ESM surface
 
-1. **Lock in the module strategy.**
-   - Standardize on Node's native `import`/`export` syntax by setting `"type": "module"` in `package.json`.
-   - Keep the legacy automation working by routing existing CommonJS entry points through the `.mjs` compatibility helper so both systems interoperate during the transition.
-   - Where external libraries still publish CommonJS, use `createRequire` as a narrow compatibility shim.
-2. **Split migration into layers.**
-   - Start with leaf utility modules in `src/utils` and `src/config`, rewrite `module.exports` → `export` and `require` → `import`.
-   - Migrate shared infrastructure (`src/openai`, `src/cli`), verifying Jest tests are updated to use dynamic `import()` when necessary.
-   - Finally update top level entry points (`index.js`, CLI bins) once all dependencies are ESM.
-3. **Update toolchain support.**
-   - Switch Jest to the ESM-aware configuration (`"type": "module"`, `transform` stubs, or migrate to `ts-jest` alternative) so the suite still runs.
-   - Enable ESLint's ESM parser mode (`sourceType: "module"`) and add `import/order` checks to keep imports tidy.
-4. **Validate and deprecate CommonJS exports.** Provide compatibility notes in the README for downstream consumers who may still rely on `require()`.
+1. **Document the baseline.**
+   - Keep the README and contributor docs explicit about the `"type": "module"` contract so newcomers default to `import`/`export` semantics.
+   - Highlight the lack of `.cjs` entry points and steer automation toward the ESM API from the outset.
+2. **Automate enforcement.**
+   - Add lint rules (e.g., `no-restricted-imports`, `import/no-commonjs`) that flag `require`, `module.exports`, or `createRequire` usages outside of quarantined experiments.
+   - Extend formatting or CI checks to ensure new files use the `.js` extension with ESM syntax and catch accidental `.cjs` additions.
+3. **Handle third-party interop carefully.**
+   - When a dependency only ships CommonJS, wrap it behind a dedicated ESM adaptor that hides the interop and prevents leakage into the public surface.
+   - Capture these shims in tests so future upgrades can replace them once upstream packages publish native ESM builds.
+4. **Retire legacy references.** Mark the `legacy/` tree as archival, drop references to CommonJS fallbacks from docs, and communicate that downstream consumers must now upgrade to ESM.
 
 ## 4. Tame the runtime structure
 
@@ -38,24 +36,24 @@ This roadmap captures a staged approach for cleaning up the OpenAgent codebase, 
 
 ## 5. Optional TypeScript adoption
 
-Once the module migration stabilises, consider introducing TypeScript (or JSDoc typedefs) for key subsystems. This enables richer editor tooling and can surface interface mismatches early.
+With the ESM baseline stable, consider introducing TypeScript (or JSDoc typedefs) for key subsystems. This enables richer editor tooling and can surface interface mismatches early.
 
 1. **Pilot on leaf modules.** Start by annotating `src/utils` with TypeScript or JSDoc types so that the build tooling remains close to plain JavaScript while developers gain type-checking signal.
 2. **Adopt incremental compilation.** Introduce `ts-node` or Babel-based transpilation only after the initial pilots demonstrate value. Keep the TypeScript configuration (`tsconfig.json`) minimal—`strict: true`, `checkJs: true`—to avoid churn.
 3. **Bridge Jest and ESLint.** Update the Jest configuration to understand `.ts` and `.cts` files and enable ESLint's TypeScript parser with rules that reinforce the new types without blocking mixed JS/TS code.
-4. **Document contributor expectations.** Publish guidelines for when to author new modules in TypeScript, how to handle declaration files, and how to migrate existing CommonJS tests.
+4. **Document contributor expectations.** Publish guidelines for when to author new modules in TypeScript, how to handle declaration files, and how to adapt existing JavaScript tests.
 
 ## 6. Rollout strategy
 
 1. Apply the tooling upgrades (formatting, lint) and document contributor expectations.
-2. Migrate utilities to ESM in small pull requests, running `npm run lint` + `npm test` to verify at each step.
+2. Audit utilities for stray compatibility shims in small pull requests, running `npm run lint` + `npm test` to verify the ESM contract at each step.
 3. Introduce the service classes progressively while keeping function APIs intact; update the agent loop only after the supporting classes exist.
 4. Clean up residual TODOs, remove unused code paths, and document the final architecture.
 
 ## 7. Observability and performance feedback loops
 
-1. **Instrument critical paths.** Add lightweight logging or metrics hooks around agent loop iterations, command execution, and OpenAI API interactions so regressions surface quickly during the migration.
-2. **Track performance baselines.** Capture baseline timings before each major refactor (module conversion, service extraction) and compare them post-change to avoid unintentional slowdowns.
+1. **Instrument critical paths.** Add lightweight logging or metrics hooks around agent loop iterations, command execution, and OpenAI API interactions so regressions surface quickly during ongoing modernization.
+2. **Track performance baselines.** Capture baseline timings before each major refactor (ESM hardening, service extraction) and compare them post-change to avoid unintentional slowdowns.
 3. **Automate regression detection.** Where feasible, integrate simple benchmarks or synthetic tasks into CI to guard against significant runtime regressions.
 
 ## 8. Change management and communication

@@ -294,7 +294,7 @@ STDOUT ______________
    * - `src/commands`, `src/cli`, and `src/config` supply focused utilities that the loop depends upon.
    */
 
-  require('dotenv').config();
+  import 'dotenv/config';
 
   const {
     getOpenAIClient,
@@ -343,11 +343,11 @@ STDOUT ______________
    * - Integration tests re-export the same function to run mocked scenarios.
    */
 
-  const chalk = require('chalk');
+  import chalk from 'chalk';
 
-  const { SYSTEM_PROMPT } = require('../config/systemPrompt');
-  const { getOpenAIClient, MODEL } = require('../openai/client');
-  const { startThinking, stopThinking } = require('../cli/thinking');
+  import { SYSTEM_PROMPT } from '../config/systemPrompt.js';
+  import { getOpenAIClient, MODEL } from '../openai/client.js';
+  import { startThinking, stopThinking } from '../cli/thinking.js';
   …
 
 
@@ -441,9 +441,8 @@ STDOUT ______________
    * - Tests mock these helpers through the root index re-exports.
    */
 
-  const readline = require('readline');
-  const { promisify } = require('util');
-  const chalk = require('chalk');
+  import * as readline from 'node:readline';
+  import chalk from 'chalk';
 
   function createInterface() {
     return readline.createInterface({
@@ -481,12 +480,14 @@ Runtime: 29ms
 Status: COMPLETED
 
 STDOUT ______________
-  src/agent/loop.js:const { createInterface, askHuman } = require('../cli/io');
-  src/agent/loop.js:  askHumanFn = askHuman,
-  src/agent/loop.js:        const userInput = await askHumanFn(rl, '\n ▷ ');
-  src/agent/loop.js:                const input = (await askHumanFn(rl, `
-  src/cli/io.js:async function askHuman(rl, prompt) {
+  src/cli/io.js:export async function askHuman(rl, prompt) {
   src/cli/io.js:  askHuman,
+  src/agent/loop.js:import { createInterface, askHuman, ESCAPE_EVENT } from '../cli/io.js';
+  src/agent/loop.js:  askHumanFn,
+  src/agent/loop.js:        await askHumanFn(
+  src/agent/loop.js:  askHumanFn = askHuman,
+  src/agent/loop.js:        const userInput = noHumanActive ? NO_HUMAN_AUTO_MESSAGE : await askHumanFn(rl, '\n ▷ ');
+  src/agent/loop.js:              askHumanFn,
 
 
 
@@ -965,7 +966,7 @@ STDOUT ______________
    * - Unit tests call `resetOpenAIClient()` via the root `index.js` re-export when they need a clean slate.
    */
 
-  const OpenAI = require('openai');
+  import OpenAI from 'openai';
 
   let memoizedClient = null;
 
