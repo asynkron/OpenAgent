@@ -29,10 +29,13 @@
 - New unit suites cover command execution, ESC waiters, and OpenAI request cancellation (`tests/unit/commandExecution.test.js`, `tests/unit/escState.test.js`, `tests/unit/openaiRequest.test.js`).
 - Integration coverage now exercises approval prompts (`tests/integration/approvalFlow.integration.test.js`).
 - Cancellation support aligns with findings in `docs/openai-cancellation.md`, giving ESC handling a solid foundation.
+- ESC-triggered aborts now have integration coverage (`tests/integration/agentCancellation.integration.test.js`) backed by
+  nested cancellation regression tests.
 
 ## Risks / Gaps
 
-- Built-in string quoting helpers (`escape_string`/`unescape_string`) still lack dedicated integration coverage.
+- Real shell executions remain sparsely covered in integration tests; mocked cancellation flows should be mirrored against
+  actual child process lifecycles.
 - Manual JSON parsing of model output pushes an observation on failure without retries/backoff.
 - Downstream consumers must use ESM `import()`; ensure release notes highlight the breaking change.
 
@@ -71,10 +74,13 @@
 - New unit suites cover command execution, ESC waiters, and OpenAI request cancellation (`tests/unit/commandExecution.test.js`, `tests/unit/escState.test.js`, `tests/unit/openaiRequest.test.js`).
 - Integration coverage now exercises approval prompts (`tests/integration/approvalFlow.integration.test.js`).
 - Cancellation support aligns with findings in `docs/openai-cancellation.md`, giving ESC handling a solid foundation.
+- ESC-triggered aborts now have integration coverage (`tests/integration/agentCancellation.integration.test.js`) backed by
+  nested cancellation regression tests.
 
 ## Risks / Gaps
 
-- Built-in string quoting helpers (`escape_string`/`unescape_string`) still lack dedicated integration coverage.
+- Real shell executions remain sparsely covered in integration tests; mocked cancellation flows should be mirrored against
+  actual child process lifecycles.
 - Manual JSON parsing of model output pushes an observation on failure without retries/backoff.
 - Downstream consumers must use ESM `import()`; ensure release notes highlight the breaking change.
 

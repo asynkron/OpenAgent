@@ -15,10 +15,11 @@
 
 - Integration tests validate agent loop approvals, read command dispatch, command stats persistence, and CLI wrappers for templates/shortcuts.
 - Unit tests cover editing utilities, cancellation manager, renderer language heuristics, and runCommand lifecycle.
+- ESC cancellation scenarios now have both integration coverage and nested cancellation regressions guarding the shared stack.
 
 ## Risks / Gaps
 
-- No coverage for new `escapeString`/`unescapeString` built-ins or browse helper edge cases.
+- Browse helper edge cases (non-GET verbs, custom headers) remain lightly exercised; keep extending HttpClient fixtures.
 - Integration tests rely on direct `process.exit`; failures could terminate the test runner abruptly if mocks fail.
 
 ## Related Context

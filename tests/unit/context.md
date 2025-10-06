@@ -8,7 +8,7 @@
 
 - `agentBuiltins.test.js`: verifies `read`/`browse` commands with quoted arguments route to correct runners.
 - `applyFileEdits.test.js`, `editText.test.js`: ensure positional edits behave and validate ranges.
-- `cancellation.test.js`: exercises stack-based cancellation semantics.
+- `cancellation.test.js`: exercises stack-based cancellation semantics, including nested cascades.
 - `renderLanguage.test.js`, `renderPlan.test.js`: guard CLI rendering edge cases.
 - `replaceCommand.test.js`, `runCommand.test.js`: verify replacement logic and process management.
 - `httpClient.test.js`: exercises fetch vs Node fallbacks, timeout aborts, and timeout resolution for the shared HTTP client.
@@ -22,7 +22,7 @@
 
 ## Risks / Gaps
 
-- Remaining gaps include `runBrowse` timeout handling and prompt builder behaviour; string quoting helpers now have dedicated coverage.
+- Remaining gaps include `runBrowse` timeout handling and prompt builder behaviour; cancellation still uses mocks instead of real child processes.
 - Some tests mock modules heavily, making them brittle when file paths or module boundaries shift.
 
 ## Related Context
