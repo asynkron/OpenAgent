@@ -15,7 +15,7 @@
 
 ## Positive Signals
 
-- Render helper offers rich summaries (e.g., read segments, stderr previews) that keep humans informed.
+- Render helper offers rich summaries (e.g., read segments, stderr previews) that keep humans informed and now reports file counts even when filters yield no output.
 - ESC listener integrates with cancellation manager via `cancelActive('esc-key')`.
 
 ## Risks / Gaps

@@ -313,7 +313,18 @@ export function renderCommand(command, result, output = {}) {
   const summaryLines = [];
 
   if (type === 'READ') {
-    const segments = parseReadSegments(output.stdout);
+    const filtersApplied = Boolean(command?.filter_regex || command?.tail_lines);
+    const spec = execution?.spec || command?.read || {};
+    const paths = collectReadPaths(spec);
+
+    let segments = parseReadSegments(output.stdout);
+    if (segments.length === 0 && !filtersApplied && result?.stdout) {
+      const fallbackSegments = parseReadSegments(result.stdout);
+      if (fallbackSegments.length > 0) {
+        segments = fallbackSegments;
+      }
+    }
+
     if (segments.length > 0) {
       const totalLines = segments.reduce((acc, item) => acc + item.lineCount, 0);
       summaryLines.push(
@@ -329,6 +340,15 @@ export function renderCommand(command, result, output = {}) {
         summaryLines.push(
           indentLine(`${label}: ${segment.lineCount} ${pluralize('line', segment.lineCount)}`),
         );
+      }
+    } else if (paths.length > 0) {
+      const fileCount = paths.length;
+      const baseMessage = filtersApplied
+        ? `No lines matched the applied filters across ${fileCount} ${pluralize('file', fileCount)}.`
+        : `Read 0 lines from ${fileCount} ${pluralize('file', fileCount)}.`;
+      summaryLines.push(arrowLine(baseMessage));
+      for (const label of paths) {
+        summaryLines.push(indentLine(`${label}: 0 lines`));
       }
     }
   } else if (type === 'EDIT' || type === 'REPLACE' || type === 'BROWSE') {

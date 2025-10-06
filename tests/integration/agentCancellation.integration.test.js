@@ -8,6 +8,34 @@ import {
 import { createTestRunnerUI } from './testRunnerUI.js';
 import { cancel as cancelActive } from '../../src/utils/cancellation.js';
 
+const PLAN_STEP_TITLES = {
+  gather: 'Review instructions and constraints',
+  execute: 'Run long command',
+};
+
+function buildPlan(statusGather, statusExecute) {
+  return [
+    { step: '1', title: PLAN_STEP_TITLES.gather, status: statusGather },
+    { step: '2', title: PLAN_STEP_TITLES.execute, status: statusExecute },
+  ];
+}
+
+function enqueueHandshakeResponse() {
+  queueModelResponse({
+    message: 'Handshake ready',
+    plan: buildPlan('running', 'pending'),
+    command: null,
+  });
+}
+
+function enqueueFollowUp(message, statusExecute) {
+  queueModelResponse({
+    message,
+    plan: buildPlan('completed', statusExecute),
+    command: null,
+  });
+}
+
 jest.setTimeout(20000);
 
 beforeEach(() => {
@@ -24,15 +52,11 @@ test('ESC cancellation aborts an in-flight command and surfaces UI feedback', as
   const { agent } = await loadAgentWithMockedModules();
   agent.STARTUP_FORCE_AUTO_APPROVE = true;
 
-  queueModelResponse({
-    message: 'Handshake ready',
-    plan: [],
-    command: null,
-  });
+  enqueueHandshakeResponse();
 
   queueModelResponse({
     message: 'Preparing to run command',
-    plan: [],
+    plan: buildPlan('completed', 'running'),
     command: {
       shell: 'bash',
       run: 'sleep 30',
@@ -41,11 +65,7 @@ test('ESC cancellation aborts an in-flight command and surfaces UI feedback', as
     },
   });
 
-  queueModelResponse({
-    message: 'Command canceled acknowledgement',
-    plan: [],
-    command: null,
-  });
+  enqueueFollowUp('Command canceled acknowledgement', 'completed');
 
   let cancelCurrentCommand;
   let cancelObserved = false;

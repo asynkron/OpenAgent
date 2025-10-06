@@ -7,6 +7,26 @@ import {
 } from './agentRuntimeTestHarness.js';
 import { createTestRunnerUI } from './testRunnerUI.js';
 
+const PLAN_STEP_TITLES = {
+  gather: 'Review instructions and constraints',
+  execute: 'Execute requested command',
+};
+
+function buildPlan(statusGather, statusExecute) {
+  return [
+    { step: '1', title: PLAN_STEP_TITLES.gather, status: statusGather },
+    { step: '2', title: PLAN_STEP_TITLES.execute, status: statusExecute },
+  ];
+}
+
+function enqueueHandshakeResponse() {
+  queueModelResponse({
+    message: 'Handshake',
+    plan: buildPlan('running', 'pending'),
+    command: null,
+  });
+}
+
 jest.setTimeout(20000);
 
 beforeEach(() => {
@@ -19,22 +39,22 @@ describe('Approval flow integration', () => {
 
     const { agent } = await loadAgentWithMockedModules();
 
-    queueModelResponse({
-      message: 'Handshake',
-      plan: [],
-      command: null,
-    });
+    enqueueHandshakeResponse();
 
     const firstPayload = {
       message: 'Needs approval',
-      plan: [],
+      plan: buildPlan('completed', 'running'),
       command: {
         run: 'echo "APPROVED"',
         cwd: '.',
         timeout_sec: 5,
       },
     };
-    const secondPayload = { message: 'Follow-up', plan: [], command: null };
+    const secondPayload = {
+      message: 'Follow-up',
+      plan: buildPlan('completed', 'completed'),
+      command: null,
+    };
 
     queueModelResponse(firstPayload);
     queueModelResponse(secondPayload);
@@ -75,22 +95,22 @@ describe('Approval flow integration', () => {
 
     const { agent } = await loadAgentWithMockedModules();
 
-    queueModelResponse({
-      message: 'Handshake',
-      plan: [],
-      command: null,
-    });
+    enqueueHandshakeResponse();
 
     const firstPayload = {
       message: 'Needs approval',
-      plan: [],
+      plan: buildPlan('completed', 'running'),
       command: {
         run: 'echo "SHOULD_NOT_RUN"',
         cwd: '.',
         timeout_sec: 5,
       },
     };
-    const secondPayload = { message: 'Alternative requested', plan: [], command: null };
+    const secondPayload = {
+      message: 'Alternative requested',
+      plan: buildPlan('completed', 'completed'),
+      command: null,
+    };
 
     queueModelResponse(firstPayload);
     queueModelResponse(secondPayload);
@@ -125,15 +145,11 @@ describe('Approval flow integration', () => {
 
     const { agent } = await loadAgentWithMockedModules();
 
-    queueModelResponse({
-      message: 'Handshake',
-      plan: [],
-      command: null,
-    });
+    enqueueHandshakeResponse();
 
     const preapprovedCommand = {
       message: 'Preapproved command incoming',
-      plan: [],
+      plan: buildPlan('completed', 'running'),
       command: {
         run: 'npm test',
         cwd: '.',
@@ -142,7 +158,11 @@ describe('Approval flow integration', () => {
     };
 
     queueModelResponse(preapprovedCommand);
-    queueModelResponse({ message: 'Follow-up', plan: [], command: null });
+    queueModelResponse({
+      message: 'Follow-up',
+      plan: buildPlan('completed', 'completed'),
+      command: null,
+    });
 
     const runCommandMock = jest.fn().mockResolvedValue({
       stdout: 'ok\n',

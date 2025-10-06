@@ -54,17 +54,16 @@ describe('renderPlan', () => {
 
       const outputs = logSpy.mock.calls.map((call) => call[0]);
 
-      expect(outputs.length).toBe(3);
-      expect(outputs[0]).toBe('');
-      expect(outputs[1]).toContain('Plan __');
+      expect(outputs.length).toBe(1);
 
-      const lines = outputs[2].split('\n');
-
-      expect(lines).toContain('✔ Step 1 - Root task');
-      expect(lines).toContain('  ▶ Step 1.1 - Nested work');
-      expect(lines).toContain('    • Step 1.1.1 - Leaf step');
-      expect(lines).toContain('  ✖ Step 1.a - Blocked child');
-      expect(lines).toContain('• Step 2 - Follow-up');
+      const lines = outputs[0].split('\n');
+      expect(lines).toEqual([
+        '✔ 1. Root task',
+        '  ▶ 1.1. Nested work',
+        '    • 1.1.1. Leaf step',
+        '  ✖ 1.a. Blocked child',
+        '• 2. Follow-up',
+      ]);
     } finally {
       logSpy.mockRestore();
     }
