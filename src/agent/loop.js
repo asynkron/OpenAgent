@@ -3,6 +3,9 @@
  * writing directly to the CLI.
  */
 
+import { mkdir, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+
 import { SYSTEM_PROMPT } from '../config/systemPrompt.js';
 import { getOpenAIClient, MODEL } from '../openai/client.js';
 import {
@@ -30,6 +33,7 @@ import { performInitialHandshake } from './handshake.js';
 import { AsyncQueue, QUEUE_DONE } from '../utils/asyncQueue.js';
 import { cancel as cancelActive } from '../utils/cancellation.js';
 import { PromptCoordinator } from './promptCoordinator.js';
+import { mergePlanTrees, planToMarkdown } from '../utils/plan.js';
 
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 const PLAN_PENDING_REMINDER =
@@ -62,6 +66,47 @@ export function createAgentRuntime({
 } = {}) {
   const outputs = new AsyncQueue();
   const inputs = new AsyncQueue();
+
+  const planDirectoryPath = resolve(process.cwd(), '.openagent');
+  const planFilePath = resolve(planDirectoryPath, 'todo.md');
+  let activePlan = [];
+
+  const persistPlanSnapshot = async () => {
+    try {
+      await mkdir(planDirectoryPath, { recursive: true });
+      const snapshot = planToMarkdown(activePlan);
+      await writeFile(planFilePath, snapshot, 'utf8');
+    } catch (error) {
+      outputs.push({
+        type: 'status',
+        level: 'warn',
+        message: 'Failed to persist plan snapshot to .openagent/todo.md.',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+
+  const planManager = {
+    get() {
+      return mergePlanTrees([], activePlan);
+    },
+    async update(nextPlan) {
+      if (!Array.isArray(nextPlan) || nextPlan.length === 0) {
+        activePlan = [];
+      } else if (activePlan.length === 0) {
+        activePlan = mergePlanTrees([], nextPlan);
+      } else {
+        activePlan = mergePlanTrees(activePlan, nextPlan);
+      }
+
+      await persistPlanSnapshot();
+      return mergePlanTrees([], activePlan);
+    },
+    async initialize() {
+      await persistPlanSnapshot();
+      return mergePlanTrees([], activePlan);
+    },
+  };
 
   const { state: escState, trigger: triggerEsc, detach: detachEscListener } = createEscState();
   const promptCoordinator = new PromptCoordinator({
@@ -145,6 +190,8 @@ export function createAgentRuntime({
     running = true;
     inputProcessorPromise = processInputEvents();
 
+    await planManager.initialize();
+
     emit({ type: 'banner', title: 'OpenAgent - AI Agent with JSON Protocol' });
     emit({ type: 'status', level: 'info', message: 'Submit prompts to drive the conversation.' });
     if (getAutoApproveFlag()) {
@@ -193,6 +240,7 @@ export function createAgentRuntime({
         escState,
         approvalManager,
         historyCompactor,
+        planManager,
       });
 
       while (true) {
@@ -244,6 +292,7 @@ export function createAgentRuntime({
               escState,
               approvalManager,
               historyCompactor,
+              planManager,
             });
 
             continueLoop = shouldContinue;

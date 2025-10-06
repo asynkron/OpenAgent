@@ -27,6 +27,7 @@
   2. `approvalManager.js` determines whether a proposed command can run automatically or needs a human decision.
   3. `commandExecution.js` executes built-ins before shell commands and returns structured execution metadata.
 - After every pass, `observationBuilder.js` converts command output into both CLI previews and history observations so the next model call has the right context.
+- `loop.js` maintains an active plan manager that merges partial LLM plan updates, emits the merged outline to UIs, and writes a snapshot to `.openagent/todo.md` at repo root so humans can inspect the current plan.
 - Integration suites mock `openaiRequest.js` to enqueue deterministic completions, reflecting the module boundaries introduced by this architecture.
 
 ## Positive Signals

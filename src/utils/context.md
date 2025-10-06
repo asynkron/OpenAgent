@@ -9,7 +9,7 @@
 - `asyncQueue.js`: exposes the `AsyncQueue` class (with a compatibility factory) used to shuttle events between the agent loop and UIs.
 - `cancellation.js`: stack-based cancellation manager enabling ESC-triggered aborts and nested operations.
 - `output.js`: merges stdout/stderr and provides preview builders used when rendering command results.
-- `plan.js`: supplies plan inspection helpers (e.g., `planHasOpenSteps`).
+- `plan.js`: supplies plan inspection helpers (e.g., `planHasOpenSteps`) plus merge/serialization utilities that keep the active plan snapshot in sync with `.openagent/todo.md`.
 - `text.js`: regex filtering, tailing, truncation, and lightweight shell argument splitting.
 - `contextUsage.js`: estimates token usage/remaining context for the current conversation history.
 - `jsonAssetValidator.js`: shared helpers for JSON schema validation and prompt copy synchronization checks.

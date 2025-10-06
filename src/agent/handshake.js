@@ -28,6 +28,7 @@ export async function performInitialHandshake({
   approvalManager,
   historyCompactor,
   logger = { error: () => {} },
+  planManager,
 }) {
   if (!Array.isArray(history)) {
     throw new Error('Handshake requires a mutable history array');
@@ -74,6 +75,7 @@ export async function performInitialHandshake({
       escState,
       approvalManager,
       historyCompactor,
+      planManager,
     });
   } catch (error) {
     stopThinkingFn?.();
