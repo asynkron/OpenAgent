@@ -11,8 +11,11 @@
     },
     "./package.json": "./package.json"
   },
+  "bin": {
+    "openagent": "./bin/openagent.js"
+  },
   "scripts": {
-    "start": "node index.js",
+    "start": "node ./bin/openagent.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "lint": "eslint .",
     "format": "prettier --write .",

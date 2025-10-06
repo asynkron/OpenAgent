@@ -10,6 +10,7 @@
 - `render.js`: Markdown-based renderer for plans/messages/command summaries.
 - `thinking.js`: spinner that displays elapsed time while awaiting API responses.
 - `status.js`: prints transient status lines such as the remaining context window before issuing model requests.
+- `runner.js`: parses CLI arguments, forwards template/shortcut subcommands, and launches the agent loop.
 
 ## Positive Signals
 

@@ -37,7 +37,7 @@ STDOUT ______________
    * - Feed execution results back to the model to continue the workflow.
    *
    * Consumers:
-   * - Root `index.js` creates a configured loop via `createAgentLoop()` and exposes it as `agentLoop`.
+   * - Library entry `src/lib/index.js` creates a configured loop via `createAgentLoop()` and exposes it as `agentLoop`.
    * - Integration tests re-export the same function to run mocked scenarios.
    */
 
@@ -178,13 +178,13 @@ To exit, type `exit` or `quit` at any prompt.
 ## Templates & Shortcuts
 
 - **Command templates** in `templates/command-templates.json`:
-  - List: `node index.js templates list`
-  - Show: `node index.js templates show <id>`
-  - Render: `node index.js templates render <id> '{"var":"value"}'`
+  - List: `npx openagent templates list` (or `node ./bin/openagent.js templates list`)
+  - Show: `npx openagent templates show <id>`
+  - Render: `npx openagent templates render <id> '{"var":"value"}'`
 - **Shortcuts** in `shortcuts/shortcuts.json`:
-  - List: `node index.js shortcuts list`
-  - Show: `node index.js shortcuts show <id>`
-  - Run (prints command): `node index.js shortcuts run <id>`
+  - List: `npx openagent shortcuts list`
+  - Show: `npx openagent shortcuts show <id>`
+  - Run (prints command): `npx openagent shortcuts run <id>`
 
 ## Safety
 
