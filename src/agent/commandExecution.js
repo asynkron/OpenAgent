@@ -1,6 +1,44 @@
 import { parseReadSpecTokens, mergeReadSpecs } from '../commands/readSpec.js';
 import { shellSplit } from '../utils/text.js';
 
+const DEFAULT_TIMEOUT_SEC = 60;
+
+function buildReadResult({ result, spec }) {
+  return {
+    result,
+    executionDetails: { type: 'READ', spec },
+  };
+}
+
+function buildErrorResult(message) {
+  return {
+    stdout: '',
+    stderr: message,
+    exit_code: 1,
+    killed: false,
+    runtime_ms: 0,
+  };
+}
+
+async function runRead({
+  baseSpec = {},
+  tokenSpec = {},
+  cwd,
+  runReadFn,
+}) {
+  const mergedSpec = mergeReadSpecs(baseSpec, tokenSpec);
+
+  if (!mergedSpec.path) {
+    return buildReadResult({
+      result: buildErrorResult('read command requires a path argument'),
+      spec: mergedSpec,
+    });
+  }
+
+  const result = await runReadFn(mergedSpec, cwd);
+  return buildReadResult({ result, spec: mergedSpec });
+}
+
 export async function executeAgentCommand({
   command,
   runCommandFn,
@@ -11,78 +49,93 @@ export async function executeAgentCommand({
   runEscapeStringFn,
   runUnescapeStringFn,
 }) {
-  let result;
-  let executionDetails = { type: 'EXECUTE', command };
+  const normalizedCommand = command || {};
+  const cwd = normalizedCommand.cwd || '.';
+  const timeout =
+    typeof normalizedCommand.timeout_sec === 'number'
+      ? normalizedCommand.timeout_sec
+      : DEFAULT_TIMEOUT_SEC;
 
-  if (command?.edit) {
-    result = await runEditFn(command.edit, command.cwd || '.');
-    executionDetails = { type: 'EDIT', spec: command.edit };
+  if (normalizedCommand.edit) {
+    const result = await runEditFn(normalizedCommand.edit, cwd);
+    return { result, executionDetails: { type: 'EDIT', spec: normalizedCommand.edit } };
   }
 
-  if (typeof result === 'undefined' && command?.read) {
-    result = await runReadFn(command.read, command.cwd || '.');
-    executionDetails = { type: 'READ', spec: command.read };
+  if (normalizedCommand.escape_string) {
+    const result = await runEscapeStringFn(normalizedCommand.escape_string, cwd);
+    return {
+      result,
+      executionDetails: { type: 'ESCAPE_STRING', spec: normalizedCommand.escape_string },
+    };
   }
 
-  if (typeof result === 'undefined' && command?.escape_string) {
-    result = await runEscapeStringFn(command.escape_string, command.cwd || '.');
-    executionDetails = { type: 'ESCAPE_STRING', spec: command.escape_string };
+  if (normalizedCommand.unescape_string) {
+    const result = await runUnescapeStringFn(normalizedCommand.unescape_string, cwd);
+    return {
+      result,
+      executionDetails: { type: 'UNESCAPE_STRING', spec: normalizedCommand.unescape_string },
+    };
   }
 
-  if (typeof result === 'undefined' && command?.unescape_string) {
-    result = await runUnescapeStringFn(command.unescape_string, command.cwd || '.');
-    executionDetails = { type: 'UNESCAPE_STRING', spec: command.unescape_string };
+  if (normalizedCommand.replace) {
+    const result = await runReplaceFn(normalizedCommand.replace, cwd);
+    return { result, executionDetails: { type: 'REPLACE', spec: normalizedCommand.replace } };
   }
 
-  if (typeof result === 'undefined' && command?.replace) {
-    result = await runReplaceFn(command.replace, command.cwd || '.');
-    executionDetails = { type: 'REPLACE', spec: command.replace };
-  }
+  const runValue =
+    typeof normalizedCommand.run === 'string' ? normalizedCommand.run.trim() : '';
 
-  if (typeof result === 'undefined') {
-    const runStrRaw = typeof command?.run === 'string' ? command.run : '';
-    const runStr = runStrRaw.trim();
+  if (runValue) {
+    const tokens = shellSplit(runValue);
+    const keyword = tokens[0]?.toLowerCase() || '';
 
-    if (runStr) {
-      const tokens = shellSplit(runStr);
-      const commandKeyword = tokens[0] ? tokens[0].toLowerCase() : '';
+    if (keyword === 'browse') {
+      const target = tokens.slice(1).join(' ').trim();
 
-      if (commandKeyword === 'browse') {
-        const target = tokens.slice(1).join(' ').trim();
-        if (target) {
-          result = await runBrowseFn(target, command.timeout_sec ?? 60);
-          executionDetails = { type: 'BROWSE', target };
-        }
-      } else if (commandKeyword === 'read') {
-        const readTokens = tokens.slice(1);
-        const specFromTokens = parseReadSpecTokens(readTokens);
-        const mergedSpec = mergeReadSpecs(command.read || {}, specFromTokens);
-
-        if (mergedSpec.path) {
-          result = await runReadFn(mergedSpec, command.cwd || '.');
-          executionDetails = { type: 'READ', spec: mergedSpec };
-        } else {
-          result = {
-            stdout: '',
-            stderr: 'read command requires a path argument',
-            exit_code: 1,
-            killed: false,
-            runtime_ms: 0,
-          };
-        }
+      if (!target) {
+        const result = buildErrorResult('browse command requires a URL argument');
+        return { result, executionDetails: { type: 'BROWSE', target: '' } };
       }
+
+      const result = await runBrowseFn(target, timeout);
+      return { result, executionDetails: { type: 'BROWSE', target } };
     }
 
-    if (typeof result === 'undefined') {
-      result = await runCommandFn(
-        command?.run,
-        command?.cwd || '.',
-        command?.timeout_sec ?? 60,
-        command?.shell,
-      );
-      executionDetails = { type: 'EXECUTE', command };
+    if (keyword === 'read') {
+      const tokenSpec = parseReadSpecTokens(tokens.slice(1));
+      const baseSpec =
+        normalizedCommand.read && typeof normalizedCommand.read === 'object'
+          ? normalizedCommand.read
+          : {};
+
+      const readResult = await runRead({
+        baseSpec,
+        tokenSpec,
+        cwd,
+        runReadFn,
+      });
+
+      return readResult;
     }
   }
 
-  return { result, executionDetails };
+  if (normalizedCommand.read) {
+    const baseSpec =
+      typeof normalizedCommand.read === 'object' ? normalizedCommand.read : {};
+    const readResult = await runRead({ baseSpec, tokenSpec: {}, cwd, runReadFn });
+    return readResult;
+  }
+
+  const result = await runCommandFn(
+    normalizedCommand.run,
+    cwd,
+    timeout,
+    normalizedCommand.shell,
+  );
+
+  return { result, executionDetails: { type: 'EXECUTE', command: normalizedCommand } };
 }
+
+export default {
+  executeAgentCommand,
+};

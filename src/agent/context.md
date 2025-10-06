@@ -8,6 +8,7 @@
 
 - `loop.js`: wires the CLI dependencies, manages readline/ESC state, and delegates each pass to `passExecutor.js`.
 - `passExecutor.js`: performs an agent pass (OpenAI request, JSON parsing, plan updates, approvals, command execution, observation logging).
+- `commandExecution.js`: routes assistant commands to the correct runner (edit/read/browse/escape/etc.) and ensures built-ins are interpreted before falling back to shell execution.
 
 ## Positive Signals
 

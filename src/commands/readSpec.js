@@ -106,15 +106,15 @@ function mergeReadSpecs(base, override) {
   }
 
   if (override && typeof override === 'object') {
-    if (override.encoding && merged.encoding === undefined) {
+    if (override.encoding) {
       merged.encoding = override.encoding;
     }
 
-    if (typeof override.max_lines === 'number' && merged.max_lines === undefined) {
+    if (typeof override.max_lines === 'number') {
       merged.max_lines = override.max_lines;
     }
 
-    if (typeof override.max_bytes === 'number' && merged.max_bytes === undefined) {
+    if (typeof override.max_bytes === 'number') {
       merged.max_bytes = override.max_bytes;
     }
   }
