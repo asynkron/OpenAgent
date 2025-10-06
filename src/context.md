@@ -14,6 +14,7 @@
 - `config/`: system prompt discovery and workspace metadata.
 - `openai/`: memoized OpenAI client factory.
 - `shortcuts/`, `templates/`: CLI facades for auxiliary commands.
+- `ui/`: transport-agnostic UI bindings (e.g., WebSocket adapters) for the runtime.
 - `utils/`: cancellation manager, text helpers, output combiner.
 
 ## Positive Signals

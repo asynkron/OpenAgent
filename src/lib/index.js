@@ -50,6 +50,7 @@ import {
 import { createAgentLoop, createAgentRuntime, extractResponseText } from '../agent/loop.js';
 import { loadTemplates, renderTemplateCommand, handleTemplatesCli } from '../templates/cli.js';
 import { loadShortcutsFile, findShortcut, handleShortcutsCli } from '../shortcuts/cli.js';
+import { createWebSocketUi } from '../ui/websocket.js';
 import {
   setStartupFlags,
   parseStartupFlagsFromArgv,
@@ -99,6 +100,7 @@ export {
   createAgentLoop,
   createAgentRuntime,
   extractResponseText,
+  createWebSocketUi,
   loadTemplates,
   renderTemplateCommand,
   handleTemplatesCli,
@@ -154,6 +156,7 @@ const exported = {
   createAgentLoop,
   createAgentRuntime,
   extractResponseText,
+  createWebSocketUi,
   loadTemplates,
   renderTemplateCommand,
   handleTemplatesCli,
