@@ -4,7 +4,18 @@ This guide explains how the automated GitHub Actions workflow ships the `openage
 
 ## 1. Automated release pipeline
 
-We publish via `.github/workflows/publish.yml`. The workflow can be triggered in two ways:
+Two workflows collaborate to ship a release:
+
+1. `.github/workflows/auto-release.yml` runs on every push to `main`. It bumps the version with `npm version minor`, pushes the
+   commit and tag, then creates (or reuses) a GitHub Release for that tag.
+2. `.github/workflows/publish.yml` reacts to the published release event and performs the npm publish.
+
+Because of this split, **a push to `main` by itself does not talk to npm**. It only prepares the release; npm publication occurs
+once the Release is published (either by the auto-release workflow or manually). If the tag already has a Release, the
+auto-release workflow logs "Release vX.Y.Z already exists" and skips creation, so the publish workflow will not fire again
+unless you manually rerun it via the `workflow_dispatch` input described below.
+
+The publish workflow can be triggered in two ways:
 
 1. **Release event** – create a GitHub Release whose tag matches the package version (for example, `v2.1.0`). Once the release is published the workflow runs automatically.
 2. **Manual dispatch** – run the workflow from the *Actions* tab and provide the tag (e.g. `v2.1.0`). Useful for dry runs or re-publishing a failed release after fixing infrastructure issues.
@@ -35,6 +46,22 @@ The publish workflow enforces an extra guardrail by running `npm run release:ver
 5. Publishes to npm using the `NPM_TOKEN` secret.
 
 If any step fails the publish halts, keeping the release from reaching npm.
+
+### Troubleshooting publish failures
+
+Publishing can fail even when the workflow runs to completion. Common causes include:
+
+- **403 Forbidden from npm** – The `NPM_TOKEN` lacks permission to publish the `openagent` package. Confirm the token belongs to
+  an npm account that is listed as a maintainer (`npm access ls-packages <user>`), or generate a fresh automation token from the
+  correct org and update the `NPM_TOKEN` secret. GitHub Actions only authenticates to npm with this token—being a repo admin is
+  not enough.
+- **Tag/version mismatch** – `npm run release:verify-tag -- <tag>` fails when the git tag (for example `v2.2.0`) does not match
+  `package.json`. Re-run `npm version` to regenerate the correct commit and tag.
+- **Registry connectivity issues** – npm downtime or networking problems surface as `ETIMEDOUT`/`EAI_AGAIN` errors. Re-run the
+  workflow once npm status is green.
+
+All npm command output is captured in the workflow logs. When `npm publish` fails it writes the full log path (for example
+`/home/runner/.npm/_logs/...-debug-0.log`); download that artifact for line-by-line details.
 
 ## 2. Manual publish (fallback)
 

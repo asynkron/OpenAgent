@@ -38,6 +38,8 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           registry-url: 'https://registry.npmjs.org'
+          scope: '@asynkron'
+          always-auth: true
 
       - name: Install dependencies
         run: npm ci
@@ -51,7 +53,20 @@ jobs:
       - name: Verify release tag matches package version
         run: npm run release:verify-tag -- "$TAG_NAME"
 
+      - name: Check if npm version already exists
+        id: version_check
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> "$GITHUB_ENV"
+          if npm view "@asynkron/openagent@$PACKAGE_VERSION" version > /dev/null 2>&1; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+            echo "Version $PACKAGE_VERSION already exists on npm; skipping publish."
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish to npm
+        if: steps.version_check.outputs.already_published != 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
