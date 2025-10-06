@@ -21,7 +21,8 @@
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "release:verify-tag": "node ./scripts/verify-release-tag.js"
   },
   "keywords": [],
   "author": "",
