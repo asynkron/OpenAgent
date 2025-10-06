@@ -44,9 +44,43 @@ comments are for you, not to be included in your response:
 }
 ```
 
-If you have an active plan, do not stop and handover to the user until all steps are completed. or, if you have no active plan, respond with a message and no command.
+### Invalid states
 
-## Planning
+```json
+{
+    //no message, no plan, no command
+}
+```
+
+```json
+{
+    "message": "You have an active plan, but no command to execute next. This is invalid.",
+    "plan": [/* with one or more non completed steps */],
+    "command": null
+}
+```
+
+```json
+{
+    "message": "You have no active plan, but a command to execute next. This is invalid.",
+    "plan": [],
+    "command": { /*...*/ }
+}
+```
+
+```json
+{
+    "message": "You have an active plan, but the next step is not marked as 'running'. This is invalid.",
+    "plan": [/*...*/],
+    "command": { /*...*/ }
+}
+```
+
+### Plan size
+
+- The plan must not exceed 3 top-level steps. If the task is complex, break it down into smaller tasks.
+
+### Planning
 
 - When given a task, try to have a plan that is as detailed as possible, and that covers all aspects of the task.
 - If the task is complex, break it down into smaller steps, and include a "plan" in your response.

@@ -7,6 +7,34 @@ import {
 } from './agentRuntimeTestHarness.js';
 import { createTestRunnerUI } from './testRunnerUI.js';
 
+const PLAN_STEP_TITLES = {
+  gather: 'Review instructions and constraints',
+  transform: 'Process string transformation',
+};
+
+function buildPlan(statusGather, statusTransform) {
+  return [
+    { step: '1', title: PLAN_STEP_TITLES.gather, status: statusGather },
+    { step: '2', title: PLAN_STEP_TITLES.transform, status: statusTransform },
+  ];
+}
+
+function enqueueHandshakeResponse() {
+  queueModelResponse({
+    message: 'Handshake',
+    plan: buildPlan('running', 'pending'),
+    command: null,
+  });
+}
+
+function enqueueFollowUp(message = 'Follow-up') {
+  queueModelResponse({
+    message,
+    plan: buildPlan('completed', 'completed'),
+    command: null,
+  });
+}
+
 jest.setTimeout(20000);
 
 beforeEach(() => {
@@ -19,24 +47,16 @@ test('runtime delegates escape_string command to runEscapeString', async () => {
   const { agent } = await loadAgentWithMockedModules();
   agent.STARTUP_FORCE_AUTO_APPROVE = true;
 
-  queueModelResponse({
-    message: 'Handshake',
-    plan: [],
-    command: null,
-  });
+  enqueueHandshakeResponse();
   queueModelResponse({
     message: 'Mocked escape command',
-    plan: [],
+    plan: buildPlan('completed', 'running'),
     command: {
       escape_string: { text: 'Needs escaping"\n' },
       cwd: '.',
     },
   });
-  queueModelResponse({
-    message: 'Follow-up',
-    plan: [],
-    command: null,
-  });
+  enqueueFollowUp();
 
   const runEscapeStringMock = jest.fn().mockResolvedValue({
     stdout: '"Needs escaping\\"\\n"',
@@ -69,24 +89,16 @@ test('runtime delegates unescape_string command to runUnescapeString', async () 
   const { agent } = await loadAgentWithMockedModules();
   agent.STARTUP_FORCE_AUTO_APPROVE = true;
 
-  queueModelResponse({
-    message: 'Handshake',
-    plan: [],
-    command: null,
-  });
+  enqueueHandshakeResponse();
   queueModelResponse({
     message: 'Mocked unescape command',
-    plan: [],
+    plan: buildPlan('completed', 'running'),
     command: {
       unescape_string: { text: '"hello\\nworld"' },
       cwd: '.',
     },
   });
-  queueModelResponse({
-    message: 'Follow-up',
-    plan: [],
-    command: null,
-  });
+  enqueueFollowUp();
 
   const runUnescapeStringMock = jest.fn().mockResolvedValue({
     stdout: 'hello\nworld',

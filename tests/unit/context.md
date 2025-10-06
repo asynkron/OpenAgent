@@ -9,7 +9,7 @@
 - `agentBuiltins.test.js`: verifies `read`/`browse` commands with quoted arguments route to correct runners.
 - `applyFileEdits.test.js`, `editText.test.js`: ensure positional edits behave and validate ranges.
 - `cancellation.test.js`: exercises stack-based cancellation semantics, including nested cascades.
-- `renderLanguage.test.js`, `renderPlan.test.js`: guard CLI rendering edge cases.
+- `renderLanguage.test.js`, `renderPlan.test.js`: guard CLI rendering edge cases, including the status-icon format from the refreshed plan renderer.
 - `replaceCommand.test.js`, `runCommand.test.js`: verify replacement logic and process management.
 - `httpClient.test.js`: exercises fetch vs Node fallbacks, timeout aborts, and timeout resolution for the shared HTTP client.
 - `index.test.js`, `esmEntry.test.js`: confirm root exports and ESM package surface remain intact.

@@ -8,7 +8,7 @@
 
 - `agentLoop.integration.test.js`: verifies the loop executes a mocked command, honours auto-approve, and closes readline.
 - `agentRead.integration.test.js`: ensures read commands dispatch through `runRead` instead of shell execution.
-- `approvalFlow.integration.test.js`: covers human approval prompts (approve once vs reject) and auto-approval of preapproved commands before execution.
+- `approvalFlow.integration.test.js`: covers human approval prompts (approve once vs reject) and auto-approval of preapproved commands before execution; harness now seeds plan statuses so the loop exercises the multi-pass flow introduced with the refreshed plan renderer.
 - `commandEdit.integration.test.js`: uses real filesystem writes to confirm `applyFileEdits` behaviour.
 - `cmdStats.integration.test.js`: validates command usage stats stored under XDG data dirs.
 - `agentCancellation.integration.test.js`: drives an ESC-triggered cancel to verify UI requests unwind command execution.
