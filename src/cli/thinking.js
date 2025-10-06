@@ -30,7 +30,9 @@ export function formatElapsedTime(startTime, now = Date.now()) {
 export function startThinking() {
   if (intervalHandle) return;
   animationStart = Date.now();
-  const frames = ['Thinking.  ', 'Thinking.. ', 'Thinking...'];
+  // Unicode braille spinner frames requested for the waiting animation.
+  const frames = ['⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏', '⠋'];
+  const label = ' Thinking';
   let i = 0;
   process.stdout.write('\n');
   intervalHandle = setInterval(() => {
@@ -38,7 +40,7 @@ export function startThinking() {
       const elapsed = formatElapsedTime(animationStart);
       readline.clearLine(process.stdout, 0);
       readline.cursorTo(process.stdout, 0);
-      process.stdout.write(chalk.dim(frames[i] + ' (' + elapsed + ')'));
+      process.stdout.write(chalk.dim(frames[i] + label + ' (' + elapsed + ')'));
       i = (i + 1) % frames.length;
     } catch (err) {
       // Ignore TTY issues silently.
