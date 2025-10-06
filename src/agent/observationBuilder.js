@@ -25,13 +25,7 @@
  * Formats command execution results for rendering and observation reporting.
  */
 export class ObservationBuilder {
-  constructor({
-    combineStdStreams,
-    applyFilter,
-    tailLines,
-    buildPreview,
-    now,
-  }) {
+  constructor({ combineStdStreams, applyFilter, tailLines, buildPreview, now }) {
     if (typeof combineStdStreams !== 'function') {
       throw new TypeError('ObservationBuilder requires a combineStdStreams function.');
     }
@@ -85,9 +79,9 @@ export class ObservationBuilder {
     const truncated = Boolean(
       (command.filter_regex &&
         (combined.stdout !== filteredStdout || combined.stderr !== filteredStderr)) ||
-      (command.tail_lines &&
-        (this.#lineCount(originalStdout) > command.tail_lines ||
-          this.#lineCount(originalStderr) > command.tail_lines))
+        (command.tail_lines &&
+          (this.lineCount(originalStdout) > command.tail_lines ||
+            this.lineCount(originalStderr) > command.tail_lines)),
     );
 
     const observation = {
@@ -134,7 +128,7 @@ export class ObservationBuilder {
     };
   }
 
-  #lineCount(text) {
+  lineCount(text) {
     if (text === undefined || text === null || text === '') {
       return 0;
     }

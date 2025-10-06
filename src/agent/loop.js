@@ -27,9 +27,8 @@ import {
   runEscapeString,
   runUnescapeString,
 } from '../commands/run.js';
-import { parseReadSpecTokens, mergeReadSpecs } from '../commands/readSpec.js';
 import { planHasOpenSteps } from '../utils/plan.js';
-import { applyFilter, tailLines, shellSplit } from '../utils/text.js';
+import { applyFilter, tailLines } from '../utils/text.js';
 import {
   isPreapprovedCommand,
   isSessionApproved,
@@ -39,43 +38,13 @@ import {
 import { incrementCommandCount } from '../commands/commandStats.js';
 import { combineStdStreams, buildPreview } from '../utils/output.js';
 import ObservationBuilder from './observationBuilder.js';
-import { register as registerCancellation } from '../utils/cancellation.js';
+import { requestModelCompletion } from './openaiRequest.js';
+import { ensureCommandApproval } from './commandApproval.js';
+import { executeAgentCommand } from './commandExecution.js';
 
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 const PLAN_PENDING_REMINDER =
   'There are open tasks in the plan. Do you need help or more info? If not, please continue working.';
-function createEscWaiter(escState) {
-  if (!escState || typeof escState !== 'object') {
-    return { promise: null, cleanup: () => {} };
-  }
-
-  if (escState.triggered) {
-    return {
-      promise: Promise.resolve(escState.payload ?? null),
-      cleanup: () => {},
-    };
-  }
-
-  if (!escState.waiters || typeof escState.waiters.add !== 'function') {
-    return { promise: null, cleanup: () => {} };
-  }
-
-  let resolver;
-  const promise = new Promise((resolve) => {
-    resolver = (payload) => resolve(payload ?? null);
-  });
-
-  escState.waiters.add(resolver);
-
-  const cleanup = () => {
-    if (resolver && escState.waiters && typeof escState.waiters.delete === 'function') {
-      escState.waiters.delete(resolver);
-    }
-  };
-
-  return { promise, cleanup };
-}
-
 export function extractResponseText(response) {
   if (!response || typeof response !== 'object') {
     return '';
@@ -135,8 +104,6 @@ async function executeAgentPass({
   stopThinkingFn,
   escState,
 }) {
-  const { promise: escPromise, cleanup: cleanupEscWaiter } = createEscWaiter(escState);
-
   const observationBuilder = new ObservationBuilder({
     combineStdStreams,
     applyFilter: applyFilterFn,
@@ -144,110 +111,22 @@ async function executeAgentPass({
     buildPreview,
   });
 
-  startThinkingFn();
-  const controller = typeof AbortController === 'function' ? new AbortController() : null;
-  const cancellationOp = registerCancellation({
-    description: 'openai.responses.create',
-    onCancel: controller ? () => controller.abort() : null,
+  const completionResult = await requestModelCompletion({
+    openai,
+    model,
+    history,
+    observationBuilder,
+    escState,
+    startThinkingFn,
+    stopThinkingFn,
+    setNoHumanFlag,
   });
 
-  const requestParams = {
-    model,
-    input: history,
-    text: {
-      format: { type: 'json_object' },
-    },
-  };
-  const requestOptions = controller ? { signal: controller.signal } : undefined;
-  const requestPromise = openai.responses.create(requestParams, requestOptions);
-
-  let completion;
-
-  try {
-    const raceCandidates = [requestPromise.then((value) => ({ kind: 'completion', value }))];
-
-    if (escPromise) {
-      raceCandidates.push(escPromise.then((payload) => ({ kind: 'escape', payload })));
-    }
-
-    const outcome = await Promise.race(raceCandidates);
-
-    if (outcome.kind === 'escape') {
-      if (cancellationOp && typeof cancellationOp.cancel === 'function') {
-        cancellationOp.cancel('esc-key');
-      }
-
-      await requestPromise.catch((error) => {
-        if (!error) return null;
-        if (error.name === 'APIUserAbortError') return null;
-        if (typeof error.message === 'string' && error.message.includes('aborted')) {
-          return null;
-        }
-        throw error;
-      });
-
-      if (escState) {
-        escState.triggered = false;
-        escState.payload = null;
-      }
-
-      console.log(chalk.yellow('Operation canceled via ESC key.'));
-
-      if (typeof setNoHumanFlag === 'function') {
-        setNoHumanFlag(false);
-      }
-
-      const observation = observationBuilder.buildCancellationObservation({
-        reason: 'escape_key',
-        message: 'Human pressed ESC to cancel the in-flight request.',
-        metadata: { esc_payload: outcome.payload ?? null },
-      });
-
-      history.push({ role: 'user', content: JSON.stringify(observation) });
-      return false;
-    }
-
-    completion = outcome.value;
-  } catch (error) {
-    if (
-      error &&
-      (error.name === 'APIUserAbortError' ||
-        (typeof error.message === 'string' && error.message.includes('aborted')))
-    ) {
-      if (escState) {
-        escState.triggered = false;
-        escState.payload = null;
-      }
-
-      console.log(chalk.yellow('Operation canceled.'));
-
-      if (typeof setNoHumanFlag === 'function') {
-        setNoHumanFlag(false);
-      }
-
-      const observation = observationBuilder.buildCancellationObservation({
-        reason: 'abort',
-        message: 'The in-flight request was aborted before completion.',
-      });
-
-      history.push({ role: 'user', content: JSON.stringify(observation) });
-      return false;
-    }
-
-    throw error;
-  } finally {
-    cleanupEscWaiter();
-    if (cancellationOp && typeof cancellationOp.unregister === 'function') {
-      cancellationOp.unregister();
-    }
-    stopThinkingFn();
+  if (completionResult.status === 'canceled') {
+    return false;
   }
 
-  if (escState) {
-    escState.triggered = false;
-    escState.payload = null;
-  }
-
+  const { completion } = completionResult;
   const responseContent = extractResponseText(completion);
 
   if (!responseContent) {
@@ -270,7 +149,9 @@ async function executeAgentPass({
     const observation = {
       observation_for_llm: {
         json_parse_error: true,
-        message: `Failed to parse assistant JSON: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Failed to parse assistant JSON: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
         response_snippet: responseContent.slice(0, 4000),
       },
       observation_metadata: {
@@ -312,143 +193,43 @@ async function executeAgentPass({
     return false;
   }
 
-  const autoApprovedAllowlist = isPreapprovedCommandFn(parsed.command, preapprovedCfg);
-  const autoApprovedSession = isSessionApprovedFn(parsed.command);
-  const autoApprovedCli = getAutoApproveFlag();
-  const autoApproved = autoApprovedAllowlist || autoApprovedSession || autoApprovedCli;
+  const approved = await ensureCommandApproval({
+    command: parsed.command,
+    isPreapprovedCommandFn,
+    isSessionApprovedFn,
+    approveForSessionFn,
+    preapprovedCfg,
+    getAutoApproveFlag,
+    askHumanFn,
+    rl,
+  });
 
-  if (autoApproved) {
-    // if (autoApprovedAllowlist) {
-    //   console.log(chalk.green('Auto-approved by allowlist (approved_commands.json)'));
-    // } else if (autoApprovedSession) {
-    //   console.log(chalk.green('Auto-approved by session approvals'));
-    // } else {
-    //   console.log(chalk.green('Auto-approved by CLI flag (--auto-approve)'));
-    // }
-  } else {
-    let selection;
-    while (true) {
-      const input = (
-        await askHumanFn(
-          rl,
-          `Approve running this command?
-  1) Yes (run once)
-  2) Yes, for entire session (add to in-memory approvals)
-  3) No, tell the AI to do something else
-Select 1, 2, or 3: `,
-        )
-      )
-        .trim()
-        .toLowerCase();
-      if (input === '1' || input === 'y' || input === 'yes') {
-        selection = 1;
-        break;
-      }
-      if (input === '2') {
-        selection = 2;
-        break;
-      }
-      if (input === '3' || input === 'n' || input === 'no') {
-        selection = 3;
-        break;
-      }
-      console.log(chalk.yellow('Please enter 1, 2, or 3.'));
-    }
+  if (!approved) {
+    const observation = {
+      observation_for_llm: {
+        canceled_by_human: true,
+        message:
+          'Human declined to execute the proposed command and asked the AI to propose an alternative approach without executing a command.',
+      },
+      observation_metadata: {
+        timestamp: new Date().toISOString(),
+      },
+    };
 
-    if (selection === 3) {
-      console.log(chalk.yellow('Command execution canceled by human (requested alternative).'));
-      const observation = {
-        observation_for_llm: {
-          canceled_by_human: true,
-          message:
-            'Human declined to execute the proposed command and asked the AI to propose an alternative approach without executing a command.',
-        },
-        observation_metadata: {
-          timestamp: new Date().toISOString(),
-        },
-      };
-      history.push({ role: 'user', content: JSON.stringify(observation) });
-      return true;
-    }
-    if (selection === 2) {
-      approveForSessionFn(parsed.command);
-      console.log(chalk.green('Approved and added to session approvals.'));
-    } else {
-      console.log(chalk.green('Approved (run once).'));
-    }
+    history.push({ role: 'user', content: JSON.stringify(observation) });
+    return true;
   }
 
-  let result;
-  let executionDetails = { type: 'EXECUTE', command: parsed.command };
-  if (parsed.command && parsed.command.edit) {
-    result = await runEditFn(parsed.command.edit, parsed.command.cwd || '.');
-    executionDetails = { type: 'EDIT', spec: parsed.command.edit };
-  }
-
-  if (typeof result === 'undefined' && parsed.command && parsed.command.read) {
-    result = await runReadFn(parsed.command.read, parsed.command.cwd || '.');
-    executionDetails = { type: 'READ', spec: parsed.command.read };
-  }
-
-  if (typeof result === 'undefined' && parsed.command && parsed.command.escape_string) {
-    result = await runEscapeStringFn(parsed.command.escape_string, parsed.command.cwd || '.');
-    executionDetails = { type: 'ESCAPE_STRING', spec: parsed.command.escape_string };
-  }
-
-  if (typeof result === 'undefined' && parsed.command && parsed.command.unescape_string) {
-    result = await runUnescapeStringFn(parsed.command.unescape_string, parsed.command.cwd || '.');
-    executionDetails = { type: 'UNESCAPE_STRING', spec: parsed.command.unescape_string };
-  }
-
-  if (typeof result === 'undefined' && parsed.command && parsed.command.replace) {
-    result = await runReplaceFn(parsed.command.replace, parsed.command.cwd || '.');
-    executionDetails = { type: 'REPLACE', spec: parsed.command.replace };
-  }
-
-  if (typeof result === 'undefined') {
-    const runStrRaw = typeof parsed.command.run === 'string' ? parsed.command.run : '';
-    const runStr = runStrRaw.trim();
-
-    if (runStr) {
-      const tokens = shellSplit(runStr);
-      const commandKeyword = tokens[0] ? tokens[0].toLowerCase() : '';
-
-      if (commandKeyword === 'browse') {
-        const target = tokens.slice(1).join(' ').trim();
-        if (target) {
-          result = await runBrowseFn(target, parsed.command.timeout_sec ?? 60);
-          executionDetails = { type: 'BROWSE', target };
-        }
-      } else if (commandKeyword === 'read') {
-        const readTokens = tokens.slice(1);
-        const specFromTokens = parseReadSpecTokens(readTokens);
-        const mergedSpec = mergeReadSpecs(parsed.command.read || {}, specFromTokens);
-
-        if (mergedSpec.path) {
-          result = await runReadFn(mergedSpec, parsed.command.cwd || '.');
-          executionDetails = { type: 'READ', spec: mergedSpec };
-        } else {
-          result = {
-            stdout: '',
-            stderr: 'read command requires a path argument',
-            exit_code: 1,
-            killed: false,
-            runtime_ms: 0,
-          };
-        }
-      }
-    }
-
-    if (typeof result === 'undefined') {
-      result = await runCommandFn(
-        parsed.command.run,
-        parsed.command.cwd || '.',
-        parsed.command.timeout_sec ?? 60,
-        parsed.command.shell,
-      );
-      executionDetails = { type: 'EXECUTE', command: parsed.command };
-    }
-  }
+  const { result, executionDetails } = await executeAgentCommand({
+    command: parsed.command,
+    runCommandFn,
+    runBrowseFn,
+    runEditFn,
+    runReadFn,
+    runReplaceFn,
+    runEscapeStringFn,
+    runUnescapeStringFn,
+  });
 
   let key = parsed?.command?.key;
   if (!key) {

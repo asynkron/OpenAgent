@@ -3,7 +3,14 @@ import { parseReadSpecTokens, mergeReadSpecs } from '../../src/commands/readSpec
 describe('readSpec utilities', () => {
   describe('parseReadSpecTokens', () => {
     test('parses positional path and options', () => {
-      const tokens = ['../logs/app.log', '--max-lines', '20', '--max-bytes=512', '--encoding', 'utf8'];
+      const tokens = [
+        '../logs/app.log',
+        '--max-lines',
+        '20',
+        '--max-bytes=512',
+        '--encoding',
+        'utf8',
+      ];
       const spec = parseReadSpecTokens(tokens);
 
       expect(spec).toEqual({

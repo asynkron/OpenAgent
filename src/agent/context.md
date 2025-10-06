@@ -25,6 +25,10 @@
 
 ## Supporting Utilities
 
+- [`./openaiRequest.js`](./openaiRequest.js): wraps the OpenAI request lifecycle, ESC cancellation, and observation wiring.
+- [`./commandApproval.js`](./commandApproval.js): centralises allowlist/session auto-approval and human prompt flow.
+- [`./commandExecution.js`](./commandExecution.js): dispatches built-in helpers (`read`, `edit`, `replace`, `browse`, `escape_string`, `unescape_string`) and generic shell runs.
+- [`./escState.js`](./escState.js): creates and resets ESC waiters shared across the loop helpers.
 - [`../commands/readSpec.js`](../commands/readSpec.js): parses and merges `read` command specs invoked by the loop.
 - [`../utils/plan.js`](../utils/plan.js): determines whether plan steps remain open before prompting the model.
 - [`../utils/output.js`](../utils/output.js): now hosts preview generation used when rendering command results.

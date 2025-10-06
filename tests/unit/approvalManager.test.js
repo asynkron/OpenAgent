@@ -15,7 +15,10 @@ describe('ApprovalManager.shouldAutoApprove', () => {
       ...baseDeps,
       isPreapprovedCommand: () => true,
     });
-    expect(manager.shouldAutoApprove({ run: 'ls' })).toEqual({ approved: true, source: 'allowlist' });
+    expect(manager.shouldAutoApprove({ run: 'ls' })).toEqual({
+      approved: true,
+      source: 'allowlist',
+    });
   });
 
   test('returns session source when command already approved this session', () => {
