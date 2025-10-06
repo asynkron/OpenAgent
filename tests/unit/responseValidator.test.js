@@ -61,14 +61,14 @@ describe('validateAssistantResponse', () => {
     expect(result.errors).toContain('Active plans require a "command" to execute next.');
   });
 
-  test('disallows command when no plan is active', () => {
+  test('allows command when no plan is active', () => {
     const result = validateAssistantResponse({
       plan: [],
       command: { run: 'echo "hi"' },
     });
 
-    expect(result.valid).toBe(false);
-    expect(result.errors).toContain('Commands must be omitted or null when there is no active plan.');
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
   });
 
   test('limits top-level plan size', () => {

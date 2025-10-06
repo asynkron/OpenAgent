@@ -119,8 +119,6 @@ export function validateAssistantResponse(payload) {
       if (command === null) {
         errors.push('Active plans require a "command" to execute next.');
       }
-    } else if (command !== null && Object.keys(command).length > 0) {
-      errors.push('Commands must be omitted or null when there is no active plan.');
     }
   }
 
