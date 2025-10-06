@@ -12,6 +12,7 @@ We publish via `.github/workflows/publish.yml`. The workflow can be triggered in
 ### Required secrets and permissions
 
 - Create an npm automation token with publish rights and add it as the `NPM_TOKEN` repository secret.
+- Grant the workflow OIDC permissions by keeping `id-token: write` enabled so `npm publish --provenance` can mint a provenance attestation.
 - The workflow uses Node.js 20 and expects `npm ci`, `npm run lint`, and `npm test` to succeed before publishing.
 - GitHub provenance is enabled (`npm publish --provenance`) so the repository must have GitHub Actions provenance configured (it is on by default for public repos).
 

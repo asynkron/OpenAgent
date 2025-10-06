@@ -7,7 +7,7 @@ Automation pipelines for CI, releases, and quality checks.
 ## Key Workflows
 
 - `test.yml`: runs linting and tests on pull requests.
-- `publish.yml`: publishes the package to npm whenever a GitHub release is published or manually triggered.
+- `publish.yml`: publishes the package to npm whenever a GitHub release is published or manually triggered. Requires `id-token: write` so the `npm publish --provenance` step can request an OIDC token.
 - `auto-release.yml`: on every push to `main` (i.e., post-merge), automatically bumps the minor version, tags the release, and creates a GitHub release so that `publish.yml` can push the new version to npm.
 
 ## Notes
