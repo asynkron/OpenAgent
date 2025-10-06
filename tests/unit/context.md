@@ -14,6 +14,7 @@
 - `httpClient.test.js`: exercises fetch vs Node fallbacks, timeout aborts, and timeout resolution for the shared HTTP client.
 - `index.test.js`, `esmEntry.test.js`: confirm root exports and ESM package surface remain intact.
 - `openaiResponses.test.js`: validates the shared OpenAI response helper respects reasoning environment overrides.
+- `jsonAssetValidator.test.js`: guards JSON schema helpers and prompt synchronization checks.
 - `historyCompactor.test.js`: asserts old history is summarized and that the generated summary is surfaced to the human via logging.
 
 ## Positive Signals

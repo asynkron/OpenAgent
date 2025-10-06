@@ -11,6 +11,7 @@
 - Tests: [`tests/context.md`](tests/context.md)
 - Prompt/brain guidance: [`prompts/context.md`](prompts/context.md), [`brain/context.md`](brain/context.md)
 - CLI assets: [`templates/context.md`](templates/context.md), [`shortcuts/context.md`](shortcuts/context.md)
+- JSON schema definitions: [`schemas/context.md`](schemas/context.md)
 - Release notes: [`CHANGELOG.md`](CHANGELOG.md)
 - IDE settings: [`./.idea/context.md`](.idea/context.md)
 - Additional docs: [`docs/context.md`](docs/context.md); root-level `README.md` and `openagent-example.md` now highlight ESM `import` snippets so newcomers avoid legacy CommonJS patterns.
@@ -37,6 +38,7 @@
 - Real shell executions remain sparsely covered in integration tests; mocked cancellation flows should be mirrored against
   actual child process lifecycles.
 - Manual JSON parsing of model output pushes an observation on failure without retries/backoff.
+- Keep JSON schema validation aligned with asset format changes to avoid false positives during CI/startup.
 - Downstream consumers must use ESM `import()`; ensure release notes highlight the breaking change.
 
 ## Suggested First Reads for Agents

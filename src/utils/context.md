@@ -11,6 +11,7 @@
 - `plan.js`: supplies plan inspection helpers (e.g., `planHasOpenSteps`).
 - `text.js`: regex filtering, tailing, truncation, and lightweight shell argument splitting.
 - `contextUsage.js`: estimates token usage/remaining context for the current conversation history.
+- `jsonAssetValidator.js`: shared helpers for JSON schema validation and prompt copy synchronization checks.
 - `fetch.js`: HttpClient abstraction unifying global fetch and Node http/https fallbacks with shared timeout handling.
 
 ## Positive Signals

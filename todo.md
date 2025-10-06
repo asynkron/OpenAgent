@@ -18,14 +18,14 @@
   - [x] Design integration test simulating ESC-triggered aborts during command execution
   - [x] Add regression tests for nested cancellation stacks
   - [x] Update docs/openai-cancellation.md with verified behaviours
-- [ ] Introduce schema validation and sync safeguards for JSON assets
-  - [ ] Define JSON schemas for prompts, templates, and shortcuts
-  - [ ] Add validation step to CI or startup flow
-  - [ ] Automate prompt copy synchronization checks
-- [ ] Improve OpenAI client robustness
-  - [ ] Add configuration validation for model/endpoint compatibility
-  - [ ] Implement per-request timeout/retry options with tests
-  - [ ] Document configuration expectations in src/openai/context.md
+- [x] Introduce schema validation and sync safeguards for JSON assets
+  - [x] Define JSON schemas for prompts, templates, and shortcuts
+  - [x] Add validation step to CI or startup flow
+  - [x] Automate prompt copy synchronization checks
+- [x] Improve OpenAI client robustness
+  - [x] Add configuration validation for model/endpoint compatibility
+  - [x] Implement per-request timeout/retry options with tests
+  - [x] Document configuration expectations in src/openai/context.md
 - [ ] Refresh roadmap and operational documentation
   - [ ] Reconcile modernization checklist with current codebase status
   - [ ] Add cross-links between docs and implementation hotspots
