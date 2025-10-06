@@ -123,9 +123,12 @@ export class HistoryCompactor {
       content: `${DEFAULT_SUMMARY_PREFIX}\n${summarizedText}`.trim(),
     };
 
+    const originalHistoryLength = history.length;
     history.splice(firstContentIndex, entriesToCompactCount, compactedEntry);
+    // Log the before/after lengths explicitly so the compaction impact is clear.
     this._log('log', '[history-compactor] Compacted history entries.', {
-      originalEntries: entriesToCompactCount,
+      entriesCompacted: entriesToCompactCount,
+      originalHistoryLength,
       resultingHistoryLength: history.length,
     });
 
