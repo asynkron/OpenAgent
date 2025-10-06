@@ -17,7 +17,9 @@
 
 ## Key Entry Points
 
-- `index.js`: bootstraps the agent loop, handles `templates`/`shortcuts` subcommands, exposes helpers for tests, honours startup flags (`--auto-approve`, `--nohuman`).
+- `index.js`: re-exports the library API from `src/lib/index.js` and forwards direct execution to the CLI runner.
+- `src/lib/index.js`: bootstraps the agent loop, exposes helpers for tests, and provides startup flag utilities (`setStartupFlags`, `applyStartupFlagsFromArgv`).
+- `src/cli/runner.js`: handles `templates`/`shortcuts` subcommands and wires CLI startup flags before launching the loop.
 - `src/agent/loop.js`: orchestrates OpenAI interactions, now delegating each pass to `passExecutor.js` while managing readline/ESC state.
 - `src/commands/run.js`: sandbox for process execution with timeout + cancellation; re-exports specialised helpers (browse/read/edit/replace/escape-string).
 

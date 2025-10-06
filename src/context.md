@@ -8,7 +8,8 @@
 ## Structure
 
 - `agent/`: conversation loop and OpenAI orchestration.
-- `cli/`: readline, rendering, thinking indicator.
+- `cli/`: readline, rendering, thinking indicator, CLI runner entrypoint.
+- `lib/`: aggregated runtime exports consumed by both tests and the CLI wrapper.
 - `commands/`: shell execution, read/edit/replace helpers, string quoting utilities.
 - `config/`: system prompt discovery and workspace metadata.
 - `openai/`: memoized OpenAI client factory.
