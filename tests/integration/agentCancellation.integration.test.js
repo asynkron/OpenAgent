@@ -103,7 +103,11 @@ test('ESC cancellation aborts an in-flight command and surfaces UI feedback', as
       }, 10);
     }
 
-    if (event.type === 'status' && event.message === 'Cancellation requested by UI.' && cancelCurrentCommand) {
+    if (
+      event.type === 'status' &&
+      event.message === 'Cancellation requested by UI.' &&
+      cancelCurrentCommand
+    ) {
       cancelCurrentCommand();
     }
   });

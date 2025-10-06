@@ -131,7 +131,8 @@ export async function executeAgentPass({
       typeof setNoHumanFlag === 'function' &&
       getNoHumanFlag()
     ) {
-      const maybeMessage = typeof parsed.message === 'string' ? parsed.message.trim().toLowerCase() : '';
+      const maybeMessage =
+        typeof parsed.message === 'string' ? parsed.message.trim().toLowerCase() : '';
       const normalizedMessage = maybeMessage.replace(/[.!]+$/, '');
       if (normalizedMessage === 'done') {
         setNoHumanFlag(false);

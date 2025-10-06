@@ -14,7 +14,7 @@ export default class BrowseCommand {
 
     if (!target) {
       return {
-        result: this.#buildErrorResult('browse command requires a URL argument'),
+        result: this.buildErrorResult('browse command requires a URL argument'),
         executionDetails: { type: 'BROWSE', target: '' },
       };
     }
@@ -23,7 +23,7 @@ export default class BrowseCommand {
     return { result, executionDetails: { type: 'BROWSE', target } };
   }
 
-  #buildErrorResult(message) {
+  buildErrorResult(message) {
     return {
       stdout: '',
       stderr: message,

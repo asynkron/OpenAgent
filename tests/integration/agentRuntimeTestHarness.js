@@ -37,14 +37,12 @@ export async function loadAgentWithMockedModules() {
   resetQueuedResponses();
 
   const commandStatsMock = jest.fn().mockResolvedValue(true);
-  const requestModelCompletionMock = jest
-    .fn()
-    .mockImplementation(async () => {
-      if (modelCompletionQueue.length === 0) {
-        throw new Error('No mock model completion queued.');
-      }
-      return modelCompletionQueue.shift();
-    });
+  const requestModelCompletionMock = jest.fn().mockImplementation(async () => {
+    if (modelCompletionQueue.length === 0) {
+      throw new Error('No mock model completion queued.');
+    }
+    return modelCompletionQueue.shift();
+  });
 
   jest.unstable_mockModule('../../src/agent/openaiRequest.js', () => ({
     requestModelCompletion: requestModelCompletionMock,

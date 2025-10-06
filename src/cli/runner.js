@@ -7,10 +7,7 @@
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import {
-  agentLoop,
-  applyStartupFlagsFromArgv,
-} from '../lib/index.js';
+import { agentLoop, applyStartupFlagsFromArgv } from '../lib/index.js';
 
 export async function runCli(argv = process.argv) {
   applyStartupFlagsFromArgv(argv);

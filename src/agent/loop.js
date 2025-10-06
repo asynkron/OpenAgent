@@ -5,7 +5,15 @@
 
 import { SYSTEM_PROMPT } from '../config/systemPrompt.js';
 import { getOpenAIClient, MODEL } from '../openai/client.js';
-import { runCommand, runBrowse, runEdit, runRead, runReplace, runEscapeString, runUnescapeString } from '../commands/run.js';
+import {
+  runCommand,
+  runBrowse,
+  runEdit,
+  runRead,
+  runReplace,
+  runEscapeString,
+  runUnescapeString,
+} from '../commands/run.js';
 import {
   isPreapprovedCommand,
   isSessionApproved,

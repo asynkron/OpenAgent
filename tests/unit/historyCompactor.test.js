@@ -53,7 +53,9 @@ describe('HistoryCompactor', () => {
 
     expect(result).toBe(true);
     expect(responsesCreate).toHaveBeenCalledTimes(1);
-    expect(logger.log).toHaveBeenCalledWith('[history-compactor] Compacted summary:\nCondensed summary.');
+    expect(logger.log).toHaveBeenCalledWith(
+      '[history-compactor] Compacted summary:\nCondensed summary.',
+    );
 
     const [payload, options] = responsesCreate.mock.calls[0];
     expect(payload.model).toBe('test-model');

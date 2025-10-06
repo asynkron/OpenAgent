@@ -30,7 +30,9 @@ if (!packageVersion) {
 }
 
 if (packageVersion !== tagWithoutPrefix) {
-  console.error(`Tag mismatch: package.json is ${packageVersion}, but the workflow received ${rawTag}.`);
+  console.error(
+    `Tag mismatch: package.json is ${packageVersion}, but the workflow received ${rawTag}.`,
+  );
   process.exit(1);
 }
 

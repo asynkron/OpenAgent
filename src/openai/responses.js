@@ -21,14 +21,7 @@ export function getConfiguredReasoningEffort() {
   return ENV_REASONING_EFFORT;
 }
 
-export function createResponse({
-  openai,
-  model,
-  input,
-  text,
-  options,
-  reasoningEffort,
-}) {
+export function createResponse({ openai, model, input, text, options, reasoningEffort }) {
   if (!openai || !openai.responses || typeof openai.responses.create !== 'function') {
     throw new Error('Invalid OpenAI client instance provided.');
   }

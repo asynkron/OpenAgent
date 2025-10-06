@@ -95,8 +95,7 @@ export class HttpClient {
    * @returns {Promise<HttpResponse>}
    */
   async fetch(url, options = {}) {
-    const fetchImpl =
-      typeof this.fetchImpl === 'function' ? this.fetchImpl : globalThis.fetch;
+    const fetchImpl = typeof this.fetchImpl === 'function' ? this.fetchImpl : globalThis.fetch;
     const abortControllerImpl =
       typeof this.AbortControllerImpl === 'function'
         ? this.AbortControllerImpl

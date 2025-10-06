@@ -59,8 +59,7 @@ export async function runBrowse(url, timeoutSec, client = defaultHttpClient) {
 
     stderr = message;
 
-    const isAbort =
-      typeof httpClient.isAbortLike === 'function' && httpClient.isAbortLike(error);
+    const isAbort = typeof httpClient.isAbortLike === 'function' && httpClient.isAbortLike(error);
     if (isAbort) {
       killed = true;
       if (
