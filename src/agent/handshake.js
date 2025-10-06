@@ -5,6 +5,7 @@
 export async function performInitialHandshake({
   history,
   prompt,
+  systemPrompt,
   executePass,
   openai,
   model,
@@ -30,6 +31,16 @@ export async function performInitialHandshake({
 }) {
   if (!Array.isArray(history)) {
     throw new Error('Handshake requires a mutable history array');
+  }
+
+  let injectedSystemPrompt = false;
+  if (!history.some((entry) => entry && entry.role === 'system')) {
+    if (typeof systemPrompt === 'string' && systemPrompt.trim().length > 0) {
+      history.unshift({ role: 'system', content: systemPrompt });
+      injectedSystemPrompt = true;
+    } else {
+      throw new Error('Handshake requires a system prompt when history lacks one');
+    }
   }
 
   if (typeof executePass !== 'function') {
@@ -79,6 +90,13 @@ export async function performInitialHandshake({
 
     if (index !== -1) {
       history.splice(index, 1);
+    }
+
+    if (injectedSystemPrompt && history.length > 0) {
+      const firstEntry = history[0];
+      if (!firstEntry || firstEntry.role !== 'system') {
+        history.unshift({ role: 'system', content: systemPrompt });
+      }
     }
   }
 }

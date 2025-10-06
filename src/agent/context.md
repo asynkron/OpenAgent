@@ -8,6 +8,7 @@
 
 - `loop.js`: exposes the event-driven runtime (`createAgentRuntime`) that emits structured JSON events and wraps it with the legacy `createAgentLoop` helper for compatibility.
 - `handshake.js`: encapsulates the temporary history injection used for the initial system handshake.
+  - Ensures a system prompt entry is present in history before the first model call, injecting it when consumers provide a prompt-less history.
 - `escState.js`: centralises cancellation state, allowing UI-triggered events to notify in-flight operations.
 - `passExecutor.js`: performs an agent pass (OpenAI request, JSON parsing, plan updates, approvals, command execution, observation logging).
 - `historyCompactor.js`: auto-compacts older history entries when context usage exceeds the configured threshold by summarizing them into long-term memory snapshots.
