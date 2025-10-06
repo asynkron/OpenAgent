@@ -9,7 +9,7 @@
 - `cancellation.test.js`: exercises stack-based cancellation semantics.
 - `renderLanguage.test.js`, `renderPlan.test.js`: guard CLI rendering edge cases.
 - `replaceCommand.test.js`, `runCommand.test.js`: verify replacement logic and process management.
-- `index.test.js`, `legacyInterop.test.js`: confirm root exports and CommonJS interop remain intact.
+- `index.test.js`, `esmEntry.test.js`: confirm root exports and ESM package surface remain intact.
 
 ## Positive Signals
 - Strong coverage of utility surfaces reduces risk of regressions during refactors.

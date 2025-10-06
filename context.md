@@ -2,14 +2,14 @@
 
 ## Purpose & Scope
 - Node.js CLI agent that converses with an LLM using a strict JSON protocol, renders assistant plans/messages, and executes shell commands under human approval.
-- Current codebase lives under `src/` (ESM). `legacy/` retains the CommonJS mirror for backward compatibility.
+- Codebase lives under `src/` (ESM). CommonJS support has been removed as of v2.0.
 
 ## Quick Directory Map
 - Core runtime: [`src/context.md`](src/context.md)
 - Tests: [`tests/context.md`](tests/context.md)
 - Prompt/brain guidance: [`prompts/context.md`](prompts/context.md), [`brain/context.md`](brain/context.md)
 - CLI assets: [`templates/context.md`](templates/context.md), [`shortcuts/context.md`](shortcuts/context.md)
-- Legacy mirror: [`legacy/context.md`](legacy/context.md)
+- Release notes: [`CHANGELOG.md`](CHANGELOG.md)
 - IDE settings: [`./.idea/context.md`](.idea/context.md)
 - Additional docs: [`docs/context.md`](docs/context.md)
 
@@ -26,7 +26,7 @@
 ## Risks / Gaps
 - `src/agent/loop.js` remains monolithic (~800 lines), limiting testability and readability.
 - Newly introduced string quoting built-ins (`escape_string`/`unescape_string`) lack direct unit/integration coverage.
-- Dual code paths (`src/` vs `legacy/src/`) can drift without tooling to keep them synchronized.
+- Downstream consumers must use ESM `import()`; ensure release notes highlight the breaking change.
 
 ## Suggested First Reads for Agents
 1. This file for the global picture.
