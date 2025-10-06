@@ -2,11 +2,24 @@
 
 ## Purpose
 
-- Node.js utilities executed from npm scripts (asset validation, maintenance helpers).
+- Houses Node.js utilities executed from npm scripts and CI workflows.
+- Provides guardrails for validating JSON assets and release automation inputs.
 
 ## Key Files
+
+- `validate-json-assets.js`: validates `prompts/prompts.json` against `schemas/prompts.schema.json`, enforces unique IDs, and checks prompt copies stay in sync.
+- `verify-release-tag.js`: ensures the git tag that triggered a release matches `package.json`'s version before publishing proceeds.
+
+## Positive Signals
+
+- Automated asset validation prevents schema drift before commits land.
+- Release tagging check fails fast when CI is misconfigured, protecting npm publishes.
+
+## Risks / Gaps
+
+- Additional scripts should update this context and the npm script inventory in `package.json` when added.
 
 ## Related Context
 
 - Schemas: [`../schemas/context.md`](../schemas/context.md)
-- Utilities reused by the script: [`../src/utils/context.md`](../src/utils/context.md)
+- JSON validation utilities: [`../src/utils/context.md`](../src/utils/context.md)

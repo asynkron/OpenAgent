@@ -26,17 +26,21 @@ describe('applyFileEdits file creation', () => {
     );
 
     const absPath = path.join(tmpDir, relPath);
+    const relOutput = path.relative(process.cwd(), absPath);
 
     expect(fs.existsSync(absPath)).toBe(true);
     expect(fs.readFileSync(absPath, 'utf8')).toBe('Hello world');
     expect(result.exit_code).toBe(0);
     expect(result.stderr).toBe('');
-    expect(result.stdout).toContain('Created');
+    expect(result.stdout).toContain(`Created ${relOutput}`);
+    expect(result.stdout).toContain(`--- ${relOutput}`);
+    expect(result.stdout).toContain('Hello world');
   });
 
   test('edits existing file and reports Edited', async () => {
     const relPath = 'existing.txt';
     const absPath = path.join(tmpDir, relPath);
+    const relOutput = path.relative(process.cwd(), absPath);
     fs.mkdirSync(path.dirname(absPath), { recursive: true });
     fs.writeFileSync(absPath, 'original', 'utf8');
 
@@ -51,6 +55,8 @@ describe('applyFileEdits file creation', () => {
     expect(fs.readFileSync(absPath, 'utf8')).toBe('updated');
     expect(result.exit_code).toBe(0);
     expect(result.stderr).toBe('');
-    expect(result.stdout).toContain('Edited');
+    expect(result.stdout).toContain(`Edited ${relOutput}`);
+    expect(result.stdout).toContain(`--- ${relOutput}`);
+    expect(result.stdout).toContain('updated');
   });
 });

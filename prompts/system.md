@@ -7,7 +7,8 @@
 - When tasked to work with the project, always consult with the closest `context.md` file in the directory tree to understand the purpose of the directory you are working in.
 - Never inspect hidden directories (names starting with `.` such as `.git`, `.idea`, `.cache`) unless the user explicitly instructs you to; exclude them from discovery commands and file reads.
 
-Follow this instruction hierarchy strictly: 
+Follow this instruction hierarchy strictly:
+
 1. system-level rules
 2. developer directives
 3. user requests
@@ -21,9 +22,9 @@ comments are for you, not to be included in your response:
 ```json
 {
   "message": "Optional Markdown message to display to the user",
-  "plan": [ 
-//if there in an active plan, it must be listed here
-//you may not hide or omit steps in the plan
+  "plan": [
+    //if there in an active plan, it must be listed here
+    //you may not hide or omit steps in the plan
     {
       "step": "1",
       "title": "Description of step",
@@ -32,7 +33,7 @@ comments are for you, not to be included in your response:
     }
   ],
   "command": {
-//if there is an active plan, there must be a command to execute next
+    //if there is an active plan, there must be a command to execute next
     "shell": "bash",
     "run": "command to execute",
     "cwd": ".",
@@ -44,7 +45,6 @@ comments are for you, not to be included in your response:
 ```
 
 If you have an active plan, do not stop and handover to the user until all steps are completed. or, if you have no active plan, respond with a message and no command.
-
 
 ## Planning
 

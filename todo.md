@@ -14,10 +14,10 @@
   - [x] Audit regex heuristics and add tests for emerging shell-injection patterns
   - [x] Add validation layer for templates/shortcuts command payloads
   - [x] Expand integration scenarios for approval rejections and preapproved commands
-- [x] Close cancellation (ESC) coverage gaps
-  - [x] Design integration test simulating ESC-triggered aborts during command execution
-  - [x] Add regression tests for nested cancellation stacks
-  - [x] Update docs/openai-cancellation.md with verified behaviours
+- [ ] Refresh operational documentation and context indexes
+  - [x] Remove deprecated modernization roadmap references
+  - [ ] Add cross-links between docs and implementation hotspots
+  - [ ] Clarify maintenance process for prompt copies and context indexes
 - [x] Introduce schema validation and sync safeguards for JSON assets
   - [x] Define JSON schemas for prompts, templates, and shortcuts
   - [x] Add validation step to CI or startup flow
@@ -26,7 +26,3 @@
   - [x] Add configuration validation for model/endpoint compatibility
   - [x] Implement per-request timeout/retry options with tests
   - [x] Document configuration expectations in src/openai/context.md
-- [ ] Refresh roadmap and operational documentation
-  - [ ] Reconcile modernization checklist with current codebase status
-  - [ ] Add cross-links between docs and implementation hotspots
-  - [ ] Clarify maintenance process for prompt copies and context indexes

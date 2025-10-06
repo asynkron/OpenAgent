@@ -25,7 +25,7 @@
 
 ## Risks / Gaps
 
-- Some command helpers (`runBrowse`) duplicate HTTP logic instead of reusing a single fetch pathway.
+- Browse command coverage focuses on GET requests; non-GET scenarios still require manual validation.
 - Integration suites rely on mocked command runners; real child-process cancellation still needs periodic manual validation.
 
 ## Related Context

@@ -2,31 +2,30 @@
 
 ## Purpose
 
-- Collects architectural notes and roadmap material for evolving OpenAgent.
-- Serves as design history for modernization (ESM migration, tooling) and operational features like cancellation.
+- Centralizes long-form documentation on architecture, operational procedures, and release workflows.
+- Records historical decisions and research so contributors can understand why subsystems behave the way they do.
 
 ## Key Files
 
-- `modernization-plan.md`: staged roadmap covering lint/format adoption, ESM migration, service extraction, observability.
-- `openai-cancellation.md`: research note confirming AbortSignal support in `openai@6.x` and fallback strategies.
-- `js-dependency-graph.md`: Mermaid diagram mapping relative imports among ESM modules.
+- `openai-cancellation.md`: research note confirming AbortSignal support in `openai@6.x`, with integration/regression test summaries.
 - `publishing.md`: documents the GitHub Actions-powered npm release pipeline, troubleshooting guidance (e.g. npm 403 errors),
   and the manual fallback procedure.
-- `class-interface-refactor-ideas.md`: outlines stateful modules that could graduate into classes/interfaces for clearer
-  encapsulation.
+- `class-interface-refactor-ideas.md`: outlines stateful modules that could graduate into classes/interfaces for clearer encapsulation.
+- `js-dependency-graph.md`: Mermaid diagram mapping relative imports among ESM modules.
 
 ## Positive Signals
 
-- Modernization plan outlines concrete sequencing, making large refactors less risky.
-- Cancellation note confirms SDK capabilities, informing the ESC cancel flow in `src/agent/loop.js`.
-- `openai-cancellation.md` now documents verified integration/regression tests so operational behaviour stays in sync with code.
+- Cancellation note stays synced with the ESC handling tests in `tests/integration/agentCancellation.integration.test.js`.
+- Publishing guide removes guesswork for npm releases and aligns with the automation in `.github/workflows`.
+- Architectural idea logs provide vetted options for future refactors without forcing immediate action.
 
 ## Risks / Gaps
 
-- Roadmap task list is partially unchecked; status may be stale relative to current code.
-- No quick summary linking these insights back into their implementation hotspots (now covered via this context index).
+- Some documents still rely on manual cross-linking; continue adding references into `context.md` files as new docs land.
+- Dependency graph requires occasional regeneration after major refactors.
 
 ## Related Context
 
 - High-level repo map: [`../context.md`](../context.md)
 - Agent loop implementation consuming the cancellation guidance: [`../src/agent/context.md`](../src/agent/context.md)
+- Release automation scripts: [`../scripts/context.md`](../scripts/context.md)

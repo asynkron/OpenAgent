@@ -19,11 +19,6 @@ test('agent runtime invokes runRead for read commands', async () => {
   agent.STARTUP_FORCE_AUTO_APPROVE = true;
 
   queueModelResponse({
-    message: 'Mocked handshake',
-    plan: [],
-    command: null,
-  });
-  queueModelResponse({
     message: 'Mocked read response',
     plan: [],
     command: {

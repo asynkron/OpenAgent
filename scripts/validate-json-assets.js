@@ -24,7 +24,7 @@ async function validateJsonResource({ schemaFile, assetFile, resource, uniquePro
   validateWithSchema({ schema, data, resource });
 
   for (const property of uniqueProperties) {
-    ensureUniqueByProperty(Array.isArray(data) ? data : data.prompts ?? [], property, {
+    ensureUniqueByProperty(Array.isArray(data) ? data : (data.prompts ?? []), property, {
       resource,
     });
   }

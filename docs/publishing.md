@@ -18,7 +18,7 @@ unless you manually rerun it via the `workflow_dispatch` input described below.
 The publish workflow can be triggered in two ways:
 
 1. **Release event** – create a GitHub Release whose tag matches the package version (for example, `v2.1.0`). Once the release is published the workflow runs automatically.
-2. **Manual dispatch** – run the workflow from the *Actions* tab and provide the tag (e.g. `v2.1.0`). Useful for dry runs or re-publishing a failed release after fixing infrastructure issues.
+2. **Manual dispatch** – run the workflow from the _Actions_ tab and provide the tag (e.g. `v2.1.0`). Useful for dry runs or re-publishing a failed release after fixing infrastructure issues.
 
 ### Required secrets and permissions
 
