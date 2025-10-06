@@ -1,42 +1,47 @@
-import { parseReadSpecTokens, mergeReadSpecs } from '../commands/readSpec.js';
 import { shellSplit } from '../utils/text.js';
+import BrowseCommand from './commands/BrowseCommand.js';
+import EditCommand from './commands/EditCommand.js';
+import EscapeStringCommand from './commands/EscapeStringCommand.js';
+import ExecuteCommand from './commands/ExecuteCommand.js';
+import ReadCommand from './commands/ReadCommand.js';
+import ReplaceCommand from './commands/ReplaceCommand.js';
+import UnescapeStringCommand from './commands/UnescapeStringCommand.js';
 
 const DEFAULT_TIMEOUT_SEC = 60;
 
-function buildReadResult({ result, spec }) {
-  return {
-    result,
-    executionDetails: { type: 'READ', spec },
-  };
-}
+/**
+ * @typedef {Object} AgentCommandContext
+ * @property {object} command The raw command payload from the assistant.
+ * @property {string} cwd Normalised working directory for the command.
+ * @property {number} timeout Timeout to supply to shell/browse commands.
+ * @property {string[]} runTokens `command.run` (trimmed) tokenised via `shellSplit`.
+ * @property {string} runKeyword Lower-cased first token from `runTokens`.
+ * @property {(command: object, cwd: string, timeout: number, shell?: string) => Promise<object>} runCommandFn
+ * @property {(target: string, timeout: number) => Promise<object>} runBrowseFn
+ * @property {(spec: object, cwd: string) => Promise<object>} runEditFn
+ * @property {(spec: object, cwd: string) => Promise<object>} runReadFn
+ * @property {(spec: object, cwd: string) => Promise<object>} runReplaceFn
+ * @property {(spec: object, cwd: string) => Promise<object>} runEscapeStringFn
+ * @property {(spec: object, cwd: string) => Promise<object>} runUnescapeStringFn
+ */
 
-function buildErrorResult(message) {
-  return {
-    stdout: '',
-    stderr: message,
-    exit_code: 1,
-    killed: false,
-    runtime_ms: 0,
-  };
-}
+/**
+ * @typedef {Object} ICommand
+ * @property {(context: AgentCommandContext) => boolean} isMatch Determine whether the handler should execute.
+ * @property {(context: AgentCommandContext) => Promise<{ result: object, executionDetails: object }>} execute Execute the command when matched.
+ */
 
-async function runRead({
-  baseSpec = {},
-  tokenSpec = {},
-  cwd,
-  runReadFn,
-}) {
-  const mergedSpec = mergeReadSpecs(baseSpec, tokenSpec);
-
-  if (!mergedSpec.path) {
-    return buildReadResult({
-      result: buildErrorResult('read command requires a path argument'),
-      spec: mergedSpec,
-    });
-  }
-
-  const result = await runReadFn(mergedSpec, cwd);
-  return buildReadResult({ result, spec: mergedSpec });
+/** @returns {ICommand[]} */
+function createCommandHandlers() {
+  return [
+    new EditCommand(),
+    new EscapeStringCommand(),
+    new UnescapeStringCommand(),
+    new ReplaceCommand(),
+    new BrowseCommand(),
+    new ReadCommand(),
+    new ExecuteCommand(),
+  ];
 }
 
 export async function executeAgentCommand({
@@ -55,85 +60,35 @@ export async function executeAgentCommand({
     typeof normalizedCommand.timeout_sec === 'number'
       ? normalizedCommand.timeout_sec
       : DEFAULT_TIMEOUT_SEC;
+  const runTokens =
+    typeof normalizedCommand.run === 'string' && normalizedCommand.run.trim()
+      ? shellSplit(normalizedCommand.run.trim())
+      : [];
+  const runKeyword = runTokens[0]?.toLowerCase() || '';
 
-  if (normalizedCommand.edit) {
-    const result = await runEditFn(normalizedCommand.edit, cwd);
-    return { result, executionDetails: { type: 'EDIT', spec: normalizedCommand.edit } };
-  }
-
-  if (normalizedCommand.escape_string) {
-    const result = await runEscapeStringFn(normalizedCommand.escape_string, cwd);
-    return {
-      result,
-      executionDetails: { type: 'ESCAPE_STRING', spec: normalizedCommand.escape_string },
-    };
-  }
-
-  if (normalizedCommand.unescape_string) {
-    const result = await runUnescapeStringFn(normalizedCommand.unescape_string, cwd);
-    return {
-      result,
-      executionDetails: { type: 'UNESCAPE_STRING', spec: normalizedCommand.unescape_string },
-    };
-  }
-
-  if (normalizedCommand.replace) {
-    const result = await runReplaceFn(normalizedCommand.replace, cwd);
-    return { result, executionDetails: { type: 'REPLACE', spec: normalizedCommand.replace } };
-  }
-
-  const runValue =
-    typeof normalizedCommand.run === 'string' ? normalizedCommand.run.trim() : '';
-
-  if (runValue) {
-    const tokens = shellSplit(runValue);
-    const keyword = tokens[0]?.toLowerCase() || '';
-
-    if (keyword === 'browse') {
-      const target = tokens.slice(1).join(' ').trim();
-
-      if (!target) {
-        const result = buildErrorResult('browse command requires a URL argument');
-        return { result, executionDetails: { type: 'BROWSE', target: '' } };
-      }
-
-      const result = await runBrowseFn(target, timeout);
-      return { result, executionDetails: { type: 'BROWSE', target } };
-    }
-
-    if (keyword === 'read') {
-      const tokenSpec = parseReadSpecTokens(tokens.slice(1));
-      const baseSpec =
-        normalizedCommand.read && typeof normalizedCommand.read === 'object'
-          ? normalizedCommand.read
-          : {};
-
-      const readResult = await runRead({
-        baseSpec,
-        tokenSpec,
-        cwd,
-        runReadFn,
-      });
-
-      return readResult;
-    }
-  }
-
-  if (normalizedCommand.read) {
-    const baseSpec =
-      typeof normalizedCommand.read === 'object' ? normalizedCommand.read : {};
-    const readResult = await runRead({ baseSpec, tokenSpec: {}, cwd, runReadFn });
-    return readResult;
-  }
-
-  const result = await runCommandFn(
-    normalizedCommand.run,
+  const handlers = createCommandHandlers();
+  const context = {
+    command: normalizedCommand,
     cwd,
     timeout,
-    normalizedCommand.shell,
-  );
+    runTokens,
+    runKeyword,
+    runCommandFn,
+    runBrowseFn,
+    runEditFn,
+    runReadFn,
+    runReplaceFn,
+    runEscapeStringFn,
+    runUnescapeStringFn,
+  };
 
-  return { result, executionDetails: { type: 'EXECUTE', command: normalizedCommand } };
+  for (const handler of handlers) {
+    if (handler.isMatch(context)) {
+      return handler.execute(context);
+    }
+  }
+
+  throw new Error('No matching command handler found.');
 }
 
 export default {
