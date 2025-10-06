@@ -6,6 +6,7 @@
 
 ## Modules
 
+- `runtime.js`: wires the agent runtime to the terminal renderer and exports `agentLoop` plus command tracking helpers used by the CLI entry point.
 - `io.js`: readline wrapper with ESC detection (emits `ESCAPE_EVENT`, cancels active operations, highlights prompts).
 - `render.js`: Markdown-based renderer for plans/messages/command summaries.
 - `thinking.js`: spinner that displays elapsed time while awaiting API responses.
