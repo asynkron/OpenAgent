@@ -16,6 +16,7 @@
 ## Positive Signals
 
 - Coverage spans primary user flows (command execution, read/edit helpers, CLI wrappers).
+- Recent refactors mock `requestModelCompletion` directly, aligning with the loop's dependency injection surface instead of monkey-patching the OpenAI SDK.
 
 ## Risks / Gaps
 

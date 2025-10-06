@@ -2,6 +2,38 @@ import { jest } from '@jest/globals';
 
 jest.setTimeout(20000);
 
+// Queue feeding mocked OpenAI completions so the loop exercises real pass logic without network calls.
+const completionQueue = [];
+const requestModelCompletionMock = jest.fn(async () => {
+  if (completionQueue.length === 0) {
+    throw new Error('No mock completion queued');
+  }
+  const payload = completionQueue.shift();
+  if (payload && payload.status === 'canceled') {
+    return { status: 'canceled' };
+  }
+  return {
+    status: 'success',
+    completion: {
+      output: [
+        {
+          type: 'message',
+          content: [
+            {
+              type: 'output_text',
+              text: JSON.stringify(payload),
+            },
+          ],
+        },
+      ],
+    },
+  };
+});
+
+function queueCompletion(payload) {
+  completionQueue.push(payload);
+}
+
 const mockAnswersQueue = [];
 const mockInterface = {
   question: jest.fn((prompt, cb) => {
@@ -38,55 +70,21 @@ async function loadAgent() {
     resetEscState: jest.fn(),
   }));
 
-  let mockCallCount = 0;
-  jest.unstable_mockModule('openai', () => ({
-    default: function OpenAIMock() {
-      return {
-        responses: {
-          create: async () => {
-            mockCallCount += 1;
-            const payload =
-              mockCallCount === 1
-                ? {
-                    message: 'Mocked handshake',
-                    plan: [],
-                    command: null,
-                  }
-                : mockCallCount === 2
-                ? {
-                    message: 'Mocked response',
-                    plan: [],
-                    command: {
-                      shell: 'bash',
-                      run: 'echo "MOCKED_OK"',
-                      cwd: '.',
-                      timeout_sec: 5,
-                    },
-                  }
-                : {
-                    message: 'Mocked follow-up',
-                    plan: [],
-                    command: null,
-                  };
-
-            return {
-              output: [
-                {
-                  type: 'message',
-                  content: [
-                    {
-                      type: 'output_text',
-                      text: JSON.stringify(payload),
-                    },
-                  ],
-                },
-              ],
-            };
-          },
-        },
-      };
-    },
+  jest.unstable_mockModule('../../src/agent/openaiRequest.js', () => ({
+    requestModelCompletion: requestModelCompletionMock,
   }));
+
+  jest.unstable_mockModule('../../src/openai/client.js', () => {
+    const getOpenAIClient = jest.fn(() => ({ responses: {} }));
+    const resetOpenAIClient = jest.fn();
+    const MODEL = 'mock-model';
+    return {
+      getOpenAIClient,
+      resetOpenAIClient,
+      MODEL,
+      default: { getOpenAIClient, resetOpenAIClient, MODEL },
+    };
+  });
 
   jest.unstable_mockModule('dotenv/config', () => ({}));
 
@@ -94,15 +92,33 @@ async function loadAgent() {
   return { agent: agentModule.default, createEscStateMock, detachMock };
 }
 
+beforeEach(() => {
+  mockAnswersQueue.length = 0;
+  completionQueue.length = 0;
+  mockInterface.question.mockClear();
+  mockInterface.close.mockClear();
+  requestModelCompletionMock.mockClear();
+});
+
 test('agent loop executes one mocked command then exits on user request', async () => {
   process.env.OPENAI_API_KEY = 'test-key';
   const { agent, createEscStateMock, detachMock } = await loadAgent();
   agent.STARTUP_FORCE_AUTO_APPROVE = true;
 
-  mockAnswersQueue.length = 0;
+  queueCompletion({ message: 'Mocked handshake', plan: [], command: null });
+  queueCompletion({
+    message: 'Mocked response',
+    plan: [],
+    command: {
+      shell: 'bash',
+      run: 'echo "MOCKED_OK"',
+      cwd: '.',
+      timeout_sec: 5,
+    },
+  });
+  queueCompletion({ message: 'Mocked follow-up', plan: [], command: null });
+
   mockAnswersQueue.push('Run the test command', 'exit');
-  mockInterface.question.mockClear();
-  mockInterface.close.mockClear();
 
   agent.startThinking = () => {};
   agent.stopThinking = () => {};

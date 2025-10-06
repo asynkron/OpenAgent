@@ -15,12 +15,54 @@ import * as path from 'node:path';
 
 const SHORTCUTS_PATH = path.join(process.cwd(), 'shortcuts', 'shortcuts.json');
 
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function toSafeString(value, { allowEmpty = false } = {}) {
+  const normalized =
+    typeof value === 'string' ? value.trim() : String(value ?? '').trim();
+  if (!allowEmpty && normalized.length === 0) {
+    return '';
+  }
+  return normalized;
+}
+
+// Filter and normalize shortcuts to avoid executing malformed command payloads.
+function sanitizeShortcuts(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((entry) => {
+      if (!isPlainObject(entry)) return null;
+      const id = toSafeString(entry.id);
+      const command = toSafeString(entry.command);
+      if (!id || !command) return null;
+
+      const name = toSafeString(entry.name ?? '', { allowEmpty: true }) || id;
+      const description = toSafeString(entry.description ?? '', { allowEmpty: true });
+      const tags = Array.isArray(entry.tags)
+        ? entry.tags
+            .filter((tag) => typeof tag === 'string')
+            .map((tag) => toSafeString(tag))
+            .filter(Boolean)
+        : [];
+
+      return {
+        id,
+        name,
+        description,
+        command,
+        tags,
+      };
+    })
+    .filter(Boolean);
+}
+
 export function loadShortcutsFile() {
   try {
     const raw = fs.readFileSync(SHORTCUTS_PATH, 'utf8');
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed;
+    return sanitizeShortcuts(parsed);
   } catch (err) {
     return [];
   }

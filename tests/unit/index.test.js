@@ -174,6 +174,18 @@ describe('isPreapprovedCommand', () => {
     expect(mod.isPreapprovedCommand({ run: 'ls >(cat)' }, cfg)).toBe(false);
   });
 
+  test('rejects commands with heredoc redirection', async () => {
+    const { mod } = await loadModule();
+    const cfg = { allowlist: [{ name: 'cat' }] };
+    expect(mod.isPreapprovedCommand({ run: "cat <<'EOF'" }, cfg)).toBe(false);
+  });
+
+  test('rejects commands with here-string redirection', async () => {
+    const { mod } = await loadModule();
+    const cfg = { allowlist: [{ name: 'cat' }] };
+    expect(mod.isPreapprovedCommand({ run: 'cat <<<"hello"' }, cfg)).toBe(false);
+  });
+
   test('allows browse command with valid URL', async () => {
     const { mod } = await loadModule();
     const result = mod.isPreapprovedCommand(

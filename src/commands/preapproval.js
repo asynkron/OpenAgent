@@ -50,7 +50,8 @@ export function isPreapprovedCommand(command, cfg) {
       return false;
     }
 
-    const forbidden = [/;|&&|\|\|/, /\|/, /`/, /\$\(/, /<\(/, />\(/];
+    const forbidden = [/;|&&|\|\|/, /\|/, /`/, /\$\(/, /<\(/, />\(/, /(^|\s)<<<?\s*/];
+    // Reject heredoc (`<<`/`<<<`) redirections which enable multi-line shell injection.
     if (forbidden.some((re) => re.test(runRaw))) return false;
 
     if (/^\s*sudo\b/.test(runRaw)) return false;

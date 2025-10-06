@@ -2,6 +2,38 @@ import { jest } from '@jest/globals';
 
 jest.setTimeout(20000);
 
+// Queue feeding mocked OpenAI completions so the loop exercises real pass logic without network calls.
+const completionQueue = [];
+const requestModelCompletionMock = jest.fn(async () => {
+  if (completionQueue.length === 0) {
+    throw new Error('No mock completion queued');
+  }
+  const payload = completionQueue.shift();
+  if (payload && payload.status === 'canceled') {
+    return { status: 'canceled' };
+  }
+  return {
+    status: 'success',
+    completion: {
+      output: [
+        {
+          type: 'message',
+          content: [
+            {
+              type: 'output_text',
+              text: JSON.stringify(payload),
+            },
+          ],
+        },
+      ],
+    },
+  };
+});
+
+function queueCompletion(payload) {
+  completionQueue.push(payload);
+}
+
 const mockAnswersQueue = [];
 const mockInterface = {
   question: jest.fn((prompt, cb) => {
@@ -11,7 +43,7 @@ const mockInterface = {
   close: jest.fn(),
 };
 
-async function loadAgent({ firstPayload, secondPayload }) {
+async function loadAgent() {
   jest.resetModules();
 
   const createInterface = jest.fn(() => mockInterface);
@@ -38,56 +70,37 @@ async function loadAgent({ firstPayload, secondPayload }) {
     resetEscState: jest.fn(),
   }));
 
-  let callCount = 0;
-  jest.unstable_mockModule('openai', () => ({
-    default: function OpenAIMock() {
-      return {
-        responses: {
-          create: async () => {
-            callCount += 1;
-            const payload =
-              callCount === 1
-                ? {
-                    message: 'Handshake',
-                    plan: [],
-                    command: null,
-                  }
-                : callCount === 2
-                ? firstPayload
-                : secondPayload;
-
-            return {
-              output: [
-                {
-                  type: 'message',
-                  content: [
-                    {
-                      type: 'output_text',
-                      text: JSON.stringify(payload),
-                    },
-                  ],
-                },
-              ],
-            };
-          },
-        },
-      };
-    },
+  jest.unstable_mockModule('../../src/agent/openaiRequest.js', () => ({
+    requestModelCompletion: requestModelCompletionMock,
   }));
+
+  jest.unstable_mockModule('../../src/openai/client.js', () => {
+    const getOpenAIClient = jest.fn(() => ({ responses: {} }));
+    const resetOpenAIClient = jest.fn();
+    const MODEL = 'mock-model';
+    return {
+      getOpenAIClient,
+      resetOpenAIClient,
+      MODEL,
+      default: { getOpenAIClient, resetOpenAIClient, MODEL },
+    };
+  });
 
   jest.unstable_mockModule('dotenv/config', () => ({}));
 
   const agentModule = await import('../../index.js');
-  return { agent: agentModule.default, createEscStateMock, detachMock };
+  return { agent: agentModule.default, createEscStateMock, createEscWaiterMock, detachMock };
 }
 
-describe('Approval flow integration', () => {
-  beforeEach(() => {
-    mockAnswersQueue.length = 0;
-    mockInterface.question.mockClear();
-    mockInterface.close.mockClear();
-  });
+beforeEach(() => {
+  mockAnswersQueue.length = 0;
+  completionQueue.length = 0;
+  mockInterface.question.mockClear();
+  mockInterface.close.mockClear();
+  requestModelCompletionMock.mockClear();
+});
 
+describe('Approval flow integration', () => {
   test('executes command after human approves once', async () => {
     process.env.OPENAI_API_KEY = 'test-key';
 
@@ -102,8 +115,12 @@ describe('Approval flow integration', () => {
     };
     const secondPayload = { message: 'Follow-up', plan: [], command: null };
 
-    const { agent, createEscStateMock, createEscWaiterMock, detachMock } = await loadAgent({ firstPayload, secondPayload });
+    const { agent, createEscStateMock, createEscWaiterMock, detachMock } = await loadAgent();
     agent.STARTUP_FORCE_AUTO_APPROVE = false;
+
+    queueCompletion({ message: 'Handshake', plan: [], command: null });
+    queueCompletion(firstPayload);
+    queueCompletion(secondPayload);
 
     mockAnswersQueue.push('Please run the command', '1', 'exit');
 
@@ -142,8 +159,12 @@ describe('Approval flow integration', () => {
     };
     const secondPayload = { message: 'Alternative requested', plan: [], command: null };
 
-    const { agent, createEscStateMock, createEscWaiterMock, detachMock } = await loadAgent({ firstPayload, secondPayload });
+    const { agent, createEscStateMock, createEscWaiterMock, detachMock } = await loadAgent();
     agent.STARTUP_FORCE_AUTO_APPROVE = false;
+
+    queueCompletion({ message: 'Handshake', plan: [], command: null });
+    queueCompletion(firstPayload);
+    queueCompletion(secondPayload);
 
     mockAnswersQueue.push('Attempt command', '3', 'exit');
 

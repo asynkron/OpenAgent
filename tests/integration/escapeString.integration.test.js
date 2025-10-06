@@ -2,6 +2,38 @@ import { jest } from '@jest/globals';
 
 jest.setTimeout(20000);
 
+// Queue feeding mocked OpenAI completions so the loop exercises real pass logic without network calls.
+const completionQueue = [];
+const requestModelCompletionMock = jest.fn(async () => {
+  if (completionQueue.length === 0) {
+    throw new Error('No mock completion queued');
+  }
+  const payload = completionQueue.shift();
+  if (payload && payload.status === 'canceled') {
+    return { status: 'canceled' };
+  }
+  return {
+    status: 'success',
+    completion: {
+      output: [
+        {
+          type: 'message',
+          content: [
+            {
+              type: 'output_text',
+              text: JSON.stringify(payload),
+            },
+          ],
+        },
+      ],
+    },
+  };
+});
+
+function queueCompletion(payload) {
+  completionQueue.push(payload);
+}
+
 const mockAnswersQueue = [];
 const mockInterface = {
   question: jest.fn((prompt, cb) => {
@@ -10,8 +42,6 @@ const mockInterface = {
   }),
   close: jest.fn(),
 };
-
-const mockPayloads = [];
 
 async function loadAgent() {
   jest.resetModules();
@@ -27,33 +57,30 @@ async function loadAgent() {
     cursorTo,
   }));
 
-  jest.unstable_mockModule('openai', () => ({
-    default: function OpenAIMock() {
-      return {
-        responses: {
-          create: async () => {
-            if (mockPayloads.length === 0) {
-              throw new Error('No mock payload configured');
-            }
-            const payload = mockPayloads.shift();
-            return {
-              output: [
-                {
-                  type: 'message',
-                  content: [
-                    {
-                      type: 'output_text',
-                      text: JSON.stringify(payload),
-                    },
-                  ],
-                },
-              ],
-            };
-          },
-        },
-      };
-    },
+  jest.unstable_mockModule('../../src/agent/escState.js', () => ({
+    createEscState: jest.fn(() => ({
+      state: { triggered: false, payload: null, waiters: new Set() },
+      detach: jest.fn(),
+    })),
+    createEscWaiter: jest.fn(() => ({ promise: Promise.resolve(null), cleanup: jest.fn() })),
+    resetEscState: jest.fn(),
   }));
+
+  jest.unstable_mockModule('../../src/agent/openaiRequest.js', () => ({
+    requestModelCompletion: requestModelCompletionMock,
+  }));
+
+  jest.unstable_mockModule('../../src/openai/client.js', () => {
+    const getOpenAIClient = jest.fn(() => ({ responses: {} }));
+    const resetOpenAIClient = jest.fn();
+    const MODEL = 'mock-model';
+    return {
+      getOpenAIClient,
+      resetOpenAIClient,
+      MODEL,
+      default: { getOpenAIClient, resetOpenAIClient, MODEL },
+    };
+  });
 
   jest.unstable_mockModule('dotenv/config', () => ({}));
 
@@ -63,34 +90,25 @@ async function loadAgent() {
 
 beforeEach(() => {
   mockAnswersQueue.length = 0;
-  mockPayloads.length = 0;
+  completionQueue.length = 0;
   mockInterface.question.mockClear();
   mockInterface.close.mockClear();
+  requestModelCompletionMock.mockClear();
 });
 
 test('agent loop delegates escape_string command to runEscapeString', async () => {
   process.env.OPENAI_API_KEY = 'test-key';
 
-  mockPayloads.push(
-    {
-      message: 'Handshake',
-      plan: [],
-      command: null,
+  queueCompletion({ message: 'Handshake', plan: [], command: null });
+  queueCompletion({
+    message: 'Mocked escape command',
+    plan: [],
+    command: {
+      escape_string: { text: 'Needs escaping"\n' },
+      cwd: '.',
     },
-    {
-      message: 'Mocked escape command',
-      plan: [],
-      command: {
-        escape_string: { text: 'Needs escaping"\n' },
-        cwd: '.',
-      },
-    },
-    {
-      message: 'Follow-up',
-      plan: [],
-      command: null,
-    },
-  );
+  });
+  queueCompletion({ message: 'Follow-up', plan: [], command: null });
 
   mockAnswersQueue.push('escape this', 'exit');
 
@@ -122,26 +140,16 @@ test('agent loop delegates escape_string command to runEscapeString', async () =
 test('agent loop delegates unescape_string command to runUnescapeString', async () => {
   process.env.OPENAI_API_KEY = 'test-key';
 
-  mockPayloads.push(
-    {
-      message: 'Handshake',
-      plan: [],
-      command: null,
+  queueCompletion({ message: 'Handshake', plan: [], command: null });
+  queueCompletion({
+    message: 'Mocked unescape command',
+    plan: [],
+    command: {
+      unescape_string: { text: '"hello\\nworld"' },
+      cwd: '.',
     },
-    {
-      message: 'Mocked unescape command',
-      plan: [],
-      command: {
-        unescape_string: { text: '"hello\\nworld"' },
-        cwd: '.',
-      },
-    },
-    {
-      message: 'Follow-up',
-      plan: [],
-      command: null,
-    },
-  );
+  });
+  queueCompletion({ message: 'Follow-up', plan: [], command: null });
 
   mockAnswersQueue.push('unescape this', 'exit');
 

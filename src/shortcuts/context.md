@@ -11,11 +11,11 @@
 ## Positive Signals
 
 - Simple JSON-driven shortcuts enable scripted reuse of common commands.
+- Loader now filters malformed entries, reducing the risk of executing arbitrary payloads.
 
 ## Risks / Gaps
 
 - Direct `process.exit` calls make the module side-effectful; difficult to reuse programmatically.
-- No validation of command safety when executing shortcuts.
 
 ## Related Context
 

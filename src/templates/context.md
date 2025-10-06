@@ -11,6 +11,7 @@
 ## Positive Signals
 
 - Enables reusable command scaffolds with variable substitution, useful for repeated workflows.
+- Loader sanitises JSON payloads to strip malformed entries before rendering.
 
 ## Risks / Gaps
 
