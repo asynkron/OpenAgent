@@ -13,7 +13,7 @@
 - CLI assets: [`templates/context.md`](templates/context.md), [`shortcuts/context.md`](shortcuts/context.md)
 - Release notes: [`CHANGELOG.md`](CHANGELOG.md)
 - IDE settings: [`./.idea/context.md`](.idea/context.md)
-- Additional docs: [`docs/context.md`](docs/context.md)
+- Additional docs: [`docs/context.md`](docs/context.md); root-level `README.md` and `openagent-example.md` now highlight ESM `import` snippets so newcomers avoid legacy CommonJS patterns.
 
 ## Key Entry Points
 
