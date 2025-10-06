@@ -10,6 +10,7 @@
 - `modernization-plan.md`: staged roadmap covering lint/format adoption, ESM migration, service extraction, observability.
 - `openai-cancellation.md`: research note confirming AbortSignal support in `openai@6.x` and fallback strategies.
 - `js-dependency-graph.md`: Mermaid diagram mapping relative imports among ESM modules.
+- `publishing.md`: documents the GitHub Actions-powered npm release pipeline plus the manual fallback procedure.
 
 ## Positive Signals
 
