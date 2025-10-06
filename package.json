@@ -1,6 +1,6 @@
 {
   "name": "openagent",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Simple Node.JS based AI agent",
   "type": "module",
   "main": "index.js",
