@@ -1,4 +1,4 @@
-import { combineStdStreams } from '../../src/utils/output.js';
+import { buildPreview, combineStdStreams } from '../../src/utils/output.js';
 
 describe('combineStdStreams', () => {
   test('concats stderr into stdout on success (exitCode 0)', () => {
@@ -23,5 +23,22 @@ describe('combineStdStreams', () => {
     const res = combineStdStreams('', 'err', 0);
     expect(res.stdout).toBe('err');
     expect(res.stderr).toBe('');
+  });
+});
+
+describe('buildPreview', () => {
+  test('returns empty string for undefined or null', () => {
+    expect(buildPreview(undefined)).toBe('');
+    expect(buildPreview(null)).toBe('');
+  });
+
+  test('returns input when within max lines', () => {
+    const text = 'line1\nline2';
+    expect(buildPreview(text, 3)).toBe(text);
+  });
+
+  test('truncates and adds ellipsis when exceeding max lines', () => {
+    const text = ['a', 'b', 'c'].join('\n');
+    expect(buildPreview(text, 2)).toBe('a\nb\n…');
   });
 });

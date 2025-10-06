@@ -9,6 +9,7 @@
 - `run.js`: spawns shell commands with timeouts, cancellation hooks, stdin piping, and exposes re-exports for specialised helpers.
 - `browse.js`: HTTP/HTTPS GET helper with optional global `fetch` fast path.
 - `read.js`: streams file contents with path normalization and optional limits.
+- `readSpec.js`: parses shell-style `read` command invocations into normalized specs for the loop and tests.
 - `edit.js`: applies positional edits, creating files/directories as needed.
 - `replace.js`: regex-based multi-file replacement with dry-run support.
 - `escapeString.js`: implements `quote_string` / `unquote_string` built-ins via JSON stringification/parsing.

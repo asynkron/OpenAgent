@@ -7,7 +7,8 @@
 ## Modules
 
 - `cancellation.js`: stack-based cancellation manager enabling ESC-triggered aborts and nested operations.
-- `output.js`: merges stdout/stderr on success to reduce clutter.
+- `output.js`: merges stdout/stderr and provides preview builders used when rendering command results.
+- `plan.js`: supplies plan inspection helpers (e.g., `planHasOpenSteps`).
 - `text.js`: regex filtering, tailing, truncation, and lightweight shell argument splitting.
 
 ## Positive Signals

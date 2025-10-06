@@ -23,6 +23,12 @@
 - Built-in support for `escape_string`/`unescape_string` lacks matching verification in `tests/unit`.
 - Manual JSON parsing of model output: failures simply push an observation, but no retries/backoff beyond loop re-entry.
 
+## Supporting Utilities
+
+- [`../commands/readSpec.js`](../commands/readSpec.js): parses and merges `read` command specs invoked by the loop.
+- [`../utils/plan.js`](../utils/plan.js): determines whether plan steps remain open before prompting the model.
+- [`../utils/output.js`](../utils/output.js): now hosts preview generation used when rendering command results.
+
 ## Related Context
 
 - CLI rendering invoked from here: [`../cli/context.md`](../cli/context.md)
