@@ -7,7 +7,7 @@
 ## Structure
 - `integration/`: high-level tests exercising the agent loop, command runners, and CLI wrappers.
 - `unit/`: focused tests for utilities, command helpers, rendering logic, etc.
-- `mockOpenAI.js`: global mocking hook for the `openai` package during integration runs.
+- `mockOpenAI.js`: Jest setup module that pre-registers the default `openai` mock for every suite.
 
 ## Positive Signals
 - Integration tests validate agent loop approvals, read command dispatch, command stats persistence, and CLI wrappers for templates/shortcuts.
