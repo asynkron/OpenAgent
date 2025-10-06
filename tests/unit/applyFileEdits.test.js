@@ -20,9 +20,7 @@ describe('applyFileEdits file creation', () => {
     const result = await applyFileEdits(
       {
         path: relPath,
-        edits: [
-          { start: 0, end: 0, newText: 'Hello world' },
-        ],
+        edits: [{ start: 0, end: 0, newText: 'Hello world' }],
       },
       tmpDir,
     );
@@ -45,9 +43,7 @@ describe('applyFileEdits file creation', () => {
     const result = await applyFileEdits(
       {
         path: relPath,
-        edits: [
-          { start: 0, end: 8, newText: 'updated' },
-        ],
+        edits: [{ start: 0, end: 8, newText: 'updated' }],
       },
       tmpDir,
     );

@@ -30,7 +30,15 @@ import {
   inferLanguageFromDetectors,
   detectLanguage,
 } from './src/cli/render.js';
-import { runCommand, runBrowse, runEdit, runRead, runReplace, runEscapeString, runUnescapeString } from './src/commands/run.js';
+import {
+  runCommand,
+  runBrowse,
+  runEdit,
+  runRead,
+  runReplace,
+  runEscapeString,
+  runUnescapeString,
+} from './src/commands/run.js';
 import {
   loadPreapprovedConfig,
   isPreapprovedCommand,
@@ -75,7 +83,7 @@ export async function runCommandAndTrack(run, cwd = '.', timeoutSec = 60) {
     let key = 'unknown';
     if (Array.isArray(run) && run.length > 0) key = String(run[0]);
     else if (typeof run === 'string' && run.trim().length > 0) key = run.trim().split(/\s+/)[0];
-    await incrementCommandCount(key).catch(() => { });
+    await incrementCommandCount(key).catch(() => {});
   } catch (err) {
     // Ignore stats failures intentionally.
   }

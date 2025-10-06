@@ -51,8 +51,7 @@ export function runEscapeString(spec, cwd = '.') {
       if (!relPath) {
         throw new Error('escapeString path must be a non-empty string.');
       }
-      const encodingInput =
-        typeof spec.encoding === 'string' ? spec.encoding.trim() : '';
+      const encodingInput = typeof spec.encoding === 'string' ? spec.encoding.trim() : '';
       const encoding = encodingInput || 'utf8';
       const absPath = path.resolve(cwd || '.', relPath);
       input = fs.readFileSync(absPath, { encoding });
@@ -92,7 +91,9 @@ export function runUnescapeString(spec, cwd = '.') {
     try {
       parsed = JSON.parse(trimmed);
     } catch (err) {
-      throw new Error(`Failed to parse JSON string: ${err && err.message ? err.message : String(err)}`);
+      throw new Error(
+        `Failed to parse JSON string: ${err && err.message ? err.message : String(err)}`,
+      );
     }
 
     if (typeof parsed !== 'string') {
@@ -104,8 +105,7 @@ export function runUnescapeString(spec, cwd = '.') {
       if (!relPath) {
         throw new Error('unescapeString path must be a non-empty string.');
       }
-      const encodingInput =
-        typeof spec.encoding === 'string' ? spec.encoding.trim() : '';
+      const encodingInput = typeof spec.encoding === 'string' ? spec.encoding.trim() : '';
       const encoding = encodingInput || 'utf8';
       const absPath = path.resolve(cwd || '.', relPath);
       fs.writeFileSync(absPath, parsed, { encoding });

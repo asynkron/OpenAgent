@@ -94,7 +94,8 @@ const registerOpenAIMock = () => {
   }));
 };
 
-const originalResetModules = typeof jest.resetModules === 'function' ? jest.resetModules.bind(jest) : null;
+const originalResetModules =
+  typeof jest.resetModules === 'function' ? jest.resetModules.bind(jest) : null;
 
 if (originalResetModules) {
   jest.resetModules = (...args) => {

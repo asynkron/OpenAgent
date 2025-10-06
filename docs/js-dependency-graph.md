@@ -37,4 +37,4 @@ graph LR
   src_commands_run_js --> src_utils_cancellation_js
 ```
 
-*Generated via automated AST analysis using Acorn on the current workspace state.*
+_Generated via automated AST analysis using Acorn on the current workspace state._

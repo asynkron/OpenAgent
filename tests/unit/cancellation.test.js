@@ -1,11 +1,6 @@
 import { jest } from '@jest/globals';
 
-import {
-  register,
-  cancel,
-  isCanceled,
-  getActiveOperation,
-} from '../../src/utils/cancellation.js';
+import { register, cancel, isCanceled, getActiveOperation } from '../../src/utils/cancellation.js';
 
 describe('cancellation manager', () => {
   afterEach(() => {
@@ -73,7 +68,7 @@ describe('cancellation manager', () => {
 
   test('supports nested registrations with stack semantics', () => {
     const first = register({ description: 'first' });
-    const second = register({ description: 'second' });
+    register({ description: 'second' });
 
     const active = getActiveOperation();
     expect(active.description).toBe('second');

@@ -155,8 +155,7 @@ export function renderPlan(plan) {
         return;
       }
 
-      const rawStep =
-        item.step !== undefined && item.step !== null ? String(item.step).trim() : '';
+      const rawStep = item.step !== undefined && item.step !== null ? String(item.step).trim() : '';
       const sanitizedStep = rawStep.replace(/\.+$/, '');
       const hasExplicitStep = sanitizedStep.length > 0;
 
@@ -173,7 +172,9 @@ export function renderPlan(plan) {
       const statusSymbol = resolveStatusSymbol(item.status);
       const title = chalk.white(item.title ?? '');
 
-      planLines.push(`${indent}${statusSymbol} ${chalk.cyan(`Step ${stepLabel}`)} ${chalk.dim('-')} ${title}`);
+      planLines.push(
+        `${indent}${statusSymbol} ${chalk.cyan(`Step ${stepLabel}`)} ${chalk.dim('-')} ${title}`,
+      );
 
       const childKey = childKeys.find((key) => Array.isArray(item[key]));
       if (childKey) {

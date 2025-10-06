@@ -39,7 +39,8 @@ import { combineStdStreams } from '../utils/output.js';
 import { register as registerCancellation } from '../utils/cancellation.js';
 
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
-const PLAN_PENDING_REMINDER = "There are open tasks in the plan. Do you need help or more info? If not, please continue working.";
+const PLAN_PENDING_REMINDER =
+  'There are open tasks in the plan. Do you need help or more info? If not, please continue working.';
 
 function planHasOpenSteps(plan) {
   const hasOpen = (items) => {
@@ -70,21 +71,20 @@ function planHasOpenSteps(plan) {
   return hasOpen(plan);
 }
 
-
 function createEscWaiter(escState) {
   if (!escState || typeof escState !== 'object') {
-    return { promise: null, cleanup: () => { } };
+    return { promise: null, cleanup: () => {} };
   }
 
   if (escState.triggered) {
     return {
       promise: Promise.resolve(escState.payload ?? null),
-      cleanup: () => { },
+      cleanup: () => {},
     };
   }
 
   if (!escState.waiters || typeof escState.waiters.add !== 'function') {
-    return { promise: null, cleanup: () => { } };
+    return { promise: null, cleanup: () => {} };
   }
 
   let resolver;
@@ -297,14 +297,10 @@ async function executeAgentPass({
   let completion;
 
   try {
-    const raceCandidates = [
-      requestPromise.then((value) => ({ kind: 'completion', value })),
-    ];
+    const raceCandidates = [requestPromise.then((value) => ({ kind: 'completion', value }))];
 
     if (escPromise) {
-      raceCandidates.push(
-        escPromise.then((payload) => ({ kind: 'escape', payload })),
-      );
+      raceCandidates.push(escPromise.then((payload) => ({ kind: 'escape', payload })));
     }
 
     const outcome = await Promise.race(raceCandidates);
@@ -632,11 +628,11 @@ Select 1, 2, or 3: `,
 
   const stdoutPreview = filteredStdout
     ? filteredStdout.split('\n').slice(0, 20).join('\n') +
-    (filteredStdout.split('\n').length > 20 ? '\n…' : '')
+      (filteredStdout.split('\n').length > 20 ? '\n…' : '')
     : '';
   const stderrPreview = filteredStderr
     ? filteredStderr.split('\n').slice(0, 20).join('\n') +
-    (filteredStderr.split('\n').length > 20 ? '\n…' : '')
+      (filteredStderr.split('\n').length > 20 ? '\n…' : '')
     : '';
 
   renderCommandFn(parsed.command, result, {
@@ -674,7 +670,6 @@ Select 1, 2, or 3: `,
   return true;
 }
 
-
 export function createAgentLoop({
   systemPrompt = SYSTEM_PROMPT,
   getClient = getOpenAIClient,
@@ -701,7 +696,7 @@ export function createAgentLoop({
   preapprovedCfg = PREAPPROVED_CFG,
   getAutoApproveFlag = () => false,
   getNoHumanFlag = () => false,
-  setNoHumanFlag = () => { },
+  setNoHumanFlag = () => {},
 } = {}) {
   return async function agentLoop() {
     const history = [

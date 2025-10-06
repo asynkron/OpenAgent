@@ -27,9 +27,7 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
     const isStringCommand = typeof cmd === 'string';
 
     const options =
-      shellOrOptions &&
-      typeof shellOrOptions === 'object' &&
-      !Array.isArray(shellOrOptions)
+      shellOrOptions && typeof shellOrOptions === 'object' && !Array.isArray(shellOrOptions)
         ? { ...shellOrOptions }
         : { shell: shellOrOptions };
 
@@ -49,17 +47,20 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
     const commandLabel = providedLabel
       ? String(providedLabel).trim()
       : isStringCommand
-      ? String(cmd || '').trim()
-      : Array.isArray(cmd)
-      ? cmd.map((part) => String(part)).join(' ').trim()
-      : '';
+        ? String(cmd || '').trim()
+        : Array.isArray(cmd)
+          ? cmd
+              .map((part) => String(part))
+              .join(' ')
+              .trim()
+          : '';
 
     const operationDescription =
       providedDescription && String(providedDescription).trim()
         ? String(providedDescription).trim()
         : commandLabel
-        ? `shell: ${commandLabel}`
-        : 'shell command';
+          ? `shell: ${commandLabel}`
+          : 'shell command';
 
     const appendLine = (output, line) => {
       if (!line) {
@@ -97,7 +98,6 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
     let settled = false;
     let timeoutHandle;
     let forceKillHandle;
-    let cancellation;
 
     const effectiveCloseStdin =
       closeStdin !== undefined ? Boolean(closeStdin) : stdin === undefined;
@@ -179,7 +179,7 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
       }
     };
 
-    cancellation = registerCancellation({
+    const cancellation = registerCancellation({
       description: operationDescription,
       onCancel: handleCancel,
     });
@@ -217,7 +217,11 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
       }
     }
 
-    if (cancellation && typeof cancellation.isCanceled === 'function' && cancellation.isCanceled()) {
+    if (
+      cancellation &&
+      typeof cancellation.isCanceled === 'function' &&
+      cancellation.isCanceled()
+    ) {
       handleCancel('Command canceled before start.');
     } else if (cancellation && typeof cancellation.setCancelCallback === 'function') {
       cancellation.setCancelCallback(handleCancel);

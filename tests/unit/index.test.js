@@ -72,7 +72,12 @@ async function loadModule(
   }
 
   const imported = await import('../../index.js');
-  return { mod: imported.default, MockOpenAI, mockResponsesCreate, commandStatsMock: commandStatsMockFn };
+  return {
+    mod: imported.default,
+    MockOpenAI,
+    mockResponsesCreate,
+    commandStatsMock: commandStatsMockFn,
+  };
 }
 
 afterEach(() => {
@@ -235,12 +240,15 @@ describe('runBrowse', () => {
     });
 
     const url = 'http://example.com/test';
-    const { mod } = await loadModule({}, {
-      httpModuleFactory: async () => {
-        const actual = await import('node:http');
-        return { ...actual, request: requestSpy };
+    const { mod } = await loadModule(
+      {},
+      {
+        httpModuleFactory: async () => {
+          const actual = await import('node:http');
+          return { ...actual, request: requestSpy };
+        },
       },
-    });
+    );
 
     const result = await mod.runBrowse(url, 1);
 

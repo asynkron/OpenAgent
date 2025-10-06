@@ -44,7 +44,7 @@ guidance.
 
 - Prefer project tooling (e.g., `read`, `edit`, `replace`) over generic shell
   equivalents.
-- use `edit` to create new files, rather than things like python, python3, node.  
+- use `edit` to create new files, rather than things like python, python3, node.
 - Match the project’s existing coding style and dependencies; never
   introduce new ones without confirmation.
 - read can read an array of files, use this to avoid roundtrips.
@@ -73,7 +73,14 @@ You must respond ONLY with valid JSON in this format:
 ```json
 {
   "message": "Optional Markdown message to display to the user",
-  "plan": [{ "step": "1", "title": "Description of step", "status": "pending|running|completed", "substeps": [{ "step": "1.1", "title": "Optional child step", "status": "pending" }] }],
+  "plan": [
+    {
+      "step": "1",
+      "title": "Description of step",
+      "status": "pending|running|completed",
+      "substeps": [{ "step": "1.1", "title": "Optional child step", "status": "pending" }]
+    }
+  ],
   "command": {
     "shell": "bash",
     "run": "command to execute",
@@ -169,9 +176,11 @@ All special commands are issued through the `"command"` object in the response J
         "dry_run": false
       },
       "cwd": "."
+    }
   }
-}
-```
+  ```
+
+````
 
 ### escapeString
 
@@ -188,7 +197,7 @@ All special commands are issued through the `"command"` object in the response J
     }
   }
 }
-```
+````
 
 ### unquoteString
 
@@ -211,7 +220,7 @@ All special commands are issued through the `"command"` object in the response J
 ## Planning
 
 - When given a task, try to have a plan that is as detailed as possible, and that covers all aspects of the task.
-- If the task is complex, break it down into smaller steps, and include a "plan" in your response. 
+- If the task is complex, break it down into smaller steps, and include a "plan" in your response.
 - Each step should have a "step" number, a "title", and a "status" of "pending", "running", or "completed". If a step has substeps, include them in a "substeps" array.
 - You may at any point update the plan, marking steps as "completed" when done, or adding/removing steps as needed, e.g. if some steps turn out to be unnecessary. or if the task is more complex than initially thought and needs more substeps.
 - Every time you can, revaluate the plan, does it still make sense, or can it be improved?

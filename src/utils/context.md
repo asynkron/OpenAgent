@@ -1,20 +1,25 @@
 # Directory Context: src/utils
 
 ## Purpose
+
 - Shared utility helpers for cancellation coordination, text manipulation, and stdout/stderr formatting.
 
 ## Modules
+
 - `cancellation.js`: stack-based cancellation manager enabling ESC-triggered aborts and nested operations.
 - `output.js`: merges stdout/stderr on success to reduce clutter.
 - `text.js`: regex filtering, tailing, truncation, and lightweight shell argument splitting.
 
 ## Positive Signals
+
 - Cancellation manager abstracts lifecycle management away from commands, simplifying integration.
 - `shellSplit` is reused by preapproval logic and tests, keeping parsing consistent.
 
 ## Risks / Gaps
+
 - No persistence of cancellation state across process boundaries; relies on cooperative modules.
 - `tailLines` and `applyFilter` operate naïvely on strings—no streaming support for large outputs.
 
 ## Related Context
+
 - Consumers: [`../agent/context.md`](../agent/context.md), [`../commands/context.md`](../commands/context.md)
