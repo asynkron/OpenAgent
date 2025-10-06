@@ -17,10 +17,10 @@ describe('esm entry point', () => {
     expect(entry.PREAPPROVED_CFG).toBeDefined();
   });
 
-  test('package consumers can import("openagent")', () => {
+  test('package consumers can import("@asynkron/openagent")', () => {
     // Spawn a clean Node.js process so we exercise the public package entry.
     const script = `
-      import('openagent').then((mod) => {
+      import('@asynkron/openagent').then((mod) => {
         const resolved = mod.default ?? mod;
         console.log(JSON.stringify({
           hasLoop: typeof resolved.agentLoop === 'function',
