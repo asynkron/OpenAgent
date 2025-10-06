@@ -15,6 +15,7 @@
 
 - Modernization plan outlines concrete sequencing, making large refactors less risky.
 - Cancellation note confirms SDK capabilities, informing the ESC cancel flow in `src/agent/loop.js`.
+- `openai-cancellation.md` now documents verified integration/regression tests so operational behaviour stays in sync with code.
 
 ## Risks / Gaps
 

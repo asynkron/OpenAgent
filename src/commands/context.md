@@ -22,10 +22,11 @@
 - `browse.js` now reuses the shared `HttpClient`, consolidating networking behaviour and improving testability.
 - `replace.js` enforces `g` flag and supports dry-run reporting.
 - `escapeString.js` centralises string coercion, enabling new built-ins without touching `loop.js` internals.
+- `preapproval.js` validation now guards against risky shells/flags with dedicated unit coverage for new heuristics.
 
 ## Risks / Gaps
 
-- `preapproval.js` heuristics are regex-heavy and may miss emerging shell injection vectors.
+- `preapproval.js` heuristics remain regex-heavy; continue expanding allowlist fixtures as new command patterns appear.
 - HttpClient centralises networking, but additional integration tests may be needed for non-GET verbs or custom headers.
 - Run command safety still depends on human approvals; browser fetch remains limited to GET.
 

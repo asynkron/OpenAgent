@@ -65,3 +65,13 @@ This does not stop the server-side computation but lets the agent stop waiting a
 1. Prefer passing a real `AbortSignal` whenever possible; the SDK cleans up and reports cancellation.
 2. Always catch `APIUserAbortError` so cancellations do not surface as generic failures.
 3. Provide a `Promise.race` fallback for code paths where the signal cannot flow, ensuring the loop can still short-circuit.
+
+## Verified behaviours (integration & regression tests)
+
+- `tests/integration/agentCancellation.integration.test.js` simulates a long-running shell command and sends an ESC-triggered
+  cancellation through the runtime. The mocked command registers with the shared cancellation stack and confirms that the UI
+  event results in `killed: true` metadata plus a user-visible status message.
+- `tests/unit/cancellation.test.js` now asserts that repeated calls to `cancel()` unwind stacked operations in order, ensuring
+  nested registrations resolve deterministically even after a cascade of aborts.
+- Together these suites validate that ESC requests from the CLI surface through the cancellation manager and that nested
+  operations (OpenAI request + command execution) exit in LIFO order without leaving stale handlers behind.

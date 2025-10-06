@@ -119,9 +119,15 @@ OPENAI_API_KEY=sk-...
 # OPENAI_CONTEXT_WINDOW=256000
 # Optional: set reasoning effort for reasoning-enabled models (one of low, medium, high)
 # OPENAI_REASONING_EFFORT=medium
+# Optional: enforce a request timeout (milliseconds)
+# OPENAI_TIMEOUT_MS=60000
+# Optional: configure automatic retry attempts for transient API errors
+# OPENAI_MAX_RETRIES=2
+# Optional: point at a custom Responses API endpoint (must be the API root, not a completions URL)
+# OPENAI_BASE_URL=https://api.openai.com/v1
 ```
 
-Adjust other environment variables as needed (e.g., reasoning effort, model selection, timeouts).
+The client validates that the configured model supports the Responses API and that any custom base URL targets the API root, so misconfigurations fail fast.
 
 ## Usage
 

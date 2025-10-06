@@ -1,0 +1,16 @@
+{
+  "prompts": [
+    {
+      "id": "system",
+      "canonical": "prompts/system.md",
+      "copies": ["prompts/system copy.md"],
+      "notes": "Keep copy aligned with canonical system instructions."
+    },
+    {
+      "id": "developer",
+      "canonical": "prompts/developer.md",
+      "copies": ["prompts/developer copy.md"],
+      "notes": "Developer copy is used for experimentation; contents must match canonical file."
+    }
+  ]
+}

@@ -9,7 +9,8 @@
 
 - `system.md`: top-level operating constraints (hierarchy, safety, refusal policy).
 - `developer.md`: hands-on workflow instructions, built-in command documentation (now includes `quoteString` / `unquoteString`).
-- `*_copy.md`: reference versions for experimentation; keep in sync manually.
+- `prompts.json`: manifest describing canonical prompts and the copies that must remain synchronized.
+- `*_copy.md`: reference versions for experimentation; kept in lockstep with the canonical files via automation.
 
 ## Positive Signals
 
@@ -20,8 +21,7 @@
 
 ## Risks / Gaps
 
-- Duplicate “copy” files can fall out of sync with the canonical prompts.
-- No automation validates prompt JSON examples against actual schema.
+- Keep the manifest entries in `prompts.json` aligned with any new prompts that are added.
 
 ## Related Context
 

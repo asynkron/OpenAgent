@@ -21,12 +21,12 @@
 - ESM modules with descriptive docblocks aid readability.
 - Strong separation between loop orchestration and side-effecting helpers.
 - Cancellation wiring (ESC + AbortController) aligns with research in `docs/openai-cancellation.md`.
+- ESC-triggered cancellation now has both integration and unit regression coverage, validating the shared cancellation stack.
 
 ## Risks / Gaps
 
-- `agent/loop.js` is large (~800 lines) and mixes rendering, approval UI, and command execution—hard to test end-to-end.
-- New built-ins (`quote_string`/`unquote_string`) lack dedicated unit coverage.
 - Some command helpers (`runBrowse`) duplicate HTTP logic instead of reusing a single fetch pathway.
+- Integration suites rely on mocked command runners; real child-process cancellation still needs periodic manual validation.
 
 ## Related Context
 

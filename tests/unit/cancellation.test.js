@@ -81,4 +81,28 @@ describe('cancellation manager', () => {
     first.cancel('stop-first');
     expect(getActiveOperation()).toBeNull();
   });
+
+  test('cancel unwinds stacked operations one level at a time', () => {
+    const firstCancel = jest.fn();
+    const secondCancel = jest.fn();
+    const thirdCancel = jest.fn();
+
+    register({ description: 'one', onCancel: firstCancel });
+    register({ description: 'two', onCancel: secondCancel });
+    register({ description: 'three', onCancel: thirdCancel });
+
+    expect(cancel('first-pass')).toBe(true);
+    expect(thirdCancel).toHaveBeenCalledWith('first-pass');
+    expect(secondCancel).not.toHaveBeenCalled();
+    expect(firstCancel).not.toHaveBeenCalled();
+
+    expect(cancel('second-pass')).toBe(true);
+    expect(secondCancel).toHaveBeenCalledWith('second-pass');
+    expect(firstCancel).not.toHaveBeenCalled();
+
+    expect(cancel('final-pass')).toBe(true);
+    expect(firstCancel).toHaveBeenCalledWith('final-pass');
+
+    expect(cancel('no-op')).toBe(false);
+  });
 });
