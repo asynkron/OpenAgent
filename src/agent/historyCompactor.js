@@ -105,9 +105,13 @@ export class HistoryCompactor {
       return false;
     }
 
+    const summarizedText = summary.trim();
+
+    this.#log('log', `[history-compactor] Compacted summary:\n${summarizedText}`);
+
     const compactedEntry = {
       role: 'system',
-      content: `${DEFAULT_SUMMARY_PREFIX}\n${summary}`.trim(),
+      content: `${DEFAULT_SUMMARY_PREFIX}\n${summarizedText}`.trim(),
     };
 
     history.splice(firstContentIndex, entriesToCompactCount, compactedEntry);

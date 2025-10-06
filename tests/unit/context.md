@@ -13,6 +13,7 @@
 - `replaceCommand.test.js`, `runCommand.test.js`: verify replacement logic and process management.
 - `index.test.js`, `esmEntry.test.js`: confirm root exports and ESM package surface remain intact.
 - `openaiResponses.test.js`: validates the shared OpenAI response helper respects reasoning environment overrides.
+- `historyCompactor.test.js`: asserts old history is summarized and that the generated summary is surfaced to the human via logging.
 
 ## Positive Signals
 

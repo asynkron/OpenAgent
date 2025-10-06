@@ -17,6 +17,7 @@
 - Rich logging/render hooks injected via dependency bag for easier testing/mocking.
 - Maintains conversation history explicitly, facilitating reproducibility.
 - OpenAI invocations now lean on the shared helper in `openai/responses.js`, keeping reasoning configuration consistent.
+- History compaction prints the generated summary to the CLI so humans can keep track of the active intent.
 
 ## Related Context
 
