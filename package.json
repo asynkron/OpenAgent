@@ -12,7 +12,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "openagent": "./bin/openagent.js"
+    "openagent": "bin/openagent.js"
   },
   "scripts": {
     "start": "node ./bin/openagent.js",

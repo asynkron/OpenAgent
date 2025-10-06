@@ -149,3 +149,4 @@ vite.config.ts.timestamp-*
 /.idea/OpenAgent.iml
 /.idea/vcs.xml
 .env
+WARP.md
