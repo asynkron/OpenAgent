@@ -32,6 +32,8 @@ import {
   runUnescapeString,
 } from '../commands/run.js';
 import {
+  CommandApprovalService,
+  sessionApprovalService,
   loadPreapprovedConfig,
   isPreapprovedCommand,
   isSessionApproved,
@@ -81,6 +83,8 @@ export {
   runReplace,
   runEscapeString,
   runUnescapeString,
+  CommandApprovalService,
+  sessionApprovalService,
   loadPreapprovedConfig,
   isPreapprovedCommand,
   isSessionApproved,
@@ -131,6 +135,8 @@ const exported = {
   runReplace,
   runEscapeString,
   runUnescapeString,
+  CommandApprovalService,
+  sessionApprovalService,
   loadPreapprovedConfig,
   isPreapprovedCommand,
   isSessionApproved,

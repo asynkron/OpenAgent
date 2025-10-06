@@ -19,58 +19,15 @@ import { ApprovalManager } from './approvalManager.js';
 import { HistoryCompactor } from './historyCompactor.js';
 import { createEscState } from './escState.js';
 import { performInitialHandshake } from './handshake.js';
-import { createAsyncQueue, QUEUE_DONE } from '../utils/asyncQueue.js';
+import { AsyncQueue, QUEUE_DONE } from '../utils/asyncQueue.js';
 import { cancel as cancelActive } from '../utils/cancellation.js';
+import { PromptCoordinator } from './promptCoordinator.js';
 
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 const PLAN_PENDING_REMINDER =
   'There are open tasks in the plan. Do you need help or more info? If not, please continue working.';
 const INITIAL_HANDSHAKE_PROMPT =
   'SYSTEM HANDSHAKE: Provide a brief greeting that confirms you are ready to help and invite the human to share their task. Respond with JSON containing "message" for the greeting, set "plan" to an empty array, and set "command" to null. Do not execute or propose any commands during this handshake, then wait for the human\'s input. Ignore this message after you have responded.';
-
-function createPromptCoordinator({ emitEvent, escState }) {
-  const buffered = [];
-  const waiters = [];
-
-  const resolveNext = (value) => {
-    if (waiters.length > 0) {
-      const resolve = waiters.shift();
-      resolve(value);
-      return true;
-    }
-    buffered.push(value);
-    return false;
-  };
-
-  const request = (prompt, metadata = {}) => {
-    emitEvent({ type: 'request-input', prompt, metadata });
-    if (buffered.length > 0) {
-      return Promise.resolve(buffered.shift());
-    }
-    return new Promise((resolve) => {
-      waiters.push(resolve);
-    });
-  };
-
-  const handlePrompt = (value) => {
-    resolveNext(typeof value === 'string' ? value : '');
-  };
-
-  const handleCancel = (payload = null) => {
-    cancelActive('ui-cancel');
-    escState?.trigger?.(payload ?? { reason: 'ui-cancel' });
-    emitEvent({ type: 'status', level: 'warn', message: 'Cancellation requested by UI.' });
-  };
-
-  const close = () => {
-    while (waiters.length > 0) {
-      const resolve = waiters.shift();
-      resolve('');
-    }
-  };
-
-  return { request, handlePrompt, handleCancel, close };
-}
 
 export function createAgentRuntime({
   systemPrompt = SYSTEM_PROMPT,
@@ -95,13 +52,14 @@ export function createAgentRuntime({
   createHistoryCompactorFn = ({ openai: client, currentModel }) =>
     new HistoryCompactor({ openai: client, model: currentModel, logger: console }),
 } = {}) {
-  const outputs = createAsyncQueue();
-  const inputs = createAsyncQueue();
+  const outputs = new AsyncQueue();
+  const inputs = new AsyncQueue();
 
   const { state: escState, trigger: triggerEsc, detach: detachEscListener } = createEscState();
-  const promptCoordinator = createPromptCoordinator({
+  const promptCoordinator = new PromptCoordinator({
     emitEvent: (event) => outputs.push(event),
     escState: { ...escState, trigger: triggerEsc },
+    cancelFn: cancelActive,
   });
 
   let openai;

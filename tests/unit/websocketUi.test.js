@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 
 import { createWebSocketUi } from '../../src/ui/websocket.js';
-import { createAsyncQueue } from '../../src/utils/asyncQueue.js';
+import { AsyncQueue } from '../../src/utils/asyncQueue.js';
 
 function createMockSocket() {
   const listeners = new Map();
@@ -34,7 +34,7 @@ function createMockSocket() {
 }
 
 function createMockRuntime() {
-  const outputs = createAsyncQueue();
+  const outputs = new AsyncQueue();
   let resolveStart;
   const startPromise = new Promise((resolve) => {
     resolveStart = resolve;
