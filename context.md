@@ -22,6 +22,7 @@
 - Comprehensive documentation inside modules and fresh `context.md` hierarchy accelerates ramp-up for agents and humans alike.
 - Cancellation support aligns with findings in `docs/openai-cancellation.md`, giving ESC handling a solid foundation.
 - Tests cover major utilities and end-to-end agent flows (command execution, reads, stats, CLI wrappers).
+- ESLint tooling now parses files as ESM and flags CommonJS `require` usage, keeping lint rules aligned with the package `type`.
 
 ## Risks / Gaps
 - `src/agent/loop.js` remains monolithic (~800 lines), limiting testability and readability.
