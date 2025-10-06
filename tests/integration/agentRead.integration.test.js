@@ -3,40 +3,9 @@ import { jest } from '@jest/globals';
 jest.setTimeout(20000);
 
 const mockAnswersQueue = [];
-const mockInterface = {
-  question: jest.fn((prompt, cb) => {
-    const next = mockAnswersQueue.shift() || '';
-    process.nextTick(() => cb(next));
-  }),
-  close: jest.fn(),
-};
 
 async function loadAgent() {
   jest.resetModules();
-
-  const createInterface = jest.fn(() => mockInterface);
-  const clearLine = jest.fn();
-  const cursorTo = jest.fn();
-
-  jest.unstable_mockModule('node:readline', () => ({
-    default: { createInterface, clearLine, cursorTo },
-    createInterface,
-    clearLine,
-    cursorTo,
-  }));
-
-  const detachMock = jest.fn();
-  const createEscStateMock = jest.fn(() => ({
-    state: { triggered: false, payload: null, waiters: new Set() },
-    detach: detachMock,
-  }));
-  const createEscWaiterMock = jest.fn(() => ({ promise: Promise.resolve(null), cleanup: jest.fn() }));
-
-  jest.unstable_mockModule('../../src/agent/escState.js', () => ({
-    createEscState: createEscStateMock,
-    createEscWaiter: createEscWaiterMock,
-    resetEscState: jest.fn(),
-  }));
 
   let callCount = 0;
   jest.unstable_mockModule('openai', () => ({
@@ -92,21 +61,14 @@ async function loadAgent() {
   jest.unstable_mockModule('dotenv/config', () => ({}));
 
   const agentModule = await import('../../index.js');
-  return { agent: agentModule.default, createEscStateMock, detachMock };
+  return agentModule.default;
 }
 
-test('agent loop invokes runRead for read commands', async () => {
+test('agent runtime invokes runRead for read commands', async () => {
   process.env.OPENAI_API_KEY = 'test-key';
-  const { agent, createEscStateMock, detachMock } = await loadAgent();
+  const agent = await loadAgent();
   agent.STARTUP_FORCE_AUTO_APPROVE = true;
-
   mockAnswersQueue.length = 0;
-  mockAnswersQueue.push('Read sample file', 'exit');
-  mockInterface.question.mockClear();
-  mockInterface.close.mockClear();
-
-  agent.startThinking = () => {};
-  agent.stopThinking = () => {};
 
   const runReadMock = jest.fn().mockResolvedValue({
     stdout: 'sample content',
@@ -115,15 +77,29 @@ test('agent loop invokes runRead for read commands', async () => {
     killed: false,
     runtime_ms: 2,
   });
-  agent.runRead = runReadMock;
-  agent.runCommand = jest.fn();
+  const runCommandMock = jest.fn();
 
-  await agent.agentLoop();
+  const runtime = agent.createAgentRuntime({
+    getAutoApproveFlag: () => agent.STARTUP_FORCE_AUTO_APPROVE,
+    runReadFn: runReadMock,
+    runCommandFn: runCommandMock,
+  });
 
-  expect(createEscStateMock).toHaveBeenCalledTimes(1);
-  expect(detachMock).toHaveBeenCalledTimes(1);
+  const outputProcessor = (async () => {
+    for await (const event of runtime.outputs) {
+      if (event.type === 'request-input') {
+        const next = mockAnswersQueue.shift() || '';
+        runtime.submitPrompt(next);
+      }
+    }
+  })();
+
+  mockAnswersQueue.push('Read sample file', 'exit');
+
+  await runtime.start();
+  await outputProcessor;
+
   expect(runReadMock).toHaveBeenCalledTimes(1);
   expect(runReadMock).toHaveBeenCalledWith({ path: 'sample.txt', encoding: 'utf8' }, '.');
-  expect(agent.runCommand).not.toHaveBeenCalled();
-  expect(mockInterface.close).toHaveBeenCalled();
+  expect(runCommandMock).not.toHaveBeenCalled();
 });

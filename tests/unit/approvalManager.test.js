@@ -49,8 +49,6 @@ describe('ApprovalManager.shouldAutoApprove', () => {
 });
 
 describe('ApprovalManager.requestHumanDecision', () => {
-  const rl = {};
-
   const makeManager = ({ responses }) => {
     const logs = { info: [], warn: [], success: [] };
     let approvedCommand = null;
@@ -76,7 +74,7 @@ describe('ApprovalManager.requestHumanDecision', () => {
 
   test('returns approve_once when user selects option 1', async () => {
     const { manager, logs } = makeManager({ responses: ['1'] });
-    const outcome = await manager.requestHumanDecision({ rl, command: { run: 'ls' } });
+    const outcome = await manager.requestHumanDecision({ command: { run: 'ls' } });
     expect(outcome).toEqual({ decision: 'approve_once' });
     expect(logs.success).toContain('Approved (run once).');
   });
@@ -84,7 +82,7 @@ describe('ApprovalManager.requestHumanDecision', () => {
   test('records session approval when user selects option 2', async () => {
     const { manager, logs, approvedCommandRef } = makeManager({ responses: ['2'] });
     const command = { run: 'pwd' };
-    const outcome = await manager.requestHumanDecision({ rl, command });
+    const outcome = await manager.requestHumanDecision({ command });
     expect(outcome).toEqual({ decision: 'approve_session' });
     expect(approvedCommandRef()).toBe(command);
     expect(logs.success).toContain('Approved and added to session approvals.');
@@ -92,14 +90,14 @@ describe('ApprovalManager.requestHumanDecision', () => {
 
   test('returns reject when user selects option 3', async () => {
     const { manager, logs } = makeManager({ responses: ['3'] });
-    const outcome = await manager.requestHumanDecision({ rl, command: { run: 'rm' } });
+    const outcome = await manager.requestHumanDecision({ command: { run: 'rm' } });
     expect(outcome).toEqual({ decision: 'reject', reason: 'human_declined' });
     expect(logs.warn).toContain('Command execution canceled by human (requested alternative).');
   });
 
   test('re-prompts on invalid input until valid choice provided', async () => {
     const { manager, logs } = makeManager({ responses: ['maybe', 'YES'] });
-    const outcome = await manager.requestHumanDecision({ rl, command: { run: 'ls' } });
+    const outcome = await manager.requestHumanDecision({ command: { run: 'ls' } });
     expect(outcome).toEqual({ decision: 'approve_once' });
     expect(logs.warn).toContain('Please enter 1, 2, or 3.');
   });

@@ -6,9 +6,9 @@
 
 ## Key Modules
 
-- `loop.js`: wires CLI dependencies, delegating ESC wiring to `escState.js` and the greeting handshake to `handshake.js` before deferring passes to `passExecutor.js`.
+- `loop.js`: exposes the event-driven runtime (`createAgentRuntime`) that emits structured JSON events and wraps it with the legacy `createAgentLoop` helper for compatibility.
 - `handshake.js`: encapsulates the temporary history injection used for the initial system handshake.
-- `escState.js`: centralises ESC event wiring, waiter management, and reset helpers for cancellation propagation.
+- `escState.js`: centralises cancellation state, allowing UI-triggered events to notify in-flight operations.
 - `passExecutor.js`: performs an agent pass (OpenAI request, JSON parsing, plan updates, approvals, command execution, observation logging).
 - `historyCompactor.js`: auto-compacts older history entries when context usage exceeds the configured threshold by summarizing them into long-term memory snapshots.
 - `commandExecution.js`: routes assistant commands to the correct runner (edit/read/browse/escape/etc.) and ensures built-ins are interpreted before falling back to shell execution.

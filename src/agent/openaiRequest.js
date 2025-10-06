@@ -1,5 +1,3 @@
-import chalk from 'chalk';
-
 import { register as registerCancellation } from '../utils/cancellation.js';
 import { createResponse } from '../openai/responses.js';
 import { createEscWaiter, resetEscState } from './escState.js';
@@ -13,6 +11,7 @@ export async function requestModelCompletion({
   startThinkingFn,
   stopThinkingFn,
   setNoHumanFlag,
+  emitEvent = () => {},
 }) {
   const { promise: escPromise, cleanup: cleanupEscWaiter } = createEscWaiter(escState);
 
@@ -45,7 +44,7 @@ export async function requestModelCompletion({
 
     if (outcome.kind === 'escape') {
       if (cancellationOp && typeof cancellationOp.cancel === 'function') {
-        cancellationOp.cancel('esc-key');
+        cancellationOp.cancel('ui-cancel');
       }
 
       await requestPromise.catch((error) => {
@@ -58,7 +57,11 @@ export async function requestModelCompletion({
       });
 
       resetEscState(escState);
-      console.log(chalk.yellow('Operation canceled via ESC key.'));
+      emitEvent({
+        type: 'status',
+        level: 'warn',
+        message: 'Operation canceled via user request.',
+      });
 
       if (typeof setNoHumanFlag === 'function') {
         setNoHumanFlag(false);
@@ -66,7 +69,7 @@ export async function requestModelCompletion({
 
       const observation = observationBuilder.buildCancellationObservation({
         reason: 'escape_key',
-        message: 'Human pressed ESC to cancel the in-flight request.',
+        message: 'Human canceled the in-flight request.',
         metadata: { esc_payload: outcome.payload ?? null },
       });
 
@@ -84,7 +87,11 @@ export async function requestModelCompletion({
     ) {
       resetEscState(escState);
 
-      console.log(chalk.yellow('Operation canceled.'));
+      emitEvent({
+        type: 'status',
+        level: 'warn',
+        message: 'Operation aborted before completion.',
+      });
 
       if (typeof setNoHumanFlag === 'function') {
         setNoHumanFlag(false);
@@ -108,3 +115,7 @@ export async function requestModelCompletion({
     stopThinkingFn();
   }
 }
+
+export default {
+  requestModelCompletion,
+};

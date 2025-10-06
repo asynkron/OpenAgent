@@ -18,7 +18,7 @@ export class ApprovalManager {
    * @param {(command: Object) => boolean} options.isSessionApproved
    * @param {(command: Object) => void} options.approveForSession
    * @param {() => boolean} options.getAutoApproveFlag
-   * @param {(rl: Object, prompt: string) => Promise<string>} options.askHuman
+   * @param {(prompt: string) => Promise<string>} options.askHuman
    * @param {Object} options.preapprovedCfg
    * @param {(message: string) => void} [options.logInfo]
    * @param {(message: string) => void} [options.logWarn]
@@ -74,11 +74,10 @@ export class ApprovalManager {
   /**
    * Prompt the human for approval when auto-approval fails.
    * @param {Object} params
-   * @param {Object} params.rl
    * @param {Object} params.command
    * @returns {Promise<ApprovalOutcome>}
    */
-  async requestHumanDecision({ rl, command }) {
+  async requestHumanDecision({ command }) {
     const prompt = [
       'Approve running this command?',
       '  1) Yes (run once)',
@@ -88,7 +87,7 @@ export class ApprovalManager {
     ].join('\n');
 
     while (true) {
-      const raw = this.askHuman ? await this.askHuman(rl, prompt) : '';
+      const raw = this.askHuman ? await this.askHuman(prompt) : '';
       const input = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
 
       if (input === '1' || input === 'y' || input === 'yes') {
