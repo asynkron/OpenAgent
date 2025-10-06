@@ -119,10 +119,13 @@ describe('agent built-in command parsing', () => {
       runtime_ms: 2,
     });
 
-    const { runWithPrompts, runReadFn: configuredRead, responsesCreate } = createRuntimeWithQueue(
-      [buildResponsePayload(readCall), buildResponsePayload(followUp)],
-      { runReadFn },
-    );
+    const {
+      runWithPrompts,
+      runReadFn: configuredRead,
+      responsesCreate,
+    } = createRuntimeWithQueue([buildResponsePayload(readCall), buildResponsePayload(followUp)], {
+      runReadFn,
+    });
 
     await runWithPrompts();
 

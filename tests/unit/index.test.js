@@ -1,50 +1,9 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { EventEmitter } from 'node:events';
 import { jest } from '@jest/globals';
 
 const defaultEnv = { ...process.env };
-
-async function runWithFetchDisabled(callback) {
-  const descriptor = Object.getOwnPropertyDescriptor(global, 'fetch');
-  const originalFetch = global.fetch;
-  const hadFetch = typeof originalFetch !== 'undefined';
-
-  const restore = () => {
-    if (descriptor) {
-      try {
-        Object.defineProperty(global, 'fetch', descriptor);
-        return;
-      } catch (error) {
-        void error;
-      }
-    }
-
-    if (hadFetch) {
-      global.fetch = originalFetch;
-    } else {
-      delete global.fetch;
-    }
-  };
-
-  try {
-    if (descriptor && descriptor.configurable) {
-      Object.defineProperty(global, 'fetch', {
-        value: undefined,
-        configurable: true,
-        writable: true,
-        enumerable: descriptor.enumerable ?? true,
-      });
-    } else {
-      global.fetch = undefined;
-    }
-
-    return await callback();
-  } finally {
-    restore();
-  }
-}
 
 async function loadModule(
   envOverrides = {},
@@ -273,9 +232,7 @@ describe('runBrowse', () => {
     if (error) {
       fetch.mockRejectedValue(error);
     } else {
-      fetch.mockResolvedValue(
-        response ?? { body: '', status: 200, statusText: 'OK', ok: true },
-      );
+      fetch.mockResolvedValue(response ?? { body: '', status: 200, statusText: 'OK', ok: true });
     }
 
     return {

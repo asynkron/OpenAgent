@@ -60,8 +60,12 @@ describe('Approval flow integration', () => {
     await ui.start();
 
     expect(runCommandMock).toHaveBeenCalledTimes(1);
-    const prompts = ui.events.filter((event) => event.type === 'request-input').map((event) => event.prompt);
-    const statuses = ui.events.filter((event) => event.type === 'status').map((event) => event.message);
+    const prompts = ui.events
+      .filter((event) => event.type === 'request-input')
+      .map((event) => event.prompt);
+    const statuses = ui.events
+      .filter((event) => event.type === 'status')
+      .map((event) => event.message);
     expect(prompts[1]).toContain('Approve running this command?');
     expect(statuses.some((msg) => msg && msg.includes('approved for single execution'))).toBe(true);
   });
@@ -106,8 +110,12 @@ describe('Approval flow integration', () => {
     await ui.start();
 
     expect(runCommandMock).not.toHaveBeenCalled();
-    const prompts = ui.events.filter((event) => event.type === 'request-input').map((event) => event.prompt);
-    const statuses = ui.events.filter((event) => event.type === 'status').map((event) => event.message);
+    const prompts = ui.events
+      .filter((event) => event.type === 'request-input')
+      .map((event) => event.prompt);
+    const statuses = ui.events
+      .filter((event) => event.type === 'status')
+      .map((event) => event.message);
     expect(prompts[1]).toContain('Approve running this command?');
     expect(statuses.some((msg) => msg && msg.includes('canceled by human'))).toBe(true);
   });
@@ -156,7 +164,11 @@ describe('Approval flow integration', () => {
     await ui.start();
 
     expect(runCommandMock).toHaveBeenCalledTimes(1);
-    const prompts = ui.events.filter((event) => event.type === 'request-input').map((event) => event.prompt);
-    expect(prompts.some((prompt) => prompt && prompt.includes('Approve running this command?'))).toBe(false);
+    const prompts = ui.events
+      .filter((event) => event.type === 'request-input')
+      .map((event) => event.prompt);
+    expect(
+      prompts.some((prompt) => prompt && prompt.includes('Approve running this command?')),
+    ).toBe(false);
   });
 });

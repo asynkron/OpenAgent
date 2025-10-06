@@ -242,7 +242,9 @@ export function createWebSocketUi({
   try {
     detachFns.push(attachListener(socket, 'message', handleMessage));
   } catch (error) {
-    throw new Error(`Failed to attach WebSocket message listener: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(
+      `Failed to attach WebSocket message listener: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
   try {

@@ -35,18 +35,16 @@ describe('jsonAssetValidator utilities', () => {
       },
     };
 
-    expect(() => validateWithSchema({ schema, data: { id: 'ok' }, resource: 'test' })).not.toThrow();
+    expect(() =>
+      validateWithSchema({ schema, data: { id: 'ok' }, resource: 'test' }),
+    ).not.toThrow();
     expect(() => validateWithSchema({ schema, data: {}, resource: 'test' })).toThrow(
       'Schema validation failed',
     );
   });
 
   test('ensureUniqueByProperty detects duplicate ids', () => {
-    const items = [
-      { id: 'first' },
-      { id: 'second' },
-      { id: 'first' },
-    ];
+    const items = [{ id: 'first' }, { id: 'second' }, { id: 'first' }];
 
     expect(() => ensureUniqueByProperty(items, 'id', { resource: 'resource.json' })).toThrow(
       'Duplicate id values detected',
@@ -73,7 +71,9 @@ describe('jsonAssetValidator utilities', () => {
         ],
       };
 
-      await expect(ensurePromptCopiesInSync(manifest, { rootDir: workspace })).resolves.toBeUndefined();
+      await expect(
+        ensurePromptCopiesInSync(manifest, { rootDir: workspace }),
+      ).resolves.toBeUndefined();
 
       // Diverging contents should be reported.
       await writeFile(copyPath, 'stale', 'utf8');

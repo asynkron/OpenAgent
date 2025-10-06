@@ -67,12 +67,21 @@ export class HistoryCompactor {
       return false;
     }
 
-    if (!this.openai || !this.openai.responses || typeof this.openai.responses.create !== 'function') {
+    if (
+      !this.openai ||
+      !this.openai.responses ||
+      typeof this.openai.responses.create !== 'function'
+    ) {
       return false;
     }
 
     const usage = summarizeContextUsage({ history, model: this.model });
-    if (!usage || typeof usage.used !== 'number' || typeof usage.total !== 'number' || usage.total <= 0) {
+    if (
+      !usage ||
+      typeof usage.used !== 'number' ||
+      typeof usage.total !== 'number' ||
+      usage.total <= 0
+    ) {
       return false;
     }
 
@@ -97,7 +106,7 @@ export class HistoryCompactor {
     try {
       summary = await this.generateSummary(entriesToCompact);
     } catch (error) {
-      this.#log('warn', '[history-compactor] Failed to summarize history entries.', error);
+      this._log('warn', '[history-compactor] Failed to summarize history entries.', error);
       return false;
     }
 
@@ -107,7 +116,7 @@ export class HistoryCompactor {
 
     const summarizedText = summary.trim();
 
-    this.#log('log', `[history-compactor] Compacted summary:\n${summarizedText}`);
+    this._log('log', `[history-compactor] Compacted summary:\n${summarizedText}`);
 
     const compactedEntry = {
       role: 'system',
@@ -115,7 +124,7 @@ export class HistoryCompactor {
     };
 
     history.splice(firstContentIndex, entriesToCompactCount, compactedEntry);
-    this.#log('log', '[history-compactor] Compacted history entries.', {
+    this._log('log', '[history-compactor] Compacted history entries.', {
       originalEntries: entriesToCompactCount,
       resultingHistoryLength: history.length,
     });
@@ -135,8 +144,9 @@ export class HistoryCompactor {
     return summary.trim();
   }
 
-  #log(method, message, meta) {
-    const fn = this.logger && typeof this.logger[method] === 'function' ? this.logger[method] : null;
+  _log(method, message, meta) {
+    const fn =
+      this.logger && typeof this.logger[method] === 'function' ? this.logger[method] : null;
     if (!fn) {
       return;
     }

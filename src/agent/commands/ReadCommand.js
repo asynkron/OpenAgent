@@ -13,15 +13,12 @@ export default class ReadCommand {
   async execute(context) {
     const { runKeyword, runTokens, command, cwd, runReadFn } = context;
     const tokenSpec = runKeyword === 'read' ? parseReadSpecTokens(runTokens.slice(1)) : {};
-    const baseSpec =
-      command.read && typeof command.read === 'object'
-        ? command.read
-        : {};
+    const baseSpec = command.read && typeof command.read === 'object' ? command.read : {};
 
     const mergedSpec = mergeReadSpecs(baseSpec, tokenSpec);
     if (!mergedSpec.path) {
       return {
-        result: this.#buildErrorResult('read command requires a path argument'),
+        result: this.buildErrorResult('read command requires a path argument'),
         executionDetails: { type: 'READ', spec: mergedSpec },
       };
     }
@@ -33,7 +30,7 @@ export default class ReadCommand {
     };
   }
 
-  #buildErrorResult(message) {
+  buildErrorResult(message) {
     return {
       stdout: '',
       stderr: message,

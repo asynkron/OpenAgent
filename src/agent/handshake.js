@@ -82,10 +82,7 @@ export async function performInitialHandshake({
   } finally {
     const index = history.findIndex(
       (entry, idx) =>
-        idx >= insertionIndex &&
-        entry &&
-        entry.role === 'user' &&
-        entry.content === prompt,
+        idx >= insertionIndex && entry && entry.role === 'user' && entry.content === prompt,
     );
 
     if (index !== -1) {
