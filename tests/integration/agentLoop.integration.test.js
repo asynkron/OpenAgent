@@ -1,92 +1,49 @@
 import { jest } from '@jest/globals';
 
+import {
+  loadAgentWithMockedModules,
+  queueModelResponse,
+  resetQueuedResponses,
+} from './agentRuntimeTestHarness.js';
+
 jest.setTimeout(20000);
 
 const mockAnswersQueue = [];
-
-async function loadAgent() {
-  jest.resetModules();
-
-  const createInterface = jest.fn(() => ({
-    on: jest.fn(),
-    off: jest.fn(),
-    close: jest.fn(),
-  }));
-  const clearLine = jest.fn();
-  const cursorTo = jest.fn();
-
-  jest.unstable_mockModule('node:readline', () => ({
-    default: { createInterface, clearLine, cursorTo },
-    createInterface,
-    clearLine,
-    cursorTo,
-  }));
-
-  let mockCallCount = 0;
-  jest.unstable_mockModule('openai', () => ({
-    default: function OpenAIMock() {
-      return {
-        responses: {
-          create: async () => {
-            mockCallCount += 1;
-            const payload =
-              mockCallCount === 1
-                ? {
-                    message: 'Mocked handshake',
-                    plan: [],
-                    command: null,
-                  }
-                : mockCallCount === 2
-                ? {
-                    message: 'Mocked response',
-                    plan: [],
-                    command: {
-                      shell: 'bash',
-                      run: 'echo "MOCKED_OK"',
-                      cwd: '.',
-                      timeout_sec: 5,
-                    },
-                  }
-                : {
-                    message: 'Mocked follow-up',
-                    plan: [],
-                    command: null,
-                  };
-
-            return {
-              output: [
-                {
-                  type: 'message',
-                  content: [
-                    {
-                      type: 'output_text',
-                      text: JSON.stringify(payload),
-                    },
-                  ],
-                },
-              ],
-            };
-          },
-        },
-      };
-    },
-  }));
-
-  jest.unstable_mockModule('dotenv/config', () => ({}));
-
-  const agentModule = await import('../../index.js');
-  return agentModule.default;
-}
 
 function queueAnswer(answer) {
   mockAnswersQueue.push(answer);
 }
 
+beforeEach(() => {
+  mockAnswersQueue.length = 0;
+  resetQueuedResponses();
+});
+
 test('agent runtime executes one mocked command then exits on user request', async () => {
   process.env.OPENAI_API_KEY = 'test-key';
-  const agent = await loadAgent();
+  const { agent } = await loadAgentWithMockedModules();
   agent.STARTUP_FORCE_AUTO_APPROVE = true;
-  mockAnswersQueue.length = 0;
+
+  queueModelResponse({
+    message: 'Mocked handshake',
+    plan: [],
+    command: null,
+  });
+  queueModelResponse({
+    message: 'Mocked response',
+    plan: [],
+    command: {
+      shell: 'bash',
+      run: 'echo "MOCKED_OK"',
+      cwd: '.',
+      timeout_sec: 5,
+    },
+  });
+  queueModelResponse({
+    message: 'Mocked follow-up',
+    plan: [],
+    command: null,
+  });
 
   const runCommandMock = jest.fn().mockResolvedValue({
     stdout: 'MOCKED_OK\n',

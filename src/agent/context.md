@@ -12,6 +12,19 @@
 - `passExecutor.js`: performs an agent pass (OpenAI request, JSON parsing, plan updates, approvals, command execution, observation logging).
 - `historyCompactor.js`: auto-compacts older history entries when context usage exceeds the configured threshold by summarizing them into long-term memory snapshots.
 - `commandExecution.js`: routes assistant commands to the correct runner (edit/read/browse/escape/etc.) and ensures built-ins are interpreted before falling back to shell execution.
+- `openaiRequest.js`: wraps the OpenAI SDK call, wiring ESC cancellation, request aborts, and observation recording into a single surface.
+- `observationBuilder.js`: normalises command results into CLI previews and LLM observations so the conversation history remains consistent.
+
+## Architecture Overview
+
+- The runtime created by `loop.js` pushes every CLI-facing side effect through structured events. Consumers provide dependency bags (command runners, approval hooks, CLI renderers) so tests can replace them in isolation.
+- On `start()`, the runtime performs an initial handshake by inserting a system prompt via `handshake.js`, then repeatedly calls `executeAgentPass()` from `passExecutor.js`.
+- `executeAgentPass()` now coordinates three specialised helpers:
+  1. `openaiRequest.js` issues the model call and handles cancellation/ESC plumbing.
+  2. `approvalManager.js` determines whether a proposed command can run automatically or needs a human decision.
+  3. `commandExecution.js` executes built-ins before shell commands and returns structured execution metadata.
+- After every pass, `observationBuilder.js` converts command output into both CLI previews and history observations so the next model call has the right context.
+- Integration suites mock `openaiRequest.js` to enqueue deterministic completions, reflecting the module boundaries introduced by this architecture.
 
 ## Positive Signals
 

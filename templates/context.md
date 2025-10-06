@@ -14,7 +14,6 @@
 
 ## Risks / Gaps
 
-- No schema validation—malformed entries cause runtime errors.
 - Templates overlap conceptually with shortcuts; guidance on when to use each is missing.
 
 ## Related Context

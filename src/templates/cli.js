@@ -13,14 +13,71 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
+import { isCommandStringSafe } from '../commands/preapproval.js';
+
 const TEMPLATES_PATH = path.join(process.cwd(), 'templates', 'command-templates.json');
+
+function sanitizeTemplateVariable(variable) {
+  if (!variable || typeof variable !== 'object') {
+    return null;
+  }
+
+  const name = typeof variable.name === 'string' ? variable.name.trim() : '';
+  if (!name) {
+    return null;
+  }
+
+  const sanitized = { name };
+
+  if (typeof variable.description === 'string' && variable.description.trim()) {
+    sanitized.description = variable.description;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(variable, 'default')) {
+    const value = variable.default;
+    sanitized.default = value == null ? '' : String(value);
+  }
+
+  return sanitized;
+}
+
+function sanitizeTemplateEntry(entry) {
+  if (!entry || typeof entry !== 'object') {
+    return null;
+  }
+
+  const id = typeof entry.id === 'string' ? entry.id.trim() : '';
+  const name = typeof entry.name === 'string' ? entry.name.trim() : '';
+  const command = typeof entry.command === 'string' ? entry.command : '';
+
+  if (!id || !name || !isCommandStringSafe(command)) {
+    return null;
+  }
+
+  const sanitized = {
+    ...entry,
+    id,
+    name,
+    command: command.trim(),
+  };
+
+  const variables = Array.isArray(entry.variables)
+    ? entry.variables.map(sanitizeTemplateVariable).filter(Boolean)
+    : [];
+
+  sanitized.variables = variables;
+
+  return sanitized;
+}
 
 export function loadTemplates() {
   try {
     const raw = fs.readFileSync(TEMPLATES_PATH, 'utf8');
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed;
+    return parsed
+      .map(sanitizeTemplateEntry)
+      .filter((entry) => entry !== null);
   } catch (err) {
     return [];
   }
