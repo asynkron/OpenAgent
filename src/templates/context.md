@@ -6,7 +6,7 @@
 
 ## Key Module
 
-- `cli.js`: exposes `loadTemplates`, `renderTemplateCommand`, `handleTemplatesCli` (list/show/render). Performs simple `{{var}}` interpolation with defaults.
+- `cli.js`: exposes `loadTemplates`, `renderTemplateCommand`, `handleTemplatesCli` (list/show/render). Performs simple `{{var}}` interpolation with defaults and now filters/normalises template payloads to guard against unsafe commands.
 
 ## Positive Signals
 

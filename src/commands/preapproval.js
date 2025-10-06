@@ -17,6 +17,52 @@ import chalk from 'chalk';
 
 import { shellSplit } from '../utils/text.js';
 
+export function isCommandStringSafe(rawCommand) {
+  if (typeof rawCommand !== 'string') {
+    return false;
+  }
+
+  const runRaw = rawCommand.trim();
+  if (!runRaw) {
+    return false;
+  }
+
+  if (/\r|\n/.test(runRaw)) {
+    return false;
+  }
+
+  const forbidden = [
+    /;|&&|\|\|/, // chaining commands or logical operators
+    /\|/, // piping output into another process
+    /`/, // legacy command substitution
+    /\$\(/, // modern command substitution
+    /<\s*\(/, // process substitution with optional whitespace
+    />\s*\(/, // output process substitution
+    /(^|[^&])&([^&]|$)/, // background execution with single ampersand
+    /<<</, // here-strings
+    /<</, // here-documents
+    /&>/, // redirecting all output to a file
+  ];
+
+  if (forbidden.some((re) => re.test(runRaw))) {
+    return false;
+  }
+
+  if (/^\s*sudo\b/.test(runRaw)) {
+    return false;
+  }
+
+  if (/(^|\s)[0-9]*>>?\s/.test(runRaw)) {
+    return false;
+  }
+
+  if (/\d?>&\d?/.test(runRaw)) {
+    return false;
+  }
+
+  return true;
+}
+
 export function loadPreapprovedConfig() {
   const cfgPath = path.join(process.cwd(), 'approved_commands.json');
   try {
@@ -36,8 +82,6 @@ export function isPreapprovedCommand(command, cfg) {
     const runRaw = (command && command.run ? String(command.run) : '').trim();
     if (!runRaw) return false;
 
-    if (/\r|\n/.test(runRaw)) return false;
-
     if (runRaw.toLowerCase().startsWith('browse ')) {
       const url = runRaw.slice(7).trim();
       if (!url || /\s/.test(url)) return false;
@@ -50,12 +94,7 @@ export function isPreapprovedCommand(command, cfg) {
       return false;
     }
 
-    const forbidden = [/;|&&|\|\|/, /\|/, /`/, /\$\(/, /<\(/, />\(/];
-    if (forbidden.some((re) => re.test(runRaw))) return false;
-
-    if (/^\s*sudo\b/.test(runRaw)) return false;
-    if (/(^|\s)[0-9]*>>?\s/.test(runRaw)) return false;
-    if (/\d?>&\d?/.test(runRaw)) return false;
+    if (!isCommandStringSafe(runRaw)) return false;
 
     const shellOpt = command && 'shell' in command ? command.shell : undefined;
     if (typeof shellOpt === 'string') {
@@ -187,4 +226,5 @@ export default {
   resetSessionApprovals,
   commandSignature,
   PREAPPROVED_CFG,
+  isCommandStringSafe,
 };

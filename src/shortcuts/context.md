@@ -6,7 +6,7 @@
 
 ## Key Module
 
-- `cli.js`: exposes `loadShortcutsFile`, `findShortcut`, and `handleShortcutsCli` (list/show/run). Uses `process.exit` to mirror legacy behaviour.
+- `cli.js`: exposes `loadShortcutsFile`, `findShortcut`, and `handleShortcutsCli` (list/show/run). Uses `process.exit` to mirror legacy behaviour and sanitises shortcut payloads (IDs, tags, command safety) on load.
 
 ## Positive Signals
 
@@ -15,7 +15,6 @@
 ## Risks / Gaps
 
 - Direct `process.exit` calls make the module side-effectful; difficult to reuse programmatically.
-- No validation of command safety when executing shortcuts.
 
 ## Related Context
 

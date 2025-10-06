@@ -8,12 +8,12 @@
   - [x] Update command documentation and context summaries
 - [ ] Modularize agent loop for maintainability
   - [x] Identify cohesive subsets (rendering, approvals, execution) and extract dedicated modules
-  - [ ] Adjust integration tests and mocks to new module boundaries
-  - [ ] Document new architecture in src/agent/context.md
+  - [x] Adjust integration tests and mocks to new module boundaries
+  - [x] Document new architecture in src/agent/context.md
 - [ ] Strengthen approval safety and coverage
-  - [ ] Audit regex heuristics and add tests for emerging shell-injection patterns
-  - [ ] Add validation layer for templates/shortcuts command payloads
-  - [ ] Expand integration scenarios for approval rejections and preapproved commands
+  - [x] Audit regex heuristics and add tests for emerging shell-injection patterns
+  - [x] Add validation layer for templates/shortcuts command payloads
+  - [x] Expand integration scenarios for approval rejections and preapproved commands
 - [ ] Close cancellation (ESC) coverage gaps
   - [ ] Design integration test simulating ESC-triggered aborts during command execution
   - [ ] Add regression tests for nested cancellation stacks

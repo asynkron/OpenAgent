@@ -174,6 +174,26 @@ describe('isPreapprovedCommand', () => {
     expect(mod.isPreapprovedCommand({ run: 'ls >(cat)' }, cfg)).toBe(false);
   });
 
+  test('rejects commands with background execution', async () => {
+    const { mod } = await loadModule();
+    const cfg = { allowlist: [{ name: 'ls' }] };
+    expect(mod.isPreapprovedCommand({ run: 'ls & whoami' }, cfg)).toBe(false);
+    expect(mod.isPreapprovedCommand({ run: 'ls &' }, cfg)).toBe(false);
+  });
+
+  test('rejects commands with here-doc or here-string redirections', async () => {
+    const { mod } = await loadModule();
+    const cfg = { allowlist: [{ name: 'cat' }] };
+    expect(mod.isPreapprovedCommand({ run: "cat <<'EOF'" }, cfg)).toBe(false);
+    expect(mod.isPreapprovedCommand({ run: 'cat <<<"data"' }, cfg)).toBe(false);
+  });
+
+  test('rejects commands redirecting all output via &>', async () => {
+    const { mod } = await loadModule();
+    const cfg = { allowlist: [{ name: 'ls' }] };
+    expect(mod.isPreapprovedCommand({ run: 'ls &> output.txt' }, cfg)).toBe(false);
+  });
+
   test('allows browse command with valid URL', async () => {
     const { mod } = await loadModule();
     const result = mod.isPreapprovedCommand(

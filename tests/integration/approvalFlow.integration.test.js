@@ -1,62 +1,31 @@
 import { jest } from '@jest/globals';
 
+import {
+  loadAgentWithMockedModules,
+  queueModelResponse,
+  resetQueuedResponses,
+} from './agentRuntimeTestHarness.js';
+
 jest.setTimeout(20000);
 
 const mockAnswersQueue = [];
 
-async function loadAgent({ firstPayload, secondPayload }) {
-  jest.resetModules();
-
-  let callCount = 0;
-  jest.unstable_mockModule('openai', () => ({
-    default: function OpenAIMock() {
-      return {
-        responses: {
-          create: async () => {
-            callCount += 1;
-            const payload =
-              callCount === 1
-                ? {
-                    message: 'Handshake',
-                    plan: [],
-                    command: null,
-                  }
-                : callCount === 2
-                ? firstPayload
-                : secondPayload;
-
-            return {
-              output: [
-                {
-                  type: 'message',
-                  content: [
-                    {
-                      type: 'output_text',
-                      text: JSON.stringify(payload),
-                    },
-                  ],
-                },
-              ],
-            };
-          },
-        },
-      };
-    },
-  }));
-
-  jest.unstable_mockModule('dotenv/config', () => ({}));
-
-  const agentModule = await import('../../index.js');
-  return agentModule.default;
-}
+beforeEach(() => {
+  mockAnswersQueue.length = 0;
+  resetQueuedResponses();
+});
 
 describe('Approval flow integration', () => {
-  beforeEach(() => {
-    mockAnswersQueue.length = 0;
-  });
-
   test('executes command after human approves once', async () => {
     process.env.OPENAI_API_KEY = 'test-key';
+
+    const { agent } = await loadAgentWithMockedModules();
+
+    queueModelResponse({
+      message: 'Handshake',
+      plan: [],
+      command: null,
+    });
 
     const firstPayload = {
       message: 'Needs approval',
@@ -69,7 +38,9 @@ describe('Approval flow integration', () => {
     };
     const secondPayload = { message: 'Follow-up', plan: [], command: null };
 
-    const agent = await loadAgent({ firstPayload, secondPayload });
+    queueModelResponse(firstPayload);
+    queueModelResponse(secondPayload);
+
     const runCommandMock = jest.fn().mockResolvedValue({
       stdout: 'APPROVED\n',
       stderr: '',
@@ -84,9 +55,13 @@ describe('Approval flow integration', () => {
     });
 
     const prompts = [];
+    const statuses = [];
 
     const outputProcessor = (async () => {
       for await (const event of runtime.outputs) {
+        if (event.type === 'status') {
+          statuses.push(event.message);
+        }
         if (event.type === 'request-input') {
           prompts.push(event.prompt);
           const next = mockAnswersQueue.shift() || '';
@@ -102,10 +77,19 @@ describe('Approval flow integration', () => {
 
     expect(runCommandMock).toHaveBeenCalledTimes(1);
     expect(prompts[1]).toContain('Approve running this command?');
+    expect(statuses.some((msg) => msg && msg.includes('approved for single execution'))).toBe(true);
   });
 
   test('skips command execution when human rejects', async () => {
     process.env.OPENAI_API_KEY = 'test-key';
+
+    const { agent } = await loadAgentWithMockedModules();
+
+    queueModelResponse({
+      message: 'Handshake',
+      plan: [],
+      command: null,
+    });
 
     const firstPayload = {
       message: 'Needs approval',
@@ -118,7 +102,9 @@ describe('Approval flow integration', () => {
     };
     const secondPayload = { message: 'Alternative requested', plan: [], command: null };
 
-    const agent = await loadAgent({ firstPayload, secondPayload });
+    queueModelResponse(firstPayload);
+    queueModelResponse(secondPayload);
+
     const runCommandMock = jest.fn();
 
     const runtime = agent.createAgentRuntime({
@@ -127,9 +113,13 @@ describe('Approval flow integration', () => {
     });
 
     const prompts = [];
+    const statuses = [];
 
     const outputProcessor = (async () => {
       for await (const event of runtime.outputs) {
+        if (event.type === 'status') {
+          statuses.push(event.message);
+        }
         if (event.type === 'request-input') {
           prompts.push(event.prompt);
           const next = mockAnswersQueue.shift() || '';
@@ -145,5 +135,65 @@ describe('Approval flow integration', () => {
 
     expect(runCommandMock).not.toHaveBeenCalled();
     expect(prompts[1]).toContain('Approve running this command?');
+    expect(statuses.some((msg) => msg && msg.includes('canceled by human'))).toBe(true);
+  });
+
+  test('auto-approves commands flagged as preapproved', async () => {
+    process.env.OPENAI_API_KEY = 'test-key';
+
+    const { agent } = await loadAgentWithMockedModules();
+
+    queueModelResponse({
+      message: 'Handshake',
+      plan: [],
+      command: null,
+    });
+
+    const preapprovedCommand = {
+      message: 'Preapproved command incoming',
+      plan: [],
+      command: {
+        run: 'npm test',
+        cwd: '.',
+        timeout_sec: 5,
+      },
+    };
+
+    queueModelResponse(preapprovedCommand);
+    queueModelResponse({ message: 'Follow-up', plan: [], command: null });
+
+    const runCommandMock = jest.fn().mockResolvedValue({
+      stdout: 'ok\n',
+      stderr: '',
+      exit_code: 0,
+      killed: false,
+      runtime_ms: 1,
+    });
+
+    const runtime = agent.createAgentRuntime({
+      getAutoApproveFlag: () => false,
+      runCommandFn: runCommandMock,
+      isPreapprovedCommandFn: () => true,
+    });
+
+    const prompts = [];
+
+    const outputProcessor = (async () => {
+      for await (const event of runtime.outputs) {
+        if (event.type === 'request-input') {
+          prompts.push(event.prompt);
+          const next = mockAnswersQueue.shift() || '';
+          runtime.submitPrompt(next);
+        }
+      }
+    })();
+
+    mockAnswersQueue.push('Please handle this', 'exit');
+
+    await runtime.start();
+    await outputProcessor;
+
+    expect(runCommandMock).toHaveBeenCalledTimes(1);
+    expect(prompts.some((prompt) => prompt && prompt.includes('Approve running this command?'))).toBe(false);
   });
 });
