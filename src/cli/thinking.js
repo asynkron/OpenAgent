@@ -45,7 +45,7 @@ export function startThinking() {
     } catch (err) {
       // Ignore TTY issues silently.
     }
-  }, 400);
+  }, 50);
 }
 
 export function stopThinking() {
