@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagent.dev/schemas/templates.schema.json",
+  "title": "Command Templates",
+  "type": "array",
+  "description": "Describes the structure of templates/command-templates.json entries.",
+  "items": {
+    "type": "object",
+    "required": ["id", "command"],
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Unique identifier used by the CLI (e.g., run-tests)."
+      },
+      "name": {
+        "type": "string",
+        "description": "Human readable label; defaults to id when omitted.",
+        "default": ""
+      },
+      "description": {
+        "type": "string",
+        "description": "Optional description surfaced in CLI listings.",
+        "default": ""
+      },
+      "command": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Command executed after variable interpolation."
+      },
+      "variables": {
+        "type": "array",
+        "description": "Variables exposed for interpolation within the command string.",
+        "items": {
+          "type": "object",
+          "required": ["name"],
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Variable placeholder name (e.g., package)."
+            },
+            "description": {
+              "type": "string",
+              "description": "Optional helper text displayed to the human author.",
+              "default": ""
+            },
+            "default": {
+              "type": ["string", "number", "boolean"],
+              "description": "Fallback value used when no explicit value is provided.",
+              "default": ""
+            }
+          }
+        },
+        "default": []
+      },
+      "tags": {
+        "type": "array",
+        "description": "Free-form labels that help filter templates in CLI listings.",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "default": []
+      }
+    }
+  },
+  "examples": [
+    [
+      {
+        "id": "run-tests",
+        "name": "Run tests",
+        "description": "Run the project's test suite (npm test)",
+        "command": "npm test",
+        "variables": [],
+        "tags": ["test"]
+      }
+    ]
+  ]
+}

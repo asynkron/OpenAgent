@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagent.dev/schemas/prompts.schema.json",
+  "title": "Prompt Metadata",
+  "type": "array",
+  "description": "Tracks prompt source files and optional synchronisation metadata.",
+  "items": {
+    "type": "object",
+    "required": ["id", "role", "path"],
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Stable identifier used when comparing prompt copies."
+      },
+      "role": {
+        "type": "string",
+        "pattern": "^[a-z_]+$",
+        "description": "Semantic role of the prompt (system, developer, brain, etc.)."
+      },
+      "path": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Relative path to the Markdown source file."
+      },
+      "checksum": {
+        "type": "string",
+        "pattern": "^[A-Fa-f0-9]{8,}$",
+        "description": "Optional content hash used for sync checks."
+      },
+      "updated_at": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Timestamp of the last verified synchronisation."
+      }
+    }
+  },
+  "examples": [
+    [
+      {
+        "id": "system-core",
+        "role": "system",
+        "path": "prompts/system.md",
+        "checksum": "8f0a1b2c3d4e5f60"
+      }
+    ]
+  ]
+}

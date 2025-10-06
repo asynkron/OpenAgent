@@ -60,6 +60,15 @@ function cancelableCall(makeCall, cancelSignal) {
 
 This does not stop the server-side computation but lets the agent stop waiting and resume loop control instantly.
 
+## Verified behaviours
+
+- `tests/integration/cancellation.integration.test.js` simulates ESC presses against long-lived shell commands and confirms the
+  cancellation stack kills the process and annotates stderr with human-readable markers.
+- The same suite covers nested registrations (`openai-request` + shell command) to prove that ESC only cancels the top-most
+  operation, leaving the OpenAI handle active for clean-up or retry logic.
+- `tests/unit/openaiRequest.test.js` asserts ESC cancellation feeds a structured observation back into the agent loop and clears
+  the auto-continue flag so the CLI returns to manual mode.
+
 ## Takeaways for the agent loop
 
 1. Prefer passing a real `AbortSignal` whenever possible; the SDK cleans up and reports cancellation.

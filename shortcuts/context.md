@@ -15,6 +15,7 @@
 ## Risks / Gaps
 
 - Command strings are executed verbatim—no validation or interpolation safeguards.
+- JSON schema reference (`schemas/shortcuts.schema.json`) exists but is not yet enforced programmatically.
 - Missing documentation for how to add new shortcuts alongside templates.
 
 ## Related Context

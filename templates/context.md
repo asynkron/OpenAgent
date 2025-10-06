@@ -14,7 +14,7 @@
 
 ## Risks / Gaps
 
-- No schema validation—malformed entries cause runtime errors.
+- JSON schema definitions live under `schemas/templates.schema.json`; validation wiring is still TODO.
 - Templates overlap conceptually with shortcuts; guidance on when to use each is missing.
 
 ## Related Context

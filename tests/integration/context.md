@@ -8,7 +8,10 @@
 
 - `agentLoop.integration.test.js`: verifies the loop executes a mocked command, honours auto-approve, and closes readline.
 - `agentRead.integration.test.js`: ensures read commands dispatch through `runRead` instead of shell execution.
-- `approvalFlow.integration.test.js`: covers human approval prompts (approve once vs reject) before command execution.
+- `approvalFlow.integration.test.js`: covers human approval prompts (approve once vs reject) before command execution and
+  session/allowlist auto-approvals.
+- `cancellation.integration.test.js`: exercises ESC-triggered cancellation paths for shell commands and nested
+  cancellation stacks.
 - `commandEdit.integration.test.js`: uses real filesystem writes to confirm `applyFileEdits` behaviour.
 - `cmdStats.integration.test.js`: validates command usage stats stored under XDG data dirs.
 - `shortcuts.integration.test.js` / `templates.integration.test.js`: spawn CLI subcommands to ensure JSON assets are valid.
@@ -21,7 +24,7 @@
 ## Risks / Gaps
 
 - Tests mock `process.exit` indirectly via `execFileSync`; failures could exit the runner if not caught.
-- No integration coverage for cancellation paths (ESC); string quoting built-ins now covered by dedicated tests.
+- Cancellation scenarios now covered for shell commands; ESC propagation through OpenAI requests remains unit-tested.
 
 ## Related Context
 

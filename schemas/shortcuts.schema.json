@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagent.dev/schemas/shortcuts.schema.json",
+  "title": "Command Shortcuts",
+  "type": "array",
+  "description": "Shape of shortcuts/shortcuts.json entries executed by the CLI.",
+  "items": {
+    "type": "object",
+    "required": ["id", "command"],
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Shortcut identifier surfaced in CLI listings."
+      },
+      "name": {
+        "type": "string",
+        "description": "Display name shown to humans.",
+        "default": ""
+      },
+      "description": {
+        "type": "string",
+        "description": "Optional helper text for the shortcut.",
+        "default": ""
+      },
+      "command": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Shell command emitted by the CLI when the shortcut runs."
+      },
+      "tags": {
+        "type": "array",
+        "description": "Labels used to group or filter shortcuts in CLI listings.",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "default": []
+      }
+    }
+  },
+  "examples": [
+    [
+      {
+        "id": "quick-tests",
+        "name": "Run test suite",
+        "description": "Run npm test quickly",
+        "command": "npm test",
+        "tags": ["test"]
+      }
+    ]
+  ]
+}

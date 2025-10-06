@@ -12,6 +12,7 @@
 
 - Simple JSON-driven shortcuts enable scripted reuse of common commands.
 - Loader now filters malformed entries, reducing the risk of executing arbitrary payloads.
+- Companion schema (`schemas/shortcuts.schema.json`) captures the expected shape for future automated validation.
 
 ## Risks / Gaps
 

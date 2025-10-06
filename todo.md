@@ -10,16 +10,16 @@
   - [x] Identify cohesive subsets (rendering, approvals, execution) and extract dedicated modules
   - [x] Adjust integration tests and mocks to new module boundaries
   - [x] Document new architecture in src/agent/context.md
-- [ ] Strengthen approval safety and coverage
+- [x] Strengthen approval safety and coverage
   - [x] Audit regex heuristics and add tests for emerging shell-injection patterns
   - [x] Add validation layer for templates/shortcuts command payloads
-  - [ ] Expand integration scenarios for approval rejections and preapproved commands
-- [ ] Close cancellation (ESC) coverage gaps
-  - [ ] Design integration test simulating ESC-triggered aborts during command execution
-  - [ ] Add regression tests for nested cancellation stacks
-  - [ ] Update docs/openai-cancellation.md with verified behaviours
+-  - [x] Expand integration scenarios for approval rejections and preapproved commands
+- [x] Close cancellation (ESC) coverage gaps
+  - [x] Design integration test simulating ESC-triggered aborts during command execution
+  - [x] Add regression tests for nested cancellation stacks
+  - [x] Update docs/openai-cancellation.md with verified behaviours
 - [ ] Introduce schema validation and sync safeguards for JSON assets
-  - [ ] Define JSON schemas for prompts, templates, and shortcuts
+  - [x] Define JSON schemas for prompts, templates, and shortcuts
   - [ ] Add validation step to CI or startup flow
   - [ ] Automate prompt copy synchronization checks
 - [ ] Improve OpenAI client robustness

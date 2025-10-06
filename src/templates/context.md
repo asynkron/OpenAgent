@@ -12,6 +12,7 @@
 
 - Enables reusable command scaffolds with variable substitution, useful for repeated workflows.
 - Loader sanitises JSON payloads to strip malformed entries before rendering.
+- Draft JSON schema (`schemas/templates.schema.json`) documents the expected structure for future CI validation.
 
 ## Risks / Gaps
 

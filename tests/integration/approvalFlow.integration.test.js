@@ -182,4 +182,94 @@ describe('Approval flow integration', () => {
     expect(mockInterface.question.mock.calls[1][0]).toContain('Approve running this command?');
     expect(mockInterface.close).toHaveBeenCalled();
   });
+
+  test('auto-runs allowlisted command without prompting the human', async () => {
+    process.env.OPENAI_API_KEY = 'test-key';
+
+    const preapprovedPayload = {
+      message: 'Safe diagnostic',
+      plan: [],
+      command: {
+        // `pwd` ships in approved_commands.json, so it should be auto-run.
+        run: 'pwd',
+        cwd: '.',
+        timeout_sec: 5,
+      },
+    };
+
+    const { agent, createEscStateMock, createEscWaiterMock, detachMock } = await loadAgent();
+    agent.STARTUP_FORCE_AUTO_APPROVE = false;
+
+    queueCompletion({ message: 'Handshake', plan: [], command: null });
+    queueCompletion(preapprovedPayload);
+    queueCompletion({ message: 'All done', plan: [], command: null });
+
+    mockAnswersQueue.push('please run pwd', 'exit');
+
+    agent.startThinking = () => {};
+    agent.stopThinking = () => {};
+
+    const runCommandMock = jest.fn().mockResolvedValue({
+      stdout: '/tmp\n',
+      stderr: '',
+      exit_code: 0,
+      killed: false,
+      runtime_ms: 1,
+    });
+    agent.runCommand = runCommandMock;
+
+    await agent.agentLoop();
+
+    expect(createEscStateMock).toHaveBeenCalledTimes(1);
+    expect(detachMock).toHaveBeenCalledTimes(1);
+    expect(runCommandMock).toHaveBeenCalledTimes(1);
+    // Ensure no prompt included the approval question since the command was auto-approved.
+    const approvalPrompts = mockInterface.question.mock.calls.map((call) => call[0]);
+    expect(approvalPrompts.some((prompt) => prompt.includes('Approve running this command?'))).toBe(false);
+    expect(mockInterface.close).toHaveBeenCalled();
+  });
+
+  test('stores session approval when requested and reuses it for identical commands', async () => {
+    process.env.OPENAI_API_KEY = 'test-key';
+
+    const approvedOncePayload = {
+      message: 'Needs human decision',
+      plan: [],
+      command: {
+        run: 'echo "SESSION_OK"',
+        cwd: '.',
+        timeout_sec: 5,
+      },
+    };
+
+    const { agent, createEscStateMock, createEscWaiterMock, detachMock } = await loadAgent();
+    agent.STARTUP_FORCE_AUTO_APPROVE = false;
+
+    queueCompletion({ message: 'Handshake', plan: [], command: null });
+    queueCompletion(approvedOncePayload);
+    // Repeat the same command: after session approval it should auto-run without another prompt.
+    queueCompletion(approvedOncePayload);
+    queueCompletion({ message: 'finished', plan: [], command: null });
+
+    mockAnswersQueue.push('first request', '2', 'second request', 'exit');
+
+    agent.startThinking = () => {};
+    agent.stopThinking = () => {};
+
+    const runCommandMock = jest
+      .fn()
+      .mockResolvedValue({ stdout: 'SESSION_OK\n', stderr: '', exit_code: 0, killed: false, runtime_ms: 1 });
+    agent.runCommand = runCommandMock;
+
+    await agent.agentLoop();
+
+    expect(createEscStateMock).toHaveBeenCalledTimes(1);
+    expect(detachMock).toHaveBeenCalledTimes(1);
+    expect(runCommandMock).toHaveBeenCalledTimes(2);
+    const approvalPrompts = mockInterface.question.mock.calls
+      .map((call) => call[0])
+      .filter((prompt) => prompt.includes('Approve running this command?'));
+    expect(approvalPrompts).toHaveLength(1);
+    expect(mockInterface.close).toHaveBeenCalled();
+  });
 });
