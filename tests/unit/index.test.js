@@ -168,6 +168,12 @@ describe('isPreapprovedCommand', () => {
     expect(mod.isPreapprovedCommand({ run: 'ls | grep foo' }, cfg)).toBe(false);
   });
 
+  test('rejects commands with process substitution', async () => {
+    const { mod } = await loadModule();
+    const cfg = { allowlist: [{ name: 'ls' }] };
+    expect(mod.isPreapprovedCommand({ run: 'ls >(cat)' }, cfg)).toBe(false);
+  });
+
   test('allows browse command with valid URL', async () => {
     const { mod } = await loadModule();
     const result = mod.isPreapprovedCommand(

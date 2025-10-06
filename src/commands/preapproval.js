@@ -50,7 +50,7 @@ export function isPreapprovedCommand(command, cfg) {
       return false;
     }
 
-    const forbidden = [/;|&&|\|\|/, /\|/, /`/, /\$\(/, /<\(/];
+    const forbidden = [/;|&&|\|\|/, /\|/, /`/, /\$\(/, /<\(/, />\(/];
     if (forbidden.some((re) => re.test(runRaw))) return false;
 
     if (/^\s*sudo\b/.test(runRaw)) return false;
