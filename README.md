@@ -112,9 +112,13 @@ Edit `.env` to include the required secrets:
 OPENAI_API_KEY=sk-...
 # Optional: override the default model (defaults to gpt-5-codex)
 # OPENAI_MODEL=gpt-4.1-mini
+# Optional: override the assumed model context window (tokens, defaults to 256000)
+# OPENAI_CONTEXT_WINDOW=256000
+# Optional: set reasoning effort for reasoning-enabled models (one of low, medium, high)
+# OPENAI_REASONING_EFFORT=medium
 ```
 
-Adjust other environment variables as needed (e.g., model selection, timeouts).
+Adjust other environment variables as needed (e.g., reasoning effort, model selection, timeouts).
 
 ## Usage
 

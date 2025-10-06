@@ -10,6 +10,7 @@
 - `output.js`: merges stdout/stderr and provides preview builders used when rendering command results.
 - `plan.js`: supplies plan inspection helpers (e.g., `planHasOpenSteps`).
 - `text.js`: regex filtering, tailing, truncation, and lightweight shell argument splitting.
+- `contextUsage.js`: estimates token usage/remaining context for the current conversation history.
 
 ## Positive Signals
 

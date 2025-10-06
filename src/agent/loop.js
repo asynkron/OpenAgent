@@ -9,6 +9,7 @@ import { getOpenAIClient, MODEL } from '../openai/client.js';
 import { startThinking, stopThinking } from '../cli/thinking.js';
 import { createInterface, askHuman, ESCAPE_EVENT } from '../cli/io.js';
 import { renderPlan, renderMessage, renderCommand } from '../cli/render.js';
+import { renderRemainingContext } from '../cli/status.js';
 import {
   runCommand,
   runBrowse,
@@ -25,8 +26,10 @@ import {
   PREAPPROVED_CFG,
 } from '../commands/preapproval.js';
 import { applyFilter, tailLines } from '../utils/text.js';
-import { executeAgentPass, extractResponseText } from './passExecutor.js';
+import { executeAgentPass } from './passExecutor.js';
+import { extractResponseText } from '../openai/responseUtils.js';
 import { ApprovalManager } from './approvalManager.js';
+import { HistoryCompactor } from './historyCompactor.js';
 
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 const PLAN_PENDING_REMINDER =
@@ -43,6 +46,7 @@ export function createAgentLoop({
   renderPlanFn = renderPlan,
   renderMessageFn = renderMessage,
   renderCommandFn = renderCommand,
+  renderContextUsageFn = renderRemainingContext,
   runCommandFn = runCommand,
   runBrowseFn = runBrowse,
   runEditFn = runEdit,
@@ -59,6 +63,8 @@ export function createAgentLoop({
   getAutoApproveFlag = () => false,
   getNoHumanFlag = () => false,
   setNoHumanFlag = () => {},
+  createHistoryCompactorFn = ({ openai: client, currentModel }) =>
+    new HistoryCompactor({ openai: client, model: currentModel, logger: console }),
 } = {}) {
   return async function agentLoop() {
     const history = [
@@ -116,6 +122,11 @@ export function createAgentLoop({
       throw err;
     }
 
+    const historyCompactor =
+      typeof createHistoryCompactorFn === 'function'
+        ? createHistoryCompactorFn({ openai, currentModel: model })
+        : null;
+
     console.log(chalk.bold.blue('\nOpenAgent - AI Agent with JSON Protocol'));
     console.log(chalk.dim('Type "exit" or "quit" to end the conversation.'));
     if (getAutoApproveFlag()) {
@@ -166,6 +177,7 @@ export function createAgentLoop({
               renderPlanFn,
               renderMessageFn,
               renderCommandFn,
+              renderContextUsageFn,
               runCommandFn,
               runBrowseFn,
               runEditFn,
@@ -183,6 +195,7 @@ export function createAgentLoop({
               stopThinkingFn,
               escState,
               approvalManager,
+              historyCompactor,
             });
 
             continueLoop = shouldContinue;
@@ -203,7 +216,7 @@ export function createAgentLoop({
   };
 }
 
-export { extractResponseText } from './passExecutor.js';
+export { extractResponseText } from '../openai/responseUtils.js';
 
 export default {
   createAgentLoop,

@@ -30,6 +30,7 @@ import {
   inferLanguageFromDetectors,
   detectLanguage,
 } from './src/cli/render.js';
+import { renderRemainingContext } from './src/cli/status.js';
 import {
   runCommand,
   runBrowse,
@@ -117,6 +118,7 @@ async function runAgentLoopWithCurrentDependencies() {
     renderPlanFn: exported.renderPlan,
     renderMessageFn: exported.renderMessage,
     renderCommandFn: exported.renderCommand,
+    renderContextUsageFn: exported.renderRemainingContext,
     runCommandFn: exported.runCommand,
     runBrowseFn: exported.runBrowse,
     runEditFn: exported.runEdit,
@@ -175,10 +177,12 @@ export const exported = {
   wrapStructuredContent,
   renderMarkdownMessage,
   renderPlan,
+  renderRemainingContext,
   createInterface,
   askHuman,
   renderMessage,
   renderCommand,
+  renderRemainingContext,
   inferLanguageFromDetectors,
   detectLanguage,
   loadPreapprovedConfig,

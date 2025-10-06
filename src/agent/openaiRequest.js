@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 
 import { register as registerCancellation } from '../utils/cancellation.js';
+import { createResponse } from '../openai/responses.js';
 import { createEscWaiter, resetEscState } from './escState.js';
 
 export async function requestModelCompletion({
@@ -22,15 +23,16 @@ export async function requestModelCompletion({
     onCancel: controller ? () => controller.abort() : null,
   });
 
-  const requestParams = {
+  const requestOptions = controller ? { signal: controller.signal } : undefined;
+  const requestPromise = createResponse({
+    openai,
     model,
     input: history,
     text: {
       format: { type: 'json_object' },
     },
-  };
-  const requestOptions = controller ? { signal: controller.signal } : undefined;
-  const requestPromise = openai.responses.create(requestParams, requestOptions);
+    options: requestOptions,
+  });
 
   try {
     const raceCandidates = [requestPromise.then((value) => ({ kind: 'completion', value }))];

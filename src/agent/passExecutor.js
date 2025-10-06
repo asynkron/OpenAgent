@@ -6,37 +6,8 @@ import { combineStdStreams, buildPreview } from '../utils/output.js';
 import ObservationBuilder from './observationBuilder.js';
 import { requestModelCompletion } from './openaiRequest.js';
 import { executeAgentCommand } from './commandExecution.js';
-
-export function extractResponseText(response) {
-  if (!response || typeof response !== 'object') {
-    return '';
-  }
-
-  if (typeof response.output_text === 'string') {
-    const normalized = response.output_text.trim();
-    if (normalized) {
-      return normalized;
-    }
-  }
-
-  const outputs = Array.isArray(response.output) ? response.output : [];
-  for (const item of outputs) {
-    if (!item || item.type !== 'message' || !Array.isArray(item.content)) {
-      continue;
-    }
-
-    for (const part of item.content) {
-      if (part && part.type === 'output_text' && typeof part.text === 'string') {
-        const normalized = part.text.trim();
-        if (normalized) {
-          return normalized;
-        }
-      }
-    }
-  }
-
-  return '';
-}
+import { summarizeContextUsage } from '../utils/contextUsage.js';
+import { extractResponseText } from '../openai/responseUtils.js';
 
 export async function executeAgentPass({
   openai,
@@ -45,6 +16,7 @@ export async function executeAgentPass({
   renderPlanFn,
   renderMessageFn,
   renderCommandFn,
+  renderContextUsageFn,
   runCommandFn,
   runBrowseFn,
   runEditFn,
@@ -62,6 +34,7 @@ export async function executeAgentPass({
   stopThinkingFn,
   escState,
   approvalManager,
+  historyCompactor,
 }) {
   const observationBuilder = new ObservationBuilder({
     combineStdStreams,
@@ -69,6 +42,26 @@ export async function executeAgentPass({
     tailLines: tailLinesFn,
     buildPreview,
   });
+
+  if (historyCompactor && typeof historyCompactor.compactIfNeeded === 'function') {
+    try {
+      await historyCompactor.compactIfNeeded({ history });
+    } catch (error) {
+      console.error(chalk.yellow('[history-compactor] Unexpected error during history compaction.'));
+      console.error(error);
+    }
+  }
+
+  if (typeof renderContextUsageFn === 'function') {
+    try {
+      const usage = summarizeContextUsage({ history, model });
+      if (usage && usage.total) {
+        renderContextUsageFn(usage);
+      }
+    } catch (error) {
+      // Rendering context usage is best-effort; swallow errors to avoid interrupting the loop.
+    }
+  }
 
   const completionResult = await requestModelCompletion({
     openai,
@@ -217,6 +210,5 @@ export async function executeAgentPass({
 }
 
 export default {
-  extractResponseText,
   executeAgentPass,
 };

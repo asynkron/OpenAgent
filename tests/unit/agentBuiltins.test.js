@@ -36,6 +36,7 @@ function createLoopWithQueue(queue, overrides = {}) {
     renderPlanFn: jest.fn(),
     renderMessageFn: jest.fn(),
     renderCommandFn: jest.fn(),
+    renderContextUsageFn: jest.fn(),
     runCommandFn: jest.fn().mockResolvedValue({
       stdout: '',
       stderr: '',

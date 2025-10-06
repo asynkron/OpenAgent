@@ -12,6 +12,7 @@
 - `renderLanguage.test.js`, `renderPlan.test.js`: guard CLI rendering edge cases.
 - `replaceCommand.test.js`, `runCommand.test.js`: verify replacement logic and process management.
 - `index.test.js`, `esmEntry.test.js`: confirm root exports and ESM package surface remain intact.
+- `openaiResponses.test.js`: validates the shared OpenAI response helper respects reasoning environment overrides.
 
 ## Positive Signals
 
