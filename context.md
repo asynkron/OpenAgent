@@ -10,7 +10,6 @@
 - Core runtime: [`src/context.md`](src/context.md)
 - Tests: [`tests/context.md`](tests/context.md)
 - Prompt/brain guidance: [`prompts/context.md`](prompts/context.md), [`brain/context.md`](brain/context.md)
-- CLI assets: [`templates/context.md`](templates/context.md), [`shortcuts/context.md`](shortcuts/context.md)
 - JSON schema definitions: [`schemas/context.md`](schemas/context.md)
 - Release notes: [`CHANGELOG.md`](CHANGELOG.md)
 - IDE settings: [`./.idea/context.md`](.idea/context.md)
@@ -20,8 +19,7 @@
 
 - `index.js`: re-exports the library API from `src/lib/index.js` and forwards direct execution to the CLI runner.
 - `src/lib/index.js`: aggregates CLI-agnostic helpers, re-exporting the CLI runtime without owning its rendering logic.
-- `src/cli/runner.js`: handles `templates`/`shortcuts` subcommands and wires CLI startup flags before launching the loop.
-- `src/agent/loop.js`: orchestrates OpenAI interactions, now delegating each pass to `passExecutor.js` while managing readline/ESC state.
+- `src/cli/runner.js`: wires CLI startup flags before launching the agent loop.\n- `src/agent/loop.js`: orchestrates OpenAI interactions, now delegating each pass to `passExecutor.js` while managing readline/ESC state.
 - `src/commands/run.js`: sandbox for process execution with timeout + cancellation; re-exports specialised helpers (browse/read/edit/replace/escape-string).
 
 ## Positive Signals
@@ -59,7 +57,6 @@
 - Core runtime: [`src/context.md`](src/context.md)
 - Tests: [`tests/context.md`](tests/context.md)
 - Prompt/brain guidance: [`prompts/context.md`](prompts/context.md), [`brain/context.md`](brain/context.md)
-- CLI assets: [`templates/context.md`](templates/context.md), [`shortcuts/context.md`](shortcuts/context.md)
 - Release notes: [`CHANGELOG.md`](CHANGELOG.md)
 - IDE settings: [`./.idea/context.md`](.idea/context.md)
 - Additional docs: [`docs/context.md`](docs/context.md)

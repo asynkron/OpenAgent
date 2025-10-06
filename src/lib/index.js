@@ -48,8 +48,6 @@ import {
   SYSTEM_PROMPT,
 } from '../config/systemPrompt.js';
 import { createAgentLoop, createAgentRuntime, extractResponseText } from '../agent/loop.js';
-import { loadTemplates, renderTemplateCommand, handleTemplatesCli } from '../templates/cli.js';
-import { loadShortcutsFile, findShortcut, handleShortcutsCli } from '../shortcuts/cli.js';
 import { createWebSocketUi } from '../ui/websocket.js';
 import {
   setStartupFlags,
@@ -101,12 +99,6 @@ export {
   createAgentRuntime,
   extractResponseText,
   createWebSocketUi,
-  loadTemplates,
-  renderTemplateCommand,
-  handleTemplatesCli,
-  loadShortcutsFile,
-  findShortcut,
-  handleShortcutsCli,
   setStartupFlags,
   parseStartupFlagsFromArgv,
   applyStartupFlagsFromArgv,
@@ -157,12 +149,6 @@ const exported = {
   createAgentRuntime,
   extractResponseText,
   createWebSocketUi,
-  loadTemplates,
-  renderTemplateCommand,
-  handleTemplatesCli,
-  loadShortcutsFile,
-  findShortcut,
-  handleShortcutsCli,
   setStartupFlags,
   parseStartupFlagsFromArgv,
   applyStartupFlagsFromArgv,

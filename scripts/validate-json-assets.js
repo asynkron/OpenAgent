@@ -31,20 +31,6 @@ async function validateJsonResource({ schemaFile, assetFile, resource, uniquePro
 }
 
 async function run() {
-  await validateJsonResource({
-    schemaFile: 'templates.schema.json',
-    assetFile: 'templates/command-templates.json',
-    resource: 'templates/command-templates.json',
-    uniqueProperties: ['id'],
-  });
-
-  await validateJsonResource({
-    schemaFile: 'shortcuts.schema.json',
-    assetFile: 'shortcuts/shortcuts.json',
-    resource: 'shortcuts/shortcuts.json',
-    uniqueProperties: ['id'],
-  });
-
   const promptSchema = await loadJsonFile(path.join(SCHEMA_DIR, 'prompts.schema.json'));
   const promptManifestPath = path.join(ROOT_DIR, 'prompts/prompts.json');
   const promptManifest = await loadJsonFile(promptManifestPath);

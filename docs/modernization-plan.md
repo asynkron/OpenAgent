@@ -4,7 +4,7 @@ This roadmap captures a staged approach for cleaning up the OpenAgent codebase, 
 
 ## 1. Stabilize the current surface
 
-- [ ] **Inventory the runtime entry points.** Confirm `index.js` is the only Node entry point and identify any scripts in `src/cli`, `src/commands`, and `src/templates` that are invoked directly.
+- [ ] **Inventory the runtime entry points.** Confirm `index.js` is the only Node entry point and identify any scripts in `src/cli` or `src/commands` that are invoked directly.
 - [ ] **Add smoke tests for critical behaviours.** The Jest suite currently focuses on utilities; expand coverage to the agent loop and CLI glue before refactors to ensure we can detect regressions.
 
 ## 2. Introduce automatic formatting and linting (this change)

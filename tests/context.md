@@ -13,8 +13,7 @@
 
 ## Positive Signals
 
-- Integration tests validate agent loop approvals, read command dispatch, command stats persistence, and CLI wrappers for templates/shortcuts.
-- Unit tests cover editing utilities, cancellation manager, renderer language heuristics, runCommand lifecycle, and JSON asset validation helpers.
+- Integration tests validate agent loop approvals, read command dispatch, and command stats persistence.\n- Unit tests cover editing utilities, cancellation manager, renderer language heuristics, runCommand lifecycle, and JSON asset validation helpers.
 - ESC cancellation scenarios now have both integration coverage and nested cancellation regressions guarding the shared stack.
 
 ## Risks / Gaps

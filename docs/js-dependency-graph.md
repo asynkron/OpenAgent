@@ -13,8 +13,6 @@ graph LR
   index_js --> src_commands_run_js["src/commands/run.js"]
   index_js --> src_config_systemPrompt_js["src/config/systemPrompt.js"]
   index_js --> src_openai_client_js["src/openai/client.js"]
-  index_js --> src_shortcuts_cli_js["src/shortcuts/cli.js"]
-  index_js --> src_templates_cli_js["src/templates/cli.js"]
   index_js --> src_utils_text_js["src/utils/text.js"]
   src_agent_loop_js --> src_cli_io_js
   src_agent_loop_js --> src_cli_render_js

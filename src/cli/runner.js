@@ -1,8 +1,8 @@
 /**
  * CLI bootstrap wiring extracted from the legacy root `index.js`.
  *
- * It keeps the `src/lib/index.js` module focused on reusable exports while
- * preserving the old command-line behaviour via `runCli`/`maybeRunCli`.
+ * It keeps the executable entrypoint lightweight while delegating the reusable
+ * logic to `src/lib/index.js`.
  */
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,29 +10,10 @@ import { fileURLToPath } from 'node:url';
 import {
   agentLoop,
   applyStartupFlagsFromArgv,
-  handleTemplatesCli,
-  handleShortcutsCli,
 } from '../lib/index.js';
-
-export function maybeHandleCliExtensions(argv = process.argv) {
-  const mode = argv[2] || '';
-  if (mode === 'templates') {
-    handleTemplatesCli(argv);
-    return true;
-  }
-  if (mode === 'shortcuts') {
-    handleShortcutsCli(argv);
-    return true;
-  }
-  return false;
-}
 
 export async function runCli(argv = process.argv) {
   applyStartupFlagsFromArgv(argv);
-
-  if (maybeHandleCliExtensions(argv)) {
-    return;
-  }
 
   try {
     await agentLoop();

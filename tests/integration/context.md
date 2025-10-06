@@ -12,7 +12,6 @@
 - `commandEdit.integration.test.js`: uses real filesystem writes to confirm `applyFileEdits` behaviour.
 - `cmdStats.integration.test.js`: validates command usage stats stored under XDG data dirs.
 - `agentCancellation.integration.test.js`: drives an ESC-triggered cancel to verify UI requests unwind command execution.
-- `shortcuts.integration.test.js` / `templates.integration.test.js`: spawn CLI subcommands to ensure JSON assets are valid.
 - Shared helpers live in `agentRuntimeTestHarness.js`, which mocks model completions and command-stat tracking so suites can focus on runtime behaviour without touching the filesystem or OpenAI SDK.
 - `testRunnerUI.js` provides a lightweight reactive UI harness that consumes runtime events and feeds queued responses by scope (user input vs approval prompts), reducing per-suite boilerplate.
 

@@ -13,7 +13,6 @@
 - `commands/`: shell execution, read/edit/replace helpers, string quoting utilities.
 - `config/`: system prompt discovery and workspace metadata.
 - `openai/`: memoized OpenAI client factory.
-- `shortcuts/`, `templates/`: CLI facades for auxiliary commands.
 - `ui/`: transport-agnostic UI bindings (e.g., WebSocket adapters) for the runtime.
 - `utils/`: cancellation manager, text helpers, output combiner.
 
@@ -38,6 +37,4 @@
   - [`commands/context.md`](commands/context.md)
   - [`config/context.md`](config/context.md)
   - [`openai/context.md`](openai/context.md)
-  - [`shortcuts/context.md`](shortcuts/context.md)
-  - [`templates/context.md`](templates/context.md)
   - [`utils/context.md`](utils/context.md)
