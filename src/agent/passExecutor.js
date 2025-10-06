@@ -29,6 +29,7 @@ export async function executeAgentPass({
   escState,
   approvalManager,
   historyCompactor,
+  planManager,
 }) {
   const observationBuilder = new ObservationBuilder({
     combineStdStreams,
@@ -123,7 +124,38 @@ export async function executeAgentPass({
   }
 
   emitEvent({ type: 'assistant-message', message: parsed.message ?? '' });
-  emitEvent({ type: 'plan', plan: Array.isArray(parsed.plan) ? parsed.plan : [] });
+
+  const incomingPlan = Array.isArray(parsed.plan) ? parsed.plan : null;
+  let activePlan = incomingPlan ?? [];
+
+  if (planManager) {
+    try {
+      if (incomingPlan && typeof planManager.update === 'function') {
+        const merged = await planManager.update(incomingPlan);
+        if (Array.isArray(merged)) {
+          activePlan = merged;
+        }
+      } else if (!incomingPlan && typeof planManager.get === 'function') {
+        const snapshot = planManager.get();
+        if (Array.isArray(snapshot)) {
+          activePlan = snapshot;
+        }
+      }
+    } catch (error) {
+      emitEvent({
+        type: 'status',
+        level: 'warn',
+        message: 'Failed to update persistent plan state.',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  if (!Array.isArray(activePlan)) {
+    activePlan = incomingPlan ?? [];
+  }
+
+  emitEvent({ type: 'plan', plan: activePlan });
 
   if (!parsed.command) {
     if (
@@ -139,7 +171,7 @@ export async function executeAgentPass({
       }
     }
 
-    if (Array.isArray(parsed.plan) && planHasOpenSteps(parsed.plan)) {
+    if (Array.isArray(activePlan) && planHasOpenSteps(activePlan)) {
       emitEvent({
         type: 'status',
         level: 'warn',
