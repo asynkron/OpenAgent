@@ -38,6 +38,7 @@ import {
 } from '../commands/preapproval.js';
 import { incrementCommandCount } from '../commands/commandStats.js';
 import { combineStdStreams, buildPreview } from '../utils/output.js';
+import ObservationBuilder from './observationBuilder.js';
 import { register as registerCancellation } from '../utils/cancellation.js';
 
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
@@ -136,6 +137,13 @@ async function executeAgentPass({
 }) {
   const { promise: escPromise, cleanup: cleanupEscWaiter } = createEscWaiter(escState);
 
+  const observationBuilder = new ObservationBuilder({
+    combineStdStreams,
+    applyFilter: applyFilterFn,
+    tailLines: tailLinesFn,
+    buildPreview,
+  });
+
   startThinkingFn();
   const controller = typeof AbortController === 'function' ? new AbortController() : null;
   const cancellationOp = registerCancellation({
@@ -189,17 +197,11 @@ async function executeAgentPass({
         setNoHumanFlag(false);
       }
 
-      const observation = {
-        observation_for_llm: {
-          operation_canceled: true,
-          reason: 'escape_key',
-          message: 'Human pressed ESC to cancel the in-flight request.',
-        },
-        observation_metadata: {
-          timestamp: new Date().toISOString(),
-          esc_payload: outcome.payload ?? null,
-        },
-      };
+      const observation = observationBuilder.buildCancellationObservation({
+        reason: 'escape_key',
+        message: 'Human pressed ESC to cancel the in-flight request.',
+        metadata: { esc_payload: outcome.payload ?? null },
+      });
 
       history.push({ role: 'user', content: JSON.stringify(observation) });
       return false;
@@ -223,16 +225,10 @@ async function executeAgentPass({
         setNoHumanFlag(false);
       }
 
-      const observation = {
-        observation_for_llm: {
-          operation_canceled: true,
-          reason: 'abort',
-          message: 'The in-flight request was aborted before completion.',
-        },
-        observation_metadata: {
-          timestamp: new Date().toISOString(),
-        },
-      };
+      const observation = observationBuilder.buildCancellationObservation({
+        reason: 'abort',
+        message: 'The in-flight request was aborted before completion.',
+      });
 
       history.push({ role: 'user', content: JSON.stringify(observation) });
       return false;
@@ -468,52 +464,15 @@ Select 1, 2, or 3: `,
     // Ignore stats failures intentionally.
   }
 
-  let filteredStdout = result.stdout;
-  let filteredStderr = result.stderr;
-
-  const combined = combineStdStreams(filteredStdout, filteredStderr, result.exit_code ?? 0);
-  filteredStdout = combined.stdout;
-  filteredStderr = combined.stderr;
-
-  if (parsed.command.filter_regex) {
-    filteredStdout = applyFilterFn(filteredStdout, parsed.command.filter_regex);
-    filteredStderr = applyFilterFn(filteredStderr, parsed.command.filter_regex);
-  }
-
-  if (parsed.command.tail_lines) {
-    filteredStdout = tailLinesFn(filteredStdout, parsed.command.tail_lines);
-    filteredStderr = tailLinesFn(filteredStderr, parsed.command.tail_lines);
-  }
-
-  const stdoutPreview = buildPreview(filteredStdout);
-  const stderrPreview = buildPreview(filteredStderr);
-
-  renderCommandFn(parsed.command, result, {
-    stdout: filteredStdout,
-    stderr: filteredStderr,
-    stdoutPreview,
-    stderrPreview,
-    execution: executionDetails,
+  const { renderPayload, observation } = observationBuilder.build({
+    command: parsed.command,
+    result,
   });
 
-  const observation = {
-    observation_for_llm: {
-      stdout: filteredStdout,
-      stderr: filteredStderr,
-      exit_code: result.exit_code,
-      truncated:
-        (parsed.command.filter_regex &&
-          (result.stdout !== filteredStdout || result.stderr !== filteredStderr)) ||
-        (parsed.command.tail_lines &&
-          (result.stdout.split('\n').length > parsed.command.tail_lines ||
-            result.stderr.split('\n').length > parsed.command.tail_lines)),
-    },
-    observation_metadata: {
-      runtime_ms: result.runtime_ms,
-      killed: result.killed,
-      timestamp: new Date().toISOString(),
-    },
-  };
+  renderCommandFn(parsed.command, result, {
+    ...renderPayload,
+    execution: executionDetails,
+  });
 
   history.push({
     role: 'user',
