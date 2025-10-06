@@ -23,6 +23,7 @@
 - `replace.js` enforces `g` flag and supports dry-run reporting.
 - `escapeString.js` centralises string coercion, enabling new built-ins without touching `loop.js` internals.
 - `preapproval.js` validation now guards against risky shells/flags with dedicated unit coverage for new heuristics.
+- `edit.js` and `replace.js` now return the full updated file contents (with headings) in their stdout payloads, letting the LLM consume changes without issuing a follow-up read.
 
 ## Risks / Gaps
 

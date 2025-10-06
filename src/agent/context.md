@@ -8,8 +8,6 @@
 
 - `loop.js`: exposes the event-driven runtime (`createAgentRuntime`) that emits structured JSON events and wraps it with the legacy `createAgentLoop` helper for compatibility.
 - `promptCoordinator.js`: provides the `PromptCoordinator` class that mediates prompt requests/responses between the runtime and UI surfaces.
-- `handshake.js`: encapsulates the temporary history injection used for the initial system handshake.
-  - Ensures a system prompt entry is present in history before the first model call, injecting it when consumers provide a prompt-less history.
 - `escState.js`: centralises cancellation state, allowing UI-triggered events to notify in-flight operations.
 - `passExecutor.js`: performs an agent pass (OpenAI request, JSON parsing, plan updates, approvals, command execution, observation logging).
 - `historyCompactor.js`: auto-compacts older history entries when context usage exceeds the configured threshold by summarizing them into long-term memory snapshots.
@@ -21,7 +19,7 @@
 ## Architecture Overview
 
 - The runtime created by `loop.js` pushes every CLI-facing side effect through structured events. Consumers provide dependency bags (command runners, approval hooks, CLI renderers) so tests can replace them in isolation.
-- On `start()`, the runtime performs an initial handshake by inserting a system prompt via `handshake.js`, then repeatedly calls `executeAgentPass()` from `passExecutor.js`.
+- On `start()`, the runtime emits startup status messages, captures human prompts through the `PromptCoordinator`, then dispatches them to `executeAgentPass()`.
 - `executeAgentPass()` now coordinates three specialised helpers:
   1. `openaiRequest.js` issues the model call and handles cancellation/ESC plumbing.
   2. `approvalManager.js` determines whether a proposed command can run automatically or needs a human decision.
@@ -37,7 +35,6 @@
 - Maintains conversation history explicitly, facilitating reproducibility.
 - OpenAI invocations now lean on the shared helper in `openai/responses.js`, keeping reasoning configuration consistent.
 - History compaction prints the generated summary to the CLI so humans can keep track of the active intent.
-- Initial handshake with the model occurs before reading human input, giving the agent a chance to greet and summarize readiness automatically.
 
 ## Related Context
 

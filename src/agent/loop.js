@@ -29,7 +29,6 @@ import { extractResponseText } from '../openai/responseUtils.js';
 import { ApprovalManager } from './approvalManager.js';
 import { HistoryCompactor } from './historyCompactor.js';
 import { createEscState } from './escState.js';
-import { performInitialHandshake } from './handshake.js';
 import { AsyncQueue, QUEUE_DONE } from '../utils/asyncQueue.js';
 import { cancel as cancelActive } from '../utils/cancellation.js';
 import { PromptCoordinator } from './promptCoordinator.js';
@@ -38,8 +37,6 @@ import { mergePlanTrees, planToMarkdown } from '../utils/plan.js';
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 const PLAN_PENDING_REMINDER =
   'There are open tasks in the plan. Do you need help or more info? If not, please continue working.';
-const INITIAL_HANDSHAKE_PROMPT =
-  'SYSTEM HANDSHAKE: Provide a brief greeting that confirms you are ready to help and invite the human to share their task. Respond with JSON containing "message" for the greeting, set "plan" to an empty array, and set "command" to null. Do not execute or propose any commands during this handshake, then wait for the human\'s input. Ignore this message after you have responded.';
 
 export function createAgentRuntime({
   systemPrompt = SYSTEM_PROMPT,
@@ -215,34 +212,6 @@ export function createAgentRuntime({
     const stopThinkingEvent = () => emit({ type: 'thinking', state: 'stop' });
 
     try {
-      await performInitialHandshake({
-        history,
-        prompt: INITIAL_HANDSHAKE_PROMPT,
-        systemPrompt,
-        executePass: executeAgentPass,
-        openai,
-        model,
-        emitEvent: emit,
-        runCommandFn,
-        runBrowseFn,
-        runEditFn,
-        runReadFn,
-        runReplaceFn,
-        runEscapeStringFn,
-        runUnescapeStringFn,
-        applyFilterFn,
-        tailLinesFn,
-        getNoHumanFlag,
-        setNoHumanFlag,
-        planReminderMessage: PLAN_PENDING_REMINDER,
-        startThinkingFn: startThinkingEvent,
-        stopThinkingFn: stopThinkingEvent,
-        escState,
-        approvalManager,
-        historyCompactor,
-        planManager,
-      });
-
       while (true) {
         const noHumanActive = getNoHumanFlag();
         const userInput = noHumanActive

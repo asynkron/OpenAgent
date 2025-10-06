@@ -70,9 +70,10 @@ export async function applyFileEdits(editSpec, cwd = '.') {
 
     const relOutputPath = path.relative(process.cwd(), absPath);
     const header = fileExisted ? `Edited ${relOutputPath}` : `Created ${relOutputPath}`;
+    const fileHeading = `--- ${relOutputPath}`;
 
     return {
-      stdout: `${header}\n${updated}`,
+      stdout: `${header}\n\n${fileHeading}\n${updated}`,
       stderr: '',
       exit_code: 0,
       killed: false,

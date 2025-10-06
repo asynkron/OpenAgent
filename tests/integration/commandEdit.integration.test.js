@@ -25,10 +25,13 @@ describe('applyFileEdits integration', () => {
     ];
     const spec = { path: TEST_FILE, edits };
     const result = await applyFileEdits(spec, process.cwd());
+    const relOutput = path.relative(process.cwd(), TEST_FILE);
     expect(result.exit_code).toBe(0);
     const content = fs.readFileSync(TEST_FILE, 'utf8');
     expect(content).toBe('The slow brown dog');
-    expect(result.stdout).toMatch(/Edited/);
+    expect(result.stdout).toContain(`Edited ${relOutput}`);
+    expect(result.stdout).toContain(`--- ${relOutput}`);
+    expect(result.stdout).toContain('The slow brown dog');
   });
 
   test('creates file when missing', async () => {
@@ -40,9 +43,13 @@ describe('applyFileEdits integration', () => {
     const spec = { path: targetPath, edits: [{ start: 0, end: 0, newText: 'x' }] };
     const result = await applyFileEdits(spec, process.cwd());
 
+    const relOutput = path.relative(process.cwd(), targetPath);
+
     expect(result.exit_code).toBe(0);
     expect(result.stderr).toBe('');
-    expect(result.stdout).toMatch(/Created/);
+    expect(result.stdout).toContain(`Created ${relOutput}`);
+    expect(result.stdout).toContain(`--- ${relOutput}`);
+    expect(result.stdout).toContain('x');
     expect(fs.existsSync(targetPath)).toBe(true);
     expect(fs.readFileSync(targetPath, 'utf8')).toBe('x');
 

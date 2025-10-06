@@ -96,7 +96,7 @@ export function renderPlan(plan) {
       const title = chalk.white(item.title ?? '');
 
       planLines.push(
-        `${indent}${statusSymbol} ${chalk.cyan(`Step ${stepLabel}`)} ${chalk.dim('-')} ${title}`,
+        `${indent}${statusSymbol} ${chalk.cyan(`${stepLabel}`)}${chalk.dim('.')} ${title}`,
       );
 
       const childKey = childKeys.find((key) => Array.isArray(item[key]));
@@ -112,8 +112,6 @@ export function renderPlan(plan) {
     return;
   }
 
-  console.log('');
-  console.log(`${chalk.cyan('Plan')} ${chalk.dim('__')}`);
   display('Plan', planLines, 'cyan');
 }
 
@@ -131,7 +129,7 @@ function formatHeading(label, detail) {
 }
 
 function arrowLine(text) {
-  return chalk.dim(` ↳ ${text}`);
+  return chalk.dim(` └ ${text}`);
 }
 
 function indentLine(text) {

@@ -19,11 +19,6 @@ test('agent runtime executes one mocked command then exits on user request', asy
   agent.STARTUP_FORCE_AUTO_APPROVE = true;
 
   queueModelResponse({
-    message: 'Mocked handshake',
-    plan: [],
-    command: null,
-  });
-  queueModelResponse({
     message: 'Mocked response',
     plan: [],
     command: {

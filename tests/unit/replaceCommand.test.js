@@ -23,8 +23,16 @@ describe('runReplace', () => {
       dir,
     );
 
+    const relOutput = path.relative(process.cwd(), file);
+
     expect(result.exit_code).toBe(0);
     expect(fs.readFileSync(file, 'utf8')).toBe('bar and bar again');
+    expect(result.stdout).toContain('Total matches: 2');
+    expect(result.stdout).toContain('Files with changes: 1');
+    expect(result.stdout).toContain(`${relOutput}: 2 matches`);
+    expect(result.stdout).toContain(`Updated ${relOutput}`);
+    expect(result.stdout).toContain(`--- ${relOutput}`);
+    expect(result.stdout).toContain('bar and bar again');
   });
 
   test('supports dry-run without modifying files', async () => {
@@ -42,8 +50,14 @@ describe('runReplace', () => {
       dir,
     );
 
+    const relOutput = path.relative(process.cwd(), file);
+
     expect(result.exit_code).toBe(0);
-    expect(result.stdout).toMatch(/Dry-run/);
+    expect(result.stdout).toContain('Dry-run: no files were modified.');
+    expect(result.stdout).toContain(`${relOutput}: 1 matches (dry-run)`);
+    expect(result.stdout).toContain(`Preview ${relOutput}`);
+    expect(result.stdout).toContain(`--- ${relOutput}`);
+    expect(result.stdout).toContain('hello universe');
     expect(fs.readFileSync(file, 'utf8')).toBe('hello world');
   });
 
