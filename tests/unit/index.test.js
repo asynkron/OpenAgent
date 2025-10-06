@@ -377,3 +377,10 @@ describe('loadPreapprovedConfig', () => {
     }
   });
 });
+
+describe('createWebSocketUi export', () => {
+  test('exposes the WebSocket binding helper', async () => {
+    const { mod } = await loadModule();
+    expect(typeof mod.createWebSocketUi).toBe('function');
+  });
+});

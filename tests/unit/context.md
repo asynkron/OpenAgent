@@ -16,6 +16,7 @@
 - `openaiResponses.test.js`: validates the shared OpenAI response helper respects reasoning environment overrides.
 - `jsonAssetValidator.test.js`: guards JSON schema helpers and prompt synchronization checks.
 - `historyCompactor.test.js`: asserts old history is summarized and that the generated summary is surfaced to the human via logging.
+- `websocketUi.test.js`: exercises the WebSocket UI binding to ensure prompts/events route correctly and disconnections cancel the runtime.
 
 ## Positive Signals
 
