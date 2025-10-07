@@ -134,8 +134,19 @@ describe('boot probes', () => {
           expect(result.tooling).not.toBe('');
         }
       }
+      const reportedLines = lines
+        .map((line) => normalizeLine(line))
+        .filter((line) => line && !line.startsWith('Boot probes:') && !line.startsWith('OS:'));
+      expect(reportedLines).toHaveLength(1);
+      expect(reportedLines[0]).toMatch(/^✔ Operating system/);
       expect(normalizeLine(lines.at(-1))).toMatch(/^OS:/);
-      expect(summary.split('\n').at(-1)).toMatch(/^- OS:/);
+      const summaryLines = summary
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+      const labeledLines = summaryLines.filter((line) => /^- .*:/.test(line));
+      expect(labeledLines.every((line) => /^- (Operating system|OS):/.test(line))).toBe(true);
+      expect(summary).not.toContain('not detected');
     });
   });
 
@@ -407,6 +418,7 @@ describe('boot probes', () => {
         yarn: false,
         bun: false,
       },
+      files: new Map([['package.json', '{}']]),
     });
 
     const result = await NodeBootProbe.run(context);
@@ -414,6 +426,7 @@ describe('boot probes', () => {
     expect(result.detected).toBe(true);
     expect(result.details).toEqual(
       expect.arrayContaining([
+        expect.stringContaining('workspace signals:'),
         'node is installed and ready to use',
         'npx is installed and ready to use',
         'npm is installed and ready to use',
@@ -424,5 +437,30 @@ describe('boot probes', () => {
     expect(result.tooling).not.toContain('- pnpm is not installed');
     expect(result.tooling).not.toContain('- yarn is not installed');
     expect(result.tooling).not.toContain('- bun is not installed');
+  });
+
+  it('skips Node.js tooling when the workspace has no Node indicators', async () => {
+    const context = createStubProbeContext({
+      commands: {
+        node: true,
+        npm: true,
+      },
+    });
+
+    const result = await NodeBootProbe.run(context);
+
+    expect(result.detected).toBe(false);
+    expect(result.details).toEqual([]);
+    expect(result.tooling).toBe('');
+  });
+
+  it('omits non-matching probes from summaries', () => {
+    const summary = formatBootProbeSummary([
+      { probe: 'JavaScript', detected: false, details: ['package.json'], tooling: 'js tools' },
+      { probe: 'Python', detected: true, details: ['pyproject.toml'], tooling: 'python tools' },
+    ]);
+
+    expect(summary).toContain('- Python: detected');
+    expect(summary).not.toContain('JavaScript');
   });
 });
