@@ -47,7 +47,11 @@ export const DotNetBootProbe = {
       }
     }
 
-    return createBootProbeResult({ detected, details });
+    const tooling = detected
+      ? 'Use the dotnet CLI with NuGet for package management, xUnit/NUnit for testing, and analyzers like StyleCop or SonarLint.'
+      : '';
+
+    return createBootProbeResult({ detected, details, tooling });
   },
 };
 

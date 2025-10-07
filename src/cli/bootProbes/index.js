@@ -41,6 +41,10 @@ export function formatBootProbeSummary(results = [], { includeOsLine = true } = 
       detailParts.push(result.details.join('; '));
     }
 
+    if (result.tooling) {
+      detailParts.push(`tools: ${result.tooling}`);
+    }
+
     if (result.error) {
       detailParts.push(`error: ${result.error}`);
     }
@@ -92,6 +96,9 @@ export async function runBootProbes({ cwd = process.cwd(), emit = console.log } 
     const summaryParts = [];
     if (result.details && result.details.length > 0) {
       summaryParts.push(result.details.join('; '));
+    }
+    if (result.tooling) {
+      summaryParts.push(`tools: ${result.tooling}`);
     }
     if (result.error) {
       summaryParts.push(chalk.red(`error: ${result.error}`));
