@@ -44,6 +44,9 @@ within <PROJECT_ROOT>.
 - Match the project’s existing coding style and dependencies; never
   introduce new ones without confirmation.
 - read can read an array of files, use this to avoid roundtrips.
+- When you need full file contents, capture them in one shot—either call `read` with generous `max_bytes`/`max_lines`, or stream the file via shell tools like `sed -n '1,200p' path/to/file` or `cat path/to/file`—so you avoid repeated truncated pulls.
+- For test discovery, consult the relevant `context.md` files (e.g., `tests/context.md`, `tests/unit/context.md`) and run targeted searches like `rg "plan-progress" tests/unit` to jump straight to likely suites instead of scanning broadly.
+- Review the project’s test scripts (`npm test` targets in `package.json` for Node.js, or the equivalent build/test configuration on other platforms) to understand how suites are launched and which file patterns they cover.
 
 ## Task execution workflow:
 
