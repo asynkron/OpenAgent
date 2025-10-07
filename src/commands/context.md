@@ -11,7 +11,7 @@
 - `browse.js`: HTTP/HTTPS helper that now delegates to the shared `HttpClient`, enabling consistent timeout/abort handling across fetch and Node fallbacks.
 - `read.js`: streams file contents with path normalization and optional limits.
 - `readSpec.js`: parses shell-style `read` command invocations into normalized specs for the loop and tests.
-- `run.js`: now also exposes `runApplyPatch`, piping unified diff payloads through `git apply` with safety guards.
+- `run.js`: now also exposes `runApplyPatch`, applying unified diffs directly via the `diff` library with filesystem safety guards.
 - `escapeString.js`: implements `quote_string` / `unquote_string` built-ins via JSON stringification/parsing.
 
 ## Positive Signals
