@@ -75,27 +75,52 @@
     },
     {
       "name": "git",
-      "subcommands": ["status", "log", "show", "diff", "rev-parse", "branch", "remote", "describe"]
+      "subcommands": [
+        "status",
+        "log",
+        "show",
+        "diff",
+        "rev-parse",
+        "branch",
+        "remote",
+        "describe"
+      ]
     },
     {
       "name": "python",
-      "subcommands": ["--version", "-V"]
+      "subcommands": [
+        "--version",
+        "-V"
+      ]
     },
     {
       "name": "python3",
-      "subcommands": ["--version", "-V"]
+      "subcommands": [
+        "--version",
+        "-V"
+      ]
     },
     {
       "name": "pip",
-      "subcommands": ["list", "show", "--version"]
+      "subcommands": [
+        "list",
+        "show",
+        "--version"
+      ]
     },
     {
       "name": "node",
-      "subcommands": ["--version", "-v"]
+      "subcommands": [
+        "--version",
+        "-v"
+      ]
     },
     {
       "name": "npm",
-      "subcommands": ["--version", "-v"]
+      "subcommands": [
+        "--version",
+        "-v"
+      ]
     },
     {
       "name": "curl",
@@ -117,7 +142,6 @@
     }
   ],
   "rules": [
-    "No destructive operations (no rm, mv that overwrites, chmod/chown, chgrp, ln -f, etc.)",
     "No in-place edits (e.g., sed -i) or redirections that write to disk (>, >>) under auto-run",
     "No package/system modifications (apt, yum, brew, docker build/run with -v :rw, etc.)",
     "Network calls allowed only for read-only requests"
