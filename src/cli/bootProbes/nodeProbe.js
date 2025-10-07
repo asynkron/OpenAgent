@@ -22,17 +22,25 @@ export const NodeBootProbe = {
       })
     );
 
-    const details = toolAvailability.map((tool) => tool.summary);
-    const detected = toolAvailability.some((tool) => tool.available);
+    const installedTools = toolAvailability.filter((tool) => tool.available);
+    const details = installedTools.map((tool) => tool.summary);
+    const detected = installedTools.length > 0;
 
     const tooling = detected
-      ? [
-          'Use nvm, fnm, or asdf to manage Node.js versions when multiple runtimes are required.',
-          'npm is bundled with Node.js; prefer package managers already present (npm/pnpm/yarn/bun) to avoid redundant installs.',
-          '',
-          '### Tool availability',
-          ...toolAvailability.map((tool) => `- ${tool.summary}`),
-        ].join('\n')
+      ? (() => {
+          const sections = [
+            'Use nvm, fnm, or asdf to manage Node.js versions when multiple runtimes are required.',
+            'npm is bundled with Node.js; prefer package managers already present (npm/pnpm/yarn/bun) to avoid redundant installs.',
+          ];
+
+          if (installedTools.length > 0) {
+            sections.push('');
+            sections.push('### Tool availability');
+            sections.push(...installedTools.map((tool) => `- ${tool.summary}`));
+          }
+
+          return sections.join('\n');
+        })()
       : '';
 
     return createBootProbeResult({ detected, details, tooling });

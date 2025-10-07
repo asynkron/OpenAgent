@@ -62,19 +62,28 @@ export const GoBootProbe = {
       })
     );
 
-    for (const tool of toolAvailability) {
+    const installedTools = toolAvailability.filter((tool) => tool.available);
+
+    for (const tool of installedTools) {
       details.push(tool.summary);
     }
 
-    const hasHelpfulTooling = detected || toolAvailability.some((tool) => tool.available);
+    const hasHelpfulTooling = detected || installedTools.length > 0;
 
     const tooling = hasHelpfulTooling
-      ? [
-          'Go modules expect go build/test/vet; gofmt or goimports keep formatting consistent, and golangci-lint aggregates lint passes.',
-          '',
-          '### Tool availability',
-          ...toolAvailability.map((tool) => `- ${tool.summary}`),
-        ].join('\n')
+      ? (() => {
+          const sections = [
+            'Go modules expect go build/test/vet; gofmt or goimports keep formatting consistent, and golangci-lint aggregates lint passes.',
+          ];
+
+          if (installedTools.length > 0) {
+            sections.push('');
+            sections.push('### Tool availability');
+            sections.push(...installedTools.map((tool) => `- ${tool.summary}`));
+          }
+
+          return sections.join('\n');
+        })()
       : '';
 
     return createBootProbeResult({ detected, details, tooling });

@@ -64,19 +64,28 @@ export const RustBootProbe = {
       })
     );
 
-    for (const tool of toolAvailability) {
+    const installedTools = toolAvailability.filter((tool) => tool.available);
+
+    for (const tool of installedTools) {
       details.push(tool.summary);
     }
 
-    const hasHelpfulTooling = detected || toolAvailability.some((tool) => tool.available);
+    const hasHelpfulTooling = detected || installedTools.length > 0;
 
     const tooling = hasHelpfulTooling
-      ? [
-          'Cargo orchestrates builds/tests; rustfmt formats code, and cargo-clippy provides linting. rustup manages toolchains.',
-          '',
-          '### Tool availability',
-          ...toolAvailability.map((tool) => `- ${tool.summary}`),
-        ].join('\n')
+      ? (() => {
+          const sections = [
+            'Cargo orchestrates builds/tests; rustfmt formats code, and cargo-clippy provides linting. rustup manages toolchains.',
+          ];
+
+          if (installedTools.length > 0) {
+            sections.push('');
+            sections.push('### Tool availability');
+            sections.push(...installedTools.map((tool) => `- ${tool.summary}`));
+          }
+
+          return sections.join('\n');
+        })()
       : '';
 
     return createBootProbeResult({ detected, details, tooling });

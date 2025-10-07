@@ -22,6 +22,7 @@
 - Command renderer surfaces the assistant-provided `description` line above command details so humans immediately see the intent.
 - ESC listener integrates with cancellation manager via `cancelActive('esc-key')`.
 - CLI modules now follow the repo-wide Prettier profile so lint parity across workflows prevents regressions.
+- Boot probe tooling summaries now only list installed CLI tools, keeping startup output focused on actionable utilities.
 
 ## Risks / Gaps
 
