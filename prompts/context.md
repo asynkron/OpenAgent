@@ -15,6 +15,7 @@
 ## Positive Signals
 
 - Detailed procedural guidance reduces ambiguity about approvals, planning, and command execution.
+- `developer.md` now calls out unified diff formatting requirements to prevent invalid `apply_patch` hunks.
 - Canonical prompts now spell out `apply_patch` payload fields, optional flags, and compatibility aliases, reducing command misuse.
 - System prompt now instructs the agent to read `context.md` files in the top three directory levels on startup for fast situational awareness.
 - Hidden directories remain off-limits by default, preventing accidental inspection of `.git`, `.idea`, etc.
