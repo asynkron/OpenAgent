@@ -31,10 +31,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Bump revision version
+      - name: Bump minor version
         id: version
         run: |
-          tag=$(npm version revision -m "chore(release): %s")
+          tag=$(npm version minor -m "chore(release): %s")
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Push release commit and tag

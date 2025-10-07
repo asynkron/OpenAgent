@@ -8,7 +8,7 @@ Automation pipelines for CI, releases, and quality checks.
 
 - `test.yml`: runs linting and tests on pull requests.
 - `publish.yml`: publishes `@asynkron/openagent` to npm whenever a GitHub release is published or manually triggered. Requires `id-token: write` so the `npm publish --provenance` step can request an OIDC token and now skips publication if the version already exists on npm.
-- `auto-release.yml`: on every push to `main` (i.e., post-merge), automatically bumps the minor version, tags the release, and creates a GitHub release so that `publish.yml` can push the new version to npm.
+- `auto-release.yml`: on every push to `main` (i.e., post-merge), automatically bumps the minor version (using `npm version minor`), tags the release, and creates a GitHub release so that `publish.yml` can push the new version to npm.
 
 ## Notes
 
