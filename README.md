@@ -2,6 +2,8 @@
 
 OpenAgent is a Node.js-based CLI agent that communicates with an LLM using a structured JSON protocol. It safely executes shell commands with human-in-the-loop approval, live progress tracking, and output controls.
 
+> _Demonstration note: this line was added using the `apply_patch` command._
+
 If you want the very slim, no extra fluff version, check this early commit:
 https://github.com/asynkron/OpenAgent/tree/9073a48225ddc2c2afc6f701af48d6ec4c04e477 - 400 LoC
 
