@@ -9,6 +9,55 @@ import { summarizeContextUsage } from '../utils/contextUsage.js';
 import { extractResponseText } from '../openai/responseUtils.js';
 import { validateAssistantResponse } from './responseValidator.js';
 
+const REFUSAL_AUTO_RESPONSE = 'continue';
+const REFUSAL_STATUS_MESSAGE =
+  'Assistant declined to help; auto-responding with "continue" to prompt another attempt.';
+const REFUSAL_MESSAGE_MAX_LENGTH = 160;
+
+const REFUSAL_NEGATION_PATTERNS = [
+  /\bcan['’]?t\b/i,
+  /\bcannot\b/i,
+  /\bunable to\b/i,
+  /\bnot able to\b/i,
+  /\bwon['’]?t be able to\b/i,
+];
+
+const REFUSAL_HELP_PATTERNS = [/\bhelp\b/i, /\bassist\b/i];
+
+const REFUSAL_SORRY_PATTERN = /\bsorry\b/i;
+
+const normalizeAssistantMessage = (value) =>
+  typeof value === 'string' ? value.replace(/[\u2018\u2019]/g, "'") : value;
+
+// Quick heuristic to detect short apology-style refusals so we can auto-nudge the model.
+const isLikelyRefusalMessage = (message) => {
+  if (typeof message !== 'string') {
+    return false;
+  }
+
+  const normalized = normalizeAssistantMessage(message).trim();
+
+  if (!normalized || normalized.length > REFUSAL_MESSAGE_MAX_LENGTH) {
+    return false;
+  }
+
+  const lowerCased = normalized.toLowerCase();
+
+  if (!REFUSAL_SORRY_PATTERN.test(lowerCased)) {
+    return false;
+  }
+
+  if (!REFUSAL_HELP_PATTERNS.some((pattern) => pattern.test(lowerCased))) {
+    return false;
+  }
+
+  if (!REFUSAL_NEGATION_PATTERNS.some((pattern) => pattern.test(lowerCased))) {
+    return false;
+  }
+
+  return true;
+};
+
 export async function executeAgentPass({
   openai,
   model,
@@ -234,6 +283,22 @@ export async function executeAgentPass({
       if (normalizedMessage === 'done') {
         setNoHumanFlag(false);
       }
+    }
+
+    const trimmedMessage = typeof parsed.message === 'string' ? parsed.message.trim() : '';
+    const normalizedMessage = normalizeAssistantMessage(trimmedMessage);
+    const activePlanEmpty = !Array.isArray(activePlan) || activePlan.length === 0;
+    const incomingPlanEmpty = !Array.isArray(incomingPlan) || incomingPlan.length === 0;
+
+    if (
+      activePlanEmpty &&
+      incomingPlanEmpty &&
+      isLikelyRefusalMessage(normalizedMessage)
+    ) {
+      // When the assistant refuses without offering a plan or command, nudge it forward automatically.
+      emitEvent({ type: 'status', level: 'info', message: REFUSAL_STATUS_MESSAGE });
+      history.push({ role: 'user', content: REFUSAL_AUTO_RESPONSE });
+      return true;
     }
 
     if (Array.isArray(activePlan) && planHasOpenSteps(activePlan)) {
