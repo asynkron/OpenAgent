@@ -22,7 +22,7 @@ export function normalizeFlags(flags) {
 
 export function createRegex(pattern, flags) {
   if (typeof pattern !== 'string' || pattern.trim() === '') {
-    throw new Error('pattern must be a non-empty string');
+    throw new Error('regex must be a non-empty string');
   }
 
   try {
@@ -74,6 +74,37 @@ function buildResultOutput(results, dryRun) {
   return summaryLines.concat('', detailSections).join('\n');
 }
 
+const MAX_REPLACEMENTS = 100;
+
+function applyRegexReplace(source, regex, replacement) {
+  regex.lastIndex = 0;
+  let matches = 0;
+  const replaced = source.replace(regex, (...args) => {
+    const match = args[0];
+    if (match === undefined) {
+      return args[0];
+    }
+    matches += 1;
+    return replacement;
+  });
+
+  return { matches, replaced };
+}
+
+function applyRawReplace(source, raw, replacement) {
+  if (typeof raw !== 'string' || raw.length === 0) {
+    throw new Error('raw must be a non-empty string');
+  }
+
+  const parts = source.split(raw);
+  const matches = parts.length - 1;
+  if (matches <= 0) {
+    return { matches: 0, replaced: source };
+  }
+
+  return { matches, replaced: parts.join(replacement) };
+}
+
 export function runReplace(spec, cwd = '.') {
   const startTime = Date.now();
   try {
@@ -81,15 +112,36 @@ export function runReplace(spec, cwd = '.') {
       throw new Error('replace spec must be an object');
     }
 
-    const { pattern, replacement = '', flags, files, encoding = 'utf8' } = spec;
+    const { raw, regex, pattern, replacement = '', flags, files, encoding = 'utf8' } = spec;
     const dryRun = spec.dry_run ?? spec.dryRun ?? false;
 
     validateFiles(files);
 
-    const normalizedFlags = normalizeFlags(flags);
-    const regex = createRegex(pattern, normalizedFlags);
+    const rawProvided = raw !== undefined && raw !== null;
+    const regexPattern = regex ?? pattern;
+    const regexProvided = regexPattern !== undefined && regexPattern !== null;
+
+    if (rawProvided && regexProvided) {
+      throw new Error('replace spec must provide either raw or regex, not both');
+    }
+
+    if (!rawProvided && !regexProvided) {
+      throw new Error('replace spec must include either raw or regex');
+    }
+
+    if (spec.regex !== undefined && pattern !== undefined) {
+      throw new Error('replace spec must not provide both regex and pattern');
+    }
+
+    const normalizedFlags = regexProvided ? normalizeFlags(flags) : undefined;
+    const compiledRegex = regexProvided ? createRegex(regexPattern, normalizedFlags) : undefined;
+
+    if (rawProvided && (typeof raw !== 'string' || raw.length === 0)) {
+      throw new Error('raw must be a non-empty string');
+    }
 
     const results = [];
+    let totalMatches = 0;
 
     for (const relPath of files) {
       const absPath = path.resolve(cwd || '.', relPath);
@@ -104,39 +156,50 @@ export function runReplace(spec, cwd = '.') {
         throw new Error(`File is not textual: ${absPath}`);
       }
 
-      let matches = 0;
-      const replaced = original.replace(regex, (...args) => {
-        const match = args[0];
-        if (match === undefined) {
-          return args[0];
-        }
-        matches += 1;
-        return replacement;
-      });
+      const { matches, replaced } = rawProvided
+        ? applyRawReplace(original, raw, replacement)
+        : applyRegexReplace(original, compiledRegex, replacement);
 
       const relOutputPath = path.relative(process.cwd(), absPath);
       const wouldChange = matches > 0 && replaced !== original;
 
-      if (!dryRun && wouldChange) {
-        try {
-          fs.writeFileSync(absPath, replaced, { encoding });
-        } catch (err) {
-          throw new Error(`Unable to write file: ${absPath} — ${err.message}`);
-        }
-      }
-
-      const finalContent = dryRun ? replaced : wouldChange ? replaced : original;
+      totalMatches += matches;
 
       results.push({
-        path: relOutputPath,
+        absPath,
+        relPath: relOutputPath,
         matches,
-        content: finalContent,
+        original,
+        replaced,
         changed: !dryRun && wouldChange,
       });
     }
 
+    if (totalMatches > MAX_REPLACEMENTS) {
+      throw new Error(
+        `Replace aborted: attempted ${totalMatches} replacements which exceeds the limit of ${MAX_REPLACEMENTS}.`,
+      );
+    }
+
+    for (const item of results) {
+      if (!dryRun && item.changed) {
+        try {
+          fs.writeFileSync(item.absPath, item.replaced, { encoding });
+        } catch (err) {
+          throw new Error(`Unable to write file: ${item.absPath} — ${err.message}`);
+        }
+      }
+    }
+
+    const finalizedResults = results.map((item) => ({
+      path: item.relPath,
+      matches: item.matches,
+      content: dryRun ? item.replaced : item.changed ? item.replaced : item.original,
+      changed: item.changed,
+    }));
+
     return {
-      stdout: buildResultOutput(results, dryRun),
+      stdout: buildResultOutput(finalizedResults, dryRun),
       stderr: '',
       exit_code: 0,
       killed: false,

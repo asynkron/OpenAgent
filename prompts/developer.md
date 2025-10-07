@@ -125,15 +125,18 @@ All special commands are issued through the `"command"` object in the response J
 
 ### replace
 
-- Use `command.replace` when the assistant needs regex-based find/replace across files.
+- Use `command.replace` when the assistant needs find/replace across files.
 - Required fields:
-  - `pattern`: non-empty regex string (must compile).
+  - Exactly one of:
+    - `raw`: literal string match without regex semantics.
+    - `regex`: non-empty regex string (must compile).
   - `files`: array of relative paths resolved from `cwd`.
 - Optional fields:
   - `replacement`: defaults to empty string.
   - `flags`: string of regex flags; `g` is enforced automatically.
   - `dry_run`: set to true to report matches without modifying files.
   - `encoding`: defaults to `utf8`.
+- The command aborts with an error if more than 100 replacements would be applied across all files.
 - On success the command writes updated file contents unless `dry_run` is true, and reports match counts in stdout.
 - Validation failures or IO errors return `exit_code: 1` with the error message in stderr.
 - Example command payload:
@@ -141,7 +144,7 @@ All special commands are issued through the `"command"` object in the response J
   {
     "command": {
       "replace": {
-        "pattern": "OldAPI",
+        "regex": "OldAPI",
         "replacement": "NewAPI",
         "files": ["src/client.js", "src/server.js"],
         "dry_run": false
