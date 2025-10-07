@@ -75,18 +75,24 @@ You are OpenAgent, a CLI-focused software engineering agent operating within <PR
     }
   }
   ```
-- **apply_patch** (supply unified diff text; optional `strip`, `reverse`, and `whitespace` mirror `git apply` flags)
+- **apply_patch**
+  - Provide the diff target explicitly (`target` preferred; `path`/`file` remain legacy aliases) and keep it consistent with the diff headers.
+  - Only single-file textual diffs are supported; the runtime will reject renames, binary blobs, or hunks that don't apply.
+  - Optional flags mirror the runtime's validators: `strip`, `reverse`, `whitespace` (`ignore-all`, `ignore-space-change`, `ignore-space-at-eol`), `fuzz`/`fuzzFactor`, and `allow_empty`/`allowEmpty`.
   ```json
   {
     "command": {
       "cwd": ".",
       "apply_patch": {
         "target": "src/agent/loop.js",
-        "patch": "--- a/src/agent/loop.js\n+++ b/src/agent/loop.js\n@@ -1,3 +1,3 @@\n-const oldValue = 1;\n+const newValue = 2;\n"
+        "patch": "--- a/src/agent/loop.js\n+++ b/src/agent/loop.js\n@@ -1,3 +1,3 @@\n-const oldValue = 1;\n+const newValue = 2;\n",
+        "strip": 1,
+        "allow_empty": false
       }
     }
   }
   ```
+  _Tip: set `allow_empty` only when you expect the diff to validate but make no textual edits (e.g., already-applied patches)._
 - **escape_string / unescape_string**
   ```json
   {
