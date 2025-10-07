@@ -6,10 +6,14 @@
  */
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runBootProbes } from './bootProbes/index.js';
+
 
 import { agentLoop, applyStartupFlagsFromArgv } from '../lib/index.js';
 
 export async function runCli(argv = process.argv) {
+  await runBootProbes({ cwd: process.cwd() });
+
   applyStartupFlagsFromArgv(argv);
 
   try {
