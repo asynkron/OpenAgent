@@ -138,3 +138,55 @@ test('agent runtime emits debug envelopes when debug flag enabled', async () => 
   expect(stages).toContain('openai-response');
   expect(stages).toContain('assistant-response');
 });
+
+test('protocol validation failures are emitted on the debug channel only', async () => {
+  process.env.OPENAI_API_KEY = 'test-key';
+  const { agent } = await loadAgentWithMockedModules();
+  agent.STARTUP_DEBUG = true;
+
+  queueModelResponse({
+    message: 'Working through the plan',
+    plan: [
+      { step: '1', title: 'Do the work', status: 'pending' },
+    ],
+    command: null,
+  });
+
+  queueModelResponse({
+    message: 'Recovered response',
+    plan: [],
+    command: null,
+  });
+
+  const runtime = agent.createAgentRuntime({
+    getDebugFlag: () => agent.STARTUP_DEBUG,
+  });
+
+  const debugEvents = [];
+  const ui = createTestRunnerUI(runtime, {
+    onEvent: (event) => {
+      if (event?.type === 'debug') {
+        debugEvents.push(event);
+      }
+    },
+  });
+
+  ui.queueUserInput('Trigger invalid response', 'exit');
+
+  await ui.start();
+
+  const debugStages = debugEvents.map((event) => event.payload?.stage);
+  expect(debugStages).toContain('assistant-response-validation-error');
+
+  const errorEvents = ui.events.filter((event) => event.type === 'error');
+  expect(errorEvents).toHaveLength(0);
+
+  const statusMessages = ui.events
+    .filter((event) => event.type === 'status')
+    .map((event) => String(event.message ?? ''));
+  expect(
+    statusMessages.some((message) =>
+      message.includes('Assistant response failed protocol validation.'),
+    ),
+  ).toBe(false);
+});

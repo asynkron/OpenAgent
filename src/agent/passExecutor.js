@@ -239,12 +239,14 @@ export async function executeAgentPass({
   const validation = validateAssistantResponse(parsed);
   if (!validation.valid) {
     const details = validation.errors.join(' ');
-    emitEvent({
-      type: 'error',
+    emitDebug(() => ({
+      // Surface validation failures on the debug channel so the default CLI stream stays quiet.
+      stage: 'assistant-response-validation-error',
       message: 'Assistant response failed protocol validation.',
       details,
+      errors: validation.errors,
       raw: responseContent,
-    });
+    }));
 
     const observation = {
       observation_for_llm: {
