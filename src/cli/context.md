@@ -7,7 +7,7 @@
 ## Modules
 
 
-- `bootProbes/`: language/OS detectors that run before the agent loop to surface repo hints in CLI mode, include recommended tooling blurbs for detected stacks, and export a formatter so the detected context can enrich the system prompt.
+- `bootProbes/`: language/OS detectors that run before the agent loop to surface repo hints in CLI mode, include recommended tooling blurbs for detected stacks, and export a formatter so the detected context can enrich the system prompt. The JavaScript probe also reports whether helper refactoring binaries (comby, jscodeshift, ast-grep, acorn) are already available on the PATH.
 - `runtime.js`: wires the agent runtime to the terminal renderer and exports `agentLoop` plus command tracking helpers used by the CLI entry point.
 - `io.js`: readline wrapper with ESC detection (emits `ESCAPE_EVENT`, cancels active operations, highlights prompts).
 - `render.js`: Markdown-based renderer for plans/messages/command summaries and the plan progress bar.

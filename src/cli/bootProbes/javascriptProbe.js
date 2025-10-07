@@ -2,6 +2,12 @@ import { createBootProbeResult } from './context.js';
 
 const LOCKFILES = ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lockb'];
 const BABEL_CONFIGS = ['babel.config.js', 'babel.config.cjs', 'babel.config.mjs', '.babelrc', '.babelrc.js'];
+const TOOL_CHECKS = [
+  { name: 'comby' },
+  { name: 'jscodeshift' },
+  { name: 'ast-grep' },
+  { name: 'acorn' },
+];
 
 export const JavaScriptBootProbe = {
   name: 'JavaScript',
@@ -65,7 +71,25 @@ export const JavaScriptBootProbe = {
       details.push(`module files (${esmEntries.slice(0, 3).map((entry) => entry.name).join(', ')})`);
     }
 
-    const tooling = detected
+    const toolAvailability = await Promise.all(
+      TOOL_CHECKS.map(async (tool) => {
+        const available = await context.commandExists(tool.command ?? tool.name);
+        return {
+          name: tool.label ?? tool.name,
+          available,
+          summary: available
+            ? `${tool.label ?? tool.name} is installed and ready to use`
+            : `${tool.label ?? tool.name} is not installed`,
+        };
+      })
+    );
+
+    for (const tool of toolAvailability) {
+      // Surface each CLI tool's readiness in the probe details so the agent can reason about them immediately.
+      details.push(tool.summary);
+    }
+
+    const tooling = detected || toolAvailability.some((tool) => tool.available)
       ? [
           '## Recommended refactoring tools for JavaScript:',
           '',
@@ -82,8 +106,11 @@ export const JavaScriptBootProbe = {
           '### acorn',
           'https://github.com/acornjs/acorn',
           '',
+          '### Tool availability',
+          ...toolAvailability.map((tool) => `- ${tool.summary}`),
+          '',
           'Check for existence on client computer.',
-          'As user if you may install them.',
+          'Ask user if you may install them when missing.',
           'Check help output per tool to learn how to use them.',
           'Prefer proper refactoring tools over manual edits.',
         ].join('\n')
