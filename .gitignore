@@ -150,3 +150,4 @@ vite.config.ts.timestamp-*
 /.idea/vcs.xml
 .env
 WARP.md
+/.idea/projectSettingsUpdater.xml
