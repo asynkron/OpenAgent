@@ -19,6 +19,16 @@ describe('applyEdit', () => {
     expect(edited).toBe('abf');
   });
 
+  test('supports line and column positions', () => {
+    const original = 'alpha\nbeta\ngamma';
+    const edited = applyEdit(original, {
+      start: { line: 2, column: 0 },
+      end: { line: 2, column: 4 },
+      newText: 'BETA',
+    });
+    expect(edited).toBe('alpha\nBETA\ngamma');
+  });
+
   test('throws on invalid ranges', () => {
     const original = 'short';
     expect(() => applyEdit(original, { start: -1, end: 2, newText: 'x' })).toThrow();

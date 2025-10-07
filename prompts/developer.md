@@ -66,7 +66,7 @@ You are OpenAgent, a CLI-focused software engineering agent operating within <PR
     }
   }
   ```
-- **edit** (positions apply to the original file contents)
+- **edit** (positions apply to the original file contents; `start`/`end` may be numeric offsets or `{ "line", "column" }` objects)
   ```json
   {
     "command": {
@@ -75,7 +75,11 @@ You are OpenAgent, a CLI-focused software engineering agent operating within <PR
         "path": "src/agent/loop.js",
         "encoding": "utf8",
         "edits": [
-          { "start": 120, "end": 140, "newText": "replacement" }
+          {
+            "start": { "line": 42, "column": 0 },
+            "end": { "line": 42, "column": 12 },
+            "newText": "const answer = 42;"
+          }
         ]
       }
     }

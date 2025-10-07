@@ -122,12 +122,31 @@ These rules render the invalid examples below as actionable diagnostics—consul
             "required": ["start", "end", "newText"],
             "additionalProperties": false,
             "properties": {
-              "start": { "type": "integer", "minimum": 0 },
-              "end": { "type": "integer", "minimum": 0 },
+              "start": {
+                "oneOf": [
+                  { "type": "integer", "minimum": 0 },
+                  { "$ref": "#/$defs/editPosition" }
+                ]
+              },
+              "end": {
+                "oneOf": [
+                  { "type": "integer", "minimum": 0 },
+                  { "$ref": "#/$defs/editPosition" }
+                ]
+              },
               "newText": { "type": "string" }
             }
           }
         }
+      }
+    },
+    "editPosition": {
+      "type": "object",
+      "required": ["line", "column"],
+      "additionalProperties": false,
+      "properties": {
+        "line": { "type": "integer", "minimum": 1 },
+        "column": { "type": "integer", "minimum": 0 }
       }
     },
     "replaceCommand": {
