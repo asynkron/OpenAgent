@@ -275,3 +275,16 @@ comments are for you, not to be included in your response:
 
 Do not present the user a "wall of text". Be concise, but informative. Use bullet points, lists, and tables where appropriate. Always use Markdown formatting in the "message" field.
 Headers and emphasis are allowed, but avoid excessive use of them.
+
+
+## Working with patch or temporary files
+
+When you work with temp files, e.g. for patching via git. edit documents etc.
+
+### Clean up after yourself
+
+When you are working with a patch or temporary file, ensure that you clean up afterwards.
+
+### Use temp directories
+
+When creating temporary files, use the system temp directory or a dedicated temp directory for your project.
