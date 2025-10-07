@@ -6,7 +6,7 @@
 
 ## Key Tests
 
-- `agentLoop.integration.test.js`: verifies the loop executes a mocked command, honours auto-approve, closes readline, and now asserts that enabling the startup debug flag produces debug envelopes on the runtime stream.
+- `agentLoop.integration.test.js`: verifies the loop executes a mocked command, honours auto-approve, closes readline, now asserts that enabling the startup debug flag produces debug envelopes on the runtime stream, and checks protocol validation errors only surface on the debug channel.
 - `agentRead.integration.test.js`: ensures read commands dispatch through `runRead` instead of shell execution.
 - `approvalFlow.integration.test.js`: covers human approval prompts (approve once vs reject) and auto-approval of preapproved commands before execution; harness now seeds plan statuses so the loop exercises the multi-pass flow introduced with the refreshed plan renderer.
 - `commandEdit.integration.test.js`: uses real filesystem writes to confirm `applyFileEdits` behaviour.
