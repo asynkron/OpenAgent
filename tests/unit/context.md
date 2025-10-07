@@ -7,7 +7,6 @@
 ## Representative Tests
 
 - `agentBuiltins.test.js`: verifies built-in dispatch for `read`, `browse`, and `apply_patch` commands with quoted arguments route to the correct runners.
-- `applyFileEdits.test.js`, `editText.test.js`: ensure positional edits behave and validate ranges.
 - `applyPatchCommand.test.js`: normalizes assistant payloads and ensures the new runner is invoked.
 - `cancellation.test.js`: exercises stack-based cancellation semantics, including nested cascades.
 - `renderLanguage.test.js`, `renderPlan.test.js`, `renderCommand.test.js`: guard CLI rendering edge cases, including the status-icon format from the refreshed plan renderer and read-command summaries.

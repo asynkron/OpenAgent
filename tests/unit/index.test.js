@@ -45,27 +45,24 @@ async function loadModule(
 
   if (typeof runCommandMock === 'function') {
     const runBrowse = jest.fn();
-    const runEdit = jest.fn();
     const runRead = jest.fn();
-    const runReplace = jest.fn();
     const runEscapeString = jest.fn();
     const runUnescapeString = jest.fn();
+    const runApplyPatch = jest.fn();
     jest.unstable_mockModule('../../src/commands/run.js', () => ({
       runCommand: runCommandMock,
       runBrowse,
-      runEdit,
       runRead,
-      runReplace,
       runEscapeString,
       runUnescapeString,
+      runApplyPatch,
       default: {
         runCommand: runCommandMock,
         runBrowse,
-        runEdit,
         runRead,
-        runReplace,
         runEscapeString,
         runUnescapeString,
+        runApplyPatch,
       },
     }));
   }

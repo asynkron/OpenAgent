@@ -28,10 +28,8 @@ graph LR
   src_cli_io_js --> src_utils_cancellation_js
   src_commands_preapproval_js --> src_utils_text_js
   src_commands_run_js --> src_commands_browse_js["src/commands/browse.js"]
-  src_commands_run_js --> src_commands_edit_js["src/commands/edit.js"]
   src_commands_run_js --> src_commands_escapeString_js["src/commands/escapeString.js"]
   src_commands_run_js --> src_commands_read_js["src/commands/read.js"]
-  src_commands_run_js --> src_commands_replace_js["src/commands/replace.js"]
   src_commands_run_js --> src_utils_cancellation_js
 ```
 

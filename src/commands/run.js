@@ -1,6 +1,6 @@
 /**
  * Hosts the side-effecting primitives that execute shell commands and exposes
- * higher-level helpers for browse, edit, and read operations.
+ * higher-level helpers for browse, read, and string escaping operations.
  *
  * Responsibilities:
  * - Launch child processes with timeout handling and capture their output streams.
@@ -17,9 +17,7 @@ import * as path from 'node:path';
 import { register as registerCancellation } from '../utils/cancellation.js';
 
 import { runBrowse } from './browse.js';
-import { runEdit } from './edit.js';
 import { runRead } from './read.js';
-import { runReplace } from './replace.js';
 import { runEscapeString, runUnescapeString } from './escapeString.js';
 
 export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
@@ -370,14 +368,12 @@ async function runApplyPatch(spec, cwd = '.', timeoutSec) {
   }
 }
 
-export { runBrowse, runEdit, runRead, runReplace, runEscapeString, runUnescapeString, runApplyPatch };
+export { runBrowse, runRead, runEscapeString, runUnescapeString, runApplyPatch };
 
 export default {
   runCommand,
   runBrowse,
-  runEdit,
   runRead,
-  runReplace,
   runEscapeString,
   runUnescapeString,
   runApplyPatch,

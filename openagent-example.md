@@ -792,7 +792,6 @@ STDOUT ______________
   agentLoop.integration.test.js
   agentRead.integration.test.js
   cmdStats.integration.test.js
-  commandEdit.integration.test.js
   shortcuts.integration.test.js
   templates.integration.test.js
 
