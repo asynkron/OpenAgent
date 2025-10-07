@@ -22,6 +22,7 @@
 - Strong separation between loop orchestration and side-effecting helpers.
 - Cancellation wiring (ESC + AbortController) aligns with research in `docs/openai-cancellation.md`.
 - ESC-triggered cancellation now has both integration and unit regression coverage, validating the shared cancellation stack.
+- Prettier formatting is enforced across agent and CLI modules, keeping lint checks green in every workflow.
 
 ## Risks / Gaps
 

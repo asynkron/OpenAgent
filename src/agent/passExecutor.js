@@ -188,9 +188,7 @@ export async function executeAgentPass({
   if (planManager) {
     try {
       const mergingEnabled =
-        typeof planManager.isMergingEnabled === 'function'
-          ? planManager.isMergingEnabled()
-          : true;
+        typeof planManager.isMergingEnabled === 'function' ? planManager.isMergingEnabled() : true;
 
       if (incomingPlan && typeof planManager.update === 'function') {
         const updated = await planManager.update(incomingPlan);

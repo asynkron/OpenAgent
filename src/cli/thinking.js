@@ -28,7 +28,12 @@ export function formatElapsedTime(startTime, now = Date.now()) {
 const DEFAULT_FRAMES = ['⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏', '⠋'];
 
 export class ThinkingIndicator {
-  constructor({ stream = process.stdout, frames = DEFAULT_FRAMES, label = ' Thinking', intervalMs = 50 } = {}) {
+  constructor({
+    stream = process.stdout,
+    frames = DEFAULT_FRAMES,
+    label = ' Thinking',
+    intervalMs = 50,
+  } = {}) {
     this.stream = stream;
     this.frames = Array.isArray(frames) && frames.length > 0 ? frames : DEFAULT_FRAMES;
     this.label = label;

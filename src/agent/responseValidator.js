@@ -25,7 +25,8 @@ function validatePlanItem(item, path, state, errors) {
     return;
   }
 
-  const stepLabel = typeof item.step === 'string' ? item.step.trim() : String(item.step ?? '').trim();
+  const stepLabel =
+    typeof item.step === 'string' ? item.step.trim() : String(item.step ?? '').trim();
   if (!stepLabel) {
     errors.push(`${path} is missing a non-empty "step" label.`);
   }
@@ -36,7 +37,9 @@ function validatePlanItem(item, path, state, errors) {
 
   const normalizedStatus = normalizeStatus(item.status);
   if (!ALLOWED_STATUSES.has(normalizedStatus)) {
-    errors.push(`${path} has invalid status "${item.status}". Expected pending, running, or completed.`);
+    errors.push(
+      `${path} has invalid status "${item.status}". Expected pending, running, or completed.`,
+    );
   }
 
   if (normalizedStatus === 'running') {
@@ -139,4 +142,3 @@ export function validateAssistantResponse(payload) {
 export default {
   validateAssistantResponse,
 };
-
