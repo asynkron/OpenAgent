@@ -52,6 +52,9 @@ export function formatBootProbeSummary(results = [], { includeOsLine = true } = 
     }
 
     const name = result.probe || result.name || 'Unnamed probe';
+    if (!result.detected) {
+      continue;
+    }
     const status = result.detected ? 'detected' : 'not detected';
     const detailParts = [];
 
@@ -110,21 +113,31 @@ export async function runBootProbes({ cwd = process.cwd(), emit = console.log } 
     }
 
     const detected = result.detected;
-    const symbol = detected ? chalk.green('✔') : chalk.yellow('…');
-    const summaryParts = [];
-    if (result.details && result.details.length > 0) {
-      summaryParts.push(result.details.join('; '));
-    }
-    if (result.tooling) {
-      summaryParts.push(`tools: ${result.tooling}`);
-    }
-    if (result.error) {
-      summaryParts.push(chalk.red(`error: ${result.error}`));
-    }
-    const summary = summaryParts.length > 0 ? ` → ${summaryParts.join(' | ')}` : '';
+    const normalizedResult = { probe: name, detected, ...result };
 
-    emit(`${symbol} ${name}${summary}`);
-    results.push({ probe: name, detected, ...result });
+    if (detected) {
+      const symbol = chalk.green('✔');
+      const summaryParts = [];
+      if (result.details && result.details.length > 0) {
+        summaryParts.push(result.details.join('; '));
+      }
+      if (result.tooling) {
+        summaryParts.push(`tools: ${result.tooling}`);
+      }
+      if (result.error) {
+        summaryParts.push(chalk.red(`error: ${result.error}`));
+      }
+      const summary = summaryParts.length > 0 ? ` → ${summaryParts.join(' | ')}` : '';
+
+      emit(`${symbol} ${name}${summary}`);
+      results.push(normalizedResult);
+      continue;
+    }
+
+    if (result.error) {
+      const summaryParts = [chalk.red(`error: ${result.error}`)];
+      emit(`${chalk.red('✖')} ${name} → ${summaryParts.join(' | ')}`);
+    }
   }
 
   emit(chalk.gray(`OS: ${os.type()} ${os.release()} (${os.platform()}/${os.arch()})`));
