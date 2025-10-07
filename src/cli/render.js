@@ -331,6 +331,25 @@ function buildHeadingDetail(type, execution, command) {
   }
 }
 
+function extractCommandDescription(command, execution) {
+  const candidates = [
+    command?.description,
+    execution?.command?.description,
+    execution?.description,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string') {
+      const trimmed = candidate.trim();
+      if (trimmed) {
+        return trimmed;
+      }
+    }
+  }
+
+  return '';
+}
+
 function appendStdErr(summaryLines, stderrPreview) {
   const stderrLines = normalizePreviewLines(stderrPreview);
   if (stderrLines.length === 0) {
@@ -350,6 +369,7 @@ export function renderCommand(command, result, output = {}) {
   const execution = output.execution || {};
   const type = (execution.type || inferCommandType(command)).toUpperCase();
   const detail = buildHeadingDetail(type, execution, command);
+  const description = extractCommandDescription(command, execution);
   const summaryLines = [];
 
   if (type === 'READ') {
@@ -434,7 +454,12 @@ export function renderCommand(command, result, output = {}) {
     summaryLines.push(arrowLine('No output.'));
   }
 
-  const lines = [formatHeading(type, detail), ...summaryLines];
+  const lines = [];
+  if (description) {
+    lines.push(` ${chalk.blueBright(chalk.bold('DESCRIPTION'))} ${chalk.white(description)}`);
+  }
+  lines.push(formatHeading(type, detail));
+  lines.push(...summaryLines);
 
   console.log('');
   console.log(lines.join('\n'));
