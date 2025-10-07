@@ -2,7 +2,7 @@
 
 ## Purpose
 
-- Implements command execution primitives and built-in helpers the agent invokes (`run`, `read`, `edit`, `replace`, `browse`, string quoting).
+- Implements command execution primitives and built-in helpers the agent invokes (`run`, `read`, `apply_patch`, `browse`, string quoting).
 - Approval/session tracking and command usage metrics now live under `src/services/`, keeping this directory focused on concrete command implementations.
 
 ## Notable Modules
@@ -11,8 +11,9 @@
 - `browse.js`: HTTP/HTTPS helper that now delegates to the shared `HttpClient`, enabling consistent timeout/abort handling across fetch and Node fallbacks.
 - `read.js`: streams file contents with path normalization and optional limits.
 - `readSpec.js`: parses shell-style `read` command invocations into normalized specs for the loop and tests.
-- `edit.js`: applies positional edits, creating files/directories as needed.
-- `replace.js`: multi-file replacement supporting regex or literal search, with dry-run previews and a safety limit on matches.
+- `edit.js`: applies positional edits, creating files/directories as needed (still exported for compatibility even though the command is disabled).
+- `replace.js`: multi-file replacement supporting regex or literal search, with dry-run previews and a safety limit on matches (similarly retained for manual invocation).
+- `run.js`: now also exposes `runApplyPatch`, piping unified diff payloads through `git apply` with safety guards.
 - `escapeString.js`: implements `quote_string` / `unquote_string` built-ins via JSON stringification/parsing.
 
 ## Positive Signals

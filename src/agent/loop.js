@@ -16,6 +16,7 @@ import {
   runReplace,
   runEscapeString,
   runUnescapeString,
+  runApplyPatch,
 } from '../commands/run.js';
 import {
   isPreapprovedCommand,
@@ -50,6 +51,7 @@ export function createAgentRuntime({
   runReplaceFn = runReplace,
   runEscapeStringFn = runEscapeString,
   runUnescapeStringFn = runUnescapeString,
+  runApplyPatchFn = runApplyPatch,
   applyFilterFn = applyFilter,
   tailLinesFn = tailLines,
   isPreapprovedCommandFn = isPreapprovedCommand,
@@ -351,6 +353,7 @@ export function createAgentRuntime({
               runReplaceFn,
               runEscapeStringFn,
               runUnescapeStringFn,
+              runApplyPatchFn,
               applyFilterFn,
               tailLinesFn,
               getNoHumanFlag,

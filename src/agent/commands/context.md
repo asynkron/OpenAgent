@@ -6,14 +6,14 @@
 
 ## Key Files
 
+- `ApplyPatchCommand.js`: normalizes `apply_patch` commands and pipes them through the git-backed runner.
 - `BrowseCommand.js`: opens URLs using the browsing runner with validation.
-- `EditCommand.js`: wraps structured `edit` payloads.
 - `EscapeStringCommand.js` / `UnescapeStringCommand.js`: proxy string transformation helpers.
 - `ReadCommand.js`: merges inline token specs with structured read payloads before dispatch.
-- `ReplaceCommand.js`: applies structured text replacements.
 - `ExecuteCommand.js`: default shell execution fallback when no other command matches.
 
 ## Notes
 
 - Each class is stateless; instances are recreated on every invocation for clarity.
 - Tests continue to exercise behaviour through `executeAgentCommand` to keep the handler pipeline black-boxed.
+- Legacy `edit`/`replace` handlers have been removed from the dispatcher; their helpers remain exported for manual use only.

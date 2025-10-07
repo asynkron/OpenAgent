@@ -6,11 +6,12 @@
 
 ## Representative Tests
 
-- `agentBuiltins.test.js`: verifies `read`/`browse` commands with quoted arguments route to correct runners.
+- `agentBuiltins.test.js`: verifies built-in dispatch for `read`, `browse`, and `apply_patch` commands with quoted arguments route to the correct runners.
 - `applyFileEdits.test.js`, `editText.test.js`: ensure positional edits behave and validate ranges.
+- `applyPatchCommand.test.js`: normalizes assistant payloads and ensures the new runner is invoked.
 - `cancellation.test.js`: exercises stack-based cancellation semantics, including nested cascades.
 - `renderLanguage.test.js`, `renderPlan.test.js`, `renderCommand.test.js`: guard CLI rendering edge cases, including the status-icon format from the refreshed plan renderer and read-command summaries.
-- `replaceCommand.test.js`, `runCommand.test.js`: verify replacement logic and process management.
+- `runApplyPatch.test.js`, `runCommand.test.js`: verify patch execution via git and shell process management.
 - `httpClient.test.js`: exercises fetch vs Node fallbacks, timeout aborts, and timeout resolution for the shared HTTP client.
 - `index.test.js`, `esmEntry.test.js`: confirm root exports and ESM package surface remain intact.
 - `openaiResponses.test.js`: validates the shared OpenAI response helper respects reasoning environment overrides.

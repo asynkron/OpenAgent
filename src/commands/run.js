@@ -12,6 +12,7 @@
  */
 
 import { spawn } from 'node:child_process';
+import * as path from 'node:path';
 
 import { register as registerCancellation } from '../utils/cancellation.js';
 
@@ -273,7 +274,103 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
   });
 }
 
-export { runBrowse, runEdit, runRead, runReplace, runEscapeString, runUnescapeString };
+function normalizeStripValue(value) {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  const parsed = typeof value === 'string' ? Number.parseInt(value, 10) : value;
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error('apply_patch.strip must be a non-negative integer.');
+  }
+
+  return parsed;
+}
+
+function ensureNonEmptyString(value, label) {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error(`${label} must be a non-empty string.`);
+  }
+
+  return value.trim();
+}
+
+async function runApplyPatch(spec, cwd = '.', timeoutSec) {
+  const start = Date.now();
+  try {
+    if (!spec || typeof spec !== 'object') {
+      throw new Error('apply_patch spec must be an object.');
+    }
+
+    const target = ensureNonEmptyString(spec.target ?? spec.path ?? spec.file, 'apply_patch target');
+    const patchSource = spec.patch ?? spec.patch_text ?? spec.patchText ?? spec.diff;
+
+    if (patchSource === undefined || patchSource === null) {
+      throw new Error('apply_patch patch must be provided.');
+    }
+
+    const patchText =
+      typeof patchSource === 'string'
+        ? patchSource
+        : patchSource instanceof Buffer
+          ? patchSource.toString('utf8')
+          : String(patchSource);
+
+    if (!patchText.trim()) {
+      throw new Error('apply_patch patch must be a non-empty string.');
+    }
+
+    const args = ['git', 'apply'];
+
+    const stripValue = normalizeStripValue(spec.strip ?? spec.p);
+    if (typeof stripValue === 'number') {
+      args.push(`-p${stripValue}`);
+    }
+
+    const whitespaceMode = spec.whitespace ? ensureNonEmptyString(spec.whitespace, 'apply_patch.whitespace') : null;
+    args.push(`--whitespace=${whitespaceMode || 'nowarn'}`);
+
+    if (spec.reverse) {
+      args.push('--reverse');
+    }
+
+    if (spec.allow_empty || spec.allowEmpty) {
+      args.push('--allow-empty');
+    }
+
+    args.push('-');
+
+    const commandLabel = `git apply ${target}`.trim();
+
+    const result = await runCommand(args, cwd, timeoutSec, {
+      stdin: patchText,
+      closeStdin: true,
+      commandLabel,
+      description: `apply_patch: ${target}`,
+    });
+
+    if (result.exit_code === 0) {
+      const absTarget = path.resolve(cwd || '.', target);
+      const relativeTarget = path.relative(process.cwd(), absTarget) || target;
+      const successMessage = `Applied patch to ${relativeTarget}`;
+      const stdout = result.stdout && result.stdout.trim() ? `${result.stdout}\n${successMessage}` : successMessage;
+      return { ...result, stdout };
+    }
+
+    return result;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      stdout: '',
+      stderr: message,
+      exit_code: 1,
+      killed: false,
+      runtime_ms: Date.now() - start,
+    };
+  }
+}
+
+export { runBrowse, runEdit, runRead, runReplace, runEscapeString, runUnescapeString, runApplyPatch };
 
 export default {
   runCommand,
@@ -283,4 +380,5 @@ export default {
   runReplace,
   runEscapeString,
   runUnescapeString,
+  runApplyPatch,
 };
