@@ -2,6 +2,7 @@ const startupFlags = {
   forceAutoApprove: false,
   noHuman: false,
   planMerge: false,
+  debug: false,
 };
 
 export function getStartupFlags() {
@@ -18,6 +19,10 @@ export function getNoHumanFlag() {
 
 export function getPlanMergeFlag() {
   return startupFlags.planMerge;
+}
+
+export function getDebugFlag() {
+  return startupFlags.debug;
 }
 
 export function setNoHumanFlag(value) {
@@ -42,6 +47,10 @@ export function setStartupFlags(nextFlags = {}) {
     startupFlags.planMerge = Boolean(nextFlags.planMerge);
   }
 
+  if (Object.prototype.hasOwnProperty.call(nextFlags, 'debug')) {
+    startupFlags.debug = Boolean(nextFlags.debug);
+  }
+
   return getStartupFlags();
 }
 
@@ -50,6 +59,7 @@ export function parseStartupFlagsFromArgv(argv = process.argv) {
   let forceAutoApprove = false;
   let noHuman = false;
   let planMerge = false;
+  let debug = false;
 
   for (const arg of positional) {
     if (!arg) continue;
@@ -71,10 +81,15 @@ export function parseStartupFlagsFromArgv(argv = process.argv) {
 
     if (normalized === 'plan-merge' || normalized === '--plan-merge') {
       planMerge = true;
+      continue;
+    }
+
+    if (normalized === 'debug' || normalized === '--debug') {
+      debug = true;
     }
   }
 
-  return { forceAutoApprove, noHuman, planMerge };
+  return { forceAutoApprove, noHuman, planMerge, debug };
 }
 
 export function applyStartupFlagsFromArgv(argv = process.argv) {
@@ -89,6 +104,7 @@ export const startupFlagAccessors = {
   getNoHumanFlag,
   setNoHumanFlag,
   getPlanMergeFlag,
+  getDebugFlag,
 };
 
 Object.defineProperties(startupFlagAccessors, {
@@ -110,6 +126,13 @@ Object.defineProperties(startupFlagAccessors, {
     get: getPlanMergeFlag,
     set(value) {
       setStartupFlags({ planMerge: Boolean(value) });
+    },
+    enumerable: true,
+  },
+  STARTUP_DEBUG: {
+    get: getDebugFlag,
+    set(value) {
+      setStartupFlags({ debug: Boolean(value) });
     },
     enumerable: true,
   },

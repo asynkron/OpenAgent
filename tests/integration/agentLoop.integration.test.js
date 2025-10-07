@@ -103,4 +103,36 @@ test.each([
       event.message.includes('auto-responding with "continue"')
   );
   expect(autoStatusEvent).toBeTruthy();
+test('agent runtime emits debug envelopes when debug flag enabled', async () => {
+  process.env.OPENAI_API_KEY = 'test-key';
+  const { agent } = await loadAgentWithMockedModules();
+  agent.STARTUP_DEBUG = true;
+
+  queueModelResponse({
+    message: 'Debug test response',
+    plan: [],
+    command: null,
+  });
+
+  const runtime = agent.createAgentRuntime({
+    getDebugFlag: () => agent.STARTUP_DEBUG,
+  });
+
+  const capturedEvents = [];
+  const ui = createTestRunnerUI(runtime, {
+    onEvent: (event) => {
+      if (event?.type === 'debug') {
+        capturedEvents.push(event);
+      }
+    },
+  });
+
+  ui.queueUserInput('Trigger debug output', 'exit');
+
+  await ui.start();
+
+  expect(capturedEvents.length).toBeGreaterThan(0);
+  const stages = capturedEvents.map((event) => event.payload?.stage);
+  expect(stages).toContain('openai-response');
+  expect(stages).toContain('assistant-response');
 });
