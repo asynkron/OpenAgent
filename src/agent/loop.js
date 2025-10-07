@@ -40,6 +40,7 @@ const PLAN_PENDING_REMINDER =
 
 export function createAgentRuntime({
   systemPrompt = SYSTEM_PROMPT,
+  systemPromptAugmentation = '',
   getClient = getOpenAIClient,
   model = MODEL,
   runCommandFn = runCommand,
@@ -184,10 +185,14 @@ export function createAgentRuntime({
     logSuccess: (message) => outputs.push({ type: 'status', level: 'info', message }),
   });
 
+  const augmentation =
+    typeof systemPromptAugmentation === 'string' ? systemPromptAugmentation.trim() : '';
+  const combinedSystemPrompt = augmentation ? `${systemPrompt}\n\n${augmentation}` : systemPrompt;
+
   const history = [
     {
       role: 'system',
-      content: systemPrompt,
+      content: combinedSystemPrompt,
     },
   ];
 

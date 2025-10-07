@@ -43,7 +43,7 @@ export async function runCommandAndTrack(run, cwd = '.', timeoutSec = 60) {
   return result;
 }
 
-async function runAgentLoopWithCurrentDependencies() {
+async function runAgentLoopWithCurrentDependencies(options = {}) {
   const runtime = createAgentRuntime({
     getAutoApproveFlag,
     getNoHumanFlag,
@@ -63,6 +63,7 @@ async function runAgentLoopWithCurrentDependencies() {
     isSessionApprovedFn: isSessionApproved,
     approveForSessionFn: approveForSession,
     preapprovedCfg: PREAPPROVED_CFG,
+    ...options,
   });
 
   const rl = createInterface();
@@ -187,8 +188,8 @@ async function runAgentLoopWithCurrentDependencies() {
   }
 }
 
-export async function agentLoop() {
-  return runAgentLoopWithCurrentDependencies();
+export async function agentLoop(options) {
+  return runAgentLoopWithCurrentDependencies(options);
 }
 
 export default {
