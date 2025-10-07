@@ -11,7 +11,7 @@
 - `read.js`: streams file contents with path normalization and optional limits.
 - `readSpec.js`: parses shell-style `read` command invocations into normalized specs for the loop and tests.
 - `edit.js`: applies positional edits, creating files/directories as needed.
-- `replace.js`: regex-based multi-file replacement with dry-run support.
+- `replace.js`: multi-file replacement supporting regex or literal search, with dry-run previews and a safety limit on matches.
 - `escapeString.js`: implements `quote_string` / `unquote_string` built-ins via JSON stringification/parsing.
 - `preapproval.js`: evaluates commands against allowlists and per-session approvals.
 - `commandStats.js`: records command usage to XDG cache path.
