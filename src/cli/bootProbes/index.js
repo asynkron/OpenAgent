@@ -11,6 +11,10 @@ import GitBootProbe from './gitProbe.js';
 import OperatingSystemBootProbe from './operatingSystemProbe.js';
 import EslintBootProbe from './eslintProbe.js';
 import PrettierBootProbe from './prettierProbe.js';
+import GoBootProbe from './goProbe.js';
+import RustBootProbe from './rustProbe.js';
+import JvmBootProbe from './jvmProbe.js';
+import ContainerBootProbe from './containerProbe.js';
 
 const DEFAULT_PROBES = [
   JavaScriptBootProbe,
@@ -18,7 +22,11 @@ const DEFAULT_PROBES = [
   TypeScriptBootProbe,
   PythonBootProbe,
   DotNetBootProbe,
+  GoBootProbe,
+  RustBootProbe,
+  JvmBootProbe,
   GitBootProbe,
+  ContainerBootProbe,
   OperatingSystemBootProbe,
   EslintBootProbe,
   PrettierBootProbe,
