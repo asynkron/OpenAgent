@@ -68,4 +68,21 @@ describe('renderPlan', () => {
       logSpy.mockRestore();
     }
   });
+
+  test('renderPlanProgress prints a textual progress bar', async () => {
+    const mod = await loadModule();
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      mod.renderPlanProgress({ completedSteps: 2, totalSteps: 5, ratio: 0.4 });
+
+      expect(logSpy).toHaveBeenCalledTimes(1);
+      const output = logSpy.mock.calls[0][0];
+      expect(output).toContain('Plan progress:');
+      expect(output).toContain('40%');
+      expect(output).toContain('2/5');
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
 });

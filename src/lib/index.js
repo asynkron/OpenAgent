@@ -20,6 +20,7 @@ import {
   renderPlan,
   renderMessage,
   renderCommand,
+  renderPlanProgress,
 } from '../cli/render.js';
 import { renderRemainingContext } from '../cli/status.js';
 import {
@@ -75,6 +76,7 @@ export {
   renderPlan,
   renderMessage,
   renderCommand,
+  renderPlanProgress,
   renderRemainingContext,
   runCommand,
   runBrowse,
@@ -127,6 +129,7 @@ const exported = {
   renderPlan,
   renderMessage,
   renderCommand,
+  renderPlanProgress,
   renderRemainingContext,
   runCommand,
   runBrowse,

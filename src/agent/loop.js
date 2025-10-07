@@ -32,7 +32,7 @@ import { createEscState } from './escState.js';
 import { AsyncQueue, QUEUE_DONE } from '../utils/asyncQueue.js';
 import { cancel as cancelActive } from '../utils/cancellation.js';
 import { PromptCoordinator } from './promptCoordinator.js';
-import { mergePlanTrees, planToMarkdown } from '../utils/plan.js';
+import { mergePlanTrees, planToMarkdown, computePlanProgress } from '../utils/plan.js';
 
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 const PLAN_PENDING_REMINDER =
@@ -81,28 +81,6 @@ export function createAgentRuntime({
         details: error instanceof Error ? error.message : String(error),
       });
     }
-  };
-
-  const planManager = {
-    get() {
-      return mergePlanTrees([], activePlan);
-    },
-    async update(nextPlan) {
-      if (!Array.isArray(nextPlan) || nextPlan.length === 0) {
-        activePlan = [];
-      } else if (activePlan.length === 0) {
-        activePlan = mergePlanTrees([], nextPlan);
-      } else {
-        activePlan = mergePlanTrees(activePlan, nextPlan);
-      }
-
-      await persistPlanSnapshot();
-      return mergePlanTrees([], activePlan);
-    },
-    async initialize() {
-      await persistPlanSnapshot();
-      return mergePlanTrees([], activePlan);
-    },
   };
 
   const { state: escState, trigger: triggerEsc, detach: detachEscListener } = createEscState();
@@ -179,6 +157,44 @@ export function createAgentRuntime({
   }
 
   const emit = (event) => outputs.push(event);
+
+  let lastPlanProgressSignature;
+
+  const emitPlanProgressEvent = (plan) => {
+    const progress = computePlanProgress(plan);
+    const signature = `${progress.completedSteps}|${progress.totalSteps}`;
+
+    if (signature !== lastPlanProgressSignature) {
+      lastPlanProgressSignature = signature;
+      emit({ type: 'plan-progress', progress });
+    }
+
+    return progress;
+  };
+
+  const planManager = {
+    get() {
+      return mergePlanTrees([], activePlan);
+    },
+    async update(nextPlan) {
+      if (!Array.isArray(nextPlan) || nextPlan.length === 0) {
+        activePlan = [];
+      } else if (activePlan.length === 0) {
+        activePlan = mergePlanTrees([], nextPlan);
+      } else {
+        activePlan = mergePlanTrees(activePlan, nextPlan);
+      }
+
+      emitPlanProgressEvent(activePlan);
+      await persistPlanSnapshot();
+      return mergePlanTrees([], activePlan);
+    },
+    async initialize() {
+      emitPlanProgressEvent(activePlan);
+      await persistPlanSnapshot();
+      return mergePlanTrees([], activePlan);
+    },
+  };
 
   async function start() {
     if (running) {

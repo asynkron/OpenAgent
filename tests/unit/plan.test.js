@@ -1,6 +1,11 @@
 import { describe, expect, test } from '@jest/globals';
 
-import { mergePlanTrees, planHasOpenSteps, planToMarkdown } from '../../src/utils/plan.js';
+import {
+  mergePlanTrees,
+  planHasOpenSteps,
+  planToMarkdown,
+  computePlanProgress,
+} from '../../src/utils/plan.js';
 
 describe('plan utilities', () => {
   test('mergePlanTrees preserves hidden steps while merging new substeps', () => {
@@ -73,5 +78,42 @@ describe('plan utilities', () => {
 
     plan[0].children[1].status = 'completed';
     expect(planHasOpenSteps(plan)).toBe(false);
+  });
+
+  test('computePlanProgress returns completed vs total leaf tasks', () => {
+    const plan = [
+      { title: 'Task A', status: 'completed' },
+      { title: 'Task B', status: 'pending' },
+      { title: 'Task C', status: 'done' },
+    ];
+
+    const progress = computePlanProgress(plan);
+
+    expect(progress.completedSteps).toBe(2);
+    expect(progress.totalSteps).toBe(3);
+    expect(progress.remainingSteps).toBe(1);
+    expect(progress.ratio).toBeCloseTo(2 / 3, 5);
+  });
+
+  test('computePlanProgress aggregates nested subtasks recursively', () => {
+    const plan = [
+      {
+        step: '1',
+        title: 'Parent work',
+        status: 'running',
+        substeps: [
+          { step: '1.1', title: 'Child 1', status: 'completed' },
+          { step: '1.2', title: 'Child 2', status: 'completed' },
+          { step: '1.3', title: 'Child 3', status: 'blocked' },
+        ],
+      },
+      { step: '2', title: 'Follow-up', status: 'pending' },
+    ];
+
+    const progress = computePlanProgress(plan);
+
+    expect(progress.completedSteps).toBe(2);
+    expect(progress.totalSteps).toBe(4);
+    expect(progress.ratio).toBeCloseTo(0.5, 5);
   });
 });

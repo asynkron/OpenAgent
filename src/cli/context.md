@@ -8,7 +8,7 @@
 
 - `runtime.js`: wires the agent runtime to the terminal renderer and exports `agentLoop` plus command tracking helpers used by the CLI entry point.
 - `io.js`: readline wrapper with ESC detection (emits `ESCAPE_EVENT`, cancels active operations, highlights prompts).
-- `render.js`: Markdown-based renderer for plans/messages/command summaries.
+- `render.js`: Markdown-based renderer for plans/messages/command summaries and the plan progress bar.
 - `thinking.js`: spinner that displays elapsed time while awaiting API responses.
 - `status.js`: prints transient status lines such as the remaining context window before issuing model requests.
 - `runner.js`: parses CLI arguments, forwards template/shortcut subcommands, and launches the agent loop.
