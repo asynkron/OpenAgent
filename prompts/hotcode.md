@@ -50,3 +50,5 @@ based on these findings, ignore changes that are to be expected, documentation u
   4. Dependency hygiene: Adopt a changeset/release-notes workflow so package.json/package-lock.json updates tie to intentional version bumps, reducing noisy churn.
 
 Implementing the above should lower volatility across the hot files while preserving the recent architectural gains.
+
+Return result to user on screen.

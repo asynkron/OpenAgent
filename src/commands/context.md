@@ -2,7 +2,8 @@
 
 ## Purpose
 
-- Implements command execution primitives and specialized helpers the agent invokes (`run`, `read`, `edit`, `replace`, `browse`, string quoting, approvals, stats`).
+- Implements command execution primitives and built-in helpers the agent invokes (`run`, `read`, `edit`, `replace`, `browse`, string quoting).
+- Approval/session tracking and command usage metrics now live under `src/services/`, keeping this directory focused on concrete command implementations.
 
 ## Notable Modules
 
@@ -13,8 +14,6 @@
 - `edit.js`: applies positional edits, creating files/directories as needed.
 - `replace.js`: multi-file replacement supporting regex or literal search, with dry-run previews and a safety limit on matches.
 - `escapeString.js`: implements `quote_string` / `unquote_string` built-ins via JSON stringification/parsing.
-- `preapproval.js`: evaluates commands against allowlists and per-session approvals.
-- `commandStats.js`: records command usage to XDG cache path.
 
 ## Positive Signals
 
@@ -22,12 +21,13 @@
 - `browse.js` now reuses the shared `HttpClient`, consolidating networking behaviour and improving testability.
 - `replace.js` enforces `g` flag and supports dry-run reporting.
 - `escapeString.js` centralises string coercion, enabling new built-ins without touching `loop.js` internals.
-- `preapproval.js` validation now guards against risky shells/flags with dedicated unit coverage for new heuristics.
+- Command approval service (`../services/commandApprovalService.js`) continues to guard against risky shells/flags with dedicated unit coverage for new heuristics.
+- Command usage tracker (`../services/commandStatsService.js`) persists telemetry atomically, keeping command analytics resilient across restarts.
 - `edit.js` and `replace.js` now return the full updated file contents (with headings) in their stdout payloads, letting the LLM consume changes without issuing a follow-up read.
 
 ## Risks / Gaps
 
-- `preapproval.js` heuristics remain regex-heavy; continue expanding allowlist fixtures as new command patterns appear.
+- Command approval service heuristics remain regex-heavy; continue expanding allowlist fixtures as new command patterns appear.
 - HttpClient centralises networking, but additional integration tests may be needed for non-GET verbs or custom headers.
 - Run command safety still depends on human approvals; browser fetch remains limited to GET.
 

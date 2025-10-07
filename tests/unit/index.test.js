@@ -37,7 +37,7 @@ async function loadModule(
   let commandStatsMockFn;
   if (typeof commandStatsMock === 'function') {
     commandStatsMockFn = commandStatsMock;
-    jest.unstable_mockModule('../../src/commands/commandStats.js', () => ({
+    jest.unstable_mockModule('../../src/services/commandStatsService.js', () => ({
       incrementCommandCount: commandStatsMockFn,
       default: { incrementCommandCount: commandStatsMockFn },
     }));

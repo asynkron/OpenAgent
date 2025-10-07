@@ -22,7 +22,7 @@ import {
   isSessionApproved,
   approveForSession,
   PREAPPROVED_CFG,
-} from '../commands/preapproval.js';
+} from '../services/commandApprovalService.js';
 import { applyFilter, tailLines } from '../utils/text.js';
 import { executeAgentPass } from './passExecutor.js';
 import { extractResponseText } from '../openai/responseUtils.js';

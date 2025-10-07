@@ -26,9 +26,9 @@ import {
   isSessionApproved,
   approveForSession,
   PREAPPROVED_CFG,
-} from '../commands/preapproval.js';
+} from '../services/commandApprovalService.js';
 import { applyFilter, tailLines } from '../utils/text.js';
-import { incrementCommandCount } from '../commands/commandStats.js';
+import { incrementCommandCount } from '../services/commandStatsService.js';
 
 export async function runCommandAndTrack(run, cwd = '.', timeoutSec = 60) {
   const result = await runCommand(run, cwd, timeoutSec);

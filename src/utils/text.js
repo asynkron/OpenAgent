@@ -7,7 +7,7 @@
  *
  * Consumers:
  * - `src/agent/loop.js` uses `applyFilter` and `tailLines` when preparing observations.
- * - `src/commands/preapproval.js` depends on `shellSplit` to parse allow-listed commands.
+ * - `src/services/commandApprovalService.js` depends on `shellSplit` to parse allow-listed commands.
  */
 
 export function applyFilter(text, regex) {

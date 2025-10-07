@@ -1,5 +1,5 @@
 import { planHasOpenSteps } from '../utils/plan.js';
-import { incrementCommandCount } from '../commands/commandStats.js';
+import { incrementCommandCount } from '../services/commandStatsService.js';
 import { combineStdStreams, buildPreview } from '../utils/output.js';
 import ObservationBuilder from './observationBuilder.js';
 import { parseAssistantResponse } from './responseParser.js';

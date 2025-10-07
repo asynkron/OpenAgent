@@ -42,7 +42,7 @@ import {
   resetSessionApprovals,
   commandSignature as __commandSignature,
   PREAPPROVED_CFG,
-} from '../commands/preapproval.js';
+} from '../services/commandApprovalService.js';
 import { applyFilter, tailLines, shellSplit } from '../utils/text.js';
 import {
   findAgentFiles,

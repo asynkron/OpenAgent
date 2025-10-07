@@ -48,7 +48,7 @@ export async function loadAgentWithMockedModules() {
     requestModelCompletion: requestModelCompletionMock,
   }));
 
-  jest.unstable_mockModule('../../src/commands/commandStats.js', () => ({
+  jest.unstable_mockModule('../../src/services/commandStatsService.js', () => ({
     incrementCommandCount: commandStatsMock,
   }));
 
