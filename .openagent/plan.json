@@ -1,17 +1,1 @@
-[
-  {
-    "step": "1",
-    "title": "Review prompts/developer.md content",
-    "status": "completed"
-  },
-  {
-    "step": "2",
-    "title": "Overwrite prompts/developer.md with updated guidance",
-    "status": "completed"
-  },
-  {
-    "step": "3",
-    "title": "Document apply_patch failures in a bug report",
-    "status": "running"
-  }
-]
+[]
