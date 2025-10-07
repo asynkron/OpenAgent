@@ -15,6 +15,7 @@
 
 - Integration tests validate agent loop approvals, read command dispatch, and command stats persistence.\n- Unit tests cover editing utilities, cancellation manager, renderer language heuristics, runCommand lifecycle, and JSON asset validation helpers.
 - ESC cancellation scenarios now have both integration coverage and nested cancellation regressions guarding the shared stack.
+- Test suites stay in sync with the enforced Prettier style so lint checks succeed before publish or release workflows run.
 
 ## Risks / Gaps
 

@@ -1,6 +1,6 @@
 {
   "name": "@asynkron/openagent",
-  "version": "2.10.0",
+  "version": "2.11.0",
   "description": "Simple Node.JS based AI agent",
   "type": "module",
   "main": "index.js",
@@ -43,6 +43,16 @@
     "esprima": "^4.0.1",
     "globals": "^16.4.0",
     "jest": "^29.7.0",
+    "lint-staged": "^16.2.3",
     "prettier": "^3.2.5"
+  },
+  "lint-staged": {
+    "*.{js,mjs,cjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   }
 }
