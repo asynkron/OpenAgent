@@ -18,6 +18,7 @@
 - `historyCompactor.test.js`: asserts old history is summarized and that the generated summary is surfaced to the human via logging.
 - `responseValidator.test.js`: confirms assistant protocol responses are validated before execution.
 - `websocketUi.test.js`: exercises the WebSocket UI binding to ensure prompts/events route correctly and disconnections cancel the runtime.
+- `startupFlags.test.js`: covers CLI startup flag helpers, including the debug flag accessor and argv parsing.
 
 ## Positive Signals
 

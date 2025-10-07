@@ -6,7 +6,7 @@
 
 ## Key Modules
 
-- `loop.js`: exposes the event-driven runtime (`createAgentRuntime`) that emits structured JSON events, including plan progress notifications, skips zero-task progress updates to avoid noise, and wraps it with the legacy `createAgentLoop` helper for compatibility.
+- `loop.js`: exposes the event-driven runtime (`createAgentRuntime`) that emits structured JSON events—including optional debug envelopes when the startup debug flag is enabled—skips zero-task progress updates to avoid noise, and wraps it with the legacy `createAgentLoop` helper for compatibility.
 - `promptCoordinator.js`: provides the `PromptCoordinator` class that mediates prompt requests/responses between the runtime and UI surfaces.
 - `escState.js`: centralises cancellation state, allowing UI-triggered events to notify in-flight operations.
 - `passExecutor.js`: performs an agent pass (OpenAI request, JSON parsing, plan updates, approvals, command execution, observation logging).

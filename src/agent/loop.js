@@ -58,6 +58,7 @@ export function createAgentRuntime({
   getAutoApproveFlag = () => false,
   getNoHumanFlag = () => false,
   getPlanMergeFlag = () => false,
+  getDebugFlag = () => false,
   setNoHumanFlag = () => {},
   createHistoryCompactorFn = ({ openai: client, currentModel }) =>
     new HistoryCompactor({ openai: client, model: currentModel, logger: console }),
@@ -224,7 +225,34 @@ export function createAgentRuntime({
     }
   }
 
+  const isDebugEnabled = () => Boolean(typeof getDebugFlag === 'function' && getDebugFlag());
+
   const emit = (event) => outputs.push(event);
+
+  const emitDebug = (payloadOrFactory) => {
+    if (!isDebugEnabled()) {
+      return;
+    }
+
+    let payload;
+    try {
+      payload = typeof payloadOrFactory === 'function' ? payloadOrFactory() : payloadOrFactory;
+    } catch (error) {
+      emit({
+        type: 'status',
+        level: 'warn',
+        message: 'Failed to prepare debug payload.',
+        details: error instanceof Error ? error.message : String(error),
+      });
+      return;
+    }
+
+    if (typeof payload === 'undefined') {
+      return;
+    }
+
+    emit({ type: 'debug', payload });
+  };
 
   let lastPlanProgressSignature;
 
@@ -310,6 +338,7 @@ export function createAgentRuntime({
               model,
               history,
               emitEvent: emit,
+              onDebug: emitDebug,
               runCommandFn,
               runBrowseFn,
               runEditFn,

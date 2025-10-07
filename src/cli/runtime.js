@@ -4,6 +4,7 @@ import {
   getAutoApproveFlag,
   getNoHumanFlag,
   getPlanMergeFlag,
+  getDebugFlag,
   setNoHumanFlag,
 } from '../lib/startupFlags.js';
 import { createAgentRuntime } from '../agent/loop.js';
@@ -47,6 +48,7 @@ async function runAgentLoopWithCurrentDependencies() {
     getAutoApproveFlag,
     getNoHumanFlag,
     getPlanMergeFlag,
+    getDebugFlag,
     setNoHumanFlag,
     runCommandFn: runCommand,
     runBrowseFn: runBrowse,
@@ -141,6 +143,23 @@ async function runAgentLoopWithCurrentDependencies() {
           const prompt = event.prompt ?? '\n ▷ ';
           const answer = await askHuman(rl, prompt);
           runtime.submitPrompt(answer);
+          break;
+        }
+        case 'debug': {
+          const payload = event.payload;
+          let formatted = '';
+          if (typeof payload === 'string') {
+            formatted = payload;
+          } else {
+            try {
+              formatted = JSON.stringify(payload, null, 2);
+            } catch {
+              formatted = String(payload);
+            }
+          }
+          if (formatted) {
+            console.log(chalk.gray(`[debug] ${formatted}`));
+          }
           break;
         }
         default:
