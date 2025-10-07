@@ -48,9 +48,7 @@ describe('parseAssistantResponse', () => {
     expect(result.ok).toBe(false);
     expect(result.error).toBeInstanceOf(Error);
     expect(result.attempts).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ strategy: 'direct' }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ strategy: 'direct' })]),
     );
   });
 

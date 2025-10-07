@@ -36,6 +36,7 @@
 - Maintains conversation history explicitly, facilitating reproducibility.
 - OpenAI invocations now lean on the shared helper in `openai/responses.js`, keeping reasoning configuration consistent.
 - History compaction prints the generated summary to the CLI so humans can keep track of the active intent.
+- Prettier formatting now guards agent modules from drifting styling, matching the lint rules executed in CI and release flows.
 
 ## Related Context
 

@@ -20,6 +20,7 @@
 - Merging to `main` triggers `.github/workflows/auto-release.yml`, which bumps the minor npm version, tags the commit, and hands off to `.github/workflows/publish.yml` for npm publication.
 - `scripts/verify-release-tag.js` keeps the Git tag aligned with `package.json`.
 - `scripts/validate-json-assets.js` validates prompt manifests against their JSON schema and enforces copy synchronization.
+- Local commits should run `.githooks/pre-commit`, which formats staged files with Prettier and fixes lint issues via `lint-staged`. Run `git config core.hooksPath .githooks` once per clone to enable it.
 
 ## Key Entry Points
 

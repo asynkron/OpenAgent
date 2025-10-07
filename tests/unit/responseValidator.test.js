@@ -61,9 +61,7 @@ describe('validateAssistantResponse', () => {
 
   test('requires command when plan has open steps', () => {
     const result = validateAssistantResponse({
-      plan: [
-        { step: '1', title: 'Only step', status: 'running' },
-      ],
+      plan: [{ step: '1', title: 'Only step', status: 'running' }],
       command: null,
     });
 
