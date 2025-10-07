@@ -3,6 +3,7 @@ import os from 'node:os';
 
 import { createBootProbeContext, createBootProbeResult } from './context.js';
 import JavaScriptBootProbe from './javascriptProbe.js';
+import NodeBootProbe from './nodeProbe.js';
 import TypeScriptBootProbe from './typescriptProbe.js';
 import PythonBootProbe from './pythonProbe.js';
 import DotNetBootProbe from './dotnetProbe.js';
@@ -13,6 +14,7 @@ import PrettierBootProbe from './prettierProbe.js';
 
 const DEFAULT_PROBES = [
   JavaScriptBootProbe,
+  NodeBootProbe,
   TypeScriptBootProbe,
   PythonBootProbe,
   DotNetBootProbe,
