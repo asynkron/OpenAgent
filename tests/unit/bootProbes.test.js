@@ -2,7 +2,7 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { runBootProbes } from '../../src/cli/bootProbes/index.js';
+import { formatBootProbeSummary, runBootProbes } from '../../src/cli/bootProbes/index.js';
 
 async function createTempDir(prefix = 'boot-probe-test-') {
   return mkdtemp(join(tmpdir(), prefix));
@@ -34,6 +34,7 @@ describe('boot probes', () => {
 
       const lines = [];
       const results = await runBootProbes({ cwd: dir, emit: (line) => lines.push(line) });
+      const summary = formatBootProbeSummary(results);
 
       const jsResult = results.find((result) => result.probe === 'JavaScript');
       expect(jsResult).toBeDefined();
@@ -41,6 +42,8 @@ describe('boot probes', () => {
       expect(jsResult.details.join(' ')).toContain('package.json');
       expect(lines.some((line) => normalizeLine(line).includes('JavaScript'))).toBe(true);
       expect(normalizeLine(lines.at(-1))).toMatch(/^OS:/);
+      expect(summary).toContain('- JavaScript: detected');
+      expect(summary.split('\n').at(-1)).toMatch(/^- OS:/);
     });
   });
 
@@ -48,12 +51,14 @@ describe('boot probes', () => {
     await withTempDir(async (dir) => {
       const lines = [];
       const results = await runBootProbes({ cwd: dir, emit: (line) => lines.push(line) });
+      const summary = formatBootProbeSummary(results);
 
       for (const result of results) {
         expect(result.error).toBeNull();
         expect(result.detected === false || Array.isArray(result.details)).toBe(true);
       }
       expect(normalizeLine(lines.at(-1))).toMatch(/^OS:/);
+      expect(summary.split('\n').at(-1)).toMatch(/^- OS:/);
     });
   });
 });

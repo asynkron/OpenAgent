@@ -6,18 +6,22 @@
  */
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runBootProbes } from './bootProbes/index.js';
+import { formatBootProbeSummary, runBootProbes } from './bootProbes/index.js';
 
 
 import { agentLoop, applyStartupFlagsFromArgv } from '../lib/index.js';
 
 export async function runCli(argv = process.argv) {
-  await runBootProbes({ cwd: process.cwd() });
+  const bootProbeResults = await runBootProbes({ cwd: process.cwd() });
+  const bootProbeSummary = formatBootProbeSummary(bootProbeResults).trim();
+  const systemPromptAugmentation = bootProbeSummary
+    ? `Environment information discovered during CLI boot:\n${bootProbeSummary}`
+    : '';
 
   applyStartupFlagsFromArgv(argv);
 
   try {
-    await agentLoop();
+    await agentLoop({ systemPromptAugmentation });
   } catch (err) {
     if (err && err.message) {
       process.exitCode = 1;

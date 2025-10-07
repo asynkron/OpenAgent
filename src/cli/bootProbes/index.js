@@ -25,6 +25,37 @@ export function getBootProbes() {
   return [...DEFAULT_PROBES];
 }
 
+export function formatBootProbeSummary(results = [], { includeOsLine = true } = {}) {
+  const lines = [];
+
+  for (const result of Array.isArray(results) ? results : []) {
+    if (!result || typeof result !== 'object') {
+      continue;
+    }
+
+    const name = result.probe || result.name || 'Unnamed probe';
+    const status = result.detected ? 'detected' : 'not detected';
+    const detailParts = [];
+
+    if (Array.isArray(result.details) && result.details.length > 0) {
+      detailParts.push(result.details.join('; '));
+    }
+
+    if (result.error) {
+      detailParts.push(`error: ${result.error}`);
+    }
+
+    const suffix = detailParts.length > 0 ? ` (${detailParts.join(' | ')})` : '';
+    lines.push(`- ${name}: ${status}${suffix}`);
+  }
+
+  if (includeOsLine) {
+    lines.push(`- OS: ${os.type()} ${os.release()} (${os.platform()}/${os.arch()})`);
+  }
+
+  return lines.join('\n');
+}
+
 export async function runBootProbes({ cwd = process.cwd(), emit = console.log } = {}) {
   const context = createBootProbeContext(cwd);
   const probes = getBootProbes();
