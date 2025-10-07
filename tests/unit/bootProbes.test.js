@@ -239,7 +239,6 @@ describe('boot probes', () => {
         'python is installed and ready to use',
         'python3 is installed and ready to use',
         'pip is installed and ready to use',
-        'pip3 is not installed',
         'poetry is installed and ready to use',
         'pytest is installed and ready to use',
         'ruff is installed and ready to use',
@@ -247,7 +246,7 @@ describe('boot probes', () => {
     );
     expect(result.tooling).toContain('Tool availability');
     expect(result.tooling).toContain('- python is installed and ready to use');
-    expect(result.tooling).toContain('- pip3 is not installed');
+    expect(result.tooling).not.toContain('- pip3 is not installed');
   });
 
   it('summarises Go workspaces and tooling', async () => {
@@ -276,12 +275,14 @@ describe('boot probes', () => {
         'go.mod',
         'Go source files (main.go)',
         'cmd/ directory',
-        'goimports is not installed',
+        'go is installed and ready to use',
+        'gofmt is installed and ready to use',
         'golangci-lint is installed and ready to use',
       ])
     );
     expect(result.tooling).toContain('Go modules expect go build/test/vet');
     expect(result.tooling).toContain('- gofmt is installed and ready to use');
+    expect(result.tooling).not.toContain('- goimports is not installed');
   });
 
   it('summarises Rust workspaces and tooling', async () => {
@@ -312,12 +313,14 @@ describe('boot probes', () => {
         'src/ directory',
         'Rust sources (main.rs)',
         'Root Rust files (lib.rs)',
-        'rustfmt is not installed',
+        'cargo is installed and ready to use',
+        'rustc is installed and ready to use',
         'rustup is installed and ready to use',
       ])
     );
     expect(result.tooling).toContain('Cargo orchestrates builds/tests');
-    expect(result.tooling).toContain('- cargo-clippy is not installed');
+    expect(result.tooling).toContain('- cargo is installed and ready to use');
+    expect(result.tooling).not.toContain('- cargo-clippy is not installed');
   });
 
   it('summarises JVM build tooling and sources', async () => {
@@ -348,11 +351,13 @@ describe('boot probes', () => {
         'mvnw wrapper',
         'src/main/java (App.java)',
         'JVM sources (Main.kt)',
-        'maven (mvn) is not installed',
+        'java is installed and ready to use',
+        'javac is installed and ready to use',
       ])
     );
     expect(result.tooling).toContain('Use Maven or Gradle wrappers');
-    expect(result.tooling).toContain('- gradle is not installed');
+    expect(result.tooling).toContain('- java is installed and ready to use');
+    expect(result.tooling).not.toContain('- gradle is not installed');
   });
 
   it('summarises containerisation signals and tooling', async () => {
@@ -383,12 +388,13 @@ describe('boot probes', () => {
         'docker-compose.yml',
         '.devcontainer/devcontainer.json',
         '.devcontainer/ (devcontainer.json, Dockerfile)',
-        'docker-compose is not installed',
+        'docker is installed and ready to use',
         'nerdctl is installed and ready to use',
       ])
     );
     expect(result.tooling).toContain('Dockerfiles or devcontainers enable reproducible environments');
     expect(result.tooling).toContain('- docker is installed and ready to use');
+    expect(result.tooling).not.toContain('- docker-compose is not installed');
   });
 
   it('summarises Node.js tooling availability', async () => {
@@ -411,12 +417,12 @@ describe('boot probes', () => {
         'node is installed and ready to use',
         'npx is installed and ready to use',
         'npm is installed and ready to use',
-        'pnpm is not installed',
-        'yarn is not installed',
-        'bun is not installed',
       ])
     );
     expect(result.tooling).toContain('Tool availability');
     expect(result.tooling).toContain('- node is installed and ready to use');
+    expect(result.tooling).not.toContain('- pnpm is not installed');
+    expect(result.tooling).not.toContain('- yarn is not installed');
+    expect(result.tooling).not.toContain('- bun is not installed');
   });
 });

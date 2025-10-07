@@ -84,36 +84,48 @@ export const JavaScriptBootProbe = {
       })
     );
 
-    for (const tool of toolAvailability) {
+    const installedTools = toolAvailability.filter((tool) => tool.available);
+
+    for (const tool of installedTools) {
       // Surface each CLI tool's readiness in the probe details so the agent can reason about them immediately.
       details.push(tool.summary);
     }
 
-    const tooling = detected || toolAvailability.some((tool) => tool.available)
-      ? [
-          '## Recommended refactoring tools for JavaScript:',
-          '',
-          '### jscodeshift',
-          'https://github.com/facebook/jscodeshift',
-          '',
-          '### ast-grep',
-          'https://ast-grep.github.io/',
-          '',
-          '### comby',
-          'https://comby.dev/',
-          'https://github.com/comby-tools/comby',
-          '',
-          '### acorn',
-          'https://github.com/acornjs/acorn',
-          '',
-          '### Tool availability',
-          ...toolAvailability.map((tool) => `- ${tool.summary}`),
-          '',
-          'Check for existence on client computer.',
-          'Ask user if you may install them when missing.',
-          'Check help output per tool to learn how to use them.',
-          'Prefer proper refactoring tools over manual edits.',
-        ].join('\n')
+    const hasHelpfulTooling = detected || installedTools.length > 0;
+
+    const tooling = hasHelpfulTooling
+      ? (() => {
+          const sections = [
+            '## Recommended refactoring tools for JavaScript:',
+            '',
+            '### jscodeshift',
+            'https://github.com/facebook/jscodeshift',
+            '',
+            '### ast-grep',
+            'https://ast-grep.github.io/',
+            '',
+            '### comby',
+            'https://comby.dev/',
+            'https://github.com/comby-tools/comby',
+            '',
+            '### acorn',
+            'https://github.com/acornjs/acorn',
+            '',
+          ];
+
+          if (installedTools.length > 0) {
+            sections.push('### Tool availability');
+            sections.push(...installedTools.map((tool) => `- ${tool.summary}`));
+            sections.push('');
+          }
+
+          sections.push('Check for existence on client computer.');
+          sections.push('Ask user if you may install them when missing.');
+          sections.push('Check help output per tool to learn how to use them.');
+          sections.push('Prefer proper refactoring tools over manual edits.');
+
+          return sections.join('\n');
+        })()
       : '';
 
     return createBootProbeResult({ detected, details, tooling });
