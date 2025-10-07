@@ -160,15 +160,25 @@ export async function executeAgentPass({
 
   if (planManager) {
     try {
+      const mergingEnabled =
+        typeof planManager.isMergingEnabled === 'function'
+          ? planManager.isMergingEnabled()
+          : true;
+
       if (incomingPlan && typeof planManager.update === 'function') {
-        const merged = await planManager.update(incomingPlan);
-        if (Array.isArray(merged)) {
-          activePlan = merged;
+        const updated = await planManager.update(incomingPlan);
+        if (Array.isArray(updated)) {
+          activePlan = updated;
         }
-      } else if (!incomingPlan && typeof planManager.get === 'function') {
+      } else if (!incomingPlan && mergingEnabled && typeof planManager.get === 'function') {
         const snapshot = planManager.get();
         if (Array.isArray(snapshot)) {
           activePlan = snapshot;
+        }
+      } else if (!incomingPlan && !mergingEnabled && typeof planManager.reset === 'function') {
+        const cleared = await planManager.reset();
+        if (Array.isArray(cleared)) {
+          activePlan = cleared;
         }
       }
     } catch (error) {

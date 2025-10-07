@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import { getAutoApproveFlag, getNoHumanFlag, setNoHumanFlag } from '../lib/startupFlags.js';
+import { getAutoApproveFlag, getNoHumanFlag, getPlanMergeFlag, setNoHumanFlag } from '../lib/startupFlags.js';
 import { createAgentRuntime } from '../agent/loop.js';
 import { startThinking, stopThinking } from './thinking.js';
 import { createInterface, askHuman, ESCAPE_EVENT } from './io.js';
@@ -41,6 +41,7 @@ async function runAgentLoopWithCurrentDependencies() {
   const runtime = createAgentRuntime({
     getAutoApproveFlag,
     getNoHumanFlag,
+    getPlanMergeFlag,
     setNoHumanFlag,
     runCommandFn: runCommand,
     runBrowseFn: runBrowse,

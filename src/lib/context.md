@@ -12,4 +12,5 @@
 ## Notes
 
 - Startup flags default to `false` and can be configured via `setStartupFlags`, `parseStartupFlagsFromArgv`, or `applyStartupFlagsFromArgv`.
+- Consumers pick up individual flag helpers such as `getAutoApproveFlag`, `getNoHumanFlag`, `getPlanMergeFlag`, and `setNoHumanFlag` from `startupFlags.js`; the aggregated `startupFlagAccessors` object surfaces the same helpers to external callers, and the agent runtime now gates plan merging behind `getPlanMergeFlag`.
 - The CLI runner (`../cli/runner.js`) is the only module responsible for parsing process arguments and invoking the CLI runtime.

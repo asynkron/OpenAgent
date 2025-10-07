@@ -3,7 +3,7 @@
  * writing directly to the CLI.
  */
 
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import { SYSTEM_PROMPT } from '../config/systemPrompt.js';
@@ -32,7 +32,7 @@ import { createEscState } from './escState.js';
 import { AsyncQueue, QUEUE_DONE } from '../utils/asyncQueue.js';
 import { cancel as cancelActive } from '../utils/cancellation.js';
 import { PromptCoordinator } from './promptCoordinator.js';
-import { mergePlanTrees, planToMarkdown, computePlanProgress } from '../utils/plan.js';
+import { mergePlanTrees, computePlanProgress } from '../utils/plan.js';
 
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 const PLAN_PENDING_REMINDER =
@@ -57,6 +57,7 @@ export function createAgentRuntime({
   preapprovedCfg = PREAPPROVED_CFG,
   getAutoApproveFlag = () => false,
   getNoHumanFlag = () => false,
+  getPlanMergeFlag = () => false,
   setNoHumanFlag = () => {},
   createHistoryCompactorFn = ({ openai: client, currentModel }) =>
     new HistoryCompactor({ openai: client, model: currentModel, logger: console }),
@@ -65,22 +66,88 @@ export function createAgentRuntime({
   const inputs = new AsyncQueue();
 
   const planDirectoryPath = resolve(process.cwd(), '.openagent');
-  const planFilePath = resolve(planDirectoryPath, 'todo.md');
+  const planFilePath = resolve(planDirectoryPath, 'plan.json');
   let activePlan = [];
+
+  const clonePlan = (plan) => mergePlanTrees([], Array.isArray(plan) ? plan : []);
 
   const persistPlanSnapshot = async () => {
     try {
       await mkdir(planDirectoryPath, { recursive: true });
-      const snapshot = planToMarkdown(activePlan);
+      const snapshot = `${JSON.stringify(activePlan, null, 2)}\n`;
       await writeFile(planFilePath, snapshot, 'utf8');
     } catch (error) {
       outputs.push({
         type: 'status',
         level: 'warn',
-        message: 'Failed to persist plan snapshot to .openagent/todo.md.',
+        message: 'Failed to persist plan snapshot to .openagent/plan.json.',
         details: error instanceof Error ? error.message : String(error),
       });
     }
+  };
+
+  const loadPlanSnapshot = async () => {
+    try {
+      const raw = await readFile(planFilePath, 'utf8');
+      if (!raw.trim()) {
+        activePlan = [];
+        return;
+      }
+
+      const parsed = JSON.parse(raw);
+      activePlan = clonePlan(parsed);
+    } catch (error) {
+      if (error && typeof error === 'object' && error.code === 'ENOENT') {
+        return;
+      }
+
+      outputs.push({
+        type: 'status',
+        level: 'warn',
+        message: 'Failed to load plan snapshot from .openagent/plan.json.',
+        details: error instanceof Error ? error.message : String(error),
+      });
+      activePlan = [];
+    }
+  };
+  const shouldMergePlans = () => Boolean(typeof getPlanMergeFlag === 'function' && getPlanMergeFlag());
+
+  const planManager = {
+    get() {
+      return clonePlan(activePlan);
+    },
+    isMergingEnabled() {
+      return shouldMergePlans();
+    },
+    async update(nextPlan) {
+      const merging = shouldMergePlans();
+      if (!Array.isArray(nextPlan) || nextPlan.length === 0) {
+        activePlan = [];
+      } else if (merging && activePlan.length > 0) {
+        activePlan = mergePlanTrees(activePlan, nextPlan);
+      } else {
+        activePlan = clonePlan(nextPlan);
+      }
+
+      emitPlanProgressEvent(activePlan);
+      await persistPlanSnapshot();
+      return clonePlan(activePlan);
+    },
+    async initialize() {
+      await loadPlanSnapshot();
+      emitPlanProgressEvent(activePlan);
+      await persistPlanSnapshot();
+      return clonePlan(activePlan);
+    },
+    async reset() {
+      if (activePlan.length === 0) {
+        return clonePlan(activePlan);
+      }
+      activePlan = [];
+      emitPlanProgressEvent(activePlan);
+      await persistPlanSnapshot();
+      return clonePlan(activePlan);
+    },
   };
 
   const { state: escState, trigger: triggerEsc, detach: detachEscListener } = createEscState();
@@ -170,30 +237,6 @@ export function createAgentRuntime({
     }
 
     return progress;
-  };
-
-  const planManager = {
-    get() {
-      return mergePlanTrees([], activePlan);
-    },
-    async update(nextPlan) {
-      if (!Array.isArray(nextPlan) || nextPlan.length === 0) {
-        activePlan = [];
-      } else if (activePlan.length === 0) {
-        activePlan = mergePlanTrees([], nextPlan);
-      } else {
-        activePlan = mergePlanTrees(activePlan, nextPlan);
-      }
-
-      emitPlanProgressEvent(activePlan);
-      await persistPlanSnapshot();
-      return mergePlanTrees([], activePlan);
-    },
-    async initialize() {
-      emitPlanProgressEvent(activePlan);
-      await persistPlanSnapshot();
-      return mergePlanTrees([], activePlan);
-    },
   };
 
   async function start() {

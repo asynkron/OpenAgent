@@ -1,32 +1,55 @@
-/**
- * Internal state and helpers for startup flags shared between the CLI runner
- * and library consumers.
- */
+const startupFlags = {
+  forceAutoApprove: false,
+  noHuman: false,
+  planMerge: false,
+};
 
-let startupForceAutoApprove = false;
-let startupNoHuman = false;
+export function getStartupFlags() {
+  return { ...startupFlags };
+}
 
 export function getAutoApproveFlag() {
-  return startupForceAutoApprove;
+  return startupFlags.forceAutoApprove;
 }
 
 export function getNoHumanFlag() {
-  return startupNoHuman;
+  return startupFlags.noHuman;
+}
+
+export function getPlanMergeFlag() {
+  return startupFlags.planMerge;
 }
 
 export function setNoHumanFlag(value) {
-  startupNoHuman = Boolean(value);
+  startupFlags.noHuman = Boolean(value);
+  return startupFlags.noHuman;
 }
 
-export function setStartupFlags({ forceAutoApprove = false, noHuman = false } = {}) {
-  startupForceAutoApprove = Boolean(forceAutoApprove);
-  startupNoHuman = Boolean(noHuman);
+export function setStartupFlags(nextFlags = {}) {
+  if (!nextFlags || typeof nextFlags !== 'object') {
+    return getStartupFlags();
+  }
+
+  if (Object.prototype.hasOwnProperty.call(nextFlags, 'forceAutoApprove')) {
+    startupFlags.forceAutoApprove = Boolean(nextFlags.forceAutoApprove);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(nextFlags, 'noHuman')) {
+    startupFlags.noHuman = Boolean(nextFlags.noHuman);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(nextFlags, 'planMerge')) {
+    startupFlags.planMerge = Boolean(nextFlags.planMerge);
+  }
+
+  return getStartupFlags();
 }
 
 export function parseStartupFlagsFromArgv(argv = process.argv) {
   const positional = Array.isArray(argv) ? argv.slice(2) : [];
   let forceAutoApprove = false;
   let noHuman = false;
+  let planMerge = false;
 
   for (const arg of positional) {
     if (!arg) continue;
@@ -38,43 +61,56 @@ export function parseStartupFlagsFromArgv(argv = process.argv) {
       normalized === '--auto-approval'
     ) {
       forceAutoApprove = true;
+      continue;
     }
 
     if (normalized === 'nohuman' || normalized === '--nohuman' || normalized === '--no-human') {
       noHuman = true;
+      continue;
+    }
+
+    if (normalized === 'plan-merge' || normalized === '--plan-merge') {
+      planMerge = true;
     }
   }
 
-  return { forceAutoApprove, noHuman };
+  return { forceAutoApprove, noHuman, planMerge };
 }
 
 export function applyStartupFlagsFromArgv(argv = process.argv) {
-  const flags = parseStartupFlagsFromArgv(argv);
-  setStartupFlags(flags);
-  return flags;
+  const parsed = parseStartupFlagsFromArgv(argv);
+  return setStartupFlags(parsed);
 }
 
 export const startupFlagAccessors = {
-  get STARTUP_FORCE_AUTO_APPROVE() {
-    return startupForceAutoApprove;
-  },
-  set STARTUP_FORCE_AUTO_APPROVE(value) {
-    startupForceAutoApprove = Boolean(value);
-  },
-  get STARTUP_NO_HUMAN() {
-    return startupNoHuman;
-  },
-  set STARTUP_NO_HUMAN(value) {
-    startupNoHuman = Boolean(value);
-  },
-};
-
-export default {
+  getStartupFlags,
+  setStartupFlags,
   getAutoApproveFlag,
   getNoHumanFlag,
   setNoHumanFlag,
-  setStartupFlags,
-  parseStartupFlagsFromArgv,
-  applyStartupFlagsFromArgv,
-  startupFlagAccessors,
+  getPlanMergeFlag,
 };
+
+Object.defineProperties(startupFlagAccessors, {
+  STARTUP_FORCE_AUTO_APPROVE: {
+    get: getAutoApproveFlag,
+    set(value) {
+      setStartupFlags({ forceAutoApprove: Boolean(value) });
+    },
+    enumerable: true,
+  },
+  STARTUP_NO_HUMAN: {
+    get: getNoHumanFlag,
+    set(value) {
+      setStartupFlags({ noHuman: Boolean(value) });
+    },
+    enumerable: true,
+  },
+  STARTUP_PLAN_MERGE: {
+    get: getPlanMergeFlag,
+    set(value) {
+      setStartupFlags({ planMerge: Boolean(value) });
+    },
+    enumerable: true,
+  },
+});
