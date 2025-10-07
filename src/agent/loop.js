@@ -236,8 +236,7 @@ export function createAgentRuntime({
 
     let payload;
     try {
-      payload =
-        typeof payloadOrFactory === 'function' ? payloadOrFactory() : payloadOrFactory;
+      payload = typeof payloadOrFactory === 'function' ? payloadOrFactory() : payloadOrFactory;
     } catch (error) {
       emit({
         type: 'status',

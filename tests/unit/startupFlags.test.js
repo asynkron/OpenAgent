@@ -34,4 +34,3 @@ describe('startupFlags debug support', () => {
     expect(getStartupFlags().debug).toBe(true);
   });
 });
-
