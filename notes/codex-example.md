@@ -1,4 +1,4 @@
-› figure out what needs to be done to respect the --nohuman flag. when enabled, calling "askHuman"
+› Figure out what needs to be done to respect the --nohuman flag. when enabled, calling "askHuman"
 should only be called once all objectives are reached, as in, at that point the ai responds
 "done", until then, we automatically send a fake human response "continue or say 'done'"
 
