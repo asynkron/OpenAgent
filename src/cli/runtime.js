@@ -4,7 +4,7 @@ import { getAutoApproveFlag, getNoHumanFlag, setNoHumanFlag } from '../lib/start
 import { createAgentRuntime } from '../agent/loop.js';
 import { startThinking, stopThinking } from './thinking.js';
 import { createInterface, askHuman, ESCAPE_EVENT } from './io.js';
-import { renderPlan, renderMessage, renderCommand } from './render.js';
+import { renderPlan, renderMessage, renderCommand, renderPlanProgress } from './render.js';
 import { renderRemainingContext } from './status.js';
 import {
   runCommand,
@@ -105,6 +105,9 @@ async function runAgentLoopWithCurrentDependencies() {
           break;
         case 'plan':
           renderPlan(Array.isArray(event.plan) ? event.plan : []);
+          break;
+        case 'plan-progress':
+          renderPlanProgress(event.progress);
           break;
         case 'context-usage':
           if (event.usage) {

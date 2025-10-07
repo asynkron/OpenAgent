@@ -115,6 +115,46 @@ export function renderPlan(plan) {
   display('Plan', planLines, 'cyan');
 }
 
+// Render a compact progress indicator so humans can track plan completion at a glance.
+export function renderPlanProgress(progress) {
+  if (!progress || typeof progress !== 'object') {
+    return;
+  }
+
+  const total = Number.isFinite(progress.totalSteps) ? progress.totalSteps : 0;
+  const completed = Number.isFinite(progress.completedSteps) ? progress.completedSteps : 0;
+  const ratio = Number.isFinite(progress.ratio)
+    ? progress.ratio
+    : total > 0
+      ? completed / total
+      : 0;
+
+  if (total <= 0) {
+    console.log(chalk.blueBright('Plan progress: ') + chalk.dim('no active steps yet.'));
+    return;
+  }
+
+  const normalized = Math.min(1, Math.max(0, ratio));
+  const barWidth = 20;
+  let filled = Math.round(normalized * barWidth);
+  if (normalized > 0 && filled === 0) {
+    filled = 1;
+  }
+  if (normalized >= 1) {
+    filled = barWidth;
+  }
+  const empty = Math.max(0, barWidth - filled);
+
+  const filledBar = filled > 0 ? chalk.green('█'.repeat(filled)) : '';
+  const emptyBar = empty > 0 ? chalk.gray('░'.repeat(empty)) : '';
+  const percentLabel = `${Math.round(normalized * 100)}%`;
+  const summary = `${completed}/${total}`;
+
+  console.log(
+    `${chalk.blueBright('Plan progress: ')}${filledBar}${emptyBar} ${chalk.bold(percentLabel)} (${summary})`,
+  );
+}
+
 export function renderMessage(message) {
   if (!message) return;
 

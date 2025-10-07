@@ -3,6 +3,24 @@
  */
 
 const PLAN_CHILD_KEYS = ['substeps', 'children', 'steps'];
+const COMPLETED_STATUSES = new Set(['completed', 'complete', 'done', 'finished']);
+
+function isCompletedStatus(status) {
+  if (typeof status !== 'string') {
+    return false;
+  }
+
+  const normalized = status.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  if (COMPLETED_STATUSES.has(normalized)) {
+    return true;
+  }
+
+  return normalized.startsWith('complete');
+}
 
 function normalizeStepLabel(stepValue) {
   if (stepValue === null || stepValue === undefined) {
@@ -165,6 +183,54 @@ export function planHasOpenSteps(plan) {
   return hasOpen(plan);
 }
 
+function aggregateProgress(items) {
+  let completed = 0;
+  let total = 0;
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return { completed, total };
+  }
+
+  for (const item of items) {
+    if (!item || typeof item !== 'object') {
+      continue;
+    }
+
+    const childKey = PLAN_CHILD_KEYS.find(
+      (key) => Array.isArray(item[key]) && item[key].length > 0,
+    );
+
+    if (childKey) {
+      const childProgress = aggregateProgress(item[childKey]);
+      if (childProgress.total > 0) {
+        completed += childProgress.completed;
+        total += childProgress.total;
+        continue;
+      }
+    }
+
+    total += 1;
+    if (isCompletedStatus(item.status)) {
+      completed += 1;
+    }
+  }
+
+  return { completed, total };
+}
+
+export function computePlanProgress(plan) {
+  const { completed, total } = aggregateProgress(Array.isArray(plan) ? plan : []);
+  const ratio = total > 0 ? Math.min(1, Math.max(0, completed / total)) : 0;
+  const remaining = Math.max(0, total - completed);
+
+  return {
+    completedSteps: completed,
+    remainingSteps: remaining,
+    totalSteps: total,
+    ratio,
+  };
+}
+
 function formatPlanLine(item, index, ancestors, depth, lines) {
   if (!item || typeof item !== 'object') {
     return;
@@ -237,5 +303,6 @@ export function planToMarkdown(plan) {
 export default {
   mergePlanTrees,
   planHasOpenSteps,
+  computePlanProgress,
   planToMarkdown,
 };
