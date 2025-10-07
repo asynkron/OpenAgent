@@ -7,6 +7,10 @@ import { promisify } from 'node:util';
 import { formatBootProbeSummary, runBootProbes } from '../../src/cli/bootProbes/index.js';
 import PythonBootProbe from '../../src/cli/bootProbes/pythonProbe.js';
 import NodeBootProbe from '../../src/cli/bootProbes/nodeProbe.js';
+import GoBootProbe from '../../src/cli/bootProbes/goProbe.js';
+import RustBootProbe from '../../src/cli/bootProbes/rustProbe.js';
+import JvmBootProbe from '../../src/cli/bootProbes/jvmProbe.js';
+import ContainerBootProbe from '../../src/cli/bootProbes/containerProbe.js';
 
 async function createTempDir(prefix = 'boot-probe-test-') {
   return mkdtemp(join(tmpdir(), prefix));
@@ -20,16 +24,33 @@ function normalizeLine(value) {
     .trim();
 }
 
-function createStubProbeContext({ commands = {}, files = new Map(), directories = new Map() } = {}) {
+function createDirent(name, { type = 'file' } = {}) {
+  return {
+    name,
+    isFile: () => type === 'file',
+    isDirectory: () => type === 'directory',
+  };
+}
+
+function createStubProbeContext({
+  commands = {},
+  files = new Map(),
+  directories = new Map(),
+  rootEntries = [],
+} = {}) {
+  const fileMap = files instanceof Map ? files : new Map(Object.entries(files));
+  const directoryMap = directories instanceof Map ? directories : new Map(Object.entries(directories));
+  const entryList = Array.isArray(rootEntries) ? rootEntries : [];
+
   return {
     async fileExists(path) {
-      return files.has(path);
+      return fileMap.has(path);
     },
     async readTextFile(path) {
-      return files.get(path) ?? null;
+      return fileMap.get(path) ?? null;
     },
     async readJsonFile(path) {
-      const value = files.get(path);
+      const value = fileMap.get(path);
       if (!value) return null;
       try {
         return JSON.parse(value);
@@ -38,13 +59,26 @@ function createStubProbeContext({ commands = {}, files = new Map(), directories 
       }
     },
     async getRootEntries() {
-      return [];
+      return entryList;
     },
-    async findRootEntries() {
-      return [];
+    async findRootEntries(predicate) {
+      return entryList.filter((entry) => predicate(entry));
+    },
+    async hasRootEntry(matcher) {
+      if (typeof matcher === 'string') {
+        return entryList.some((entry) => entry.name === matcher);
+      }
+      if (matcher instanceof RegExp) {
+        return entryList.some((entry) => matcher.test(entry.name));
+      }
+      if (typeof matcher === 'function') {
+        return entryList.some((entry) => matcher(entry));
+      }
+      return false;
     },
     async readDirEntries(path) {
-      return directories.get(path) ?? [];
+      const value = directoryMap.get(path);
+      return Array.isArray(value) ? value : [];
     },
     async commandExists(command) {
       return Boolean(commands[command]);
@@ -214,6 +248,147 @@ describe('boot probes', () => {
     expect(result.tooling).toContain('Tool availability');
     expect(result.tooling).toContain('- python is installed and ready to use');
     expect(result.tooling).toContain('- pip3 is not installed');
+  });
+
+  it('summarises Go workspaces and tooling', async () => {
+    const context = createStubProbeContext({
+      commands: {
+        go: true,
+        gofmt: true,
+        goimports: false,
+        'golangci-lint': true,
+      },
+      files: new Map([
+        ['go.mod', 'module example.com/demo'],
+        ['cmd', true],
+      ]),
+      directories: new Map([
+        ['cmd', [createDirent('demo', { type: 'directory' })]],
+      ]),
+      rootEntries: [createDirent('main.go')],
+    });
+
+    const result = await GoBootProbe.run(context);
+
+    expect(result.detected).toBe(true);
+    expect(result.details).toEqual(
+      expect.arrayContaining([
+        'go.mod',
+        'Go source files (main.go)',
+        'cmd/ directory',
+        'goimports is not installed',
+        'golangci-lint is installed and ready to use',
+      ])
+    );
+    expect(result.tooling).toContain('Go modules expect go build/test/vet');
+    expect(result.tooling).toContain('- gofmt is installed and ready to use');
+  });
+
+  it('summarises Rust workspaces and tooling', async () => {
+    const context = createStubProbeContext({
+      commands: {
+        cargo: true,
+        rustc: true,
+        rustfmt: false,
+        'cargo-clippy': false,
+        rustup: true,
+      },
+      files: new Map([
+        ['Cargo.toml', '[package]\nname = "demo"'],
+        ['src', true],
+      ]),
+      directories: new Map([
+        ['src', [createDirent('main.rs')]],
+      ]),
+      rootEntries: [createDirent('lib.rs')],
+    });
+
+    const result = await RustBootProbe.run(context);
+
+    expect(result.detected).toBe(true);
+    expect(result.details).toEqual(
+      expect.arrayContaining([
+        'Cargo.toml',
+        'src/ directory',
+        'Rust sources (main.rs)',
+        'Root Rust files (lib.rs)',
+        'rustfmt is not installed',
+        'rustup is installed and ready to use',
+      ])
+    );
+    expect(result.tooling).toContain('Cargo orchestrates builds/tests');
+    expect(result.tooling).toContain('- cargo-clippy is not installed');
+  });
+
+  it('summarises JVM build tooling and sources', async () => {
+    const context = createStubProbeContext({
+      commands: {
+        java: true,
+        javac: true,
+        mvn: false,
+        gradle: false,
+      },
+      files: new Map([
+        ['pom.xml', '<project/>'],
+        ['mvnw', true],
+        ['src/main/java', true],
+      ]),
+      directories: new Map([
+        ['src/main/java', [createDirent('App.java')]],
+      ]),
+      rootEntries: [createDirent('Main.kt')],
+    });
+
+    const result = await JvmBootProbe.run(context);
+
+    expect(result.detected).toBe(true);
+    expect(result.details).toEqual(
+      expect.arrayContaining([
+        'pom.xml',
+        'mvnw wrapper',
+        'src/main/java (App.java)',
+        'JVM sources (Main.kt)',
+        'maven (mvn) is not installed',
+      ])
+    );
+    expect(result.tooling).toContain('Use Maven or Gradle wrappers');
+    expect(result.tooling).toContain('- gradle is not installed');
+  });
+
+  it('summarises containerisation signals and tooling', async () => {
+    const context = createStubProbeContext({
+      commands: {
+        docker: true,
+        'docker-compose': false,
+        podman: false,
+        nerdctl: true,
+      },
+      files: new Map([
+        ['Dockerfile', 'FROM node:20'],
+        ['docker-compose.yml', 'version: "3"'],
+        ['.devcontainer', true],
+        ['.devcontainer/devcontainer.json', '{ "name": "Demo" }'],
+      ]),
+      directories: new Map([
+        ['.devcontainer', [createDirent('devcontainer.json'), createDirent('Dockerfile')]],
+      ]),
+    });
+
+    const result = await ContainerBootProbe.run(context);
+
+    expect(result.detected).toBe(true);
+    expect(result.details).toEqual(
+      expect.arrayContaining([
+        'Dockerfile',
+        'docker-compose.yml',
+        '.devcontainer/devcontainer.json',
+        '.devcontainer/ (devcontainer.json, Dockerfile)',
+        'docker-compose is not installed',
+        'nerdctl is installed and ready to use',
+      ])
+    );
+    expect(result.tooling).toContain('Dockerfiles or devcontainers enable reproducible environments');
+    expect(result.tooling).toContain('- docker is installed and ready to use');
   });
 
   it('summarises Node.js tooling availability', async () => {
