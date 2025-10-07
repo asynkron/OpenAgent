@@ -14,6 +14,7 @@ export async function executeAgentPass({
   model,
   history,
   emitEvent = () => {},
+  onDebug = null,
   runCommandFn,
   runBrowseFn,
   runEditFn,
@@ -33,6 +34,31 @@ export async function executeAgentPass({
   historyCompactor,
   planManager,
 }) {
+  const debugFn = typeof onDebug === 'function' ? onDebug : null;
+  const emitDebug = (payloadOrFactory) => {
+    if (!debugFn) {
+      return;
+    }
+
+    let payload;
+    try {
+      payload =
+        typeof payloadOrFactory === 'function' ? payloadOrFactory() : payloadOrFactory;
+    } catch (error) {
+      debugFn({
+        stage: 'debug-payload-error',
+        message: error instanceof Error ? error.message : String(error),
+      });
+      return;
+    }
+
+    if (typeof payload === 'undefined') {
+      return;
+    }
+
+    debugFn(payload);
+  };
+
   const observationBuilder = new ObservationBuilder({
     combineStdStreams,
     applyFilter: applyFilterFn,
@@ -86,6 +112,12 @@ export async function executeAgentPass({
   const { completion } = completionResult;
   const responseContent = extractResponseText(completion);
 
+  emitDebug(() => ({
+    stage: 'openai-response',
+    completion,
+    responseText: responseContent,
+  }));
+
   if (!responseContent) {
     emitEvent({
       type: 'error',
@@ -138,6 +170,11 @@ export async function executeAgentPass({
   }
 
   const parsed = parseResult.value;
+
+  emitDebug(() => ({
+    stage: 'assistant-response',
+    parsed,
+  }));
 
   if (
     parseResult.recovery &&
@@ -336,6 +373,14 @@ export async function executeAgentPass({
     command: parsed.command,
     result,
   });
+
+  emitDebug(() => ({
+    stage: 'command-execution',
+    command: parsed.command,
+    result,
+    execution: executionDetails,
+    observation,
+  }));
 
   emitEvent({
     type: 'command-result',
