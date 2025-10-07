@@ -5,6 +5,8 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 import { formatBootProbeSummary, runBootProbes } from '../../src/cli/bootProbes/index.js';
+import PythonBootProbe from '../../src/cli/bootProbes/pythonProbe.js';
+import NodeBootProbe from '../../src/cli/bootProbes/nodeProbe.js';
 
 async function createTempDir(prefix = 'boot-probe-test-') {
   return mkdtemp(join(tmpdir(), prefix));
@@ -16,6 +18,38 @@ function normalizeLine(value) {
   return (value || '')
     .replace(/\x1b\[[0-9;]*m/g, '')
     .trim();
+}
+
+function createStubProbeContext({ commands = {}, files = new Map(), directories = new Map() } = {}) {
+  return {
+    async fileExists(path) {
+      return files.has(path);
+    },
+    async readTextFile(path) {
+      return files.get(path) ?? null;
+    },
+    async readJsonFile(path) {
+      const value = files.get(path);
+      if (!value) return null;
+      try {
+        return JSON.parse(value);
+      } catch {
+        return null;
+      }
+    },
+    async getRootEntries() {
+      return [];
+    },
+    async findRootEntries() {
+      return [];
+    },
+    async readDirEntries(path) {
+      return directories.get(path) ?? [];
+    },
+    async commandExists(command) {
+      return Boolean(commands[command]);
+    },
+  };
 }
 
 describe('boot probes', () => {
@@ -146,5 +180,68 @@ describe('boot probes', () => {
       );
       expect(prettierResult.tooling).toContain('Prettier helpers');
     });
+  });
+
+  it('summarises Python tooling availability', async () => {
+    const context = createStubProbeContext({
+      commands: {
+        python: true,
+        python3: true,
+        pip: true,
+        pip3: false,
+        pipenv: false,
+        poetry: true,
+        virtualenv: false,
+        pytest: true,
+        black: false,
+        ruff: true,
+      },
+    });
+
+    const result = await PythonBootProbe.run(context);
+
+    expect(result.details).toEqual(
+      expect.arrayContaining([
+        'python is installed and ready to use',
+        'python3 is installed and ready to use',
+        'pip is installed and ready to use',
+        'pip3 is not installed',
+        'poetry is installed and ready to use',
+        'pytest is installed and ready to use',
+        'ruff is installed and ready to use',
+      ])
+    );
+    expect(result.tooling).toContain('Tool availability');
+    expect(result.tooling).toContain('- python is installed and ready to use');
+    expect(result.tooling).toContain('- pip3 is not installed');
+  });
+
+  it('summarises Node.js tooling availability', async () => {
+    const context = createStubProbeContext({
+      commands: {
+        node: true,
+        npx: true,
+        npm: true,
+        pnpm: false,
+        yarn: false,
+        bun: false,
+      },
+    });
+
+    const result = await NodeBootProbe.run(context);
+
+    expect(result.detected).toBe(true);
+    expect(result.details).toEqual(
+      expect.arrayContaining([
+        'node is installed and ready to use',
+        'npx is installed and ready to use',
+        'npm is installed and ready to use',
+        'pnpm is not installed',
+        'yarn is not installed',
+        'bun is not installed',
+      ])
+    );
+    expect(result.tooling).toContain('Tool availability');
+    expect(result.tooling).toContain('- node is installed and ready to use');
   });
 });

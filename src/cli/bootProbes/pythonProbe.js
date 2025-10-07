@@ -12,6 +12,19 @@ const PYTHON_FILES = [
   'environment.yml',
 ];
 
+const TOOL_CHECKS = [
+  { name: 'python' },
+  { name: 'python3' },
+  { name: 'pip' },
+  { name: 'pip3' },
+  { name: 'pipenv' },
+  { name: 'poetry' },
+  { name: 'virtualenv' },
+  { name: 'pytest' },
+  { name: 'black' },
+  { name: 'ruff' },
+];
+
 export const PythonBootProbe = {
   name: 'Python',
   async run(context) {
@@ -60,8 +73,29 @@ export const PythonBootProbe = {
       details.push('venv present');
     }
 
-    const tooling = detected
-      ? 'Prefer virtualenv or Poetry for environments, pip for packages, and pytest plus black/ruff for testing and linting.'
+    const toolAvailability = await Promise.all(
+      TOOL_CHECKS.map(async ({ name, command = name, label = name }) => {
+        const available = await context.commandExists(command);
+        const summary = available
+          ? `${label} is installed and ready to use`
+          : `${label} is not installed`;
+        return { name: label, available, summary };
+      })
+    );
+
+    for (const tool of toolAvailability) {
+      details.push(tool.summary);
+    }
+
+    const hasHelpfulTooling = detected || toolAvailability.some((tool) => tool.available);
+
+    const tooling = hasHelpfulTooling
+      ? [
+          'Prefer virtualenv or Poetry for environments, pip for packages, and pytest plus black/ruff for testing and linting.',
+          '',
+          '### Tool availability',
+          ...toolAvailability.map((tool) => `- ${tool.summary}`),
+        ].join('\n')
       : '';
 
     return createBootProbeResult({ detected, details, tooling });
