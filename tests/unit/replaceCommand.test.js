@@ -9,14 +9,14 @@ function createTempDir(prefix) {
 }
 
 describe('runReplace', () => {
-  test('replaces matches across files', async () => {
+  test('replaces matches across files with regex search', async () => {
     const dir = createTempDir('replace-basic-');
     const file = path.join(dir, 'sample.txt');
     fs.writeFileSync(file, 'foo and foo again', 'utf8');
 
     const result = await runReplace(
       {
-        pattern: 'foo',
+        regex: 'foo',
         replacement: 'bar',
         files: ['sample.txt'],
       },
@@ -42,7 +42,7 @@ describe('runReplace', () => {
 
     const result = await runReplace(
       {
-        pattern: 'world',
+        regex: 'world',
         replacement: 'universe',
         files: ['dry.txt'],
         dry_run: true,
@@ -61,10 +61,49 @@ describe('runReplace', () => {
     expect(fs.readFileSync(file, 'utf8')).toBe('hello world');
   });
 
-  test('reports invalid patterns with exit_code 1', async () => {
+  test('supports raw string replacement without regex', async () => {
+    const dir = createTempDir('replace-raw-');
+    const file = path.join(dir, 'raw.txt');
+    fs.writeFileSync(file, 'alpha beta alpha', 'utf8');
+
     const result = await runReplace(
       {
-        pattern: '(',
+        raw: 'alpha',
+        replacement: 'gamma',
+        files: ['raw.txt'],
+      },
+      dir,
+    );
+
+    expect(result.exit_code).toBe(0);
+    expect(fs.readFileSync(file, 'utf8')).toBe('gamma beta gamma');
+    expect(result.stdout).toContain('Total matches: 2');
+  });
+
+  test('aborts when total replacements exceed the safety limit', async () => {
+    const dir = createTempDir('replace-limit-');
+    const file = path.join(dir, 'limit.txt');
+    const content = Array.from({ length: 101 }, () => 'hit').join('\n');
+    fs.writeFileSync(file, content, 'utf8');
+
+    const result = await runReplace(
+      {
+        regex: 'hit',
+        replacement: 'miss',
+        files: ['limit.txt'],
+      },
+      dir,
+    );
+
+    expect(result.exit_code).toBe(1);
+    expect(result.stderr).toMatch(/exceeds the limit of 100/);
+    expect(fs.readFileSync(file, 'utf8')).toBe(content);
+  });
+
+  test('reports invalid regex patterns with exit_code 1', async () => {
+    const result = await runReplace(
+      {
+        regex: '(',
         files: ['whatever.txt'],
       },
       '.',
@@ -72,5 +111,44 @@ describe('runReplace', () => {
 
     expect(result.exit_code).toBe(1);
     expect(result.stderr).toMatch(/Invalid regex pattern/);
+  });
+
+  test('errors when both raw and regex are provided', async () => {
+    const result = await runReplace(
+      {
+        raw: 'foo',
+        regex: 'foo',
+        files: ['whatever.txt'],
+      },
+      '.',
+    );
+
+    expect(result.exit_code).toBe(1);
+    expect(result.stderr).toMatch(/either raw or regex/);
+  });
+
+  test('errors when neither raw nor regex are provided', async () => {
+    const result = await runReplace(
+      {
+        files: ['whatever.txt'],
+      },
+      '.',
+    );
+
+    expect(result.exit_code).toBe(1);
+    expect(result.stderr).toMatch(/must include either raw or regex/);
+  });
+
+  test('errors when raw is empty', async () => {
+    const result = await runReplace(
+      {
+        raw: '',
+        files: ['whatever.txt'],
+      },
+      '.',
+    );
+
+    expect(result.exit_code).toBe(1);
+    expect(result.stderr).toMatch(/raw must be a non-empty string/);
   });
 });
