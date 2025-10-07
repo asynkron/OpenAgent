@@ -7,7 +7,7 @@
 
 ## Key Files
 
-- `system.md`: top-level operating constraints (hierarchy, safety, refusal policy).
+- `system.md`: top-level operating constraints (hierarchy, safety, refusal policy) and the RFC-style Response Envelope specification.
 - `developer.md`: hands-on workflow instructions, built-in command documentation (now includes `quoteString` / `unquoteString`).
 - `prompts.json`: manifest describing canonical prompts and the copies that must remain synchronized.
 - `*_copy.md`: reference versions for experimentation; kept in lockstep with the canonical files via automation.

@@ -78,7 +78,11 @@ export function validateAssistantResponse(payload) {
     };
   }
 
-  if (typeof payload.message !== 'undefined' && typeof payload.message !== 'string') {
+  if (
+    typeof payload.message !== 'undefined' &&
+    payload.message !== null &&
+    typeof payload.message !== 'string'
+  ) {
     errors.push('"message" must be a string when provided.');
   }
 

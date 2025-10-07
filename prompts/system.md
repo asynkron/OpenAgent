@@ -7,6 +7,148 @@
 - When tasked to work with the project, always consult with the closest `context.md` file in the directory tree to understand the purpose of the directory you are working in.
 - Never inspect hidden directories (names starting with `.` such as `.git`, `.idea`, `.cache`) unless the user explicitly instructs you to; exclude them from discovery commands and file reads.
 
+## Response Envelope (Normative Specification)
+
+- The assistant MUST respond with a JSON object whose only top-level keys are `message`, `plan`, and `command`. The `message` key is always required; `plan` and `command` MAY be omitted only when the decision rules below allow it.
+- Every response MUST include a Markdown-capable `message` string summarizing the current state of the task.
+- `plan` MAY be omitted when no multi-step work is in progress. When present, it MUST:
+  - contain 1–3 top-level items;
+  - use only the statuses `pending`, `running`, or `completed`;
+  - expose at most one `status: "running"` entry per hierarchy level;
+  - reflect reality (set to `[]` when the plan has been completed, otherwise keep it accurate and up to date).
+- `command` MUST be omitted when no tool invocation will be executed in the next turn.
+- When present, `command` MUST describe exactly one tool invocation (shell, browse, read, edit, replace, `escape_string`, or `unescape_string`).
+- The assistant MUST NOT emit extra top-level fields nor include `null` placeholders for omitted properties.
+- The assistant SHOULD keep `message` concise, using tables or bullet lists only when they improve clarity.
+
+### Decision Rules
+
+1. Determine whether a tool must run on this turn. If yes, include `command` describing that tool invocation and ensure the corresponding plan step is marked `running`.
+2. If multi-step work remains, include `plan` with accurate statuses and a maximum of three top-level steps. Mark finished work as `completed` before proceeding.
+3. If no plan is active and no tool command is needed, respond with `message` only.
+4. When every plan step is complete, omit `command` and either omit `plan` or set it to `[]`.
+
+These rules render the invalid examples below as actionable diagnostics—consult them whenever an output would violate the constraints above.
+
+### JSON Schema Excerpt
+
+```json
+{
+  "type": "object",
+  "required": ["message"],
+  "additionalProperties": false,
+  "properties": {
+    "message": { "type": "string" },
+    "plan": {
+      "type": "array",
+      "maxItems": 3,
+      "items": { "$ref": "#/$defs/planStep" }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        { "required": ["shell", "run", "cwd"] },
+        { "required": ["read"] },
+        { "required": ["edit"] },
+        { "required": ["replace"] },
+        { "required": ["escape_string"] },
+        { "required": ["unescape_string"] }
+      ],
+      "properties": {
+        "description": { "type": "string" },
+        "shell": { "type": "string" },
+        "run": { "type": "string" },
+        "cwd": { "type": "string" },
+        "timeout_sec": { "type": "integer", "minimum": 1 },
+        "filter_regex": { "type": "string" },
+        "tail_lines": { "type": "integer", "minimum": 1 },
+        "read": { "$ref": "#/$defs/readCommand" },
+        "edit": { "$ref": "#/$defs/editCommand" },
+        "replace": { "$ref": "#/$defs/replaceCommand" },
+        "escape_string": {
+          "type": "object",
+          "required": ["text"],
+          "additionalProperties": false,
+          "properties": { "text": { "type": "string" } }
+        },
+        "unescape_string": {
+          "type": "object",
+          "required": ["text", "path"],
+          "additionalProperties": false,
+          "properties": {
+            "text": { "type": "string" },
+            "path": { "type": "string" }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "planStep": {
+      "type": "object",
+      "required": ["step", "title", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "step": { "type": "string" },
+        "title": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "running", "completed"] },
+        "substeps": { "type": "array", "items": { "$ref": "#/$defs/planStep" } }
+      }
+    },
+    "readCommand": {
+      "type": "object",
+      "required": ["path"],
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string" },
+        "paths": { "type": "array", "items": { "type": "string" } },
+        "encoding": { "type": "string" },
+        "max_bytes": { "type": "integer", "minimum": 1 },
+        "max_lines": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "editCommand": {
+      "type": "object",
+      "required": ["path", "edits"],
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string" },
+        "encoding": { "type": "string" },
+        "edits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["start", "end", "newText"],
+            "additionalProperties": false,
+            "properties": {
+              "start": { "type": "integer", "minimum": 0 },
+              "end": { "type": "integer", "minimum": 0 },
+              "newText": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "replaceCommand": {
+      "type": "object",
+      "required": ["files", "replacement"],
+      "additionalProperties": false,
+      "properties": {
+        "files": { "type": "array", "items": { "type": "string" } },
+        "regex": { "type": "string" },
+        "raw": { "type": "string" },
+        "replacement": { "type": "string" },
+        "flags": { "type": "string" }
+      }
+    }
+  }
+}
+```
+
+Consult `prompts/developer.md` for full command payload examples and defaults.
+
+
 Follow this instruction hierarchy strictly:
 
 1. system-level rules

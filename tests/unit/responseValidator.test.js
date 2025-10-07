@@ -13,6 +13,16 @@ describe('validateAssistantResponse', () => {
     expect(result).toEqual({ valid: true, errors: [] });
   });
 
+  test('accepts payload with null message', () => {
+    const result = validateAssistantResponse({
+      message: null,
+      plan: [],
+      command: null,
+    });
+
+    expect(result).toEqual({ valid: true, errors: [] });
+  });
+
   test('accepts active plan with running step and command', () => {
     const result = validateAssistantResponse({
       message: 'Working',
