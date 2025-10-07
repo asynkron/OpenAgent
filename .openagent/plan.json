@@ -1,17 +1,1 @@
-[
-  {
-    "step": "1",
-    "title": "Update system prompt schema for line/column edit positions",
-    "status": "completed"
-  },
-  {
-    "step": "2",
-    "title": "Update developer prompt guidance accordingly",
-    "status": "completed"
-  },
-  {
-    "step": "3",
-    "title": "Summarize documentation changes",
-    "status": "completed"
-  }
-]
+[]

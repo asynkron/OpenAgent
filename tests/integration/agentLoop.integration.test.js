@@ -103,6 +103,8 @@ test.each([
       event.message.includes('auto-responding with "continue"')
   );
   expect(autoStatusEvent).toBeTruthy();
+});
+
 test('agent runtime emits debug envelopes when debug flag enabled', async () => {
   process.env.OPENAI_API_KEY = 'test-key';
   const { agent } = await loadAgentWithMockedModules();
