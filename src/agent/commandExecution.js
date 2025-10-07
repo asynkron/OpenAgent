@@ -1,10 +1,9 @@
 import { shellSplit } from '../utils/text.js';
 import BrowseCommand from './commands/BrowseCommand.js';
-import EditCommand from './commands/EditCommand.js';
+import ApplyPatchCommand from './commands/ApplyPatchCommand.js';
 import EscapeStringCommand from './commands/EscapeStringCommand.js';
 import ExecuteCommand from './commands/ExecuteCommand.js';
 import ReadCommand from './commands/ReadCommand.js';
-import ReplaceCommand from './commands/ReplaceCommand.js';
 import UnescapeStringCommand from './commands/UnescapeStringCommand.js';
 
 const DEFAULT_TIMEOUT_SEC = 60;
@@ -18,12 +17,11 @@ const DEFAULT_TIMEOUT_SEC = 60;
  * @property {string} runKeyword Lower-cased first token from `runTokens`.
  * @property {(command: object, cwd: string, timeout: number, shell?: string) => Promise<object>} runCommandFn
  * @property {(target: string, timeout: number) => Promise<object>} runBrowseFn
- * @property {(spec: object, cwd: string) => Promise<object>} runEditFn
  * @property {(spec: object, cwd: string) => Promise<object>} runReadFn
- * @property {(spec: object, cwd: string) => Promise<object>} runReplaceFn
+ * @property {(spec: object, cwd: string, timeout: number) => Promise<object>} runApplyPatchFn
  * @property {(spec: object, cwd: string) => Promise<object>} runEscapeStringFn
  * @property {(spec: object, cwd: string) => Promise<object>} runUnescapeStringFn
- */
+*/
 
 /**
  * @typedef {Object} ICommand
@@ -34,10 +32,9 @@ const DEFAULT_TIMEOUT_SEC = 60;
 /** @returns {ICommand[]} */
 function createCommandHandlers() {
   return [
-    new EditCommand(),
+    new ApplyPatchCommand(),
     new EscapeStringCommand(),
     new UnescapeStringCommand(),
-    new ReplaceCommand(),
     new BrowseCommand(),
     new ReadCommand(),
     new ExecuteCommand(),
@@ -48,9 +45,8 @@ export async function executeAgentCommand({
   command,
   runCommandFn,
   runBrowseFn,
-  runEditFn,
   runReadFn,
-  runReplaceFn,
+  runApplyPatchFn,
   runEscapeStringFn,
   runUnescapeStringFn,
 }) {
@@ -75,9 +71,8 @@ export async function executeAgentCommand({
     runKeyword,
     runCommandFn,
     runBrowseFn,
-    runEditFn,
     runReadFn,
-    runReplaceFn,
+    runApplyPatchFn,
     runEscapeStringFn,
     runUnescapeStringFn,
   };

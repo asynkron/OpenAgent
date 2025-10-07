@@ -17,7 +17,7 @@
   - expose at most one `status: "running"` entry per hierarchy level;
   - reflect reality (set to `[]` when the plan has been completed, otherwise keep it accurate and up to date).
 - `command` MUST be omitted when no tool invocation will be executed in the next turn.
-- When present, `command` MUST describe exactly one tool invocation (shell, browse, read, edit, replace, `escape_string`, or `unescape_string`).
+- When present, `command` MUST describe exactly one tool invocation (shell, browse, read, apply_patch, `escape_string`, or `unescape_string`).
 - The assistant MUST NOT emit extra top-level fields nor include `null` placeholders for omitted properties.
 - The assistant SHOULD keep `message` concise, using tables or bullet lists only when they improve clarity.
 
@@ -50,8 +50,7 @@ These rules render the invalid examples below as actionable diagnostics—consul
       "oneOf": [
         { "required": ["shell", "run", "cwd"] },
         { "required": ["read"] },
-        { "required": ["edit"] },
-        { "required": ["replace"] },
+        { "required": ["apply_patch"] },
         { "required": ["escape_string"] },
         { "required": ["unescape_string"] }
       ],
@@ -64,8 +63,7 @@ These rules render the invalid examples below as actionable diagnostics—consul
         "filter_regex": { "type": "string" },
         "tail_lines": { "type": "integer", "minimum": 1 },
         "read": { "$ref": "#/$defs/readCommand" },
-        "edit": { "$ref": "#/$defs/editCommand" },
-        "replace": { "$ref": "#/$defs/replaceCommand" },
+        "apply_patch": { "$ref": "#/$defs/applyPatchCommand" },
         "escape_string": {
           "type": "object",
           "required": ["text"],
@@ -108,51 +106,16 @@ These rules render the invalid examples below as actionable diagnostics—consul
         "max_lines": { "type": "integer", "minimum": 1 }
       }
     },
-    "editCommand": {
+    "applyPatchCommand": {
       "type": "object",
-      "required": ["path", "edits"],
+      "required": ["target", "patch"],
       "additionalProperties": false,
       "properties": {
-        "path": { "type": "string" },
-        "encoding": { "type": "string" },
-        "edits": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["start", "end", "newText"],
-            "additionalProperties": false,
-            "properties": {
-              "start": {
-                "oneOf": [{ "type": "integer", "minimum": 0 }, { "$ref": "#/$defs/editPosition" }]
-              },
-              "end": {
-                "oneOf": [{ "type": "integer", "minimum": 0 }, { "$ref": "#/$defs/editPosition" }]
-              },
-              "newText": { "type": "string" }
-            }
-          }
-        }
-      }
-    },
-    "editPosition": {
-      "type": "object",
-      "required": ["line", "column"],
-      "additionalProperties": false,
-      "properties": {
-        "line": { "type": "integer", "minimum": 1 },
-        "column": { "type": "integer", "minimum": 0 }
-      }
-    },
-    "replaceCommand": {
-      "type": "object",
-      "required": ["files", "replacement"],
-      "additionalProperties": false,
-      "properties": {
-        "files": { "type": "array", "items": { "type": "string" } },
-        "regex": { "type": "string" },
-        "raw": { "type": "string" },
-        "replacement": { "type": "string" },
-        "flags": { "type": "string" }
+        "target": { "type": "string" },
+        "patch": { "type": "string" },
+        "strip": { "type": "integer" },
+        "reverse": { "type": "boolean" },
+        "whitespace": { "type": "string" }
       }
     }
   }

@@ -31,6 +31,7 @@ import {
   runReplace,
   runEscapeString,
   runUnescapeString,
+  runApplyPatch,
 } from '../commands/run.js';
 import {
   CommandApprovalService,
@@ -85,6 +86,7 @@ export {
   runReplace,
   runEscapeString,
   runUnescapeString,
+  runApplyPatch,
   CommandApprovalService,
   sessionApprovalService,
   loadPreapprovedConfig,
@@ -138,6 +140,7 @@ const exported = {
   runReplace,
   runEscapeString,
   runUnescapeString,
+  runApplyPatch,
   CommandApprovalService,
   sessionApprovalService,
   loadPreapprovedConfig,
