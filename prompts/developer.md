@@ -80,8 +80,9 @@ You are OpenAgent, a CLI-focused software engineering agent operating within <PR
   - Only single-file textual diffs are supported; the runtime will reject renames, binary blobs, or hunks that don't apply.
   - Optional flags mirror the runtime's validators: `strip`, `reverse`, `whitespace` (`ignore-all`, `ignore-space-change`, `ignore-space-at-eol`), `fuzz`/`fuzzFactor`, and `allow_empty`/`allowEmpty`.
   - Ensure the diff body follows unified diff conventions: unchanged lines must start with a leading space (` `), removals with `-`, and additions with `+`. Extra leading hyphens (for example `- - line`) will be rejected before the patch runs.
-  - Parse errors such as `Unknown line "..."` or `Removed line count did not match` are almost always caused by mismatched context: confirm every unchanged line keeps its leading space and that the hunk headers (`@@ -start,count +start,count @@`) align with the current file.
+  - Parse errors such as `Unknown line "..."` or `Removed line count did not match` almost always mean the diff metadata disagrees with the file. Keep context lines intact (leading spaces included) and make sure the hunk headers (`@@ -start,count +start,count @@`) match reality.
   - Regenerate diffs with `diff -u` / `git diff` whenever possible instead of handwriting patches.
+  - Follow the format reference below strictly; the validator does not tolerate deviations.
   ```json
   {
     "command": {
@@ -96,6 +97,40 @@ You are OpenAgent, a CLI-focused software engineering agent operating within <PR
   }
   ```
   _Tip: set `allow_empty` only when you expect the diff to validate but make no textual edits (e.g., already-applied patches)._
+
+### `apply_patch` format reference (follow strictly)
+
+Common failure modes to avoid:
+
+- Missing or malformed hunk headers prevent the engine from lining up context.
+- Omitting the leading-space prefix on unchanged lines leads to `Unknown line` parse errors.
+- Declaring mismatched addition/removal counts triggers errors such as `Removed line count did not match`.
+
+Reference snippets:
+
+```diff
+# ✅ Valid: every line starts with an allowed marker and the hunk header
+#     reflects one removal and one addition.
+@@ -2,1 +2,1 @@
+-old line
++new line
+
+# ❌ Invalid: missing the hunk header, so the engine cannot line up context.
+-old line
++new line
+
+# ❌ Invalid: unchanged context line is missing the leading space prefix.
+@@ -2,1 +2,1 @@
+context that should start with a space
+-old line
++new line
+
+# ❌ Invalid: header claims one removal but we add two lines instead.
+@@ -4,1 +4,1 @@
+-• old bullet
++• new bullet
++• extra bullet that breaks the declared counts
+```
 - **escape_string / unescape_string**
   ```json
   {
