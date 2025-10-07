@@ -40,9 +40,11 @@ describe('boot probes', () => {
       expect(jsResult).toBeDefined();
       expect(jsResult.detected).toBe(true);
       expect(jsResult.details.join(' ')).toContain('package.json');
+      expect(jsResult.tooling).toContain('Recommended refactoring tools for JavaScript');
       expect(lines.some((line) => normalizeLine(line).includes('JavaScript'))).toBe(true);
       expect(normalizeLine(lines.at(-1))).toMatch(/^OS:/);
-      expect(summary).toContain('- JavaScript: detected');
+      expect(summary).toContain('- JavaScript: detected (');
+      expect(summary).toContain('tools:');
       expect(summary.split('\n').at(-1)).toMatch(/^- OS:/);
     });
   });
@@ -56,6 +58,9 @@ describe('boot probes', () => {
       for (const result of results) {
         expect(result.error).toBeNull();
         expect(result.detected === false || Array.isArray(result.details)).toBe(true);
+        if (result.detected) {
+          expect(result.tooling).not.toBe('');
+        }
       }
       expect(normalizeLine(lines.at(-1))).toMatch(/^OS:/);
       expect(summary.split('\n').at(-1)).toMatch(/^- OS:/);

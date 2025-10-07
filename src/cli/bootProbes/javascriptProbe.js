@@ -65,7 +65,31 @@ export const JavaScriptBootProbe = {
       details.push(`module files (${esmEntries.slice(0, 3).map((entry) => entry.name).join(', ')})`);
     }
 
-    return createBootProbeResult({ detected, details });
+    const tooling = detected
+      ? [
+          '## Recommended refactoring tools for JavaScript:',
+          '',
+          '### jscodeshift',
+          'https://github.com/facebook/jscodeshift',
+          '',
+          '### ast-grep',
+          'https://ast-grep.github.io/',
+          '',
+          '### comby',
+          'https://comby.dev/',
+          'https://github.com/comby-tools/comby',
+          '',
+          '### acorn',
+          'https://github.com/acornjs/acorn',
+          '',
+          'Check for existence on client computer.',
+          'As user if you may install them.',
+          'Check help output per tool to learn how to use them.',
+          'Prefer proper refactoring tools over manual edits.',
+        ].join('\n')
+      : '';
+
+    return createBootProbeResult({ detected, details, tooling });
   },
 };
 

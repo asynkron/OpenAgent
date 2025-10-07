@@ -48,7 +48,11 @@ export const TypeScriptBootProbe = {
       details.push('typescript dependency installed');
     }
 
-    return createBootProbeResult({ detected, details });
+    const tooling = detected
+      ? 'Use TypeScript compiler (tsc) with ts-node or SWC for execution plus ESLint, Prettier, and Jest/Vitest for developer workflows.'
+      : '';
+
+    return createBootProbeResult({ detected, details, tooling });
   },
 };
 

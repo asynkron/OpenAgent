@@ -84,10 +84,18 @@ export function createBootProbeContext(cwd) {
   };
 }
 
-export function createBootProbeResult({ detected = false, details = [], error = null } = {}) {
+export function createBootProbeResult({
+  detected = false,
+  details = [],
+  error = null,
+  tooling = '',
+} = {}) {
+  const toolingSummary = typeof tooling === 'string' ? tooling.trim() : String(tooling || '').trim();
+
   return {
     detected: Boolean(detected),
     details: Array.isArray(details) ? details.filter(Boolean) : [],
     error: error || null,
+    tooling: toolingSummary,
   };
 }

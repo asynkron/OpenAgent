@@ -60,7 +60,11 @@ export const PythonBootProbe = {
       details.push('venv present');
     }
 
-    return createBootProbeResult({ detected, details });
+    const tooling = detected
+      ? 'Prefer virtualenv or Poetry for environments, pip for packages, and pytest plus black/ruff for testing and linting.'
+      : '';
+
+    return createBootProbeResult({ detected, details, tooling });
   },
 };
 
