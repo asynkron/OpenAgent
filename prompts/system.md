@@ -33,7 +33,7 @@ comments are for you, not to be included in your response:
     }
   ],
   "command": {
-    "description": "a human friendly description of you are trying to do",
+    "description": "in order to solve current task, I need to find/update/(other) this information/file (non technical jargon)",
     //if there is an active plan, there must be a command to execute next
     "shell": "bash",
     "run": "command to execute",

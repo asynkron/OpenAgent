@@ -229,6 +229,12 @@ export function createAgentRuntime({
 
   const emitPlanProgressEvent = (plan) => {
     const progress = computePlanProgress(plan);
+
+    if (progress.totalSteps === 0) {
+      lastPlanProgressSignature = undefined;
+      return progress;
+    }
+
     const signature = `${progress.completedSteps}|${progress.totalSteps}`;
 
     if (signature !== lastPlanProgressSignature) {
