@@ -2,6 +2,7 @@ import { planHasOpenSteps } from '../utils/plan.js';
 import { incrementCommandCount } from '../commands/commandStats.js';
 import { combineStdStreams, buildPreview } from '../utils/output.js';
 import ObservationBuilder from './observationBuilder.js';
+import { parseAssistantResponse } from './responseParser.js';
 import { requestModelCompletion } from './openaiRequest.js';
 import { executeAgentCommand } from './commandExecution.js';
 import { summarizeContextUsage } from '../utils/contextUsage.js';
@@ -98,21 +99,33 @@ export async function executeAgentPass({
     content: responseContent,
   });
 
-  let parsed;
-  try {
-    parsed = JSON.parse(responseContent);
-  } catch (err) {
+  const parseResult = parseAssistantResponse(responseContent);
+
+  if (!parseResult.ok) {
+    const attempts = Array.isArray(parseResult.attempts)
+      ? parseResult.attempts.map(({ strategy, error }) => ({
+          strategy,
+          message: error instanceof Error ? error.message : String(error),
+        }))
+      : [];
+
     emitEvent({
       type: 'error',
       message: 'LLM returned invalid JSON.',
-      details: err instanceof Error ? err.message : String(err),
+      details:
+        parseResult.error instanceof Error
+          ? parseResult.error.message
+          : String(parseResult.error ?? 'Unknown error'),
       raw: responseContent,
+      attempts,
     });
 
     const observation = {
       observation_for_llm: {
         json_parse_error: true,
-        message: `Failed to parse assistant JSON: ${err instanceof Error ? err.message : String(err)}`,
+        message:
+          'Failed to parse assistant JSON response. Please resend a valid JSON object that follows the CLI protocol.',
+        attempts,
         response_snippet: responseContent.slice(0, 4000),
       },
       observation_metadata: {
@@ -122,6 +135,20 @@ export async function executeAgentPass({
 
     history.push({ role: 'user', content: JSON.stringify(observation) });
     return true;
+  }
+
+  const parsed = parseResult.value;
+
+  if (
+    parseResult.recovery &&
+    parseResult.recovery.strategy &&
+    parseResult.recovery.strategy !== 'direct'
+  ) {
+    emitEvent({
+      type: 'status',
+      level: 'info',
+      message: `Assistant JSON parsed after applying ${parseResult.recovery.strategy.replace(/_/g, ' ')} recovery.`,
+    });
   }
 
   const validation = validateAssistantResponse(parsed);

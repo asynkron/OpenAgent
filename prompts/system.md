@@ -33,6 +33,7 @@ comments are for you, not to be included in your response:
     }
   ],
   "command": {
+    "description": "a human friendly description of you are trying to do",
     //if there is an active plan, there must be a command to execute next
     "shell": "bash",
     "run": "command to execute",
@@ -73,6 +74,22 @@ comments are for you, not to be included in your response:
     "message": "You have an active plan, but the next step is not marked as 'running'. This is invalid.",
     "plan": [/*...*/],
     "command": { /*...*/ }
+}
+```
+
+```json
+{
+    /* ... */
+    "plan": [
+        /* only one step per level can be running at the same time */
+        {
+        "step": "1","title": "Description of step","status": "running" 
+        },
+        {
+        "step": "2","title": "Description of step","status": "running" 
+        },
+    ],
+    /* ... */
 }
 ```
 

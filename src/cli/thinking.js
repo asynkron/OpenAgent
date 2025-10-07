@@ -13,13 +13,11 @@
 import * as readline from 'node:readline';
 import chalk from 'chalk';
 
-let intervalHandle = null;
-let animationStart = null;
-
 export function formatElapsedTime(startTime, now = Date.now()) {
   if (!startTime || startTime > now) {
     return '00:00';
   }
+
   const elapsedMs = Math.max(0, now - startTime);
   const totalSeconds = Math.floor(elapsedMs / 1000);
   const minutes = Math.floor(totalSeconds / 60);
@@ -27,42 +25,94 @@ export function formatElapsedTime(startTime, now = Date.now()) {
   return String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
 }
 
-export function startThinking() {
-  if (intervalHandle) return;
-  animationStart = Date.now();
-  // Unicode braille spinner frames requested for the waiting animation.
-  const frames = ['⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏', '⠋'];
-  const label = ' Thinking';
-  let i = 0;
-  process.stdout.write('\n');
-  intervalHandle = setInterval(() => {
-    try {
-      const elapsed = formatElapsedTime(animationStart);
-      readline.clearLine(process.stdout, 0);
-      readline.cursorTo(process.stdout, 0);
-      process.stdout.write(chalk.dim(frames[i] + label + ' (' + elapsed + ')'));
-      i = (i + 1) % frames.length;
-    } catch (err) {
-      // Ignore TTY issues silently.
-    }
-  }, 50);
-}
+const DEFAULT_FRAMES = ['⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏', '⠋'];
 
-export function stopThinking() {
-  if (intervalHandle) {
-    clearInterval(intervalHandle);
-    intervalHandle = null;
-    animationStart = null;
+export class ThinkingIndicator {
+  constructor({ stream = process.stdout, frames = DEFAULT_FRAMES, label = ' Thinking', intervalMs = 50 } = {}) {
+    this.stream = stream;
+    this.frames = Array.isArray(frames) && frames.length > 0 ? frames : DEFAULT_FRAMES;
+    this.label = label;
+    this.intervalMs = Math.max(16, Number(intervalMs) || 50);
+
+    this._intervalHandle = null;
+    this._animationStart = null;
+    this._frameIndex = 0;
+  }
+
+  isRunning() {
+    return Boolean(this._intervalHandle);
+  }
+
+  start() {
+    if (this.isRunning()) {
+      return;
+    }
+
+    this._animationStart = Date.now();
+    this._frameIndex = 0;
+
     try {
-      readline.clearLine(process.stdout, 0);
-      readline.cursorTo(process.stdout, 0);
-    } catch (err) {
+      this.stream.write('\n');
+    } catch (error) {
+      // Ignore stream write failures silently.
+    }
+
+    this._intervalHandle = setInterval(() => {
+      this._renderFrame();
+    }, this.intervalMs);
+  }
+
+  stop() {
+    if (!this.isRunning()) {
+      return;
+    }
+
+    clearInterval(this._intervalHandle);
+    this._intervalHandle = null;
+    this._animationStart = null;
+    this._frameIndex = 0;
+
+    try {
+      readline.clearLine(this.stream, 0);
+      readline.cursorTo(this.stream, 0);
+    } catch (error) {
       // Ignore TTY issues silently.
     }
   }
+
+  _renderFrame() {
+    if (!this._animationStart) {
+      return;
+    }
+
+    const frame = this.frames[this._frameIndex % this.frames.length];
+    const elapsed = formatElapsedTime(this._animationStart);
+
+    try {
+      readline.clearLine(this.stream, 0);
+      readline.cursorTo(this.stream, 0);
+      this.stream.write(chalk.dim(`${frame}${this.label} (${elapsed})`));
+    } catch (error) {
+      // Ignore TTY issues silently.
+    }
+
+    this._frameIndex = (this._frameIndex + 1) % this.frames.length;
+  }
+}
+
+export const defaultIndicator = new ThinkingIndicator();
+
+export function startThinking() {
+  defaultIndicator.start();
+}
+
+export function stopThinking() {
+  defaultIndicator.stop();
 }
 
 export default {
+  ThinkingIndicator,
+  defaultIndicator,
   startThinking,
   stopThinking,
   formatElapsedTime,
