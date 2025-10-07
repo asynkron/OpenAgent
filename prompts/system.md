@@ -123,16 +123,10 @@ These rules render the invalid examples below as actionable diagnostics—consul
             "additionalProperties": false,
             "properties": {
               "start": {
-                "oneOf": [
-                  { "type": "integer", "minimum": 0 },
-                  { "$ref": "#/$defs/editPosition" }
-                ]
+                "oneOf": [{ "type": "integer", "minimum": 0 }, { "$ref": "#/$defs/editPosition" }]
               },
               "end": {
-                "oneOf": [
-                  { "type": "integer", "minimum": 0 },
-                  { "$ref": "#/$defs/editPosition" }
-                ]
+                "oneOf": [{ "type": "integer", "minimum": 0 }, { "$ref": "#/$defs/editPosition" }]
               },
               "newText": { "type": "string" }
             }
@@ -166,7 +160,6 @@ These rules render the invalid examples below as actionable diagnostics—consul
 ```
 
 Consult `prompts/developer.md` for full command payload examples and defaults.
-
 
 Follow this instruction hierarchy strictly:
 
@@ -210,47 +203,59 @@ comments are for you, not to be included in your response:
 
 ```json
 {
-    //no message, no plan, no command
+  //no message, no plan, no command
 }
 ```
 
 ```json
 {
-    "message": "You have an active plan, but no command to execute next. This is invalid.",
-    "plan": [/* with one or more non completed steps */],
-    "command": null
+  "message": "You have an active plan, but no command to execute next. This is invalid.",
+  "plan": [
+    /* with one or more non completed steps */
+  ],
+  "command": null
 }
 ```
 
 ```json
 {
-    "message": "You have no active plan, but a command to execute next. This is invalid.",
-    "plan": [],
-    "command": { /*...*/ }
+  "message": "You have no active plan, but a command to execute next. This is invalid.",
+  "plan": [],
+  "command": {
+    /*...*/
+  }
 }
 ```
 
 ```json
 {
-    "message": "You have an active plan, but the next step is not marked as 'running'. This is invalid.",
-    "plan": [/*...*/],
-    "command": { /*...*/ }
+  "message": "You have an active plan, but the next step is not marked as 'running'. This is invalid.",
+  "plan": [
+    /*...*/
+  ],
+  "command": {
+    /*...*/
+  }
 }
 ```
 
 ```json
 {
-    /* ... */
-    "plan": [
-        /* only one step per level can be running at the same time */
-        {
-        "step": "1","title": "Description of step","status": "running" 
-        },
-        {
-        "step": "2","title": "Description of step","status": "running" 
-        },
-    ],
-    /* ... */
+  /* ... */
+  "plan": [
+    /* only one step per level can be running at the same time */
+    {
+      "step": "1",
+      "title": "Description of step",
+      "status": "running"
+    },
+    {
+      "step": "2",
+      "title": "Description of step",
+      "status": "running"
+    }
+  ]
+  /* ... */
 }
 ```
 

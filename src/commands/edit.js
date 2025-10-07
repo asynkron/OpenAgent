@@ -107,10 +107,7 @@ export function applyEdits(text, edits) {
   const normalized = edits.map((edit) => normalizeEdit(text, edit));
   normalized.sort((a, b) => b.start - a.start);
 
-  return normalized.reduce(
-    (acc, normalizedEdit) => applyNormalizedEdit(acc, normalizedEdit),
-    text,
-  );
+  return normalized.reduce((acc, normalizedEdit) => applyNormalizedEdit(acc, normalizedEdit), text);
 }
 
 export async function applyFileEdits(editSpec, cwd = '.') {

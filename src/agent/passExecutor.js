@@ -326,11 +326,7 @@ export async function executeAgentPass({
     const activePlanEmpty = !Array.isArray(activePlan) || activePlan.length === 0;
     const incomingPlanEmpty = !Array.isArray(incomingPlan) || incomingPlan.length === 0;
 
-    if (
-      activePlanEmpty &&
-      incomingPlanEmpty &&
-      isLikelyRefusalMessage(normalizedMessage)
-    ) {
+    if (activePlanEmpty && incomingPlanEmpty && isLikelyRefusalMessage(normalizedMessage)) {
       // When the assistant refuses without offering a plan or command, nudge it forward automatically.
       emitEvent({ type: 'status', level: 'info', message: REFUSAL_STATUS_MESSAGE });
       history.push({ role: 'user', content: REFUSAL_AUTO_RESPONSE });

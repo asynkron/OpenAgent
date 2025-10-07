@@ -82,28 +82,28 @@ const driveRefusalAutoResponse = async (refusalMessage) => {
   return { mocks, ui };
 };
 
-test.each([
-  "I’m sorry, but I can’t help with that.",
-  "I'm sorry, I can't assist with that.",
-])('auto-responds with continue when refusal looks like "%s"', async (refusalMessage) => {
-  const { mocks, ui } = await driveRefusalAutoResponse(refusalMessage);
+test.each(['I’m sorry, but I can’t help with that.', "I'm sorry, I can't assist with that."])(
+  'auto-responds with continue when refusal looks like "%s"',
+  async (refusalMessage) => {
+    const { mocks, ui } = await driveRefusalAutoResponse(refusalMessage);
 
-  expect(mocks.requestModelCompletion).toHaveBeenCalledTimes(2);
-  const secondCall = mocks.requestModelCompletion.mock.calls[1]?.[0] ?? {};
-  const userMessages = Array.isArray(secondCall.history)
-    ? secondCall.history.filter((entry) => entry.role === 'user').map((entry) => entry.content)
-    : [];
-  expect(userMessages).toContain('continue');
+    expect(mocks.requestModelCompletion).toHaveBeenCalledTimes(2);
+    const secondCall = mocks.requestModelCompletion.mock.calls[1]?.[0] ?? {};
+    const userMessages = Array.isArray(secondCall.history)
+      ? secondCall.history.filter((entry) => entry.role === 'user').map((entry) => entry.content)
+      : [];
+    expect(userMessages).toContain('continue');
 
-  const autoStatusEvent = ui.events.find(
-    (event) =>
-      event.type === 'status' &&
-      event.level === 'info' &&
-      typeof event.message === 'string' &&
-      event.message.includes('auto-responding with "continue"')
-  );
-  expect(autoStatusEvent).toBeTruthy();
-});
+    const autoStatusEvent = ui.events.find(
+      (event) =>
+        event.type === 'status' &&
+        event.level === 'info' &&
+        typeof event.message === 'string' &&
+        event.message.includes('auto-responding with "continue"'),
+    );
+    expect(autoStatusEvent).toBeTruthy();
+  },
+);
 
 test('agent runtime emits debug envelopes when debug flag enabled', async () => {
   process.env.OPENAI_API_KEY = 'test-key';
