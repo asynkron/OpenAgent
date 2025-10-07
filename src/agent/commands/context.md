@@ -16,4 +16,4 @@
 
 - Each class is stateless; instances are recreated on every invocation for clarity.
 - Tests continue to exercise behaviour through `executeAgentCommand` to keep the handler pipeline black-boxed.
-- Legacy `edit`/`replace` handlers have been removed from the dispatcher; their helpers remain exported for manual use only.
+- Legacy `edit`/`replace` helpers have now been removed entirely, leaving `apply_patch` as the primary file-modification path.

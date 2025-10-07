@@ -15,9 +15,7 @@ import { renderRemainingContext } from './status.js';
 import {
   runCommand,
   runBrowse,
-  runEdit,
   runRead,
-  runReplace,
   runEscapeString,
   runUnescapeString,
 } from '../commands/run.js';
@@ -52,9 +50,7 @@ async function runAgentLoopWithCurrentDependencies(options = {}) {
     setNoHumanFlag,
     runCommandFn: runCommand,
     runBrowseFn: runBrowse,
-    runEditFn: runEdit,
     runReadFn: runRead,
-    runReplaceFn: runReplace,
     runEscapeStringFn: runEscapeString,
     runUnescapeStringFn: runUnescapeString,
     applyFilterFn: applyFilter,

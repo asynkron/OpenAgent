@@ -27,7 +27,7 @@
 - `src/lib/index.js`: aggregates CLI-agnostic exports for programmatic consumers.
 - `src/cli/runner.js`: parses CLI flags, applies startup configuration, and launches the agent runtime.
 - `src/agent/loop.js`: orchestrates the conversation loop, delegating individual passes to `passExecutor.js` while coordinating approvals and ESC cancellation state.
-- `src/commands/run.js`: sandbox for process execution with timeout/cancellation plumbing and built-in command helpers (browse/read/edit/replace/escape-string).
+- `src/commands/run.js`: sandbox for process execution with timeout/cancellation plumbing and built-in command helpers (browse/read/escape-string/apply_patch).
 - `src/openai/client.js`: memoizes the OpenAI Responses client with configuration validation.
 
 ## Recent Improvements
