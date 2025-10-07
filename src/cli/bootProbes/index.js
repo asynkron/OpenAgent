@@ -6,12 +6,20 @@ import JavaScriptBootProbe from './javascriptProbe.js';
 import TypeScriptBootProbe from './typescriptProbe.js';
 import PythonBootProbe from './pythonProbe.js';
 import DotNetBootProbe from './dotnetProbe.js';
+import GitBootProbe from './gitProbe.js';
+import OperatingSystemBootProbe from './operatingSystemProbe.js';
+import EslintBootProbe from './eslintProbe.js';
+import PrettierBootProbe from './prettierProbe.js';
 
 const DEFAULT_PROBES = [
   JavaScriptBootProbe,
   TypeScriptBootProbe,
   PythonBootProbe,
   DotNetBootProbe,
+  GitBootProbe,
+  OperatingSystemBootProbe,
+  EslintBootProbe,
+  PrettierBootProbe,
 ];
 
 export function registerBootProbe(probe) {
