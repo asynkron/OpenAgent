@@ -43,6 +43,16 @@
     "esprima": "^4.0.1",
     "globals": "^16.4.0",
     "jest": "^29.7.0",
+    "lint-staged": "^16.2.3",
     "prettier": "^3.2.5"
+  },
+  "lint-staged": {
+    "*.{js,mjs,cjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   }
 }

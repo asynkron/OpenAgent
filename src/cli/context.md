@@ -18,6 +18,7 @@
 - Render helper offers rich summaries (e.g., read segments, stderr previews) that keep humans informed and now reports file counts even when filters yield no output.
 - Command renderer surfaces the assistant-provided `description` line above command details so humans immediately see the intent.
 - ESC listener integrates with cancellation manager via `cancelActive('esc-key')`.
+- CLI modules now follow the repo-wide Prettier profile so lint parity across workflows prevents regressions.
 
 ## Risks / Gaps
 
