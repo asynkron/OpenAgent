@@ -4,6 +4,7 @@ import { Box, Text, useApp, useInput } from 'ink';
 import { cancel as cancelActive } from '../../utils/cancellation.js';
 import AgentResponse from './AgentResponse.js';
 import AskHuman from './AskHuman.js';
+import HumanMessage from './HumanMessage.js';
 import Command from './Command.js';
 import Plan from './Plan.js';
 import PlanProgress from './PlanProgress.js';
@@ -21,6 +22,7 @@ const MemoPlan = React.memo(Plan);
 const MemoPlanProgress = React.memo(PlanProgress);
 const MemoContextUsage = React.memo(ContextUsage);
 const MemoAgentResponse = React.memo(AgentResponse);
+const MemoHumanMessage = React.memo(HumanMessage);
 const MemoCommand = React.memo(Command);
 const MemoStatusMessage = React.memo(StatusMessage);
 const MemoDebugPanel = React.memo(DebugPanel);
@@ -34,6 +36,8 @@ const Timeline = React.memo(function Timeline({ entries }) {
     switch (entry.type) {
       case 'assistant-message':
         return h(MemoAgentResponse, { key: entry.id, message: entry.payload.message });
+      case 'human-message':
+        return h(MemoHumanMessage, { key: entry.id, message: entry.payload.message });
       case 'command-result':
         return h(MemoCommand, {
           key: entry.id,
@@ -155,14 +159,18 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
 
   const handleSubmitPrompt = useCallback(
     (value) => {
+      const submission = value.trim();
+      if (submission.length > 0) {
+        appendEntry('human-message', { message: submission });
+      }
       try {
-        runtimeRef.current?.submitPrompt?.(value);
+        runtimeRef.current?.submitPrompt?.(submission);
       } catch (error) {
         handleStatusEvent({ level: 'error', message: 'Failed to submit input.', details: error });
       }
       setInputRequest(null);
     },
-    [handleStatusEvent],
+    [appendEntry, handleStatusEvent],
   );
 
   const handleEvent = useCallback(
