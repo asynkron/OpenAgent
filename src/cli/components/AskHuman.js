@@ -70,8 +70,10 @@ export function AskHuman({ prompt = '▷', onSubmit }) {
       backgroundColor: '#0b1c33',
     },
     [
-      h(Text, { color: 'white', bold: true, key: 'prompt' }, normalizedPrompt),
-      h(Text, { color: 'white', key: 'value' }, value || ' '),
+      h(Box, { flexDirection: 'row', key: 'inputRow', paddingX: 1, paddingY: 1 }, [
+        h(Text, { color: 'white', bold: true, key: 'prompt' }, normalizedPrompt),
+        h(Text, { color: 'white', key: 'value', marginLeft: 1 }, value || ' '),
+      ]),
       h(
         Text,
         { dimColor: true, color: 'white', key: 'hint' },

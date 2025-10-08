@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "step": "1",
+    "title": "Review src/cli/components structure",
+    "status": "completed"
+  },
+  {
+    "step": "2",
+    "title": "Investigate rerender/flickering cause",
+    "status": "running"
+  }
+]
