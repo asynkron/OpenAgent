@@ -12,7 +12,25 @@ export function extractResponseText(response) {
 
   const outputs = Array.isArray(response.output) ? response.output : [];
   for (const item of outputs) {
-    if (!item || item.type !== 'message' || !Array.isArray(item.content)) {
+    if (!item || typeof item !== 'object') {
+      continue;
+    }
+
+    if (item.type === 'function_call') {
+      const args = item.arguments;
+      const normalizedArguments =
+        typeof args === 'string'
+          ? args.trim()
+          : args && typeof args === 'object'
+            ? JSON.stringify(args)
+            : '';
+
+      if (normalizedArguments) {
+        return normalizedArguments;
+      }
+    }
+
+    if (item.type !== 'message' || !Array.isArray(item.content)) {
       continue;
     }
 

@@ -1,1 +1,7 @@
-[]
+[
+  {
+    "step": "1",
+    "title": "Run `echo \"hello\"`",
+    "status": "completed"
+  }
+]

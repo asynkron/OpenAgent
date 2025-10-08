@@ -177,6 +177,25 @@ describe('extractResponseText', () => {
     expect(mod.extractResponseText(response)).toBe('hello world');
   });
 
+  test('returns function call arguments when present', async () => {
+    const { mod } = await loadModule();
+    const response = {
+      output: [
+        { type: 'reasoning', summary: [] },
+        {
+          type: 'function_call',
+          name: 'open-agent',
+          arguments: '  {"message":"Hello there"}  ',
+        },
+        {
+          type: 'message',
+          content: [{ type: 'output_text', text: 'fallback text' }],
+        },
+      ],
+    };
+    expect(mod.extractResponseText(response)).toBe('{"message":"Hello there"}');
+  });
+
   test('falls back to output message content', async () => {
     const { mod } = await loadModule();
     const response = {
