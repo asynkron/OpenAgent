@@ -4,7 +4,7 @@ import Spinner from 'ink-spinner';
 import ContextUsage from './ContextUsage.js';
 
 const h = React.createElement;
-
+const CARET_BLINK_INTERVAL_MS = 500;
 /**
  * Collects free-form user input while keeping the prompt visible inside the Ink
  * layout.
@@ -12,6 +12,7 @@ const h = React.createElement;
 export function AskHuman({ prompt = '▷', onSubmit, thinking = false, contextUsage = null }) {
   const [value, setValue] = useState('');
   const [locked, setLocked] = useState(false);
+  const [showCaret, setShowCaret] = useState(true);
   const mountedRef = useRef(true);
 
   useEffect(
@@ -20,6 +21,22 @@ export function AskHuman({ prompt = '▷', onSubmit, thinking = false, contextUs
     },
     [],
   );
+
+  useEffect(() => {
+    if (locked || thinking) {
+      setShowCaret(false);
+      return undefined;
+    }
+
+    setShowCaret(true);
+    const interval = setInterval(() => {
+      setShowCaret((prev) => !prev);
+    }, CARET_BLINK_INTERVAL_MS);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [locked, thinking]);
 
   const normalizedPrompt = useMemo(() => {
     if (typeof prompt !== 'string') {
@@ -64,6 +81,10 @@ export function AskHuman({ prompt = '▷', onSubmit, thinking = false, contextUs
     { isActive: true },
   );
 
+  const caretSymbol = locked || thinking ? '' : showCaret ? '▌' : ' ';
+  const displayValue = value.length > 0 ? value : placeholder;
+  const displayWithCaret = caretSymbol ? `${displayValue}${caretSymbol}` : displayValue;
+
   const inputDisplay = thinking
     ? h(Text, { color: 'white', key: 'spinner', marginLeft: 1 }, [
         h(Spinner, { type: 'dots', key: 'spinner-icon' }),
@@ -77,7 +98,7 @@ export function AskHuman({ prompt = '▷', onSubmit, thinking = false, contextUs
           marginLeft: 1,
           dimColor: value.length === 0,
         },
-        value.length > 0 ? value : placeholder,
+        displayWithCaret,
       );
 
   const hintMessage = thinking
