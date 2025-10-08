@@ -172,8 +172,22 @@ function arrowLine(text) {
   return chalk.dim(` └ ${text}`);
 }
 
+function errorArrowLine(text) {
+  return chalk.red(` └ ${text}`);
+}
+
+function errorIndentLine(text) {
+  return chalk.red(`   ${text}`);
+}
+
 function indentLine(text) {
   return chalk.dim(`   ${text}`);
+}
+
+function exitCodeLine(code) {
+  const prefix = chalk.dim('   ');
+  const colorize = code === 0 ? chalk.green : chalk.red;
+  return `${prefix}${colorize(`Exit code: ${code}`)}`;
 }
 
 function pluralize(word, count) {
@@ -348,9 +362,10 @@ function appendStdErr(summaryLines, stderrPreview) {
   if (stderrLines.length === 0) {
     return;
   }
-  summaryLines.push(arrowLine(`STDERR: ${stderrLines[0]}`));
+
+  summaryLines.push(errorArrowLine(`STDERR: ${stderrLines[0]}`));
   for (const line of stderrLines.slice(1)) {
-    summaryLines.push(indentLine(line));
+    summaryLines.push(errorIndentLine(line));
   }
 }
 
@@ -435,8 +450,8 @@ export function renderCommand(command, result, output = {}) {
   }
 
   if (result) {
-    if (typeof result.exit_code === 'number' && result.exit_code !== 0) {
-      summaryLines.push(indentLine(`Exit code: ${result.exit_code}`));
+    if (typeof result.exit_code === 'number') {
+      summaryLines.push(exitCodeLine(result.exit_code));
     }
     if (result.killed) {
       summaryLines.push(indentLine('Process terminated (timeout).'));
