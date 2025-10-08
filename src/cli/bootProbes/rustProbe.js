@@ -36,19 +36,21 @@ export const RustBootProbe = {
     }
 
     for (const directory of RUST_DIRECTORIES) {
-      if (await context.fileExists(directory)) {
-        detected = true;
-        details.push(`${directory}/ directory`);
+      const entries = await context.readDirEntries(directory);
+      if (entries.length === 0) {
+        continue;
+      }
 
-        if (directory === 'src') {
-          const srcEntries = await context.readDirEntries('src');
-          const rustFiles = srcEntries.filter(
-            (entry) => entry.isFile?.() && /\.rs$/i.test(entry.name),
-          );
-          if (rustFiles.length > 0) {
-            details.push(`Rust sources (${formatExampleEntries(rustFiles)})`);
-          }
-        }
+      const rustFiles = entries.filter((entry) => entry.isFile?.() && /\.rs$/i.test(entry.name));
+      if (rustFiles.length === 0) {
+        continue;
+      }
+
+      detected = true;
+      details.push(`${directory}/ directory`);
+
+      if (directory === 'src') {
+        details.push(`Rust sources (${formatExampleEntries(rustFiles)})`);
       }
     }
 

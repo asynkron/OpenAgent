@@ -22,6 +22,7 @@
 - CLI modules now follow the repo-wide Prettier profile so lint parity across workflows prevents regressions.
 - Boot probe tooling summaries now only list installed CLI tools, keeping startup output focused on actionable utilities.
 - Boot probe output now hides probes that don't match the current workspace, keeping startup output focused on actionable utilities.
+- Rust boot probe now confirms Rust source files exist before marking the workspace as detected, preventing false positives in JavaScript projects with similarly named directories.
 
 ## Risks / Gaps
 
