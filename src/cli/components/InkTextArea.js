@@ -17,6 +17,24 @@ const ARROW_LABELS = {
   rightArrow: 'right',
 };
 
+function toNonNegativeInteger(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return 0;
+  }
+  return Math.max(0, Math.floor(value));
+}
+
+function resolveHorizontalPadding({ padding, paddingX, paddingLeft, paddingRight }) {
+  const base = toNonNegativeInteger(padding);
+  const horizontal =
+    paddingX !== undefined ? toNonNegativeInteger(paddingX) : base;
+  const left =
+    paddingLeft !== undefined ? toNonNegativeInteger(paddingLeft) : horizontal;
+  const right =
+    paddingRight !== undefined ? toNonNegativeInteger(paddingRight) : horizontal;
+  return { paddingLeft: left, paddingRight: right };
+}
+
 function extractSpecialKeys(key) {
   if (!key || typeof key !== 'object') {
     return [];
@@ -34,8 +52,12 @@ function extractSpecialKeys(key) {
  * Break a string into the visual rows rendered by the editor.
  * Rows end either because the terminal width was reached or a newline was encountered.
  */
-export function transformToRows(source, maxWidth) {
+export function transformToRows(source, maxWidth, options = {}) {
+  const { paddingLeft = 0, paddingRight = 0 } = options ?? {};
   const safeWidth = Math.max(1, Math.floor(maxWidth ?? 1));
+  const horizontalPadding =
+    toNonNegativeInteger(paddingLeft) + toNonNegativeInteger(paddingRight);
+  const effectiveWidth = Math.max(1, safeWidth - horizontalPadding);
   const rows = [];
 
   let rowStartIndex = 0;
@@ -60,7 +82,7 @@ export function transformToRows(source, maxWidth) {
     column += 1;
     lastBreakWasNewline = false;
 
-    if (column >= safeWidth) {
+    if (column >= effectiveWidth) {
       const breakIndex = index + 1;
       const text = source.slice(rowStartIndex, breakIndex);
       rows.push({
@@ -127,8 +149,31 @@ export function InkTextArea({
   width,
   isActive = true,
   isDisabled = false,
-  ...textProps
+  ...rest
 }) {
+  const {
+    padding,
+    paddingX,
+    paddingY,
+    paddingLeft,
+    paddingRight,
+    paddingTop,
+    paddingBottom,
+    margin,
+    marginX,
+    marginY,
+    marginLeft,
+    marginRight,
+    marginTop,
+    marginBottom,
+    borderColor,
+    borderStyle,
+    borderTop,
+    borderBottom,
+    borderLeft,
+    borderRight,
+    ...textProps
+  } = rest;
   const [caretIndex, setCaretIndex] = useState(() => clamp(0, 0, value.length));
   const [showCaret, setShowCaret] = useState(true);
   const [lastKeyEvent, setLastKeyEvent] = useState(() => ({
@@ -187,7 +232,31 @@ export function InkTextArea({
     setCaretIndex((prev) => clamp(prev, 0, maxIndex));
   }, [maxIndex]);
 
-  const rows = useMemo(() => transformToRows(value, normalizedWidth), [normalizedWidth, value]);
+  const { paddingLeft: resolvedPaddingLeft, paddingRight: resolvedPaddingRight } =
+    useMemo(
+      () =>
+        resolveHorizontalPadding({
+          padding,
+          paddingX,
+          paddingLeft,
+          paddingRight,
+        }),
+      [padding, paddingLeft, paddingRight, paddingX],
+    );
+
+  const effectiveWidth = useMemo(
+    () => Math.max(1, normalizedWidth - resolvedPaddingLeft - resolvedPaddingRight),
+    [normalizedWidth, resolvedPaddingLeft, resolvedPaddingRight],
+  );
+
+  const rows = useMemo(
+    () =>
+      transformToRows(value, normalizedWidth, {
+        paddingLeft: resolvedPaddingLeft,
+        paddingRight: resolvedPaddingRight,
+      }),
+    [normalizedWidth, resolvedPaddingLeft, resolvedPaddingRight, value],
+  );
   const caretPosition = useMemo(
     () => computeCaretPosition(rows, caretIndex, value.length),
     [caretIndex, rows, value.length],
@@ -353,8 +422,18 @@ export function InkTextArea({
     if (hasValue) {
       return rows;
     }
-    return transformToRows(placeholder, normalizedWidth);
-  }, [hasValue, normalizedWidth, placeholder, rows]);
+    return transformToRows(placeholder, normalizedWidth, {
+      paddingLeft: resolvedPaddingLeft,
+      paddingRight: resolvedPaddingRight,
+    });
+  }, [
+    hasValue,
+    normalizedWidth,
+    placeholder,
+    resolvedPaddingLeft,
+    resolvedPaddingRight,
+    rows,
+  ]);
 
   const textStyle = useMemo(() => {
     const { dimColor, wrap, ...otherTextProps } = textProps;
@@ -438,9 +517,69 @@ export function InkTextArea({
     [lastKeyEvent.specialKeys],
   );
 
+  const containerProps = useMemo(() => {
+    const style = {
+      flexDirection: 'column',
+      width: '100%',
+      alignSelf: 'stretch',
+    };
+
+    const boxOptions = {
+      padding,
+      paddingX,
+      paddingY,
+      paddingLeft,
+      paddingRight,
+      paddingTop,
+      paddingBottom,
+      margin,
+      marginX,
+      marginY,
+      marginLeft,
+      marginRight,
+      marginTop,
+      marginBottom,
+      borderColor,
+      borderStyle,
+      borderTop,
+      borderBottom,
+      borderLeft,
+      borderRight,
+    };
+
+    for (const [key, value] of Object.entries(boxOptions)) {
+      if (value !== undefined) {
+        style[key] = value;
+      }
+    }
+
+    return style;
+  }, [
+    borderBottom,
+    borderColor,
+    borderLeft,
+    borderRight,
+    borderStyle,
+    borderTop,
+    margin,
+    marginBottom,
+    marginLeft,
+    marginRight,
+    marginTop,
+    marginX,
+    marginY,
+    padding,
+    paddingBottom,
+    paddingLeft,
+    paddingRight,
+    paddingTop,
+    paddingX,
+    paddingY,
+  ]);
+
   return h(
     Box,
-    { flexDirection: 'column', width: '100%', alignSelf: 'stretch' },
+    containerProps,
     h(Box, { flexDirection: 'column', width: '100%' }, ...rowElements),
     h(
       Box,
@@ -449,7 +588,7 @@ export function InkTextArea({
       h(
         Text,
         { color: 'gray', key: 'debug-width' },
-        `Width: ${normalizedWidth} (prop: ${widthPropDisplay}, measured: ${measuredWidthDisplay})`,
+        `Width: ${normalizedWidth} (effective: ${effectiveWidth}, prop: ${widthPropDisplay}, measured: ${measuredWidthDisplay})`,
       ),
       h(
         Text,
