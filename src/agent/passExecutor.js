@@ -22,7 +22,11 @@ const REFUSAL_NEGATION_PATTERNS = [
   /\bwon['’]?t be able to\b/i,
 ];
 
-const REFUSAL_HELP_PATTERNS = [/\bhelp\b/i, /\bassist\b/i];
+const REFUSAL_ASSISTANCE_PATTERNS = [
+  /\bhelp\b/i,
+  /\bassist\b/i,
+  /\bcontinue\b/i, // e.g. "I can't continue with that."
+];
 
 const REFUSAL_SORRY_PATTERN = /\bsorry\b/i;
 
@@ -47,7 +51,7 @@ const isLikelyRefusalMessage = (message) => {
     return false;
   }
 
-  if (!REFUSAL_HELP_PATTERNS.some((pattern) => pattern.test(lowerCased))) {
+  if (!REFUSAL_ASSISTANCE_PATTERNS.some((pattern) => pattern.test(lowerCased))) {
     return false;
   }
 
