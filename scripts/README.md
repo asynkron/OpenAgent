@@ -20,7 +20,7 @@ General workflow
 
 Scripts
 
-## ./scripts/apply_patch.cjs
+## ./scripts/apply_patch.mjs
 
 What it does
 
@@ -35,7 +35,7 @@ When to use
 Usage
 
 ```bash
-node scripts/apply_patch.cjs <<'EOF'
+node scripts/apply_patch.mjs <<'EOF'
 *** Begin Patch
 *** Update File: path/to/file.js
 @@

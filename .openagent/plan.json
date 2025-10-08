@@ -1,17 +1,1 @@
-[
-  {
-    "step": "1",
-    "title": "Design state update guard strategy",
-    "status": "completed"
-  },
-  {
-    "step": "2",
-    "title": "Implement changes in CliApp.js",
-    "status": "completed"
-  },
-  {
-    "step": "3",
-    "title": "Run basic checks if needed",
-    "status": "completed"
-  }
-]
+[]
