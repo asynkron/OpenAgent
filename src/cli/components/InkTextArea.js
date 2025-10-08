@@ -146,17 +146,21 @@ export function InkTextArea({
         specialKeys,
       });
 
-      if (key.return) {
-        if (key.shift) {
-          const nextValue = `${value.slice(0, caretIndex)}\n${value.slice(caretIndex)}`;
-          updateValue(nextValue, caretIndex + 1);
-          return;
-        }
-        onSubmit?.(value);
+      if (key.ctrl || key.meta) {
         return;
       }
 
-      if (key.ctrl || key.meta) {
+      const isShiftLineBreak = key.return && key.shift;
+      const isLineFeed = input === '\n';
+
+      if (isShiftLineBreak || isLineFeed) {
+        const nextValue = `${value.slice(0, caretIndex)}\n${value.slice(caretIndex)}`;
+        updateValue(nextValue, caretIndex + 1);
+        return;
+      }
+
+      if (key.return) {
+        onSubmit?.(value);
         return;
       }
 
@@ -210,7 +214,9 @@ export function InkTextArea({
         return;
       }
 
-      if (key.backspace) {
+      const isBackwardDelete = key.backspace || (key.delete && !key.code);
+
+      if (isBackwardDelete) {
         if (caretIndex === 0) {
           return;
         }
@@ -258,10 +264,11 @@ export function InkTextArea({
   if (caretVisible) {
     if (hasValue) {
       const effectiveIndex = Math.min(highlightIndex, displaySource.length);
-      const beforeCaret = displaySource.slice(0, effectiveIndex);
-      const caretChar = effectiveIndex < displaySource.length ? displaySource[effectiveIndex] : ' ';
+      const caretChar =
+        effectiveIndex < displaySource.length ? displaySource[effectiveIndex] : ' ';
       const caretDisplay = caretChar === '\n' ? ' ' : caretChar || ' ';
       const afterStart = caretChar === '\n' ? effectiveIndex : Math.min(effectiveIndex + 1, displaySource.length);
+      const beforeCaret = displaySource.slice(0, effectiveIndex);
       const afterCaret = displaySource.slice(afterStart);
 
       textSegments = [
