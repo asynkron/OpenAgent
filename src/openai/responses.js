@@ -29,15 +29,12 @@ export function createResponse({ openai, model, input, text, tools, options, rea
   const payload = {
     model,
     input,
+    tools,
+    tool_choice: {
+      type: 'function',
+      name: 'open-agent',
+    },
   };
-
-  if (typeof text !== 'undefined') {
-    payload.text = text;
-  }
-
-  if (Array.isArray(tools) && tools.length > 0) {
-    payload.tools = tools;
-  }
 
   const effort = normalizeReasoningEffort(reasoningEffort) ?? ENV_REASONING_EFFORT;
   if (effort) {

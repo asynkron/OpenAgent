@@ -1,6 +1,6 @@
 import { register as registerCancellation } from '../utils/cancellation.js';
 import { createResponse } from '../openai/responses.js';
-import { ASSISTANT_RESPONSE_TOOL } from './responseToolSchema.js';
+import { OPENAGENT_RESPONSE_TOOL } from './responseToolSchema.js';
 import { createEscWaiter, resetEscState } from './escState.js';
 
 export async function requestModelCompletion({
@@ -12,7 +12,7 @@ export async function requestModelCompletion({
   startThinkingFn,
   stopThinkingFn,
   setNoHumanFlag,
-  emitEvent = () => {},
+  emitEvent = () => { },
 }) {
   const { promise: escPromise, cleanup: cleanupEscWaiter } = createEscWaiter(escState);
 
@@ -28,10 +28,7 @@ export async function requestModelCompletion({
     openai,
     model,
     input: history,
-    text: {
-      format: { type: 'json_object' },
-    },
-    tools: [ASSISTANT_RESPONSE_TOOL],
+    tools: [OPENAGENT_RESPONSE_TOOL],
     options: requestOptions,
   });
 

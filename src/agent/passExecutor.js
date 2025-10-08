@@ -9,6 +9,7 @@ import { summarizeContextUsage } from '../utils/contextUsage.js';
 import { extractResponseText } from '../openai/responseUtils.js';
 import { validateAssistantResponse } from './responseValidator.js';
 import { log } from 'node:console';
+import { json } from 'node:stream/consumers';
 
 const REFUSAL_AUTO_RESPONSE = 'continue';
 const REFUSAL_STATUS_MESSAGE =
@@ -172,7 +173,6 @@ export async function executeAgentPass({
       type: 'error',
       message: 'OpenAI response did not include text output.',
     });
-    log(completion);
     return false;
   }
 
