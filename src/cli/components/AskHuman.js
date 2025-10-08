@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import Spinner from 'ink-spinner';
+import ContextUsage from './ContextUsage.js';
 
 const h = React.createElement;
 
@@ -8,7 +9,7 @@ const h = React.createElement;
  * Collects free-form user input while keeping the prompt visible inside the Ink
  * layout.
  */
-export function AskHuman({ prompt = '▷', onSubmit, thinking = false }) {
+export function AskHuman({ prompt = '▷', onSubmit, thinking = false, contextUsage = null }) {
   const [value, setValue] = useState('');
   const [locked, setLocked] = useState(false);
   const mountedRef = useRef(true);
@@ -27,6 +28,8 @@ export function AskHuman({ prompt = '▷', onSubmit, thinking = false }) {
     const trimmed = prompt.trim();
     return trimmed.length > 0 ? trimmed : '▷';
   }, [prompt]);
+
+  const placeholder = useMemo(() => `${normalizedPrompt} human writes here`, [normalizedPrompt]);
 
   useInput(
     (input, key) => {
@@ -66,11 +69,24 @@ export function AskHuman({ prompt = '▷', onSubmit, thinking = false }) {
         h(Spinner, { type: 'dots', key: 'spinner-icon' }),
         ' Thinking…',
       ])
-    : h(Text, { color: 'white', key: 'value', marginLeft: 1 }, value || ' ');
+    : h(Text, {
+        color: 'white',
+        key: 'value',
+        marginLeft: 1,
+        dimColor: value.length === 0,
+      }, value.length > 0 ? value : placeholder);
 
   const hintMessage = thinking
     ? 'Waiting for the AI to finish thinking…'
     : 'Press Enter to submit • Esc to cancel';
+
+  const footerChildren = [
+    h(Text, { dimColor: true, color: 'white', key: 'hint' }, hintMessage),
+  ];
+
+  if (contextUsage) {
+    footerChildren.push(h(ContextUsage, { usage: contextUsage, key: 'context-usage' }));
+  }
 
   return h(
     Box,
@@ -82,11 +98,8 @@ export function AskHuman({ prompt = '▷', onSubmit, thinking = false }) {
       backgroundColor: '#0b1c33',
     },
     [
-      h(Box, { flexDirection: 'row', key: 'inputRow', paddingX: 1, paddingY: 1 }, [
-        h(Text, { color: 'white', bold: true, key: 'prompt' }, normalizedPrompt),
-        inputDisplay,
-      ]),
-      h(Text, { dimColor: true, color: 'white', key: 'hint' }, hintMessage),
+      h(Box, { flexDirection: 'row', key: 'inputRow', paddingX: 1, paddingY: 1 }, [inputDisplay]),
+      h(Box, { flexDirection: 'column', key: 'footer', paddingX: 1, paddingBottom: 1 }, footerChildren),
     ],
   );
 }

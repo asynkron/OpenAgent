@@ -9,7 +9,6 @@ import Command from './Command.js';
 import Plan from './Plan.js';
 import DebugPanel from './DebugPanel.js';
 import StatusMessage from './StatusMessage.js';
-import ContextUsage from './ContextUsage.js';
 
 const MAX_TIMELINE_ENTRIES = 100;
 const MAX_DEBUG_ENTRIES = 20;
@@ -17,7 +16,6 @@ const MAX_DEBUG_ENTRIES = 20;
 const h = React.createElement;
 
 const MemoPlan = React.memo(Plan);
-const MemoContextUsage = React.memo(ContextUsage);
 const MemoAgentResponse = React.memo(AgentResponse);
 const MemoHumanMessage = React.memo(HumanMessage);
 const MemoCommand = React.memo(Command);
@@ -369,10 +367,6 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
     }),
   );
 
-  if (contextUsage) {
-    children.push(h(MemoContextUsage, { usage: contextUsage, key: 'context-usage' }));
-  }
-
   children.push(h(Timeline, { entries, key: 'timeline' }));
 
   if (hasDebugEvents) {
@@ -385,6 +379,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
         prompt: inputRequest?.prompt,
         onSubmit: inputRequest ? handleSubmitPrompt : undefined,
         thinking,
+        contextUsage,
         key: 'ask-human',
       }),
     );

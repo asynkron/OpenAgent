@@ -104,9 +104,11 @@ comments are for you, not to be included in your response:
 
 ```json
 {
-  "message": "Optional Markdown message to display to the user",
+  "message": "Mandatory Markdown message to display to the user",
   "plan": [
     //if there in an active plan, it must be listed here
+    //the plan may not be omitted if there is an ongoing plan.
+    //you have to explicitly return [] to reset the plan when all steps are completed
     //you may not hide or omit steps in the plan
     {
       "step": "1",
