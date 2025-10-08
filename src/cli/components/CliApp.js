@@ -373,17 +373,15 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
     children.push(h(MemoDebugPanel, { events: debugEvents, key: 'debug' }));
   }
 
-  if (thinking || inputRequest) {
-    children.push(
-      h(AskHuman, {
-        prompt: inputRequest?.prompt,
-        onSubmit: inputRequest ? handleSubmitPrompt : undefined,
-        thinking,
-        contextUsage,
-        key: 'ask-human',
-      }),
-    );
-  }
+  children.push(
+    h(AskHuman, {
+      prompt: inputRequest?.prompt,
+      onSubmit: inputRequest ? handleSubmitPrompt : undefined,
+      thinking,
+      contextUsage,
+      key: 'ask-human',
+    }),
+  );
 
   return h(Box, { flexDirection: 'column' }, children);
 }

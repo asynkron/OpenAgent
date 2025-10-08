@@ -53,7 +53,7 @@ export function Command({ command, result, preview = {}, execution = {} }) {
 
   return h(
     Box,
-    { flexDirection: 'column', marginTop: 1, paddingX: 1, paddingY: 0, backgroundColor: 'black' },
+    { flexDirection: 'column', marginTop: 1, paddingX: 1, paddingY: 1, backgroundColor: 'black' },
     children,
   );
 }

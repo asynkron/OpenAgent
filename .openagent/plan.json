@@ -1,17 +1,1 @@
-[
-  {
-    "step": "1",
-    "title": "Identify existing Ink UI structure and target location",
-    "status": "completed"
-  },
-  {
-    "step": "2",
-    "title": "Implement InkTextArea with caret navigation and editing",
-    "status": "completed"
-  },
-  {
-    "step": "3",
-    "title": "Add tests or update docs as needed (and run checks)",
-    "status": "completed"
-  }
-]
+[]
