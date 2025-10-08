@@ -1,16 +1,18 @@
 #!/usr/bin/env node
-// scripts/rename-identifier.cjs
+// scripts/rename-identifier.mjs
 // Scope-aware per-file renamer (acorn-based).
 // - Finds a declaration for the old name and renames the declaration + all references that resolve to that binding.
 // - Dry-run prints a unified diff. Use --apply to write the file. Use --check to run `node --check` after applying.
 
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const child_process = require('child_process');
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import { spawnSync } from 'node:child_process';
+
 let acorn;
 try {
-  acorn = require('acorn');
+  const acornModule = await import('acorn');
+  acorn = acornModule.default ?? acornModule;
 } catch (e) {
   console.error('Missing dependency: acorn. Install with `npm install --no-save acorn`');
   process.exit(1);
@@ -18,7 +20,7 @@ try {
 
 function usage() {
   console.error(
-    'Usage: node scripts/rename-identifier.cjs --file <file> --old <oldName> --new <newName> [--index N] [--apply] [--check]',
+    'Usage: node scripts/rename-identifier.mjs --file <file> --old <oldName> --new <newName> [--index N] [--apply] [--check]',
   );
   process.exit(2);
 }
@@ -357,7 +359,7 @@ fs.writeFileSync(origTmp, src, 'utf8');
 fs.writeFileSync(newTmp, newSource, 'utf8');
 function runDiff(a, b) {
   try {
-    const res = child_process.spawnSync(
+    const res = spawnSync(
       'diff',
       ['-u', '--label', `a/${filePath}`, '--label', `b/${filePath}`, a, b],
       { encoding: 'utf8' },
@@ -386,7 +388,7 @@ if (apply) {
     if (check) {
       const ext = path.extname(filePath).toLowerCase();
       if (ext === '.js' || ext === '.cjs' || ext === '.mjs') {
-        const chk = child_process.spawnSync('node', ['--check', filePath], { encoding: 'utf8' });
+        const chk = spawnSync('node', ['--check', filePath], { encoding: 'utf8' });
         if (chk.status !== 0) {
           console.error(
             'Syntax check failed after applying change; rolling back. Output:\n',

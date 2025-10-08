@@ -1,20 +1,20 @@
 #!/usr/bin/env node
-// scripts/edit-lines.cjs
+// scripts/edit-lines.mjs
 // Simple line editor: delete `count` lines starting at `start` (1-based), then insert provided text at that index.
 // Dry-run prints a unified diff. Use --apply to write; --check runs `node --check` for JS files and will roll back on syntax errors.
 //
 // Usage examples:
-//   node scripts/edit-lines.cjs --file path/to/file.js --start 5 --count 6 --text "hello"
-//   node scripts/edit-lines.cjs --file path/to/file.js --start 100 --count 0 --text-file ./snippet.txt --apply --check
+//   node scripts/edit-lines.mjs --file path/to/file.js --start 5 --count 6 --text "hello"
+//   node scripts/edit-lines.mjs --file path/to/file.js --start 100 --count 0 --text-file ./snippet.txt --apply --check
 
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const child_process = require('child_process');
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import { spawnSync } from 'node:child_process';
 
 function usage() {
   console.error(
-    'Usage: node scripts/edit-lines.cjs --file <file> --start <N> --count <C> (--text "..." | --text-file <path>) [--apply] [--check]',
+    'Usage: node scripts/edit-lines.mjs --file <file> --start <N> --count <C> (--text "..." | --text-file <path>) [--apply] [--check]',
   );
   process.exit(2);
 }
@@ -126,7 +126,7 @@ fs.writeFileSync(newTmp, newContent, 'utf8');
 
 function runDiff(a, b) {
   try {
-    const res = child_process.spawnSync(
+    const res = spawnSync(
       'diff',
       ['-u', '--label', `a/${filePath}`, '--label', `b/${filePath}`, a, b],
       { encoding: 'utf8' },
@@ -157,7 +157,7 @@ if (apply) {
     // Optionally run node --check for JS files
     const ext = path.extname(filePath).toLowerCase();
     if (check && (ext === '.js' || ext === '.cjs' || ext === '.mjs')) {
-      const chk = child_process.spawnSync('node', ['--check', filePath], { encoding: 'utf8' });
+      const chk = spawnSync('node', ['--check', filePath], { encoding: 'utf8' });
       if (chk.status !== 0) {
         console.error(
           'Syntax check failed after applying change; rolling back. Output:\n',
