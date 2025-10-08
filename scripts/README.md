@@ -1,0 +1,157 @@
+# Developer helper scripts
+
+This file documents the small helper scripts in `scripts/` that provide safe, auditable, single-file refactors. Each script prints a unified diff by default (dry-run). Use `--apply` to write changes and `--check` to run a syntax check after applying.
+
+Prerequisites
+
+- Node.js (a version compatible with this repo)
+- `diff` available in PATH (used to produce unified diffs)
+- `acorn` Node module (the scripts `require('acorn')`). If you see "Missing dependency: acorn", install it locally:
+
+```
+npm install --no-save acorn
+```
+
+General workflow
+
+1. Run the script in dry-run mode to get a unified diff and review the changes.
+2. If the diff looks good, re-run with `--apply --check` to apply the change and verify syntax (the script will rollback on syntax errors).
+3. Run lint/format and tests (e.g., `npm run lint`, `npm run format`, `npm test`) and commit when everything is green.
+
+Scripts
+
+## replace-function.cjs
+
+What it does
+
+- Replaces a named function in a single file. Supported targets:
+  - `FunctionDeclaration` (e.g., `function foo() {}`)
+  - A single-variable declarator where the initializer is a function/arrow (e.g., `const foo = () => {}`) — only when the variable declaration contains a single declarator.
+
+When to use
+
+- Replace the entire implementation of a function in a single file (refactor or replace with regenerated code).
+- Not intended for repo-wide refactors or cross-file symbol updates.
+
+Usage
+
+Dry-run (preview unified diff):
+
+```
+node scripts/replace-function.cjs --file path/to/file.js --name myFn --replacement path/to/newFn.js
+```
+
+Apply with syntax check:
+
+```
+node scripts/replace-function.cjs --file path/to/file.js --name myFn --replacement path/to/newFn.js --apply --check
+```
+
+Notes
+
+- If multiple matches are found, the script prints candidates; re-run with `--index N` to pick one.
+- When applying, a backup is created at `path/to/file.js.bak.replace-fn` until the operation succeeds.
+- The script will try to preserve `export` prefixes when helpful.
+- The script prints `No changes detected` if the replacement equals the existing text in the targeted range.
+
+## rename-identifier.cjs
+
+What it does
+
+- Scope-aware per-file renamer. Renames a declaration and all references that resolve to that declaration, respecting lexical scoping and avoiding shadowed bindings.
+
+When to use
+
+- Rename local variables, function names, parameters, or classes inside a single file.
+- Not intended for renaming across multiple files or across modules. For repo-wide renames use an IDE refactor or a codemod (e.g., jscodeshift).
+
+Usage
+
+Dry-run (preview unified diff):
+
+```
+node scripts/rename-identifier.cjs --file path/to/file.js --old oldName --new newName
+```
+
+Apply with syntax check:
+
+```
+node scripts/rename-identifier.cjs --file path/to/file.js --old oldName --new newName --apply --check
+```
+
+Notes
+
+- If multiple declarations for `oldName` exist, run once to list candidates then re-run with `--index N` to pick the correct one.
+- The script will not attempt to rewrite a single declarator inside a multi-declarator declaration (e.g., `const a = 1, b = 2;`). This is to avoid producing invalid syntax.
+- Backup created on apply: `path/to/file.js.bak.rename-identifier`.
+
+Best practices
+
+- Always run dry-run and review the diff before applying.
+- After applying, run the repository's linter/formatter and tests.
+- Prefer tool-assisted or typed renames (TypeScript/IDE refactors) for cross-file or API-level renames.
+
+Example npm scripts (optional)
+
+Add these to `package.json` to make invocation shorter:
+
+```json
+"scripts": {
+  "replace-fn": "node scripts/replace-function.cjs",
+  "rename-id": "node scripts/rename-identifier.cjs"
+}
+```
+
+Troubleshooting
+
+- Missing `acorn`: install with `npm install --no-save acorn`.
+- `diff` not found: install coreutils or ensure your PATH contains a diff implementation.
+- Syntax check fails after apply: the script attempts to rollback using the backup file. Inspect the backup and the printed error message.
+
+Maintenance
+
+- If you change or add helper scripts, update `scripts/context.md` and this README.
+
+## Running the jscodeshift transform (transforms/replace-node.js)
+
+We also provide a jscodeshift transform that can be run via npx against any JS project without adding dependencies to the target project.
+
+Key points
+
+- The transform file: `transforms/replace-node.js`.
+- Runs via `npx jscodeshift -t transforms/replace-node.js <path>` and accepts the following options:
+  - `--kind` (required): one of `class`, `method`, `function`, `variable`.
+  - `--name` (required for class/function/variable): identifier name.
+  - `--class` and `--method` (for kind=method): specify class and method names.
+  - `--replacement` (required): path to a file containing the replacement source (read relative to your current working directory).
+  - `--body-only` (optional): replace just the inner body of a class or method — replacement MUST include the surrounding braces (e.g. `{ /* new body */ }`).
+  - `--index` (optional): if multiple matches in a file, choose one (0-based index).
+
+Examples
+
+Dry-run across the `src/` directory (shows a preview without writing):
+
+```
+npx jscodeshift -t transforms/replace-node.js src/ --kind=class --name=MyClass --replacement ./replacements/newClass.js -d --parser=babel
+```
+
+Apply the transform (writes changes):
+
+```
+npx jscodeshift -t transforms/replace-node.js src/ --kind=class --name=MyClass --replacement ./replacements/newClass.js --parser=babel --extensions=js,jsx
+```
+
+Replace a single class method (dry-run):
+
+```
+npx jscodeshift -t transforms/replace-node.js path/to/file.js --kind=method --class=MyClass --method=myMethod --replacement ./replacements/newMethod.js -d --parser=babel
+```
+
+Notes and tips
+
+- Use `--parser=babel` to support modern JS syntax (class fields, private methods, optional chaining, etc.).
+- The transform operates on any file types jscodeshift supports; use `--extensions` to set file extensions.
+- Replacement files are inserted literally into the target range; ensure the replacement text matches the replacement target (i.e., include braces for body-only replacements, include `export` if replacing an exported declaration unless you want to preserve the original export prefix).
+- The transform replaces all matches by default within a file; use `--index` to pick a single occurrence per file.
+- Always run a dry-run and review diffs before applying across a codebase.
+
