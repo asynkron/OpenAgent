@@ -38,17 +38,6 @@ export function Command({ command, result, preview = {}, execution = {} }) {
   const { type, detail, description, summaryLines } = data;
   const children = [];
 
-  if (description) {
-    children.push(
-      h(
-        Text,
-        { key: 'description' },
-        h(Text, { color: 'blueBright', bold: true }, 'DESCRIPTION'),
-        h(Text, null, ` ${description}`),
-      ),
-    );
-  }
-
   children.push(
     h(
       Text,

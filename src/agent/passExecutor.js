@@ -388,11 +388,11 @@ export async function executeAgentPass({
           message: 'Command approved for single execution.',
         });
       }
-    } else {
+    } else if (autoApproval.source === 'flag') {
       emitEvent({
         type: 'status',
         level: 'info',
-        message: `Command auto-approved via ${autoApproval.source || 'policy'}.`,
+        message: 'Command auto-approved via flag.',
       });
     }
   }
