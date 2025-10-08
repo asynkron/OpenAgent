@@ -12,15 +12,95 @@
  */
 
 import { spawn } from 'node:child_process';
+import { mkdirSync, mkdtempSync, openSync, closeSync, readFileSync, rmSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
 import { register as registerCancellation } from '../utils/cancellation.js';
 
 import { runRead } from './read.js';
 
+const SCRATCH_ROOT = resolve('.openagent', 'temp');
+
+function prepareTempOutputs() {
+  mkdirSync(SCRATCH_ROOT, { recursive: true });
+  const tempDir = mkdtempSync(join(SCRATCH_ROOT, 'cmd-'));
+  const stdoutPath = join(tempDir, 'stdout.log');
+  const stderrPath = join(tempDir, 'stderr.log');
+  const stdoutFd = openSync(stdoutPath, 'w');
+  const stderrFd = openSync(stderrPath, 'w');
+  return { tempDir, stdoutPath, stderrPath, stdoutFd, stderrFd };
+}
+
+function safeClose(fd) {
+  if (typeof fd !== 'number') {
+    return;
+  }
+  try {
+    closeSync(fd);
+  } catch (error) {
+    // Ignore close errors.
+  }
+}
+
+function safeReadFile(path) {
+  if (!path) {
+    return '';
+  }
+  try {
+    return readFileSync(path, 'utf8');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return `Failed to read command output: ${message}`;
+  }
+}
+
+function cleanupTempDir(tempDir) {
+  if (!tempDir) {
+    return;
+  }
+  try {
+    rmSync(tempDir, { recursive: true, force: true });
+  } catch (error) {
+    // Ignore cleanup errors.
+  }
+}
+
 export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
   return new Promise((resolve) => {
     const startTime = Date.now();
     const isStringCommand = typeof cmd === 'string';
+    let child;
+    let killed = false;
+    let canceled = false;
+    let timedOut = false;
+    let settled = false;
+    let timeoutHandle;
+    let forceKillHandle;
+    let stdoutFd;
+    let stderrFd;
+    let stdoutPath;
+    let stderrPath;
+    let tempDir;
+    let stderrExtras = '';
+
+    let tempPrepError = null;
+    try {
+      const temp = prepareTempOutputs();
+      ({ tempDir, stdoutPath, stderrPath, stdoutFd, stderrFd } = temp);
+    } catch (error) {
+      tempPrepError = error instanceof Error ? error : new Error(String(error));
+    }
+
+    if (tempPrepError) {
+      resolve({
+        stdout: '',
+        stderr: `Failed to prepare command capture: ${tempPrepError.message}`,
+        exit_code: null,
+        killed: false,
+        runtime_ms: 0,
+      });
+      return;
+    }
 
     const options =
       shellOrOptions && typeof shellOrOptions === 'object' && !Array.isArray(shellOrOptions)
@@ -39,24 +119,6 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
       cwd,
       shell: shell !== undefined ? shell : isStringCommand,
     };
-
-    const commandLabel = providedLabel
-      ? String(providedLabel).trim()
-      : isStringCommand
-        ? String(cmd || '').trim()
-        : Array.isArray(cmd)
-          ? cmd
-              .map((part) => String(part))
-              .join(' ')
-              .trim()
-          : '';
-
-    const operationDescription =
-      providedDescription && String(providedDescription).trim()
-        ? String(providedDescription).trim()
-        : commandLabel
-          ? `shell: ${commandLabel}`
-          : 'shell command';
 
     const appendLine = (output, line) => {
       if (!line) {
@@ -85,18 +147,29 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
       return null;
     };
 
-    let child;
-    let stdout = '';
-    let stderr = '';
-    let killed = false;
-    let canceled = false;
-    let timedOut = false;
-    let settled = false;
-    let timeoutHandle;
-    let forceKillHandle;
+    const commandLabel = providedLabel
+      ? String(providedLabel).trim()
+      : isStringCommand
+        ? String(cmd || '').trim()
+        : Array.isArray(cmd)
+          ? cmd
+              .map((part) => String(part))
+              .join(' ')
+              .trim()
+          : '';
+
+    const operationDescription =
+      providedDescription && String(providedDescription).trim()
+        ? String(providedDescription).trim()
+        : commandLabel
+          ? `shell: ${commandLabel}`
+          : 'shell command';
 
     const effectiveCloseStdin =
       closeStdin !== undefined ? Boolean(closeStdin) : stdin === undefined;
+
+    const shouldPipeStdin = stdin !== undefined || effectiveCloseStdin === false;
+    spawnOptions.stdio = [shouldPipeStdin ? 'pipe' : 'ignore', stdoutFd, stderrFd];
 
     const clearPendingTimers = () => {
       if (timeoutHandle) {
@@ -109,37 +182,61 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
       }
     };
 
-    const finalize = (payload) => {
+    const closeOutputFds = () => {
+      safeClose(stdoutFd);
+      safeClose(stderrFd);
+      stdoutFd = undefined;
+      stderrFd = undefined;
+    };
+
+    const finalize = (payload, { unregisterCancellation } = {}) => {
       if (settled) return;
       settled = true;
       clearPendingTimers();
-      if (cancellation && typeof cancellation.unregister === 'function') {
-        cancellation.unregister();
+      closeOutputFds();
+      cleanupTempDir(tempDir);
+      if (unregisterCancellation && typeof unregisterCancellation === 'function') {
+        try {
+          unregisterCancellation();
+        } catch (error) {
+          // Ignore unregister errors.
+        }
       }
       resolve(payload);
     };
 
-    const complete = (code) => {
-      let finalStderr = stderr;
+    const complete = (code, { unregisterCancellation } = {}) => {
+      closeOutputFds();
+
+      const stdoutContent = safeReadFile(stdoutPath);
+      let stderrContent = safeReadFile(stderrPath);
+
+      if (stderrExtras) {
+        stderrContent = appendLine(stderrContent, stderrExtras);
+      }
+
       if (timedOut || canceled) {
         const baseMarker = timedOut
           ? 'Command timed out and was terminated.'
           : 'Command was canceled.';
-        finalStderr = appendLine(finalStderr, baseMarker);
+        stderrContent = appendLine(stderrContent, baseMarker);
 
         const detailMarker = detailFor(timedOut ? 'timeout' : 'canceled');
         if (detailMarker) {
-          finalStderr = appendLine(finalStderr, detailMarker);
+          stderrContent = appendLine(stderrContent, detailMarker);
         }
       }
 
-      finalize({
-        stdout,
-        stderr: finalStderr,
-        exit_code: code,
-        killed,
-        runtime_ms: Date.now() - startTime,
-      });
+      finalize(
+        {
+          stdout: stdoutContent,
+          stderr: stderrContent,
+          exit_code: code,
+          killed,
+          runtime_ms: Date.now() - startTime,
+        },
+        { unregisterCancellation: cancellation?.unregister },
+      );
     };
 
     const handleCancel = (reason) => {
@@ -165,13 +262,16 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
         const message =
           detailFor('canceled') ||
           (reason ? `Command was canceled: ${String(reason)}` : 'Command was canceled.');
-        finalize({
-          stdout: '',
-          stderr: message,
-          exit_code: null,
-          killed: true,
-          runtime_ms: Date.now() - startTime,
-        });
+        finalize(
+          {
+            stdout: '',
+            stderr: message,
+            exit_code: null,
+            killed: true,
+            runtime_ms: Date.now() - startTime,
+          },
+          { unregisterCancellation: cancellation?.unregister },
+        );
       }
     };
 
@@ -190,13 +290,16 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      finalize({
-        stdout: '',
-        stderr: message,
-        exit_code: null,
-        killed: false,
-        runtime_ms: Date.now() - startTime,
-      });
+      finalize(
+        {
+          stdout: '',
+          stderr: message,
+          exit_code: null,
+          killed: false,
+          runtime_ms: Date.now() - startTime,
+        },
+        { unregisterCancellation: cancellation?.unregister },
+      );
       return;
     }
 
@@ -205,7 +308,8 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
         try {
           child.stdin.write(stdin);
         } catch (err) {
-          stderr = appendLine(stderr, err instanceof Error ? err.message : String(err));
+          const message = err instanceof Error ? err.message : String(err);
+          stderrExtras = appendLine(stderrExtras, message);
         }
       }
       if (effectiveCloseStdin) {
@@ -223,21 +327,11 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
       cancellation.setCancelCallback(handleCancel);
     }
 
-    child.stdout?.setEncoding('utf8');
-    child.stdout?.on('data', (chunk) => {
-      stdout += chunk;
-    });
-
-    child.stderr?.setEncoding('utf8');
-    child.stderr?.on('data', (chunk) => {
-      stderr += chunk;
-    });
-
     child.on('error', (error) => {
       if (settled) return;
       const message = error instanceof Error ? error.message : String(error);
-      stderr = appendLine(stderr, message);
-      complete(null);
+      stderrExtras = appendLine(stderrExtras, message);
+      complete(null, { unregisterCancellation: cancellation?.unregister });
     });
 
     const timeoutMs = Math.max(0, (timeoutSec ?? 60) * 1000);
@@ -264,7 +358,7 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
     }
 
     child.on('close', (code) => {
-      complete(code);
+      complete(code, { unregisterCancellation: cancellation?.unregister });
     });
   });
 }
