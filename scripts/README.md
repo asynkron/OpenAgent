@@ -20,7 +20,7 @@ General workflow
 
 Scripts
 
-## apply_patch
+## ./scripts/apply_patch.cjs
 
 What it does
 
@@ -35,7 +35,7 @@ When to use
 Usage
 
 ```bash
-apply_patch <<'EOF'
+node scripts/apply_patch.cjs <<'EOF'
 *** Begin Patch
 *** Update File: path/to/file.js
 @@
@@ -66,13 +66,13 @@ Usage
 
 Dry-run (preview unified diff):
 
-```
+```bash
 node scripts/rename-identifier.cjs --file path/to/file.js --old oldName --new newName
 ```
 
 Apply with syntax check:
 
-```
+```bash
 node scripts/rename-identifier.cjs --file path/to/file.js --old oldName --new newName --apply --check
 ```
 
@@ -127,19 +127,19 @@ Examples
 
 Dry-run across the `src/` directory (shows a preview without writing):
 
-```
+```bash
 npx jscodeshift -t transforms/replace-node.js src/ --kind=class --name=MyClass --replacement ./replacements/newClass.js -d --parser=babel
 ```
 
 Apply the transform (writes changes):
 
-```
+```bash
 npx jscodeshift -t transforms/replace-node.js src/ --kind=class --name=MyClass --replacement ./replacements/newClass.js --parser=babel --extensions=js,jsx
 ```
 
 Replace a single class method (dry-run):
 
-```
+```bash
 npx jscodeshift -t transforms/replace-node.js path/to/file.js --kind=method --class=MyClass --method=myMethod --replacement ./replacements/newMethod.js -d --parser=babel
 ```
 

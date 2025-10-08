@@ -54,6 +54,47 @@ const Timeline = React.memo(function Timeline({ entries }) {
   });
 });
 
+function deepEqual(a, b) {
+  if (a === b) {
+    return true;
+  }
+
+  if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') {
+    return false;
+  }
+
+  if (Array.isArray(a) !== Array.isArray(b)) {
+    return false;
+  }
+
+  if (Array.isArray(a)) {
+    if (a.length !== b.length) {
+      return false;
+    }
+    for (let index = 0; index < a.length; index += 1) {
+      if (!deepEqual(a[index], b[index])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+
+  if (aKeys.length !== bKeys.length) {
+    return false;
+  }
+
+  for (const key of aKeys) {
+    if (!Object.prototype.hasOwnProperty.call(b, key) || !deepEqual(a[key], b[key])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function formatDebugPayload(payload) {
   if (typeof payload === 'string') {
     return payload;
@@ -192,15 +233,21 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
         case 'assistant-message':
           handleAssistantMessage(event);
           break;
-        case 'plan':
-          setPlan(Array.isArray(event.plan) ? event.plan : []);
+        case 'plan': {
+          const nextPlan = Array.isArray(event.plan) ? event.plan : [];
+          setPlan((prevPlan) => (deepEqual(prevPlan, nextPlan) ? prevPlan : nextPlan));
           break;
-        case 'plan-progress':
-          setPlanProgress({ seen: true, value: event.progress || null });
+        }
+        case 'plan-progress': {
+          const nextPlanProgress = { seen: true, value: event.progress || null };
+          setPlanProgress((prev) => (deepEqual(prev, nextPlanProgress) ? prev : nextPlanProgress));
           break;
-        case 'context-usage':
-          setContextUsage(event.usage || null);
+        }
+        case 'context-usage': {
+          const nextContextUsage = event.usage || null;
+          setContextUsage((prev) => (deepEqual(prev, nextContextUsage) ? prev : nextContextUsage));
           break;
+        }
         case 'command-result':
           handleCommandEvent(event);
           break;

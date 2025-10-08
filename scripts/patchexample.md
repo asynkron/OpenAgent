@@ -1,7 +1,7 @@
 # Headerless Patch
 
 ```
-apply_patch <<'EOF'
+any-tool-that-accepts-patches <<'EOF'
 *** Begin Patch
 *** Update File: src/cli/components/CliApp.js
 @@

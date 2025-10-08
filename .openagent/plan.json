@@ -1,12 +1,17 @@
 [
   {
     "step": "1",
-    "title": "Review src/cli/components structure",
+    "title": "Design state update guard strategy",
     "status": "completed"
   },
   {
     "step": "2",
-    "title": "Investigate rerender/flickering cause",
-    "status": "running"
+    "title": "Implement changes in CliApp.js",
+    "status": "completed"
+  },
+  {
+    "step": "3",
+    "title": "Run basic checks if needed",
+    "status": "completed"
   }
 ]
