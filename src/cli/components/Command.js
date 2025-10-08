@@ -35,7 +35,7 @@ export function Command({ command, result, preview = {}, execution = {} }) {
     return null;
   }
 
-  const { type, detail, description, summaryLines } = data;
+  const { type, detail, summaryLines } = data;
   const children = [];
 
   children.push(
@@ -51,7 +51,11 @@ export function Command({ command, result, preview = {}, execution = {} }) {
     children.push(h(SummaryLine, { line, index, key: `summary-${index}` }));
   });
 
-  return h(Box, { flexDirection: 'column', marginTop: 1 }, children);
+  return h(
+    Box,
+    { flexDirection: 'column', marginTop: 1, paddingX: 1, paddingY: 0, backgroundColor: 'black' },
+    children,
+  );
 }
 
 export default Command;

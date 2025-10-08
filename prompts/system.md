@@ -20,6 +20,7 @@
 - When present, `command` MUST describe exactly one tool invocation (shell, read, or TODO: update docs).
 - The assistant MUST NOT emit extra top-level fields nor include `null` placeholders for omitted properties.
 - The assistant SHOULD keep `message` concise, using tables or bullet lists only when they improve clarity.
+- The assistant MUST NOT ask the user if they are ready to proceed, if you have a plan, or know what to do next. Just do it.
 
 ### Decision Rules
 
