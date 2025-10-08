@@ -21,6 +21,10 @@
 - Rendering relies on Ink’s flexbox-like layout; test visually after major styling changes to avoid clipping.
 - Markdown rendering leverages `renderMarkdownMessage` helpers; ensure new components respect sanitization rules.
 
+## Maintenance Notes
+- Layout wrappers such as `Command` explicitly set `width: '100%'`/`alignSelf: 'stretch'` so timeline entries fill the
+  terminal width consistently.
+
 ## Related Context
 - UI render helpers: [`../render.js`](../render.js).
 - Runtime event producer: [`../../agent/context.md`](../../agent/context.md).
