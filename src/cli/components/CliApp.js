@@ -144,19 +144,25 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
   const [thinking, setThinking] = useState(false);
   const [inputRequest, setInputRequest] = useState(null);
   const [entries, setEntries] = useState([]);
+  const [timelineKey, setTimelineKey] = useState(0);
   const [debugEvents, setDebugEvents] = useState([]);
   const [exitState, setExitState] = useState(null);
 
   const appendEntry = useCallback((type, payload) => {
     entryIdRef.current += 1;
     const id = entryIdRef.current;
+    let trimmed = false;
     setEntries((prev) => {
       const next = [...prev, { id, type, payload }];
       if (next.length > MAX_TIMELINE_ENTRIES) {
+        trimmed = true;
         return next.slice(next.length - MAX_TIMELINE_ENTRIES);
       }
       return next;
     });
+    if (trimmed) {
+      setTimelineKey((value) => value + 1);
+    }
   }, []);
 
   const safeSetExitState = useCallback((next) => {
@@ -361,7 +367,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
     }),
   );
 
-  children.push(h(Timeline, { entries, key: 'timeline' }));
+  children.push(h(Timeline, { entries, key: `timeline-${timelineKey}` }));
 
   if (hasDebugEvents) {
     children.push(h(MemoDebugPanel, { events: debugEvents, key: 'debug' }));

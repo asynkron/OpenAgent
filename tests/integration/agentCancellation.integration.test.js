@@ -112,6 +112,7 @@ test('ESC cancellation aborts an in-flight command and surfaces UI feedback', as
   const runtime = agent.createAgentRuntime({
     getAutoApproveFlag: () => agent.STARTUP_FORCE_AUTO_APPROVE,
     runCommandFn: runCommandMock,
+    emitAutoApproveStatus: true,
   });
 
   const ui = createTestRunnerUI(runtime);

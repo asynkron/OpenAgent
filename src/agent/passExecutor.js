@@ -81,6 +81,7 @@ export async function executeAgentPass({
   approvalManager,
   historyCompactor,
   planManager,
+  emitAutoApproveStatus = false,
 }) {
   const debugFn = typeof onDebug === 'function' ? onDebug : null;
   const emitDebug = (payloadOrFactory) => {
@@ -388,7 +389,7 @@ export async function executeAgentPass({
           message: 'Command approved for single execution.',
         });
       }
-    } else if (autoApproval.source === 'flag') {
+    } else if (autoApproval.source === 'flag' && emitAutoApproveStatus) {
       emitEvent({
         type: 'status',
         level: 'info',

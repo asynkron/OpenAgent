@@ -48,6 +48,7 @@ export function createAgentRuntime({
   getPlanMergeFlag = () => false,
   getDebugFlag = () => false,
   setNoHumanFlag = () => {},
+  emitAutoApproveStatus = false,
   createHistoryCompactorFn = ({ openai: client, currentModel }) =>
     new HistoryCompactor({ openai: client, model: currentModel, logger: console }),
 } = {}) {
@@ -350,6 +351,7 @@ export function createAgentRuntime({
               approvalManager,
               historyCompactor,
               planManager,
+              emitAutoApproveStatus,
             });
 
             continueLoop = shouldContinue;
