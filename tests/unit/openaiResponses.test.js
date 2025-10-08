@@ -84,4 +84,25 @@ describe('createResponse', () => {
       undefined,
     );
   });
+
+  test('includes tools when provided', async () => {
+    const tool = { type: 'function', function: { name: 'example', parameters: { type: 'object' } } };
+    const openai = {
+      responses: {
+        create: jest.fn().mockResolvedValue({ output: [] }),
+      },
+    };
+
+    const { createResponse } = await import('../../src/openai/responses.js');
+    await createResponse({ openai, model: 'gpt-5-codex', input: [], tools: [tool] });
+
+    expect(openai.responses.create).toHaveBeenCalledWith(
+      {
+        model: 'gpt-5-codex',
+        input: [],
+        tools: [tool],
+      },
+      undefined,
+    );
+  });
 });

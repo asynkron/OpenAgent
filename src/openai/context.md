@@ -5,7 +5,7 @@
 
 ## Key Files
 - `client.js` — lazily instantiates the OpenAI SDK client based on environment variables, validates models, and exposes `MODEL`, `getOpenAIClient`, `resetOpenAIClient`.
-- `responses.js` — constructs structured responses API calls, handles retries, and normalizes errors.
+- `responses.js` — constructs structured responses API calls, attaches tool schemas, handles retries, and normalizes errors.
 - `responseUtils.js` — extracts textual content from Responses API payloads for display/logging.
 
 ## Positive Signals
