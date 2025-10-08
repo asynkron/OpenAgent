@@ -5,6 +5,10 @@ import InkTextArea, {
   transformToRows,
 } from '../../src/cli/components/InkTextArea.js';
 
+function stripAnsi(value) {
+  return value.replace(/\u001B\[[0-9;]*m/g, '');
+}
+
 describe('InkTextArea input handling', () => {
   async function flush() {
     await new Promise((resolve) => setImmediate(resolve));
@@ -189,7 +193,7 @@ describe('InkTextArea input handling', () => {
 
     // Sanity-check the default layout uses a single row.
     const initialLines = lastFrame().split('\n');
-    expect(initialLines[0]).toBe('abcdef');
+    expect(stripAnsi(initialLines[0])).toBe('abcdef');
 
     // Simulate the terminal shrinking by overriding columns and emitting resize.
     Object.defineProperty(stdout, 'columns', {
@@ -202,8 +206,8 @@ describe('InkTextArea input handling', () => {
     await flush();
 
     const resizedLines = lastFrame().split('\n');
-    expect(resizedLines[0]).toMatch(/^ ?abc$/);
-    expect(resizedLines[1]).toBe('def');
+    expect(stripAnsi(resizedLines[0])).toMatch(/^ ?abc$/);
+    expect(stripAnsi(resizedLines[1])).toBe('def');
 
     unmount();
   });
@@ -223,6 +227,14 @@ describe('transformToRows', () => {
     expect(rows).toEqual([
       { text: 'abc', startIndex: 0 },
       { text: 'def', startIndex: 3 },
+    ]);
+  });
+
+  test('respects horizontal padding when wrapping', () => {
+    const rows = transformToRows('abcdefgh', 8, { paddingLeft: 1, paddingRight: 1 });
+    expect(rows).toEqual([
+      { text: 'abcdef', startIndex: 0 },
+      { text: 'gh', startIndex: 6 },
     ]);
   });
 
