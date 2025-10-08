@@ -173,18 +173,6 @@ export class CommandApprovalService {
       const runRaw = (command && command.run ? String(command.run) : '').trim();
       if (!runRaw) return false;
 
-      if (runRaw.toLowerCase().startsWith('browse ')) {
-        const url = runRaw.slice(7).trim();
-        if (!url || /\s/.test(url)) return false;
-        try {
-          const u = new URL(url);
-          if (u.protocol === 'http:' || u.protocol === 'https:') return true;
-        } catch (err) {
-          return false;
-        }
-        return false;
-      }
-
       if (!CommandApprovalService.isCommandStringSafe(runRaw)) return false;
 
       const shellOpt = command && 'shell' in command ? command.shell : undefined;

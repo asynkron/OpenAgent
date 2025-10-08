@@ -7,8 +7,6 @@
 ## Key Files
 
 - `ApplyPatchCommand.js`: normalizes `apply_patch` commands and pipes them through the git-backed runner.
-- `BrowseCommand.js`: opens URLs using the browsing runner with validation.
-- `EscapeStringCommand.js` / `UnescapeStringCommand.js`: proxy string transformation helpers.
 - `ReadCommand.js`: merges inline token specs with structured read payloads before dispatch.
 - `ExecuteCommand.js`: default shell execution fallback when no other command matches.
 

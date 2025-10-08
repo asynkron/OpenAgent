@@ -8,14 +8,7 @@ import { resolve } from 'node:path';
 
 import { SYSTEM_PROMPT } from '../config/systemPrompt.js';
 import { getOpenAIClient, MODEL } from '../openai/client.js';
-import {
-  runCommand,
-  runBrowse,
-  runRead,
-  runEscapeString,
-  runUnescapeString,
-  runApplyPatch,
-} from '../commands/run.js';
+import { runCommand, runRead, runApplyPatch } from '../commands/run.js';
 import {
   isPreapprovedCommand,
   isSessionApproved,
@@ -43,10 +36,7 @@ export function createAgentRuntime({
   getClient = getOpenAIClient,
   model = MODEL,
   runCommandFn = runCommand,
-  runBrowseFn = runBrowse,
   runReadFn = runRead,
-  runEscapeStringFn = runEscapeString,
-  runUnescapeStringFn = runUnescapeString,
   runApplyPatchFn = runApplyPatch,
   applyFilterFn = applyFilter,
   tailLinesFn = tailLines,
@@ -343,10 +333,7 @@ export function createAgentRuntime({
               emitEvent: emit,
               onDebug: emitDebug,
               runCommandFn,
-              runBrowseFn,
               runReadFn,
-              runEscapeStringFn,
-              runUnescapeStringFn,
               runApplyPatchFn,
               applyFilterFn,
               tailLinesFn,

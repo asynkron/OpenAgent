@@ -4,11 +4,8 @@ import { executeAgentCommand } from '../../src/agent/commandExecution.js';
 describe('executeAgentCommand', () => {
   const makeDeps = () => ({
     runCommandFn: jest.fn(async () => ({ stdout: 'run', stderr: '', exit_code: 0 })),
-    runBrowseFn: jest.fn(async () => ({ stdout: 'browse', stderr: '', exit_code: 0 })),
     runReadFn: jest.fn(async () => ({ stdout: 'read', stderr: '', exit_code: 0 })),
     runApplyPatchFn: jest.fn(async () => ({ stdout: 'apply', stderr: '', exit_code: 0 })),
-    runEscapeStringFn: jest.fn(async () => ({ stdout: 'escape', stderr: '', exit_code: 0 })),
-    runUnescapeStringFn: jest.fn(async () => ({ stdout: 'unescape', stderr: '', exit_code: 0 })),
   });
 
   test('executes read command when read spec provided', async () => {
@@ -42,30 +39,6 @@ describe('executeAgentCommand', () => {
       type: 'APPLY_PATCH',
       spec: expect.objectContaining({ target: 'src/file.txt' }),
     });
-  });
-
-  test('executes escape_string built-in before others', async () => {
-    const deps = makeDeps();
-    const command = { escape_string: { text: 'hello' } };
-
-    const { result, executionDetails } = await executeAgentCommand({ command, ...deps });
-
-    expect(deps.runEscapeStringFn).toHaveBeenCalledWith(command.escape_string, '.');
-    expect(deps.runCommandFn).not.toHaveBeenCalled();
-    expect(result.stdout).toBe('escape');
-    expect(executionDetails).toEqual({ type: 'ESCAPE_STRING', spec: command.escape_string });
-  });
-
-  test('routes run command that starts with browse to runBrowse', async () => {
-    const deps = makeDeps();
-    const command = { run: 'browse https://example.com', timeout_sec: 15 };
-
-    const { result, executionDetails } = await executeAgentCommand({ command, ...deps });
-
-    expect(deps.runBrowseFn).toHaveBeenCalledWith('https://example.com', 15);
-    expect(result.stdout).toBe('browse');
-    expect(executionDetails).toEqual({ type: 'BROWSE', target: 'https://example.com' });
-    expect(deps.runCommandFn).not.toHaveBeenCalled();
   });
 
   test('merges read tokens when run command starts with read', async () => {

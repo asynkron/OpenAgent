@@ -36,13 +36,6 @@ function createRuntimeWithQueue(queue, overrides = {}) {
       killed: false,
       runtime_ms: 1,
     }),
-    runBrowseFn: jest.fn().mockResolvedValue({
-      stdout: 'browse result',
-      stderr: '',
-      exit_code: 0,
-      killed: false,
-      runtime_ms: 1,
-    }),
     runReadFn: jest.fn().mockResolvedValue({
       stdout: 'file contents',
       stderr: '',
@@ -51,8 +44,6 @@ function createRuntimeWithQueue(queue, overrides = {}) {
       runtime_ms: 1,
     }),
     runApplyPatchFn: jest.fn(),
-    runEscapeStringFn: jest.fn(),
-    runUnescapeStringFn: jest.fn(),
     applyFilterFn: (text) => text,
     tailLinesFn: (text) => text,
     isPreapprovedCommandFn: () => false,
@@ -88,7 +79,6 @@ function createRuntimeWithQueue(queue, overrides = {}) {
     responsesCreate,
     runWithPrompts,
     runCommandFn: config.runCommandFn,
-    runBrowseFn: config.runBrowseFn,
     runReadFn: config.runReadFn,
     runApplyPatchFn: config.runApplyPatchFn,
   };
@@ -212,37 +202,4 @@ describe('agent built-in command parsing', () => {
     );
   });
 
-  test('browse built-in with quoted url uses runBrowse', async () => {
-    const browseCall = {
-      message: 'Browse for docs',
-      plan: [],
-      command: {
-        run: 'browse "https://example.com/search?q=open agent"',
-        timeout_sec: 15,
-      },
-    };
-
-    const followUp = {
-      message: 'done',
-      plan: [],
-      command: null,
-    };
-
-    const runBrowseFn = jest.fn().mockResolvedValue({
-      stdout: 'page content',
-      stderr: '',
-      exit_code: 0,
-      killed: false,
-      runtime_ms: 3,
-    });
-
-    const { runWithPrompts, runBrowseFn: configuredBrowse } = createRuntimeWithQueue(
-      [buildResponsePayload(browseCall), buildResponsePayload(followUp)],
-      { runBrowseFn },
-    );
-
-    await runWithPrompts();
-
-    expect(configuredBrowse).toHaveBeenCalledWith('https://example.com/search?q=open agent', 15);
-  });
 });
