@@ -1,17 +1,1 @@
-[
-  {
-    "title": "Review repository context and recent state",
-    "step": "step1",
-    "status": "completed"
-  },
-  {
-    "title": "Survey codebase for potential refactors",
-    "step": "step2",
-    "status": "completed"
-  },
-  {
-    "title": "Summarize findings and next actions",
-    "step": "step3",
-    "status": "completed"
-  }
-]
+[]

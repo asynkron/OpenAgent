@@ -88,7 +88,7 @@ export async function requestModelCompletion({
               },
               oneOf: [{ required: ['shell', 'run', 'cwd'] }, { required: ['read'] }],
               description:
-                'You MUST provide the next tool invocation to execute if a plan contains non-complete steps.',
+                'Next tool invocation to execute when a plan contains non-complete steps.',
             },
           },
           $defs: {
