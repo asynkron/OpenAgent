@@ -23,14 +23,7 @@ import {
   renderPlanProgress,
 } from '../cli/render.js';
 import { renderRemainingContext } from '../cli/status.js';
-import {
-  runCommand,
-  runBrowse,
-  runRead,
-  runEscapeString,
-  runUnescapeString,
-  runApplyPatch,
-} from '../commands/run.js';
+import { runCommand, runRead, runApplyPatch } from '../commands/run.js';
 import {
   CommandApprovalService,
   sessionApprovalService,
@@ -78,10 +71,7 @@ export {
   renderPlanProgress,
   renderRemainingContext,
   runCommand,
-  runBrowse,
   runRead,
-  runEscapeString,
-  runUnescapeString,
   runApplyPatch,
   CommandApprovalService,
   sessionApprovalService,
@@ -130,10 +120,7 @@ const exported = {
   renderPlanProgress,
   renderRemainingContext,
   runCommand,
-  runBrowse,
   runRead,
-  runEscapeString,
-  runUnescapeString,
   runApplyPatch,
   CommandApprovalService,
   sessionApprovalService,

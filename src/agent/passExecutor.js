@@ -65,11 +65,8 @@ export async function executeAgentPass({
   emitEvent = () => {},
   onDebug = null,
   runCommandFn,
-  runBrowseFn,
   runReadFn,
   runApplyPatchFn,
-  runEscapeStringFn,
-  runUnescapeStringFn,
   applyFilterFn,
   tailLinesFn,
   getNoHumanFlag,
@@ -400,11 +397,8 @@ export async function executeAgentPass({
   const { result, executionDetails } = await executeAgentCommand({
     command: parsed.command,
     runCommandFn,
-    runBrowseFn,
     runReadFn,
     runApplyPatchFn,
-    runEscapeStringFn,
-    runUnescapeStringFn,
   });
 
   let key = parsed?.command?.key;

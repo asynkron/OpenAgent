@@ -27,14 +27,12 @@
 - `src/lib/index.js`: aggregates CLI-agnostic exports for programmatic consumers.
 - `src/cli/runner.js`: parses CLI flags, applies startup configuration, and launches the agent runtime.
 - `src/agent/loop.js`: orchestrates the conversation loop, delegating individual passes to `passExecutor.js` while coordinating approvals and ESC cancellation state.
-- `src/commands/run.js`: sandbox for process execution with timeout/cancellation plumbing and built-in command helpers (browse/read/escape-string/apply_patch).
+- `src/commands/run.js`: sandbox for process execution with timeout/cancellation plumbing and built-in command helpers (read/apply_patch).
 - `src/openai/client.js`: memoizes the OpenAI Responses client with configuration validation.
 
 ## Recent Improvements
 
 - Agent loop responsibilities split across `loop.js`, `passExecutor.js`, `approvalManager.js`, and `commandExecution.js`, simplifying targeted testing.
-- Browse command networking now routes through the shared `HttpClient`, consolidating timeout/abort handling with consistent unit coverage.
-- String quoting helpers (`escapeString`/`unescapeString`) ship with dedicated unit and integration tests to prevent JSON protocol regressions.
 - Cancellation flow aligns with `docs/openai-cancellation.md` and is exercised by both nested unit regressions and `tests/integration/agentCancellation.integration.test.js`.
 
 ## Current Risks / Follow-ups

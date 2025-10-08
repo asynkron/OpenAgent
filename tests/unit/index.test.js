@@ -44,24 +44,15 @@ async function loadModule(
   }
 
   if (typeof runCommandMock === 'function') {
-    const runBrowse = jest.fn();
     const runRead = jest.fn();
-    const runEscapeString = jest.fn();
-    const runUnescapeString = jest.fn();
     const runApplyPatch = jest.fn();
     jest.unstable_mockModule('../../src/commands/run.js', () => ({
       runCommand: runCommandMock,
-      runBrowse,
       runRead,
-      runEscapeString,
-      runUnescapeString,
       runApplyPatch,
       default: {
         runCommand: runCommandMock,
-        runBrowse,
         runRead,
-        runEscapeString,
-        runUnescapeString,
         runApplyPatch,
       },
     }));
@@ -150,20 +141,6 @@ describe('isPreapprovedCommand', () => {
     expect(mod.isPreapprovedCommand({ run: 'ls &> output.txt' }, cfg)).toBe(false);
   });
 
-  test('allows browse command with valid URL', async () => {
-    const { mod } = await loadModule();
-    const result = mod.isPreapprovedCommand(
-      { run: 'browse https://example.com' },
-      { allowlist: [] },
-    );
-    expect(result).toBe(true);
-  });
-
-  test('rejects browse command with invalid URL', async () => {
-    const { mod } = await loadModule();
-    const result = mod.isPreapprovedCommand({ run: 'browse ftp://example.com' }, { allowlist: [] });
-    expect(result).toBe(false);
-  });
 });
 
 describe('shellSplit', () => {
@@ -217,85 +194,6 @@ describe('extractResponseText', () => {
   test('returns empty string when no text present', async () => {
     const { mod } = await loadModule();
     expect(mod.extractResponseText({})).toBe('');
-  });
-});
-
-describe('runBrowse', () => {
-  const url = 'https://example.com/resource';
-
-  const createClient = ({ response, error, isAbortLike } = {}) => {
-    const fetch = jest.fn();
-
-    if (error) {
-      fetch.mockRejectedValue(error);
-    } else {
-      fetch.mockResolvedValue(response ?? { body: '', status: 200, statusText: 'OK', ok: true });
-    }
-
-    return {
-      fetch,
-      isAbortLike: jest.fn(isAbortLike ?? (() => false)),
-    };
-  };
-
-  test('delegates to provided http client fetch', async () => {
-    const { mod } = await loadModule();
-    const client = createClient({
-      response: { body: 'body', status: 200, statusText: 'OK', ok: true },
-    });
-
-    const result = await mod.runBrowse(url, 5, client);
-
-    expect(client.fetch).toHaveBeenCalledWith(url, { timeoutSec: 5, method: 'GET' });
-    expect(result.exit_code).toBe(0);
-    expect(result.stdout).toBe('body');
-    expect(result.stderr).toBe('');
-    expect(result.killed).toBe(false);
-  });
-
-  test('propagates non-2xx status from client response', async () => {
-    const { mod } = await loadModule();
-    const client = createClient({
-      response: { body: 'missing', status: 404, statusText: 'Not Found', ok: false },
-    });
-
-    const result = await mod.runBrowse(url, 1, client);
-
-    expect(result.exit_code).toBe(404);
-    expect(result.stderr).toBe('HTTP 404 Not Found');
-    expect(result.stdout).toBe('missing');
-    expect(result.killed).toBe(false);
-  });
-
-  test('marks request as killed when client reports abort', async () => {
-    const { mod } = await loadModule();
-    const error = Object.assign(new Error('Aborted'), { name: 'AbortError' });
-    const client = createClient({
-      error,
-      isAbortLike: (received) => received === error,
-    });
-
-    const result = await mod.runBrowse(url, 1, client);
-
-    expect(client.fetch).toHaveBeenCalledWith(url, { timeoutSec: 1, method: 'GET' });
-    expect(client.isAbortLike).toHaveBeenCalledWith(error);
-    expect(result.exit_code).toBe(1);
-    expect(result.stderr).toBe('Aborted');
-    expect(result.killed).toBe(true);
-  });
-
-  test('falls back to unknown error message when client throws empty error', async () => {
-    const { mod } = await loadModule();
-    const error = new Error('');
-    error.message = '';
-    const client = createClient({ error });
-
-    const result = await mod.runBrowse(url, 1, client);
-
-    expect(result.exit_code).toBe(1);
-    expect(result.stdout).toBe('');
-    expect(result.stderr).toBe('Unknown browse error');
-    expect(result.killed).toBe(false);
   });
 });
 

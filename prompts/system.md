@@ -17,7 +17,7 @@
   - expose at most one `status: "running"` entry per hierarchy level;
   - reflect reality (set to `[]` when the plan has been completed, otherwise keep it accurate and up to date).
 - `command` MUST be omitted when no tool invocation will be executed in the next turn.
-- When present, `command` MUST describe exactly one tool invocation (shell, browse, read, apply_patch, `escape_string`, or `unescape_string`).
+- When present, `command` MUST describe exactly one tool invocation (shell, read, or apply_patch).
 - The assistant MUST NOT emit extra top-level fields nor include `null` placeholders for omitted properties.
 - The assistant SHOULD keep `message` concise, using tables or bullet lists only when they improve clarity.
 
@@ -50,9 +50,7 @@ These rules render the invalid examples below as actionable diagnostics—consul
       "oneOf": [
         { "required": ["shell", "run", "cwd"] },
         { "required": ["read"] },
-        { "required": ["apply_patch"] },
-        { "required": ["escape_string"] },
-        { "required": ["unescape_string"] }
+        { "required": ["apply_patch"] }
       ],
       "properties": {
         "description": { "type": "string" },
@@ -63,22 +61,7 @@ These rules render the invalid examples below as actionable diagnostics—consul
         "filter_regex": { "type": "string" },
         "tail_lines": { "type": "integer", "minimum": 1 },
         "read": { "$ref": "#/$defs/readCommand" },
-        "apply_patch": { "$ref": "#/$defs/applyPatchCommand" },
-        "escape_string": {
-          "type": "object",
-          "required": ["text"],
-          "additionalProperties": false,
-          "properties": { "text": { "type": "string" } }
-        },
-        "unescape_string": {
-          "type": "object",
-          "required": ["text", "path"],
-          "additionalProperties": false,
-          "properties": {
-            "text": { "type": "string" },
-            "path": { "type": "string" }
-          }
-        }
+        "apply_patch": { "$ref": "#/$defs/applyPatchCommand" }
       }
     }
   },

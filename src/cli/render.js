@@ -265,9 +265,6 @@ function inferCommandType(command) {
   const runValue = typeof command.run === 'string' ? command.run.trim() : '';
   if (runValue) {
     const keyword = runValue.split(/\s+/)[0]?.toLowerCase();
-    if (keyword === 'browse') {
-      return 'BROWSE';
-    }
     if (keyword === 'read') {
       return 'READ';
     }
@@ -313,10 +310,6 @@ function buildHeadingDetail(type, execution, command) {
         parts.push('dry-run');
       }
       return `(${parts.join(', ')})`;
-    }
-    case 'BROWSE': {
-      const target = execution?.target || '';
-      return `(${target})`;
     }
     default: {
       const runValue =
@@ -411,7 +404,7 @@ export function renderCommand(command, result, output = {}) {
         summaryLines.push(indentLine(`${label}: 0 lines`));
       }
     }
-  } else if (type === 'EDIT' || type === 'REPLACE' || type === 'BROWSE') {
+  } else if (type === 'EDIT' || type === 'REPLACE') {
     const stdoutLines = normalizePreviewLines(output.stdoutPreview);
     if (stdoutLines.length > 0) {
       summaryLines.push(arrowLine(stdoutLines[0]));

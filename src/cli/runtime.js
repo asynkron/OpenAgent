@@ -12,13 +12,7 @@ import { startThinking, stopThinking } from './thinking.js';
 import { createInterface, askHuman, ESCAPE_EVENT } from './io.js';
 import { renderPlan, renderMessage, renderCommand, renderPlanProgress } from './render.js';
 import { renderRemainingContext } from './status.js';
-import {
-  runCommand,
-  runBrowse,
-  runRead,
-  runEscapeString,
-  runUnescapeString,
-} from '../commands/run.js';
+import { runCommand, runRead } from '../commands/run.js';
 import {
   isPreapprovedCommand,
   isSessionApproved,
@@ -49,10 +43,7 @@ async function runAgentLoopWithCurrentDependencies(options = {}) {
     getDebugFlag,
     setNoHumanFlag,
     runCommandFn: runCommand,
-    runBrowseFn: runBrowse,
     runReadFn: runRead,
-    runEscapeStringFn: runEscapeString,
-    runUnescapeStringFn: runUnescapeString,
     applyFilterFn: applyFilter,
     tailLinesFn: tailLines,
     isPreapprovedCommandFn: isPreapprovedCommand,
