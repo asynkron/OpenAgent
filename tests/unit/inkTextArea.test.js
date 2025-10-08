@@ -66,6 +66,7 @@ describe('InkTextArea input handling', () => {
         value: 'hi',
         onChange: jest.fn(),
         onSubmit: jest.fn(),
+        width: 2,
       }),
     );
 
@@ -81,4 +82,51 @@ describe('InkTextArea input handling', () => {
 
     unmount();
   });
+
+  test('moves caret vertically by width-sized jumps', async () => {
+    const { stdin, unmount, lastFrame, rerender } = render(
+      React.createElement(InkTextArea, {
+        value: 'abcd',
+        onChange: jest.fn(),
+        onSubmit: jest.fn(),
+        width: 2,
+      }),
+    );
+
+    // Move caret to start of second row.
+    stdin.write('\u001B[C');
+    stdin.write('\u001B[C');
+    await flush();
+    expect(caretIndexFromFrame(lastFrame())).toBe(2);
+
+    // Moving up from row 1 should go back by width (2 cells).
+    stdin.write('\u001B[A');
+    await flush();
+    expect(caretIndexFromFrame(lastFrame())).toBe(0);
+
+    // Sync caret with updated value before testing downward movement.
+    rerender(
+      React.createElement(InkTextArea, {
+        value: 'abcd',
+        onChange: jest.fn(),
+        onSubmit: jest.fn(),
+        width: 2,
+      }),
+    );
+    await flush();
+
+    // Return caret to start of second row.
+    stdin.write('\u001B[C');
+    stdin.write('\u001B[C');
+    await flush();
+    expect(caretIndexFromFrame(lastFrame())).toBe(2);
+
+    // Moving down should jump by width but clamp to value length (4).
+    stdin.write('\u001B[B');
+    await flush();
+    expect(caretIndexFromFrame(lastFrame())).toBe(4);
+
+    unmount();
+  });
+
 });
