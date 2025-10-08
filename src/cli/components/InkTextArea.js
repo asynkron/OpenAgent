@@ -159,7 +159,7 @@ export function InkTextArea({
         return;
       }
 
-      if (key.return) {
+      if (key.return && !specialKeys.shift) {
         onSubmit?.(value);
         return;
       }
