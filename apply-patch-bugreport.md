@@ -1,8 +1,8 @@
-# apply_patch failure log (2025-10-07)
+# TODO: update docs failure log (2025-10-07)
 
 ## Summary
 
-- Multiple `apply_patch` commands targeting `notes/codex-example.md` and `prompts/developer.md` failed while appending documentation.
+- Multiple `TODO: update docs` commands targeting `notes/codex-example.md` and `prompts/developer.md` failed while appending documentation.
 - Failures were triggered by unified diff formatting issues (missing leading spaces on context lines, mismatched hunk counts/locations).
 - Successful edits required either regenerating the diff with accurate metadata or overwriting the file directly.
 
@@ -22,7 +22,7 @@
 {
   "description": "Update the first sentence in notes/codex-example.md to start with a capital letter",
   "cwd": ".",
-  "apply_patch": {
+  "TODO: update docs": {
     "target": "notes/codex-example.md",
     "patch": "--- a/notes/codex-example.md\n+++ b/notes/codex-example.md\n@@\n-› figure out what needs to be done to respect the --nohuman flag. when enabled, calling \"askHuman\"\n+› Figure out what needs to be done to respect the --nohuman flag. when enabled, calling \"askHuman\"\n"
   }
@@ -36,7 +36,7 @@
 ```
 
 **Expected outcome:** capitalize "figure" → "Figure".
-**Observed result:** `stderr: "apply_patch failed to apply the provided patch."`
+**Observed result:** `stderr: "TODO: update docs failed to apply the provided patch."`
 **Diagnosis:** patch missing hunk metadata (`@@ -start,count +start,count @@`); parser could not map the change.
 
 A follow-up command with explicit line counts (`@@ -1,4 +1,4 @@`) succeeded.
@@ -51,7 +51,7 @@ A follow-up command with explicit line counts (`@@ -1,4 +1,4 @@`) succeeded.
 {
   "description": "Add a follow-up reminders section to notes/codex-example.md",
   "cwd": ".",
-  "apply_patch": {
+  "TODO: update docs": {
     "target": "notes/codex-example.md",
     "patch": "--- a/notes/codex-example.md\n+++ b/notes/codex-example.md\n@@ -79,3 +79,9 @@\n Tests\n \n - npm test\n \n Next step: try node index.js --nohuman in your workflow to confirm the CLI behavior matches your\n expectations, especially around providing the initial objectives.\n+\n+### Follow-up reminders\n+- Capture a CLI transcript once no-human mode is stabilized to share in onboarding docs.\n+- Draft integration coverage that exercises chained command approvals under no-human automation.\n+- Review `todo.md` entries related to the no-human flag and close or update them after verification.\n"
   }
@@ -83,7 +83,7 @@ expectations, especially around providing the initial objectives.
 {
   "description": "Extend notes/codex-example.md with follow-up reminders",
   "cwd": ".",
-  "apply_patch": {
+  "TODO: update docs": {
     "target": "notes/codex-example.md",
     "patch": "--- a/notes/codex-example.md\n+++ b/notes/codex-example.md\n@@ -109,3 +109,9 @@\n Tests\n \n - npm test\n \n Next step: try node index.js --nohuman in your workflow to confirm the CLI behavior matches your expectations, especially around providing the initial objectives.\n+\n+### Follow-up reminders\n+- Capture a CLI transcript once no-human mode is stabilized to share in onboarding docs.\n+- Draft integration coverage that exercises chained command approvals under no-human automation.\n+- Review `todo.md` entries related to the no-human flag and close or update them after verification.\n"
   }
@@ -103,7 +103,7 @@ expectations, especially around providing the initial objectives.
 {
   "description": "Add follow-up reminders using context-only hunk",
   "cwd": ".",
-  "apply_patch": {
+  "TODO: update docs": {
     "target": "notes/codex-example.md",
     "patch": "--- a/notes/codex-example.md\n+++ b/notes/codex-example.md\n@@\n Next step: try node index.js --nohuman in your workflow to confirm the CLI behavior matches your\n expectations, especially around providing the initial objectives.\n+\n+### Follow-up reminders\n+- Capture a CLI transcript once no-human mode is stabilized to share in onboarding docs.\n+- Draft integration coverage that exercises chained command approvals under no-human automation.\n+- Review `todo.md` entries related to the no-human flag and close or update them after verification.\n"
   }
@@ -123,7 +123,7 @@ expectations, especially around providing the initial objectives.
 {
   "description": "Apply refined patch with preserved indentation",
   "cwd": ".",
-  "apply_patch": {
+  "TODO: update docs": {
     "target": "notes/codex-example.md",
     "patch": "--- a/notes/codex-example.md\n+++ b/notes/codex-example.md\n@@ -111,2 +111,8 @@\n Next step: try node index.js --nohuman in your workflow to confirm the CLI behavior matches your\n expectations, especially around providing the initial objectives.\n+\n+### Follow-up reminders\n+- Capture a CLI transcript once no-human mode is stabilized to share in onboarding docs.\n+- Draft integration coverage that exercises chained command approvals under no-human automation.\n+- Review `todo.md` entries related to the no-human flag and close or update them after verification.\n"
   }
@@ -137,7 +137,7 @@ After repeated failures, the follow-up section was never added in this session.
 
 ---
 
-### Attempt 6 — Update apply_patch guidance (prompts/developer.md, variant A)
+### Attempt 6 — Update TODO: update docs guidance (prompts/developer.md, variant A)
 
 **Command object:**
 
@@ -145,7 +145,7 @@ After repeated failures, the follow-up section was never added in this session.
 {
   "description": "Add reminder about Unknown line errors to prompts/developer.md",
   "cwd": ".",
-  "apply_patch": {
+  "TODO: update docs": {
     "target": "prompts/developer.md",
     "patch": "--- a/prompts/developer.md\n+++ b/prompts/developer.md\n@@\n   - Provide the diff target explicitly (`target` preferred; `path`/`file` remain legacy aliases) and keep it consistent with the diff headers.\n   - Only single-file textual diffs are supported; the runtime will reject renames, binary blobs, or hunks that don't apply.\n   - Optional flags mirror the runtime's validators: `strip`, `reverse`, `whitespace` (`ignore-all`, `ignore-space-change`, `ignore-space-at-eol`), `fuzz`/`fuzzFactor`, and `allow_empty`/`allowEmpty`.\n   - Ensure the diff body follows unified diff conventions: unchanged lines start with a leading space (` `), removals with `-`, and additions with `+`. Extra leading hyphens (for example `- - line`) will be rejected before the patch runs.\n+  - Parse errors such as `Unknown line \"...\"` usually mean a context line is missing its leading space. Regenerate the diff (e.g., with `diff -u` / `git diff`) or add the proper prefixes before retrying.\n   - When composing patches manually, prefer generating them via `diff -u` or `git diff` to avoid formatting mistakes.\n   ```json\n   {\n"
   }
@@ -157,7 +157,7 @@ After repeated failures, the follow-up section was never added in this session.
 
 ---
 
-### Attempt 7 — Update apply_patch guidance (prompts/developer.md, variant B)
+### Attempt 7 — Update TODO: update docs guidance (prompts/developer.md, variant B)
 
 **Command object:**
 
@@ -165,7 +165,7 @@ After repeated failures, the follow-up section was never added in this session.
 {
   "description": "Insert Unknown line reminder with positional hunk",
   "cwd": ".",
-  "apply_patch": {
+  "TODO: update docs": {
     "target": "prompts/developer.md",
     "patch": "--- a/prompts/developer.md\n+++ b/prompts/developer.md\n@@ -90,6 +90,7 @@\n   - Provide the diff target explicitly (`target` preferred; `path`/`file` remain legacy aliases) and keep it consistent with the diff headers.\n   - Only single-file textual diffs are supported; the runtime will reject renames, binary blobs, or hunks that don't apply.\n   - Optional flags mirror the runtime's validators: `strip`, `reverse`, `whitespace` (`ignore-all`, `ignore-space-change`, `ignore-space-at-eol`), `fuzz`/`fuzzFactor`, and `allow_empty`/`allowEmpty`.\n   - Ensure the diff body follows unified diff conventions: unchanged lines start with a leading space (` `), removals with `-`, and additions with `+`. Extra leading hyphens (for example `- - line`) will be rejected before the patch runs.\n+  - Parse errors like `Unknown line \"...\"` usually mean a context line is missing its leading space. Regenerate the diff (`diff -u` / `git diff`) or add the prefixes before retrying.\n   - When composing patches manually, prefer generating them via `diff -u` or `git diff` to avoid formatting mistakes.\n   ```json\n"
   }
@@ -177,7 +177,7 @@ After repeated failures, the follow-up section was never added in this session.
 
 ---
 
-### Attempt 8 — Update apply_patch guidance (prompts/developer.md, variant C)
+### Attempt 8 — Update TODO: update docs guidance (prompts/developer.md, variant C)
 
 **Command object:**
 
@@ -185,7 +185,7 @@ After repeated failures, the follow-up section was never added in this session.
 {
   "description": "Add Unknown line reminder with adjusted hunk counts",
   "cwd": ".",
-  "apply_patch": {
+  "TODO: update docs": {
     "target": "prompts/developer.md",
     "patch": "--- a/prompts/developer.md\n+++ b/prompts/developer.md\n@@ -87,8 +87,9 @@\n   - Provide the diff target explicitly (`target` preferred; `path`/`file` remain legacy aliases) and keep it consistent with the diff headers.\n   - Only single-file textual diffs are supported; the runtime will reject renames, binary blobs, or hunks that don't apply.\n   - Optional flags mirror the runtime's validators: `strip`, `reverse`, `whitespace` (`ignore-all`, `ignore-space-change`, `ignore-space-at-eol`), `fuzz`/`fuzzFactor`, and `allow_empty`/`allowEmpty`.\n-  - Ensure the diff body follows unified diff conventions: unchanged lines start with a leading space (` `), removals with `-`, and additions with `+`. Extra leading hyphens (for example `- - line`) will be rejected before the patch runs.\n-  - When composing patches manually, prefer generating them via `diff -u` or `git diff` to avoid formatting mistakes.\n+  - Ensure the diff body follows unified diff conventions: unchanged lines start with a leading space (` `), removals with `-`, and additions with `+`. Extra leading hyphens (for example `- - line`) will be rejected before the patch runs.\n+  - Parse errors like `Unknown line \"...\"` usually mean a context line is missing its leading space. Regenerate the diff (`diff -u` / `git diff`) or add the prefixes before retrying.\n+  - When composing patches manually, prefer generating them via `diff -u` or `git diff` to avoid formatting mistakes.\n ``
   }

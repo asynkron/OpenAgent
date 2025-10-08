@@ -13,7 +13,7 @@
 - `passExecutor.js`: performs an agent pass (OpenAI request, JSON parsing, plan updates, approvals, command execution, observation logging) and now auto-injects a "continue" prompt when the assistant responds with a short apology/refusal (detected heuristically) without providing a plan or command. Protocol validation failures are surfaced via debug events so the default CLI output stays quiet while still capturing the raw payload for inspection.
 - `responseValidator.js`: verifies assistant JSON payloads follow the CLI response protocol before execution.
 - `historyCompactor.js`: auto-compacts older history entries when context usage exceeds the configured threshold by summarizing them into long-term memory snapshots.
-- `commandExecution.js`: routes assistant commands to the correct runner (apply_patch/read/shell) through dedicated handler classes so built-ins are interpreted before falling back to shell execution.
+- `commandExecution.js`: routes assistant commands to the correct runner (TODO: update docs/read/shell) through dedicated handler classes so built-ins are interpreted before falling back to shell execution.
 - `commands/`: concrete command handler classes implementing the shared `ICommand` contract used by `commandExecution.js`.
 - `openaiRequest.js`: wraps the OpenAI SDK call, wiring ESC cancellation, request aborts, and observation recording into a single surface.
 - `observationBuilder.js`: normalises command results into CLI previews and LLM observations so the conversation history remains consistent.

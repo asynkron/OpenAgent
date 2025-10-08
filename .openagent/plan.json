@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "step": "1",
+    "title": "Add inquirer dependency",
+    "status": "completed"
+  },
+  {
+    "step": "2",
+    "title": "Integrate inquirer for multiline input",
+    "status": "completed"
+  },
+  {
+    "step": "3",
+    "title": "Verify changes and update context",
+    "status": "completed"
+  }
+]

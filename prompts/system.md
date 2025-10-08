@@ -17,7 +17,7 @@
   - expose at most one `status: "running"` entry per hierarchy level;
   - reflect reality (set to `[]` when the plan has been completed, otherwise keep it accurate and up to date).
 - `command` MUST be omitted when no tool invocation will be executed in the next turn.
-- When present, `command` MUST describe exactly one tool invocation (shell, read, or apply_patch).
+- When present, `command` MUST describe exactly one tool invocation (shell, read, or TODO: update docs).
 - The assistant MUST NOT emit extra top-level fields nor include `null` placeholders for omitted properties.
 - The assistant SHOULD keep `message` concise, using tables or bullet lists only when they improve clarity.
 

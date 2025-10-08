@@ -2,7 +2,7 @@
 
 ## Purpose
 
-- Implements command execution primitives and built-in helpers the agent invokes (`run`, `read`, `apply_patch`).
+- Implements command execution primitives and built-in helpers the agent invokes (`run`, `read`, `TODO: update docs`).
 - Approval/session tracking and command usage metrics now live under `src/services/`, keeping this directory focused on concrete command implementations.
 
 ## Notable Modules
@@ -17,7 +17,7 @@
 - `run.js` cancellation integrates with `utils/cancellation`, ensuring process cleanup on timeouts/ESC.
 - Command approval service (`../services/commandApprovalService.js`) continues to guard against risky shells/flags with dedicated unit coverage for new heuristics.
 - Command usage tracker (`../services/commandStatsService.js`) persists telemetry atomically, keeping command analytics resilient across restarts.
-- `run.js` focuses on shell execution and built-in helpers that remain supported (`read` and `apply_patch`).
+- `run.js` focuses on shell execution and built-in helpers that remain supported (`read` and `TODO: update docs`).
 
 ## Risks / Gaps
 
