@@ -20,6 +20,38 @@ General workflow
 
 Scripts
 
+## apply_patch
+
+What it does
+
+- Applies raw/headless patches supplied on stdin wrapped in `*** Begin Patch` / `*** End Patch` blocks.
+- Matches hunks by exact line content (no line-number context required) and writes modified files back to disk.
+
+When to use
+
+- You have a heredoc patch without traditional `diff --git` headers or line numbers.
+- You need a deterministic helper for tests, automation, or manual application of OpenAI-style patch outputs.
+
+Usage
+
+```bash
+apply_patch <<'EOF'
+*** Begin Patch
+*** Update File: path/to/file.js
+@@
+-const value = 1;
++const value = 2;
+*** End Patch
+EOF
+```
+
+Notes
+
+- Fails fast when a hunk cannot be located or a file is missing.
+- Preserves trailing newline semantics when present in the original file.
+- Emits a success summary mirroring the format shown in `scripts/patchexample.md`.
+
+
 ## rename-identifier.cjs
 
 What it does

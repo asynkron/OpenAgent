@@ -7,6 +7,7 @@
 
 ## Key Files
 
+- `apply_patch`: applies "headerless" patches (OpenAI-style) by matching raw diff hunks without full context and reports changed files.
 - `validate-json-assets.js`: validates `prompts/prompts.json` against `schemas/prompts.schema.json`, enforces unique IDs, and checks prompt copies stay in sync.
 - `verify-release-tag.js`: ensures the git tag that triggered a release matches `package.json`'s version before publishing proceeds.
 
