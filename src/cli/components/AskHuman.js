@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Text, useInput } from 'ink';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import ContextUsage from './ContextUsage.js';
+import InkTextArea from './InkTextArea.js';
 
 const h = React.createElement;
-const CARET_BLINK_INTERVAL_MS = 500;
 /**
  * Collects free-form user input while keeping the prompt visible inside the Ink
  * layout.
@@ -12,7 +12,6 @@ const CARET_BLINK_INTERVAL_MS = 500;
 export function AskHuman({ prompt = '▷', onSubmit, thinking = false, contextUsage = null }) {
   const [value, setValue] = useState('');
   const [locked, setLocked] = useState(false);
-  const [showCaret, setShowCaret] = useState(true);
   const mountedRef = useRef(true);
 
   useEffect(
@@ -21,22 +20,6 @@ export function AskHuman({ prompt = '▷', onSubmit, thinking = false, contextUs
     },
     [],
   );
-
-  useEffect(() => {
-    if (locked || thinking) {
-      setShowCaret(false);
-      return undefined;
-    }
-
-    setShowCaret(true);
-    const interval = setInterval(() => {
-      setShowCaret((prev) => !prev);
-    }, CARET_BLINK_INTERVAL_MS);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [locked, thinking]);
 
   const normalizedPrompt = useMemo(() => {
     if (typeof prompt !== 'string') {
@@ -48,62 +31,50 @@ export function AskHuman({ prompt = '▷', onSubmit, thinking = false, contextUs
 
   const placeholder = useMemo(() => `${normalizedPrompt} human writes here`, [normalizedPrompt]);
 
-  useInput(
-    (input, key) => {
-      if (locked || thinking) {
-        return;
-      }
-      if (key.return) {
-        const submission = value.trim();
-        setLocked(true);
-        Promise.resolve()
-          .then(() => onSubmit?.(submission))
-          .finally(() => {
-            if (!mountedRef.current) {
-              return;
-            }
-            setValue('');
-            setLocked(false);
-          });
-        return;
-      }
-      if (key.backspace || key.delete) {
-        setValue((prev) => prev.slice(0, -1));
-        return;
-      }
-      if (key.ctrl || key.meta) {
-        return;
-      }
-      if (input) {
-        setValue((prev) => prev + input);
-      }
-    },
-    { isActive: true },
-  );
+  const interactive = !locked && !thinking;
 
-  const caretSymbol = locked || thinking ? '' : showCaret ? '▌' : ' ';
-  const displayValue = value.length > 0 ? value : placeholder;
-  const displayWithCaret = caretSymbol ? `${displayValue}${caretSymbol}` : displayValue;
+  const handleSubmit = useCallback(
+    (rawValue) => {
+      if (!interactive) {
+        return;
+      }
+
+      const submission = rawValue.trim();
+      setLocked(true);
+
+      Promise.resolve()
+        .then(() => onSubmit?.(submission))
+        .finally(() => {
+          if (!mountedRef.current) {
+            return;
+          }
+          setValue('');
+          setLocked(false);
+        });
+    },
+    [interactive, onSubmit],
+  );
 
   const inputDisplay = thinking
     ? h(Text, { color: 'white', key: 'spinner', marginLeft: 1 }, [
         h(Spinner, { type: 'dots', key: 'spinner-icon' }),
         ' Thinking…',
       ])
-    : h(
-        Text,
-        {
-          color: 'white',
-          key: 'value',
-          marginLeft: 1,
-          dimColor: value.length === 0,
-        },
-        displayWithCaret,
-      );
+    : h(InkTextArea, {
+        key: 'value',
+        value,
+        onChange: setValue,
+        onSubmit: handleSubmit,
+        placeholder,
+        width: 60,
+        isActive: interactive,
+        isDisabled: locked,
+        marginLeft: 1,
+      });
 
   const hintMessage = thinking
     ? 'Waiting for the AI to finish thinking…'
-    : 'Press Enter to submit • Esc to cancel';
+    : 'Press Enter to submit • Shift+Enter for newline • Esc to cancel';
 
   const footerChildren = [h(Text, { dimColor: true, color: 'white', key: 'hint' }, hintMessage)];
 
