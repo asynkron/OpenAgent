@@ -1,17 +1,17 @@
 [
   {
     "step": "1",
-    "title": "Patch rename-identifier.cjs to guard the identifier walker against revisiting nodes",
+    "title": "Patch scripts/rename-identifier.cjs and run quick tests",
     "status": "running"
   },
   {
     "step": "2",
-    "title": "Re-run the quick dummy-file tests (edit-lines, replace-function, rename-identifier)",
+    "title": "Review test output and iterate if failures remain",
     "status": "pending"
   },
   {
     "step": "3",
-    "title": "Review results and finalize (docs/cleanup)",
+    "title": "Document outcome and tidy up (if tests pass)",
     "status": "pending"
   }
 ]

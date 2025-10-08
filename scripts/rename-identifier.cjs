@@ -57,6 +57,7 @@ try {
 
 // Add a visited set to avoid infinite recursion when traversing the AST
 const visitedNodes = new WeakSet();
+const walkVisited = new WeakSet();
 
 // Simple scope model and two-phase analysis (collect declarations, then resolve references)
 let scopeIdCounter = 0;
@@ -98,6 +99,8 @@ function collectPatternIdentifiers(node, cb) {
 // Phase 1: build scopes and collect declarations
 function buildScopes(node, parentScope) {
   if (!node || typeof node.type !== 'string') return;
+  if (walkVisited.has(node)) return;
+  walkVisited.add(node);
 
   // Prevent revisiting the same node (defensive against AST cycles or accidental parent links)
   if (visitedNodes.has(node)) return;
@@ -316,6 +319,8 @@ function isIdentifierNonRef(node, parent) {
 // Generic walker to find Identifier nodes — we walk the tree and pass parent to the visitor
 function walkIdentifiers(node, parent) {
   if (!node || typeof node.type !== 'string') return;
+  if (walkVisited.has(node)) return;
+  walkVisited.add(node);
   // If this node is an Identifier candidate
   if (node.type === 'Identifier' && node.name === oldName) {
     if (!isIdentifierNonRef(node, parent)) {
