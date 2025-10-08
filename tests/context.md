@@ -15,6 +15,7 @@
 
 - Integration harness (`agentRuntimeTestHarness.js`) simulates CLI runtime, ensuring plan updates, command execution, and cancellation all cooperate.
 - Unit coverage spans plan utilities, prompt parsing, HTTP client, WebSocket binding, and CLI rendering—a broad regression net.
+- Recent unit tests assert tool-only OpenAI responses remain parseable, guarding against regressions in response extraction.
 
 ## Risks / Gaps
 

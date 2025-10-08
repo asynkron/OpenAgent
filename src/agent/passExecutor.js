@@ -8,6 +8,7 @@ import { executeAgentCommand } from './commandExecution.js';
 import { summarizeContextUsage } from '../utils/contextUsage.js';
 import { extractResponseText } from '../openai/responseUtils.js';
 import { validateAssistantResponse } from './responseValidator.js';
+import { log } from 'node:console';
 
 const REFUSAL_AUTO_RESPONSE = 'continue';
 const REFUSAL_STATUS_MESSAGE =
@@ -66,7 +67,7 @@ export async function executeAgentPass({
   openai,
   model,
   history,
-  emitEvent = () => {},
+  emitEvent = () => { },
   onDebug = null,
   runCommandFn,
   runReadFn,
@@ -171,6 +172,7 @@ export async function executeAgentPass({
       type: 'error',
       message: 'OpenAI response did not include text output.',
     });
+    log(completion);
     return false;
   }
 
@@ -184,9 +186,9 @@ export async function executeAgentPass({
   if (!parseResult.ok) {
     const attempts = Array.isArray(parseResult.attempts)
       ? parseResult.attempts.map(({ strategy, error }) => ({
-          strategy,
-          message: error instanceof Error ? error.message : String(error),
-        }))
+        strategy,
+        message: error instanceof Error ? error.message : String(error),
+      }))
       : [];
 
     emitEvent({
