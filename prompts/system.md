@@ -50,7 +50,6 @@ These rules render the invalid examples below as actionable diagnostics—consul
       "oneOf": [
         { "required": ["shell", "run", "cwd"] },
         { "required": ["read"] },
-        { "required": ["apply_patch"] }
       ],
       "properties": {
         "description": { "type": "string" },
@@ -61,7 +60,6 @@ These rules render the invalid examples below as actionable diagnostics—consul
         "filter_regex": { "type": "string" },
         "tail_lines": { "type": "integer", "minimum": 1 },
         "read": { "$ref": "#/$defs/readCommand" },
-        "apply_patch": { "$ref": "#/$defs/applyPatchCommand" }
       }
     }
   },
@@ -88,51 +86,10 @@ These rules render the invalid examples below as actionable diagnostics—consul
         "max_bytes": { "type": "integer", "minimum": 1 },
         "max_lines": { "type": "integer", "minimum": 1 }
       }
-    },
-    "applyPatchCommand": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "target": { "type": "string" },
-        "path": { "type": "string" },
-        "file": { "type": "string" },
-        "patch": { "type": "string" },
-        "patch_text": { "type": "string" },
-        "patchText": { "type": "string" },
-        "diff": { "type": "string" },
-        "strip": { "type": "integer", "minimum": 0 },
-        "reverse": { "type": "boolean" },
-        "whitespace": { "type": "string" },
-        "allow_empty": { "type": "boolean" },
-        "allowEmpty": { "type": "boolean" },
-        "fuzz": { "type": "integer", "minimum": 0 },
-        "fuzzFactor": { "type": "integer", "minimum": 0 }
-      },
-      "allOf": [
-        {
-          "anyOf": [
-            { "required": ["target"] },
-            { "required": ["path"] },
-            { "required": ["file"] }
-          ]
-        },
-        {
-          "anyOf": [
-            { "required": ["patch"] },
-            { "required": ["patch_text"] },
-            { "required": ["patchText"] },
-            { "required": ["diff"] }
-          ]
-        }
-      ]
     }
   }
 }
 ```
-
-- Canonical `apply_patch` payloads should provide `target` (or legacy `path`/`file`) and unified diff text via `patch` (or legacy `patch_text`/`diff`).
-- The runner only accepts single-file textual diffs; it rejects renames, binary payloads, and empty patches unless `allow_empty`/`allowEmpty` is set.
-- Optional flags `strip`, `reverse`, `whitespace`, and `fuzz`/`fuzzFactor` mirror the compatible `git apply` options handled by the runtime.
 
 Consult `prompts/developer.md` for full command payload examples and defaults.
 
