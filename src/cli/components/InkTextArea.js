@@ -53,6 +53,13 @@ function findIndexForLineColumn(positions, targetLine, targetColumn) {
   return fallbackIndex;
 }
 
+const ARROW_LABELS = {
+  upArrow: 'up',
+  downArrow: 'down',
+  leftArrow: 'left',
+  rightArrow: 'right',
+};
+
 function extractSpecialKeys(key) {
   if (!key || typeof key !== 'object') {
     return [];
@@ -63,7 +70,7 @@ function extractSpecialKeys(key) {
       const [name, value] = entry;
       return typeof value === 'boolean' && value && name !== 'isShiftPressed';
     })
-    .map(([name]) => name);
+    .map(([name]) => ARROW_LABELS[name] ?? name);
 }
 
 export function InkTextArea({
@@ -153,7 +160,7 @@ export function InkTextArea({
         return;
       }
 
-      if (key.up) {
+      if (key.upArrow) {
         const targetLine = Math.max(0, caretPosition.line - 1);
         if (targetLine === caretPosition.line) {
           return;
@@ -163,7 +170,7 @@ export function InkTextArea({
         return;
       }
 
-      if (key.down) {
+      if (key.downArrow) {
         const targetLine = caretPosition.line + 1;
         const hasLine = positions.some((pos) => pos.line === targetLine);
         if (!hasLine) {
@@ -174,12 +181,12 @@ export function InkTextArea({
         return;
       }
 
-      if (key.left) {
+      if (key.leftArrow) {
         setCaretIndex((prev) => Math.max(0, prev - 1));
         return;
       }
 
-      if (key.right) {
+      if (key.rightArrow) {
         setCaretIndex((prev) => Math.min(value.length, prev + 1));
         return;
       }
@@ -241,14 +248,33 @@ export function InkTextArea({
 
   useInput(handleInput, { isActive: interactive });
 
+  const caretVisible = interactive && showCaret;
   const hasValue = value.length > 0;
-  const caretGlyph = interactive && showCaret ? '▌' : '';
   const displaySource = hasValue ? value : placeholder;
-  const insertionIndex = hasValue ? caretIndex : 0;
+  const highlightIndex = hasValue ? caretIndex : 0;
 
-  const beforeCaret = displaySource.slice(0, insertionIndex);
-  const afterCaret = displaySource.slice(insertionIndex);
-  const composed = caretGlyph ? `${beforeCaret}${caretGlyph}${afterCaret}` : displaySource;
+  let textSegments;
+
+  if (caretVisible) {
+    if (hasValue) {
+      const effectiveIndex = Math.min(highlightIndex, displaySource.length);
+      const beforeCaret = displaySource.slice(0, effectiveIndex);
+      const caretChar = effectiveIndex < displaySource.length ? displaySource[effectiveIndex] : ' ';
+      const caretDisplay = caretChar === '\n' ? ' ' : caretChar || ' ';
+      const afterStart = caretChar === '\n' ? effectiveIndex : Math.min(effectiveIndex + 1, displaySource.length);
+      const afterCaret = displaySource.slice(afterStart);
+
+      textSegments = [
+        beforeCaret,
+        h(Text, { inverse: true, key: 'caret-highlight' }, caretDisplay),
+        afterCaret,
+      ];
+    } else {
+      textSegments = [h(Text, { inverse: true, key: 'caret-highlight' }, ' '), displaySource];
+    }
+  } else {
+    textSegments = [displaySource];
+  }
 
   const caretLineDisplay = caretPosition.line + 1;
   const caretColumnDisplay = caretPosition.column + 1;
@@ -283,7 +309,7 @@ export function InkTextArea({
         dimColor: dimColor ?? !hasValue,
         ...otherTextProps,
       },
-      composed,
+      ...textSegments,
     ),
     h(
       Box,
