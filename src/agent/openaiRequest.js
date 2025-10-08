@@ -54,10 +54,6 @@ export async function requestModelCompletion({
               type: 'object',
               additionalProperties: false,
               properties: {
-                description: {
-                  type: 'string',
-                  description: 'Human-friendly summary of why the command is needed.',
-                },
                 shell: {
                   type: 'string',
                   description: 'Shell executable to launch when running commands.',
@@ -88,7 +84,7 @@ export async function requestModelCompletion({
               },
               oneOf: [{ required: ['shell', 'run', 'cwd'] }, { required: ['read'] }],
               description:
-                'Next tool invocation to execute when a plan contains non-complete steps.',
+                'Next tool invocation to execute when a plan contains non-complete steps. may NOT be raw string, e.g command: "ls"',
             },
           },
           $defs: {

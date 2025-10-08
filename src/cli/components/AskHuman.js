@@ -47,19 +47,19 @@ export function AskHuman({ onSubmit, thinking = false, contextUsage = null }) {
 
   const inputDisplay = thinking
     ? h(Text, { color: 'white', key: 'spinner', marginLeft: 1 }, [
-        h(Spinner, { type: 'dots', key: 'spinner-icon' }),
-        ' Thinking…',
-      ])
+      h(Spinner, { type: 'dots', key: 'spinner-icon' }),
+      ' Thinking…',
+    ])
     : h(InkTextArea, {
-        key: 'value',
-        value,
-        onChange: setValue,
-        onSubmit: handleSubmit,
+      key: 'value',
+      value,
+      onChange: setValue,
+      onSubmit: handleSubmit,
 
-        isActive: interactive,
-        isDisabled: locked,
-        marginLeft: 1,
-      });
+      isActive: interactive,
+      isDisabled: locked,
+      marginLeft: 1,
+    });
 
   const hintMessage = thinking
     ? 'Waiting for the AI to finish thinking…'
@@ -78,7 +78,7 @@ export function AskHuman({ onSubmit, thinking = false, contextUsage = null }) {
       marginTop: 1,
       paddingX: 1,
       paddingY: 0,
-      backgroundColor: '#0b1c33',
+      backgroundColor: '#370c21ff',
     },
     [
       h(Box, { flexDirection: 'row', key: 'inputRow', paddingX: 1, paddingY: 1 }, [inputDisplay]),
