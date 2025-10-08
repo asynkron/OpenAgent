@@ -76,6 +76,7 @@ export const GoBootProbe = {
             sections.push('');
             sections.push('### Tool availability');
             sections.push(...installedTools.map((tool) => `- ${tool.summary}`));
+            sections.push('');
           }
 
           return sections.join('\n');

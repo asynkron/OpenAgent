@@ -136,7 +136,7 @@ export const JavaScriptBootProbe = {
           sections.push('Ask user if you may install them when missing.');
           sections.push('Check help output per tool to learn how to use them.');
           sections.push('Prefer proper refactoring tools over manual edits.');
-
+          sections.push('');
           return sections.join('\n');
         })()
       : '';

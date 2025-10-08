@@ -116,6 +116,7 @@ export async function runBootProbes({ cwd = process.cwd(), emit = console.log } 
     const normalizedResult = { probe: name, detected, ...result };
 
     if (detected) {
+      emit('');
       const symbol = chalk.green('✔');
       const summaryParts = [];
       if (result.details && result.details.length > 0) {

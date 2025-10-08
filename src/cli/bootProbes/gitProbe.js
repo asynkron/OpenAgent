@@ -66,6 +66,7 @@ export const GitBootProbe = {
       '- Use `git remote -v` to inspect remotes.',
       '',
       ...toolingSections,
+      '',
     ].join('\n');
 
     return createBootProbeResult({
