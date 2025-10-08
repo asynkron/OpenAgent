@@ -137,8 +137,8 @@ deepFreeze(RESPONSE_PARAMETERS_SCHEMA);
 
 export const ASSISTANT_RESPONSE_TOOL = deepFreeze({
   type: 'function',
+  name: 'submit_assistant_response',
   function: {
-    name: 'submit_assistant_response',
     description:
       'Return the response envelope that matches the OpenAgent protocol (message, plan, and command fields).',
     parameters: RESPONSE_PARAMETERS_SCHEMA,
