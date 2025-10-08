@@ -27,47 +27,41 @@ const Timeline = React.memo(function Timeline({ entries }) {
     return null;
   }
 
-  return h(
-    Static,
-    { items: entries },
-    (entry) => {
-      switch (entry.type) {
-        case 'assistant-message':
-          return h(MemoAgentResponse, { key: entry.id, message: entry.payload.message });
-        case 'human-message':
-          return h(MemoHumanMessage, { key: entry.id, message: entry.payload.message });
-        case 'command-result':
-          return h(MemoCommand, {
-            key: entry.id,
-            command: entry.payload.command,
-            result: entry.payload.result,
-            preview: entry.payload.preview,
-            execution: entry.payload.execution,
-          });
-        case 'banner': {
-          const elements = [];
-          if (entry.payload?.title) {
-            elements.push(
-              h(Text, { color: 'blueBright', bold: true, key: 'title' }, entry.payload.title),
-            );
-          }
-          if (entry.payload?.subtitle) {
-            elements.push(
-              h(Text, { dimColor: true, key: 'subtitle' }, entry.payload.subtitle),
-            );
-          }
-          if (elements.length === 0) {
-            return null;
-          }
-          return h(Box, { flexDirection: 'column', key: entry.id, marginBottom: 1 }, elements);
+  return h(Static, { items: entries }, (entry) => {
+    switch (entry.type) {
+      case 'assistant-message':
+        return h(MemoAgentResponse, { key: entry.id, message: entry.payload.message });
+      case 'human-message':
+        return h(MemoHumanMessage, { key: entry.id, message: entry.payload.message });
+      case 'command-result':
+        return h(MemoCommand, {
+          key: entry.id,
+          command: entry.payload.command,
+          result: entry.payload.result,
+          preview: entry.payload.preview,
+          execution: entry.payload.execution,
+        });
+      case 'banner': {
+        const elements = [];
+        if (entry.payload?.title) {
+          elements.push(
+            h(Text, { color: 'blueBright', bold: true, key: 'title' }, entry.payload.title),
+          );
         }
-        case 'status':
-          return h(MemoStatusMessage, { key: entry.id, status: entry.payload });
-        default:
+        if (entry.payload?.subtitle) {
+          elements.push(h(Text, { dimColor: true, key: 'subtitle' }, entry.payload.subtitle));
+        }
+        if (elements.length === 0) {
           return null;
+        }
+        return h(Box, { flexDirection: 'column', key: entry.id, marginBottom: 1 }, elements);
       }
-    },
-  );
+      case 'status':
+        return h(MemoStatusMessage, { key: entry.id, status: entry.payload });
+      default:
+        return null;
+    }
+  });
 });
 
 function deepEqual(a, b) {

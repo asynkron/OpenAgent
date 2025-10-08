@@ -69,20 +69,22 @@ export function AskHuman({ prompt = '▷', onSubmit, thinking = false, contextUs
         h(Spinner, { type: 'dots', key: 'spinner-icon' }),
         ' Thinking…',
       ])
-    : h(Text, {
-        color: 'white',
-        key: 'value',
-        marginLeft: 1,
-        dimColor: value.length === 0,
-      }, value.length > 0 ? value : placeholder);
+    : h(
+        Text,
+        {
+          color: 'white',
+          key: 'value',
+          marginLeft: 1,
+          dimColor: value.length === 0,
+        },
+        value.length > 0 ? value : placeholder,
+      );
 
   const hintMessage = thinking
     ? 'Waiting for the AI to finish thinking…'
     : 'Press Enter to submit • Esc to cancel';
 
-  const footerChildren = [
-    h(Text, { dimColor: true, color: 'white', key: 'hint' }, hintMessage),
-  ];
+  const footerChildren = [h(Text, { dimColor: true, color: 'white', key: 'hint' }, hintMessage)];
 
   if (contextUsage) {
     footerChildren.push(h(ContextUsage, { usage: contextUsage, key: 'context-usage' }));
@@ -99,7 +101,11 @@ export function AskHuman({ prompt = '▷', onSubmit, thinking = false, contextUs
     },
     [
       h(Box, { flexDirection: 'row', key: 'inputRow', paddingX: 1, paddingY: 1 }, [inputDisplay]),
-      h(Box, { flexDirection: 'column', key: 'footer', paddingX: 1, paddingBottom: 1 }, footerChildren),
+      h(
+        Box,
+        { flexDirection: 'column', key: 'footer', paddingX: 1, paddingBottom: 1 },
+        footerChildren,
+      ),
     ],
   );
 }

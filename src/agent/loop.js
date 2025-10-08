@@ -247,18 +247,28 @@ export function createAgentRuntime({
     emit({ type: 'debug', payload });
   };
 
-  let lastPlanProgressSignature;
+  let lastPlanProgressSignature = null;
 
   const emitPlanProgressEvent = (plan) => {
     const progress = computePlanProgress(plan);
-    const signature = `${progress.completedSteps}|${progress.totalSteps}`;
+    const signature =
+      progress.totalSteps === 0 ? null : `${progress.completedSteps}|${progress.totalSteps}`;
 
-    if (signature !== lastPlanProgressSignature) {
-      lastPlanProgressSignature =
-        progress.totalSteps === 0 && progress.completedSteps === 0 ? undefined : signature;
-      emit({ type: 'plan-progress', progress });
+    if (signature === lastPlanProgressSignature) {
+      return progress;
     }
 
+    if (signature === null) {
+      if (lastPlanProgressSignature === null) {
+        return progress;
+      }
+      lastPlanProgressSignature = null;
+      emit({ type: 'plan-progress', progress });
+      return progress;
+    }
+
+    lastPlanProgressSignature = signature;
+    emit({ type: 'plan-progress', progress });
     return progress;
   };
 
