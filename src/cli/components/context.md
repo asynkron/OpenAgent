@@ -10,7 +10,7 @@
 - `Command.js`, `renderCommand.js`, `commandUtils.js` — pretty-print shell/read commands with highlights and approval status.
 - `ContextUsage.js` — displays token usage (remaining context window) tracked by `contextUsage` utilities.
 - `DebugPanel.js`, `ThinkingIndicator.js` — optional diagnostics and spinner overlays.
-- `InkTextArea.js`, `AskHuman.js` — capture human inputs and approval decisions. The text area memoizes its `useInput` handler so keystrokes always update correctly, tracks terminal resizes to rebuild width-aware rows (with newline handling) via `transformToRows`, and includes an inline debug readout (caret position, last key, modifier state).
+- `InkTextArea.js`, `AskHuman.js` — capture human inputs and approval decisions. The text area memoizes its `useInput` handler so keystrokes always update correctly, tracks terminal resizes to rebuild width-aware rows (with newline handling) via `transformToRows`, expands to the available terminal width, and includes an inline debug readout (caret position, last key, modifier state).
 
 ## Positive Signals
 - Components are decomposed by concern, enabling targeted tests and easier adjustments to CLI layout.

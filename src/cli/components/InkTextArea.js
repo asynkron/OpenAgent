@@ -124,7 +124,7 @@ export function InkTextArea({
   onChange,
   onSubmit,
   placeholder = '',
-  width = 60,
+  width,
   isActive = true,
   isDisabled = false,
   ...textProps
@@ -171,13 +171,15 @@ export function InkTextArea({
   }, [stdout]);
 
   const normalizedWidth = useMemo(() => {
-    const fallback = Math.max(1, Math.floor(width ?? 1));
-
-    if (typeof measuredWidth === 'number') {
-      return Math.max(1, Math.min(fallback, measuredWidth));
+    if (typeof width === 'number' && Number.isFinite(width)) {
+      return Math.max(1, Math.floor(width));
     }
 
-    return fallback;
+    if (typeof measuredWidth === 'number') {
+      return Math.max(1, Math.floor(measuredWidth));
+    }
+
+    return 60;
   }, [measuredWidth, width]);
   const maxIndex = value.length;
 
@@ -430,8 +432,8 @@ export function InkTextArea({
 
   return h(
     Box,
-    { flexDirection: 'column' },
-    h(Box, { flexDirection: 'column' }, ...rowElements),
+    { flexDirection: 'column', width: '100%', alignSelf: 'stretch' },
+    h(Box, { flexDirection: 'column', width: '100%' }, ...rowElements),
     h(
       Box,
       { flexDirection: 'column', marginTop: 1 },
