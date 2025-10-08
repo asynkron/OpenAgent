@@ -369,6 +369,14 @@ export function InkTextArea({
   const caretRowIndex = hasValue ? caretLine : 0;
   const caretColumnDisplay = caretColumn + 1;
   const caretLineDisplay = caretLine + 1;
+  const widthPropDisplay = useMemo(
+    () => (typeof width === 'number' && Number.isFinite(width) ? Math.floor(width) : 'n/a'),
+    [width],
+  );
+  const measuredWidthDisplay = useMemo(
+    () => (typeof measuredWidth === 'number' ? measuredWidth : 'n/a'),
+    [measuredWidth],
+  );
 
   const rowElements = displayRows.map((row, rowIndex) => {
     const key = `row-${row.startIndex}-${rowIndex}`;
@@ -438,6 +446,11 @@ export function InkTextArea({
       Box,
       { flexDirection: 'column', marginTop: 1 },
       h(Text, { color: 'gray', dimColor: true, key: 'debug-heading' }, 'Debug info'),
+      h(
+        Text,
+        { color: 'gray', key: 'debug-width' },
+        `Width: ${normalizedWidth} (prop: ${widthPropDisplay}, measured: ${measuredWidthDisplay})`,
+      ),
       h(
         Text,
         { color: 'gray', key: 'debug-caret' },
