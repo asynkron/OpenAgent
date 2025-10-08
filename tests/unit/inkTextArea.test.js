@@ -1,7 +1,9 @@
 import React from 'react';
 import { describe, expect, jest, test } from '@jest/globals';
 import { render } from 'ink-testing-library';
-import InkTextArea from '../../src/cli/components/InkTextArea.js';
+import InkTextArea, {
+  transformToRows,
+} from '../../src/cli/components/InkTextArea.js';
 
 describe('InkTextArea input handling', () => {
   async function flush() {
@@ -9,17 +11,21 @@ describe('InkTextArea input handling', () => {
     await new Promise((resolve) => setImmediate(resolve));
   }
 
-  function caretIndexFromFrame(frame) {
+  function caretPositionFromFrame(frame) {
     const lines = frame.split('\n');
     const caretLine = lines.find((line) => line.includes('Caret:'));
     if (!caretLine) {
       throw new Error(`Caret debug line not found in frame:\n${frame}`);
     }
-    const match = caretLine.match(/index (\d+)/);
+    const match = caretLine.match(/line (\d+), column (\d+), index (\d+)/);
     if (!match) {
-      throw new Error(`Caret index not found in line: ${caretLine}`);
+      throw new Error(`Caret position not found in line: ${caretLine}`);
     }
-    return Number.parseInt(match[1], 10);
+    return {
+      line: Number.parseInt(match[1], 10),
+      column: Number.parseInt(match[2], 10),
+      index: Number.parseInt(match[3], 10),
+    };
   }
 
   test('captures character input and notifies onChange', async () => {
@@ -70,21 +76,21 @@ describe('InkTextArea input handling', () => {
       }),
     );
 
-    expect(caretIndexFromFrame(lastFrame())).toBe(0);
+    expect(caretPositionFromFrame(lastFrame()).index).toBe(0);
 
     stdin.write('\u001B[C');
     await flush();
-    expect(caretIndexFromFrame(lastFrame())).toBe(1);
+    expect(caretPositionFromFrame(lastFrame()).index).toBe(1);
 
     stdin.write('\u001B[D');
     await flush();
-    expect(caretIndexFromFrame(lastFrame())).toBe(0);
+    expect(caretPositionFromFrame(lastFrame()).index).toBe(0);
 
     unmount();
   });
 
   test('moves caret vertically by width-sized jumps', async () => {
-    const { stdin, unmount, lastFrame, rerender } = render(
+    const { stdin, unmount, lastFrame } = render(
       React.createElement(InkTextArea, {
         value: 'abcd',
         onChange: jest.fn(),
@@ -93,40 +99,108 @@ describe('InkTextArea input handling', () => {
       }),
     );
 
-    // Move caret to start of second row.
-    stdin.write('\u001B[C');
-    stdin.write('\u001B[C');
+    // Jump directly to the second row.
+    stdin.write('\u001B[B');
     await flush();
-    expect(caretIndexFromFrame(lastFrame())).toBe(2);
+    expect(caretPositionFromFrame(lastFrame()).index).toBe(2);
 
     // Moving up from row 1 should go back by width (2 cells).
     stdin.write('\u001B[A');
     await flush();
-    expect(caretIndexFromFrame(lastFrame())).toBe(0);
+    expect(caretPositionFromFrame(lastFrame()).index).toBe(0);
 
-    // Sync caret with updated value before testing downward movement.
-    rerender(
-      React.createElement(InkTextArea, {
-        value: 'abcd',
-        onChange: jest.fn(),
-        onSubmit: jest.fn(),
-        width: 2,
-      }),
-    );
-    await flush();
-
-    // Return caret to start of second row.
+    // Move to the start of the second row via horizontal movement.
     stdin.write('\u001B[C');
     stdin.write('\u001B[C');
     await flush();
-    expect(caretIndexFromFrame(lastFrame())).toBe(2);
+    expect(caretPositionFromFrame(lastFrame()).index).toBe(2);
 
-    // Moving down should jump by width but clamp to value length (4).
+    // Once on the final row, further downward movement should be ignored.
     stdin.write('\u001B[B');
     await flush();
-    expect(caretIndexFromFrame(lastFrame())).toBe(4);
+    expect(caretPositionFromFrame(lastFrame()).index).toBe(2);
 
     unmount();
   });
 
+  test('moves caret vertically across newline-delimited rows', async () => {
+    const { stdin, unmount, lastFrame } = render(
+      React.createElement(InkTextArea, {
+        value: 'first\nsecond',
+        onChange: jest.fn(),
+        onSubmit: jest.fn(),
+        width: 20,
+      }),
+    );
+
+    // Move caret to the third column of the first row.
+    stdin.write('\u001B[C');
+    stdin.write('\u001B[C');
+    stdin.write('\u001B[C');
+    await flush();
+    expect(caretPositionFromFrame(lastFrame())).toEqual({ line: 1, column: 4, index: 3 });
+
+    // Moving down should land in the second row with the same column.
+    stdin.write('\u001B[B');
+    await flush();
+    expect(caretPositionFromFrame(lastFrame())).toEqual({ line: 2, column: 4, index: 9 });
+
+    unmount();
+  });
+
+  test('restores preferred column when returning to a longer row', async () => {
+    const { stdin, unmount, lastFrame } = render(
+      React.createElement(InkTextArea, {
+        value: 'lengthy\nshort',
+        onChange: jest.fn(),
+        onSubmit: jest.fn(),
+        width: 20,
+      }),
+    );
+
+    // Move to the end of the first row.
+    for (let index = 0; index < 'lengthy'.length; index += 1) {
+      stdin.write('\u001B[C');
+    }
+    await flush();
+    expect(caretPositionFromFrame(lastFrame())).toEqual({ line: 1, column: 8, index: 7 });
+
+    // Drop to the shorter second row; caret should clamp to row length.
+    stdin.write('\u001B[B');
+    await flush();
+    expect(caretPositionFromFrame(lastFrame())).toEqual({ line: 2, column: 6, index: 13 });
+
+    // Move back up; caret should return to the stored preferred column.
+    stdin.write('\u001B[A');
+    await flush();
+    expect(caretPositionFromFrame(lastFrame())).toEqual({ line: 1, column: 8, index: 7 });
+
+    unmount();
+  });
+});
+
+describe('transformToRows', () => {
+  test('splits lines on newline characters', () => {
+    const rows = transformToRows('hello\nworld', 10);
+    expect(rows).toEqual([
+      { text: 'hello', startIndex: 0 },
+      { text: 'world', startIndex: 6 },
+    ]);
+  });
+
+  test('wraps content when width is exceeded', () => {
+    const rows = transformToRows('abcdef', 3);
+    expect(rows).toEqual([
+      { text: 'abc', startIndex: 0 },
+      { text: 'def', startIndex: 3 },
+    ]);
+  });
+
+  test('preserves blank lines introduced by trailing newline', () => {
+    const rows = transformToRows('row-one\n', 40);
+    expect(rows).toEqual([
+      { text: 'row-one', startIndex: 0 },
+      { text: '', startIndex: 8 },
+    ]);
+  });
 });
