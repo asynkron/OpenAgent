@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
+import Spinner from 'ink-spinner';
 
 const h = React.createElement;
 
@@ -7,7 +8,7 @@ const h = React.createElement;
  * Collects free-form user input while keeping the prompt visible inside the Ink
  * layout.
  */
-export function AskHuman({ prompt = '▷', onSubmit }) {
+export function AskHuman({ prompt = '▷', onSubmit, thinking = false }) {
   const [value, setValue] = useState('');
   const [locked, setLocked] = useState(false);
   const mountedRef = useRef(true);
@@ -29,7 +30,7 @@ export function AskHuman({ prompt = '▷', onSubmit }) {
 
   useInput(
     (input, key) => {
-      if (locked) {
+      if (locked || thinking) {
         return;
       }
       if (key.return) {
@@ -60,6 +61,17 @@ export function AskHuman({ prompt = '▷', onSubmit }) {
     { isActive: true },
   );
 
+  const inputDisplay = thinking
+    ? h(Text, { color: 'white', key: 'spinner', marginLeft: 1 }, [
+        h(Spinner, { type: 'dots', key: 'spinner-icon' }),
+        ' Thinking…',
+      ])
+    : h(Text, { color: 'white', key: 'value', marginLeft: 1 }, value || ' ');
+
+  const hintMessage = thinking
+    ? 'Waiting for the AI to finish thinking…'
+    : 'Press Enter to submit • Esc to cancel';
+
   return h(
     Box,
     {
@@ -72,13 +84,9 @@ export function AskHuman({ prompt = '▷', onSubmit }) {
     [
       h(Box, { flexDirection: 'row', key: 'inputRow', paddingX: 1, paddingY: 1 }, [
         h(Text, { color: 'white', bold: true, key: 'prompt' }, normalizedPrompt),
-        h(Text, { color: 'white', key: 'value', marginLeft: 1 }, value || ' '),
+        inputDisplay,
       ]),
-      h(
-        Text,
-        { dimColor: true, color: 'white', key: 'hint' },
-        'Press Enter to submit • Esc to cancel',
-      ),
+      h(Text, { dimColor: true, color: 'white', key: 'hint' }, hintMessage),
     ],
   );
 }

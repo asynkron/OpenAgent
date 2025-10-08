@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Box, Static, Text, useApp, useInput } from 'ink';
 
 import { cancel as cancelActive } from '../../utils/cancellation.js';
@@ -49,6 +49,23 @@ const Timeline = React.memo(function Timeline({ entries }) {
             preview: entry.payload.preview,
             execution: entry.payload.execution,
           });
+        case 'banner': {
+          const elements = [];
+          if (entry.payload?.title) {
+            elements.push(
+              h(Text, { color: 'blueBright', bold: true, key: 'title' }, entry.payload.title),
+            );
+          }
+          if (entry.payload?.subtitle) {
+            elements.push(
+              h(Text, { dimColor: true, key: 'subtitle' }, entry.payload.subtitle),
+            );
+          }
+          if (elements.length === 0) {
+            return null;
+          }
+          return h(Box, { flexDirection: 'column', key: entry.id, marginBottom: 1 }, elements);
+        }
         case 'status':
           return h(MemoStatusMessage, { key: entry.id, status: entry.payload });
         default:
@@ -132,7 +149,6 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
   const runtimeRef = useRef(runtime);
   const { exit } = useApp();
   const entryIdRef = useRef(0);
-  const [banner, setBanner] = useState(null);
   const [plan, setPlan] = useState([]);
   const [planProgress, setPlanProgress] = useState({ seen: false, value: null });
   const [contextUsage, setContextUsage] = useState(null);
@@ -226,7 +242,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
 
       switch (event.type) {
         case 'banner':
-          setBanner({ title: event.title, subtitle: event.subtitle });
+          appendEntry('banner', { title: event.title ?? null, subtitle: event.subtitle ?? null });
           break;
         case 'status':
           handleStatusEvent(event);
@@ -272,7 +288,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
           break;
       }
     },
-    [handleAssistantMessage, handleCommandEvent, handleDebugEvent, handleStatusEvent],
+    [appendEntry, handleAssistantMessage, handleCommandEvent, handleDebugEvent, handleStatusEvent],
   );
 
   useEffect(() => {
@@ -346,24 +362,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
   });
 
   const hasDebugEvents = debugEvents.length > 0;
-  const renderedBanner = useMemo(() => {
-    if (!banner) {
-      return null;
-    }
-    const elements = [];
-    if (banner.title) {
-      elements.push(h(Text, { color: 'blueBright', bold: true, key: 'title' }, banner.title));
-    }
-    if (banner.subtitle) {
-      elements.push(h(Text, { dimColor: true, key: 'subtitle' }, banner.subtitle));
-    }
-    return h(Box, { flexDirection: 'column', marginBottom: 1 }, elements);
-  }, [banner]);
-
   const children = [];
-  if (renderedBanner) {
-    children.push(renderedBanner);
-  }
 
   children.push(h(MemoPlan, { plan, key: 'plan' }));
   if (planProgress.seen) {
@@ -381,11 +380,12 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
 
   children.push(h(ThinkingIndicator, { active: thinking, key: 'thinking' }));
 
-  if (inputRequest) {
+  if (thinking || inputRequest) {
     children.push(
       h(AskHuman, {
-        prompt: inputRequest.prompt,
-        onSubmit: handleSubmitPrompt,
+        prompt: inputRequest?.prompt,
+        onSubmit: inputRequest ? handleSubmitPrompt : undefined,
+        thinking,
         key: 'ask-human',
       }),
     );

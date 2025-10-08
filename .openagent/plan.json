@@ -1,17 +1,1 @@
-[
-  {
-    "step": "1",
-    "title": "Review context and inspect relevant Ink components",
-    "status": "completed"
-  },
-  {
-    "step": "2",
-    "title": "Implement fix for flickering behavior",
-    "status": "completed"
-  },
-  {
-    "step": "3",
-    "title": "Run checks/tests and summarize changes",
-    "status": "completed"
-  }
-]
+[]

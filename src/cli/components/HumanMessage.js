@@ -15,10 +15,20 @@ export function HumanMessage({ message }) {
     return null;
   }
 
-  return h(Box, { flexDirection: 'column', marginTop: 1 }, [
-    h(Text, { color: 'greenBright', bold: true, key: 'heading' }, 'You'),
-    h(Box, { marginLeft: 2, key: 'body' }, h(Text, null, prepared)),
-  ]);
+  return h(
+    Box,
+    {
+      flexDirection: 'column',
+      marginTop: 1,
+      paddingX: 1,
+      paddingY: 1,
+      backgroundColor: '#1f1f1f',
+      width: '100%',
+      alignSelf: 'stretch',
+      flexGrow: 1,
+    },
+    h(Text, null, prepared),
+  );
 }
 
 export default HumanMessage;

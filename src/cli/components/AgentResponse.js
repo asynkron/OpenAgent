@@ -18,10 +18,19 @@ export function AgentResponse({ message }) {
 
   const rendered = renderMarkdownMessage(prepared);
 
-  return h(Box, { flexDirection: 'column', marginTop: 1 }, [
-    h(Text, { color: 'magentaBright', bold: true, key: 'heading' }, 'Assistant'),
-    h(Box, { marginLeft: 2, key: 'body' }, h(Text, null, rendered)),
-  ]);
+  return h(
+    Box,
+    {
+      flexDirection: 'column',
+      marginTop: 1,
+      paddingX: 1,
+      paddingY: 1,
+      width: '100%',
+      alignSelf: 'stretch',
+      flexGrow: 1,
+    },
+    h(Text, null, rendered),
+  );
 }
 
 export default AgentResponse;
