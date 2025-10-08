@@ -66,7 +66,6 @@ export function AskHuman({ prompt = '▷', onSubmit, thinking = false, contextUs
         onChange: setValue,
         onSubmit: handleSubmit,
         placeholder,
-        width: 60,
         isActive: interactive,
         isDisabled: locked,
         marginLeft: 1,

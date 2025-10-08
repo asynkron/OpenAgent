@@ -6,7 +6,7 @@
 ## Key Groupings
 - Agent core: `commandExecution.test.js`, `approvalManager.test.js`, `responseParser.test.js`, `responseValidator.test.js`.
 - Planning & context: `plan.test.js`, `planUtils.test.js`, `agentPlanProgress.test.js`, `contextUsage.test.js`.
-- CLI/UI: `renderCommand.test.js`, `renderPlan.test.js`, `renderLanguage.test.js`, `CliApp` component tests, `inkTextArea.test.js` for keyboard handling.
+- CLI/UI: `renderCommand.test.js`, `renderPlan.test.js`, `renderLanguage.test.js`, `CliApp` component tests, `inkTextArea.test.js` for keyboard handling and terminal resize behavior.
 - Utilities: `outputUtils.test.js`, `readSpec.test.js`, `runCommand.test.js`, `cancellation.test.js`.
 - Integrations: `websocketBinding.test.js`, `httpClient.test.js`, `openaiRequest.test.js`, `openaiResponses.test.js`.
 

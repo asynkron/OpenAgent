@@ -177,6 +177,36 @@ describe('InkTextArea input handling', () => {
 
     unmount();
   });
+
+  test('recomputes rows when stdout reports a resize', async () => {
+    const { lastFrame, stdout, unmount } = render(
+      React.createElement(InkTextArea, {
+        value: 'abcdef',
+        onChange: jest.fn(),
+        onSubmit: jest.fn(),
+      }),
+    );
+
+    // Sanity-check the default layout uses a single row.
+    const initialLines = lastFrame().split('\n');
+    expect(initialLines[0]).toBe('abcdef');
+
+    // Simulate the terminal shrinking by overriding columns and emitting resize.
+    Object.defineProperty(stdout, 'columns', {
+      configurable: true,
+      get() {
+        return 3;
+      },
+    });
+    stdout.emit('resize');
+    await flush();
+
+    const resizedLines = lastFrame().split('\n');
+    expect(resizedLines[0]).toMatch(/^ ?abc$/);
+    expect(resizedLines[1]).toBe('def');
+
+    unmount();
+  });
 });
 
 describe('transformToRows', () => {
