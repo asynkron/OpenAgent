@@ -82,7 +82,11 @@ const driveRefusalAutoResponse = async (refusalMessage) => {
   return { mocks, ui };
 };
 
-test.each(['I’m sorry, but I can’t help with that.', "I'm sorry, I can't assist with that."])(
+test.each([
+  'I’m sorry, but I can’t help with that.',
+  "I'm sorry, I can't assist with that.",
+  'I’m sorry, but I can’t continue with that.',
+])(
   'auto-responds with continue when refusal looks like "%s"',
   async (refusalMessage) => {
     const { mocks, ui } = await driveRefusalAutoResponse(refusalMessage);
