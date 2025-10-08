@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Text, useInput } from 'ink';
 
 const h = React.createElement;
@@ -97,13 +97,16 @@ export function InkTextArea({
     };
   }, [interactive]);
 
-  const updateValue = (nextValue, nextCaretIndex) => {
-    const clampedIndex = clamp(nextCaretIndex, 0, nextValue.length);
-    onChange?.(nextValue);
-    setCaretIndex(clampedIndex);
-  };
+  const updateValue = useCallback(
+    (nextValue, nextCaretIndex) => {
+      const clampedIndex = clamp(nextCaretIndex, 0, nextValue.length);
+      onChange?.(nextValue);
+      setCaretIndex(clampedIndex);
+    },
+    [onChange],
+  );
 
-  useInput(
+  const handleInput = useCallback(
     (input, key) => {
       if (!interactive) {
         return;
@@ -196,8 +199,20 @@ export function InkTextArea({
         updateValue(nextValue, caretIndex + input.length);
       }
     },
-    { isActive: interactive },
+    [
+      caretColumnRef,
+      caretIndex,
+      caretPosition.column,
+      caretPosition.line,
+      interactive,
+      onSubmit,
+      positions,
+      updateValue,
+      value,
+    ],
   );
+
+  useInput(handleInput, { isActive: interactive });
 
   const hasValue = value.length > 0;
   const caretGlyph = interactive && showCaret ? '▌' : '';
