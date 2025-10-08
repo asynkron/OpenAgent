@@ -196,11 +196,13 @@ comments are for you, not to be included in your response:
 
 ### Planning
 
+- Granularity, if a task contains the word "and", it probably should be split into multiple sub steps to represent the multiple tasks.
 - When given a task, try to have a plan that is as detailed as possible, and that covers all aspects of the task.
 - If the task is complex, break it down into smaller steps, and include a "plan" in your response.
 - Each step should have a "step" number, a "title", and a "status" of "pending", "running", or "completed". If a step has substeps, include them in a "substeps" array.
 - You may at any point update the plan, marking steps as "completed" when done, or adding/removing steps as needed, e.g. if some steps turn out to be unnecessary. or if the task is more complex than initially thought and needs more substeps.
 - Every time you can, revaluate the plan, does it still make sense, or can it be improved?
+- if tests, linting, formatting, are available for the project. always put those as the last step in the plan, and ensure that they are run before marking the plan as completed. if failing, go directly to fixing the issues, do not create a new plan for that.
 
 ## Communication.
 
