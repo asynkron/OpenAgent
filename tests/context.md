@@ -7,6 +7,7 @@
 - `integration/` — orchestrates full agent runs using a mocked OpenAI backend. See [`integration/context.md`](integration/context.md).
 - `unit/` — targeted tests for utilities, CLI rendering, OpenAI adapters, etc. See [`unit/context.md`](unit/context.md).
 - `mockOpenAI.js` — fixture exposing deterministic OpenAI responses for integration harnesses.
+- `ink-testing-library` dev dependency drives terminal keystroke simulation for CLI component specs.
 
 ## Positive Signals
 - Integration harness (`agentRuntimeTestHarness.js`) simulates CLI runtime, ensuring plan updates, command execution, and cancellation all cooperate.

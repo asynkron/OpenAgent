@@ -16,6 +16,7 @@
 - Comprehensive automated coverage: unit suites exercise nearly every agent subsystem while integration tests validate the full runtime loop with mocked OpenAI responses.
 - Clear separation between transport (`src/bindings`), presentation (`src/cli`), agent orchestration (`src/agent`), and side effects (`src/commands`, `src/services`).
 - Documentation spans architecture, ops, and prompt maintenance, reducing ramp-up time for new contributors (especially AI assistants).
+- CLI unit tests now use `ink-testing-library` to simulate terminal input when exercising interactive components.
 
 ## Risks / Gaps
 - Runtime behavior depends on persisted state in `.openagent/plan.json`; stale snapshots can confuse follow-up sessions and tests if not cleaned between runs.
