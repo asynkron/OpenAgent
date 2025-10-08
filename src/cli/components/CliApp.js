@@ -17,6 +17,39 @@ const MAX_DEBUG_ENTRIES = 20;
 
 const h = React.createElement;
 
+const MemoPlan = React.memo(Plan);
+const MemoPlanProgress = React.memo(PlanProgress);
+const MemoContextUsage = React.memo(ContextUsage);
+const MemoAgentResponse = React.memo(AgentResponse);
+const MemoCommand = React.memo(Command);
+const MemoStatusMessage = React.memo(StatusMessage);
+const MemoDebugPanel = React.memo(DebugPanel);
+
+const Timeline = React.memo(function Timeline({ entries }) {
+  if (!entries || entries.length === 0) {
+    return null;
+  }
+
+  return entries.map((entry) => {
+    switch (entry.type) {
+      case 'assistant-message':
+        return h(MemoAgentResponse, { key: entry.id, message: entry.payload.message });
+      case 'command-result':
+        return h(MemoCommand, {
+          key: entry.id,
+          command: entry.payload.command,
+          result: entry.payload.result,
+          preview: entry.payload.preview,
+          execution: entry.payload.execution,
+        });
+      case 'status':
+        return h(MemoStatusMessage, { key: entry.id, status: entry.payload });
+      default:
+        return null;
+    }
+  });
+});
+
 function formatDebugPayload(payload) {
   if (typeof payload === 'string') {
     return payload;
@@ -273,40 +306,18 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
     children.push(renderedBanner);
   }
 
-  children.push(h(Plan, { plan, key: 'plan' }));
+  children.push(h(MemoPlan, { plan, key: 'plan' }));
   if (planProgress.seen) {
-    children.push(h(PlanProgress, { progress: planProgress.value, key: 'plan-progress' }));
+    children.push(h(MemoPlanProgress, { progress: planProgress.value, key: 'plan-progress' }));
   }
   if (contextUsage) {
-    children.push(h(ContextUsage, { usage: contextUsage, key: 'context-usage' }));
+    children.push(h(MemoContextUsage, { usage: contextUsage, key: 'context-usage' }));
   }
 
-  entries.forEach((entry) => {
-    switch (entry.type) {
-      case 'assistant-message':
-        children.push(h(AgentResponse, { key: entry.id, message: entry.payload.message }));
-        break;
-      case 'command-result':
-        children.push(
-          h(Command, {
-            key: entry.id,
-            command: entry.payload.command,
-            result: entry.payload.result,
-            preview: entry.payload.preview,
-            execution: entry.payload.execution,
-          }),
-        );
-        break;
-      case 'status':
-        children.push(h(StatusMessage, { key: entry.id, status: entry.payload }));
-        break;
-      default:
-        break;
-    }
-  });
+  children.push(h(Timeline, { entries, key: 'timeline' }));
 
   if (hasDebugEvents) {
-    children.push(h(DebugPanel, { events: debugEvents, key: 'debug' }));
+    children.push(h(MemoDebugPanel, { events: debugEvents, key: 'debug' }));
   }
 
   children.push(h(ThinkingIndicator, { active: thinking, key: 'thinking' }));

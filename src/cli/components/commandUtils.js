@@ -156,7 +156,11 @@ export function buildHeadingDetail(type, execution, command) {
 }
 
 export function extractCommandDescription(command, execution) {
-  const candidates = [command?.description, execution?.command?.description, execution?.description];
+  const candidates = [
+    command?.description,
+    execution?.command?.description,
+    execution?.description,
+  ];
 
   for (const candidate of candidates) {
     if (typeof candidate === 'string') {
@@ -254,7 +258,8 @@ export function buildCommandRenderData(command, result, preview = {}, execution 
     return null;
   }
 
-  const normalizedExecution = execution && typeof execution === 'object' ? execution : preview.execution || {};
+  const normalizedExecution =
+    execution && typeof execution === 'object' ? execution : preview.execution || {};
   const type = inferCommandType(command, normalizedExecution).toUpperCase();
   const detail = buildHeadingDetail(type, normalizedExecution, command);
   const description = extractCommandDescription(command, normalizedExecution);

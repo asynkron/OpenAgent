@@ -12,14 +12,10 @@ export function PlanProgress({ progress }) {
   const state = computeProgressState(progress);
 
   if (state.total <= 0) {
-    return h(
-      Box,
-      { marginTop: 1 },
-      [
-        h(Text, { color: 'blueBright', key: 'label' }, 'Plan progress: '),
-        h(Text, { dimColor: true, key: 'empty' }, 'no active steps yet.'),
-      ],
-    );
+    return h(Box, { marginTop: 1 }, [
+      h(Text, { color: 'blueBright', key: 'label' }, 'Plan progress: '),
+      h(Text, { dimColor: true, key: 'empty' }, 'no active steps yet.'),
+    ]);
   }
 
   const filledBar = state.filled > 0 ? '█'.repeat(state.filled) : '';
@@ -27,18 +23,14 @@ export function PlanProgress({ progress }) {
   const percentLabel = `${Math.round(state.normalized * 100)}%`;
   const summary = `${state.completed}/${state.total}`;
 
-  return h(
-    Box,
-    { marginTop: 1 },
-    [
-      h(Text, { color: 'blueBright', key: 'label' }, 'Plan progress: '),
-      h(Text, { color: 'green', key: 'filled' }, filledBar),
-      h(Text, { color: 'gray', key: 'empty' }, emptyBar),
-      h(Text, { key: 'space' }, ' '),
-      h(Text, { bold: true, key: 'percent' }, percentLabel),
-      h(Text, { key: 'summary' }, ` (${summary})`),
-    ],
-  );
+  return h(Box, { marginTop: 1 }, [
+    h(Text, { color: 'blueBright', key: 'label' }, 'Plan progress: '),
+    h(Text, { color: 'green', key: 'filled' }, filledBar),
+    h(Text, { color: 'gray', key: 'empty' }, emptyBar),
+    h(Text, { key: 'space' }, ' '),
+    h(Text, { bold: true, key: 'percent' }, percentLabel),
+    h(Text, { key: 'summary' }, ` (${summary})`),
+  ]);
 }
 
 export default PlanProgress;

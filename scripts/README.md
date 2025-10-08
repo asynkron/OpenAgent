@@ -51,7 +51,6 @@ Notes
 - Preserves trailing newline semantics when present in the original file.
 - Emits a success summary mirroring the format shown in `scripts/patchexample.md`.
 
-
 ## rename-identifier.cjs
 
 What it does

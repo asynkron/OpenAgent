@@ -14,7 +14,11 @@ function SummaryLine({ line, index }) {
     case 'indent':
       return h(Text, { key: index, dimColor: true }, `   ${line.text}`);
     case 'exit-code':
-      return h(Text, { key: index, color: line.status === 'success' ? 'green' : 'red' }, `   ${line.text}`);
+      return h(
+        Text,
+        { key: index, color: line.status === 'success' ? 'green' : 'red' },
+        `   ${line.text}`,
+      );
     case 'arrow':
     default:
       return h(Text, { key: index, dimColor: true }, `└ ${line.text}`);

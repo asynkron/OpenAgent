@@ -36,7 +36,9 @@ export function ContextUsage({ usage }) {
         ? (safeRemaining / total) * 100
         : null;
 
-    const parts = [`Context remaining: ${safeRemaining?.toLocaleString?.() ?? '—'} / ${total.toLocaleString?.() ?? total}`];
+    const parts = [
+      `Context remaining: ${safeRemaining?.toLocaleString?.() ?? '—'} / ${total.toLocaleString?.() ?? total}`,
+    ];
 
     if (percent !== null) {
       const formatted = formatPercentage(percent);

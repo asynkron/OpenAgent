@@ -21,4 +21,3 @@ EOF
 Success. Updated the following files:
 M src/cli/components/CliApp.js
 ```
-

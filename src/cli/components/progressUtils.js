@@ -15,7 +15,9 @@ export function computeProgressState(progress) {
   }
 
   const total = Number.isFinite(progress.totalSteps) ? Math.max(progress.totalSteps, 0) : 0;
-  const completed = Number.isFinite(progress.completedSteps) ? Math.max(progress.completedSteps, 0) : 0;
+  const completed = Number.isFinite(progress.completedSteps)
+    ? Math.max(progress.completedSteps, 0)
+    : 0;
   const providedRatio = Number.isFinite(progress.ratio) ? progress.ratio : null;
   const ratio = providedRatio !== null ? providedRatio : total > 0 ? completed / total : 0;
   const normalized = Math.min(1, Math.max(0, ratio));

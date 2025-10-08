@@ -12,9 +12,12 @@ export function AskHuman({ prompt = '▷', onSubmit }) {
   const [locked, setLocked] = useState(false);
   const mountedRef = useRef(true);
 
-  useEffect(() => () => {
-    mountedRef.current = false;
-  }, []);
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    [],
+  );
 
   const normalizedPrompt = useMemo(() => {
     if (typeof prompt !== 'string') {
@@ -57,15 +60,11 @@ export function AskHuman({ prompt = '▷', onSubmit }) {
     { isActive: true },
   );
 
-  return h(
-    Box,
-    { flexDirection: 'column', marginTop: 1 },
-    [
-      h(Text, { color: 'blueBright', bold: true, key: 'prompt' }, normalizedPrompt),
-      h(Text, { key: 'value' }, value || ' '),
-      h(Text, { dimColor: true, key: 'hint' }, 'Press Enter to submit • Esc to cancel'),
-    ],
-  );
+  return h(Box, { flexDirection: 'column', marginTop: 1 }, [
+    h(Text, { color: 'blueBright', bold: true, key: 'prompt' }, normalizedPrompt),
+    h(Text, { key: 'value' }, value || ' '),
+    h(Text, { dimColor: true, key: 'hint' }, 'Press Enter to submit • Esc to cancel'),
+  ]);
 }
 
 export default AskHuman;
