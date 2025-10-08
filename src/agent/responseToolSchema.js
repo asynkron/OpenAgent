@@ -67,10 +67,7 @@ const RESPONSE_PARAMETERS_SCHEMA = {
           $ref: '#/$defs/readCommand',
         },
       },
-      oneOf: [
-        { required: ['shell', 'run', 'cwd'] },
-        { required: ['read'] },
-      ],
+      oneOf: [{ required: ['shell', 'run', 'cwd'] }, { required: ['read'] }],
       description: 'Next tool invocation to execute when a plan step is running.',
     },
   },

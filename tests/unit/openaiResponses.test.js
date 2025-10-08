@@ -86,7 +86,10 @@ describe('createResponse', () => {
   });
 
   test('includes tools when provided', async () => {
-    const tool = { type: 'function', function: { name: 'example', parameters: { type: 'object' } } };
+    const tool = {
+      type: 'function',
+      function: { name: 'example', parameters: { type: 'object' } },
+    };
     const openai = {
       responses: {
         create: jest.fn().mockResolvedValue({ output: [] }),

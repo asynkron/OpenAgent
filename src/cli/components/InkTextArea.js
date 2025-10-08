@@ -325,8 +325,7 @@ export function InkTextArea({
           return;
         }
         const targetRow = rows[currentRowIndex - 1];
-        const desiredColumn =
-          desiredColumnRef.current ?? caretPosition.column;
+        const desiredColumn = desiredColumnRef.current ?? caretPosition.column;
         desiredColumnRef.current = desiredColumn;
         const nextColumn = Math.min(desiredColumn, targetRow.text.length);
         const nextIndex = targetRow.startIndex + nextColumn;
@@ -341,8 +340,7 @@ export function InkTextArea({
           return;
         }
         const targetRow = rows[currentRowIndex + 1];
-        const desiredColumn =
-          desiredColumnRef.current ?? caretPosition.column;
+        const desiredColumn = desiredColumnRef.current ?? caretPosition.column;
         desiredColumnRef.current = desiredColumn;
         const nextColumn = Math.min(desiredColumn, targetRow.text.length);
         const nextIndex = targetRow.startIndex + nextColumn;

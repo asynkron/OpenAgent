@@ -9,7 +9,7 @@ const h = React.createElement;
  * Collects free-form user input while keeping the prompt visible inside the Ink
  * layout.
  */
-export function AskHuman({ prompt = '▷', onSubmit, thinking = false, contextUsage = null }) {
+export function AskHuman({ onSubmit, thinking = false, contextUsage = null }) {
   const [value, setValue] = useState('');
   const [locked, setLocked] = useState(false);
   const mountedRef = useRef(true);
@@ -20,16 +20,6 @@ export function AskHuman({ prompt = '▷', onSubmit, thinking = false, contextUs
     },
     [],
   );
-
-  const normalizedPrompt = useMemo(() => {
-    if (typeof prompt !== 'string') {
-      return '▷';
-    }
-    const trimmed = prompt.trim();
-    return trimmed.length > 0 ? trimmed : '▷';
-  }, [prompt]);
-
-  const placeholder = useMemo(() => `${normalizedPrompt} human writes here`, [normalizedPrompt]);
 
   const interactive = !locked && !thinking;
 
@@ -65,7 +55,7 @@ export function AskHuman({ prompt = '▷', onSubmit, thinking = false, contextUs
         value,
         onChange: setValue,
         onSubmit: handleSubmit,
-        placeholder,
+
         isActive: interactive,
         isDisabled: locked,
         marginLeft: 1,

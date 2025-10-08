@@ -1,9 +1,7 @@
 import React from 'react';
 import { describe, expect, jest, test } from '@jest/globals';
 import { render } from 'ink-testing-library';
-import InkTextArea, {
-  transformToRows,
-} from '../../src/cli/components/InkTextArea.js';
+import InkTextArea, { transformToRows } from '../../src/cli/components/InkTextArea.js';
 
 function stripAnsi(value) {
   return value.replace(/\u001B\[[0-9;]*m/g, '');
