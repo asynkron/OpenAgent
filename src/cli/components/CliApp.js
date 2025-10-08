@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Text, useApp, useInput } from 'ink';
+import { Box, Static, Text, useApp, useInput } from 'ink';
 
 import { cancel as cancelActive } from '../../utils/cancellation.js';
 import AgentResponse from './AgentResponse.js';
@@ -32,26 +32,30 @@ const Timeline = React.memo(function Timeline({ entries }) {
     return null;
   }
 
-  return entries.map((entry) => {
-    switch (entry.type) {
-      case 'assistant-message':
-        return h(MemoAgentResponse, { key: entry.id, message: entry.payload.message });
-      case 'human-message':
-        return h(MemoHumanMessage, { key: entry.id, message: entry.payload.message });
-      case 'command-result':
-        return h(MemoCommand, {
-          key: entry.id,
-          command: entry.payload.command,
-          result: entry.payload.result,
-          preview: entry.payload.preview,
-          execution: entry.payload.execution,
-        });
-      case 'status':
-        return h(MemoStatusMessage, { key: entry.id, status: entry.payload });
-      default:
-        return null;
-    }
-  });
+  return h(
+    Static,
+    { items: entries },
+    (entry) => {
+      switch (entry.type) {
+        case 'assistant-message':
+          return h(MemoAgentResponse, { key: entry.id, message: entry.payload.message });
+        case 'human-message':
+          return h(MemoHumanMessage, { key: entry.id, message: entry.payload.message });
+        case 'command-result':
+          return h(MemoCommand, {
+            key: entry.id,
+            command: entry.payload.command,
+            result: entry.payload.result,
+            preview: entry.payload.preview,
+            execution: entry.payload.execution,
+          });
+        case 'status':
+          return h(MemoStatusMessage, { key: entry.id, status: entry.payload });
+        default:
+          return null;
+      }
+    },
+  );
 });
 
 function deepEqual(a, b) {
