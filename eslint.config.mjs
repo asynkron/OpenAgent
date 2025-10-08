@@ -5,7 +5,7 @@ import prettierRecommended from 'eslint-plugin-prettier/recommended';
 
 export default [
   {
-    ignores: ['node_modules', 'coverage', '**/templates/**'],
+    ignores: ['node_modules', 'coverage', '**/templates/**', 'scripts/**'],
   },
   js.configs.recommended,
   prettierRecommended,
@@ -34,6 +34,21 @@ export default [
       'no-constant-condition': ['error', { checkLoops: false }],
       'prefer-const': 'error',
       'import/no-commonjs': 'error',
+    },
+  },
+  {
+    files: ['scripts/**/*.cjs'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      'import/no-commonjs': 'off',
+      'no-undef': 'off',
+      'no-empty': ['error', { allowEmptyCatch: true }],
+      'no-case-declarations': 'off',
     },
   },
   {

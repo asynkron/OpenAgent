@@ -18,10 +18,10 @@ async function createTempDir(prefix = 'boot-probe-test-') {
 
 const execFileAsync = promisify(execFile);
 
+// eslint-disable-next-line no-control-regex
 function normalizeLine(value) {
-  return (value || '')
-    .replace(/\x1b\[[0-9;]*m/g, '')
-    .trim();
+  // eslint-disable-next-line no-control-regex
+  return (value || '').replace(/\u001B\[[0-9;]*m/g, '').trim();
 }
 
 function createDirent(name, { type = 'file' } = {}) {
@@ -39,7 +39,8 @@ function createStubProbeContext({
   rootEntries = [],
 } = {}) {
   const fileMap = files instanceof Map ? files : new Map(Object.entries(files));
-  const directoryMap = directories instanceof Map ? directories : new Map(Object.entries(directories));
+  const directoryMap =
+    directories instanceof Map ? directories : new Map(Object.entries(directories));
   const entryList = Array.isArray(rootEntries) ? rootEntries : [];
 
   return {
@@ -100,7 +101,11 @@ describe('boot probes', () => {
     await withTempDir(async (dir) => {
       await writeFile(
         join(dir, 'package.json'),
-        JSON.stringify({ name: 'sample-app', version: '1.2.3', scripts: { start: 'node index.js' } }),
+        JSON.stringify({
+          name: 'sample-app',
+          version: '1.2.3',
+          scripts: { start: 'node index.js' },
+        }),
         'utf8',
       );
 
@@ -179,7 +184,11 @@ describe('boot probes', () => {
         }),
         'utf8',
       );
-      await writeFile(join(dir, '.eslintrc.json'), JSON.stringify({ extends: ['eslint:recommended'] }), 'utf8');
+      await writeFile(
+        join(dir, '.eslintrc.json'),
+        JSON.stringify({ extends: ['eslint:recommended'] }),
+        'utf8',
+      );
 
       const results = await runBootProbes({ cwd: dir, emit: () => {} });
       const eslintResult = results.find((result) => result.probe === 'ESLint');
@@ -253,7 +262,7 @@ describe('boot probes', () => {
         'poetry is installed and ready to use',
         'pytest is installed and ready to use',
         'ruff is installed and ready to use',
-      ])
+      ]),
     );
     expect(result.tooling).toContain('Tool availability');
     expect(result.tooling).toContain('- python is installed and ready to use');
@@ -272,9 +281,7 @@ describe('boot probes', () => {
         ['go.mod', 'module example.com/demo'],
         ['cmd', true],
       ]),
-      directories: new Map([
-        ['cmd', [createDirent('demo', { type: 'directory' })]],
-      ]),
+      directories: new Map([['cmd', [createDirent('demo', { type: 'directory' })]]]),
       rootEntries: [createDirent('main.go')],
     });
 
@@ -289,7 +296,7 @@ describe('boot probes', () => {
         'go is installed and ready to use',
         'gofmt is installed and ready to use',
         'golangci-lint is installed and ready to use',
-      ])
+      ]),
     );
     expect(result.tooling).toContain('Go modules expect go build/test/vet');
     expect(result.tooling).toContain('- gofmt is installed and ready to use');
@@ -309,9 +316,7 @@ describe('boot probes', () => {
         ['Cargo.toml', '[package]\nname = "demo"'],
         ['src', true],
       ]),
-      directories: new Map([
-        ['src', [createDirent('main.rs')]],
-      ]),
+      directories: new Map([['src', [createDirent('main.rs')]]]),
       rootEntries: [createDirent('lib.rs')],
     });
 
@@ -327,7 +332,7 @@ describe('boot probes', () => {
         'cargo is installed and ready to use',
         'rustc is installed and ready to use',
         'rustup is installed and ready to use',
-      ])
+      ]),
     );
     expect(result.tooling).toContain('Cargo orchestrates builds/tests');
     expect(result.tooling).toContain('- cargo is installed and ready to use');
@@ -347,9 +352,7 @@ describe('boot probes', () => {
         ['mvnw', true],
         ['src/main/java', true],
       ]),
-      directories: new Map([
-        ['src/main/java', [createDirent('App.java')]],
-      ]),
+      directories: new Map([['src/main/java', [createDirent('App.java')]]]),
       rootEntries: [createDirent('Main.kt')],
     });
 
@@ -364,7 +367,7 @@ describe('boot probes', () => {
         'JVM sources (Main.kt)',
         'java is installed and ready to use',
         'javac is installed and ready to use',
-      ])
+      ]),
     );
     expect(result.tooling).toContain('Use Maven or Gradle wrappers');
     expect(result.tooling).toContain('- java is installed and ready to use');
@@ -401,9 +404,11 @@ describe('boot probes', () => {
         '.devcontainer/ (devcontainer.json, Dockerfile)',
         'docker is installed and ready to use',
         'nerdctl is installed and ready to use',
-      ])
+      ]),
     );
-    expect(result.tooling).toContain('Dockerfiles or devcontainers enable reproducible environments');
+    expect(result.tooling).toContain(
+      'Dockerfiles or devcontainers enable reproducible environments',
+    );
     expect(result.tooling).toContain('- docker is installed and ready to use');
     expect(result.tooling).not.toContain('- docker-compose is not installed');
   });
@@ -430,7 +435,7 @@ describe('boot probes', () => {
         'node is installed and ready to use',
         'npx is installed and ready to use',
         'npm is installed and ready to use',
-      ])
+      ]),
     );
     expect(result.tooling).toContain('Tool availability');
     expect(result.tooling).toContain('- node is installed and ready to use');

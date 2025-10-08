@@ -63,7 +63,11 @@ function readReplacement(replPath) {
     replacementCache[absolute] = txt;
     return txt;
   } catch (e) {
-    console.error('[replace-node] failed to read replacement file:', absolute, e && e.message ? e.message : e);
+    console.error(
+      '[replace-node] failed to read replacement file:',
+      absolute,
+      e && e.message ? e.message : e,
+    );
     return null;
   }
 }
@@ -114,7 +118,7 @@ function adjustRangeToLastClosingBrace(start, end, src) {
   return [start, newEnd];
 }
 
-module.exports = function(fileInfo, api, opts) {
+module.exports = function (fileInfo, api, opts) {
   const j = api.jscodeshift;
   const src = fileInfo.source;
   const root = j(src);
@@ -141,10 +145,10 @@ module.exports = function(fileInfo, api, opts) {
       const name = options.name;
       if (!name) return null;
       // ClassDeclaration
-      root.find(j.ClassDeclaration, { id: { name } }).forEach(path => {
+      root.find(j.ClassDeclaration, { id: { name } }).forEach((path) => {
         const node = path.node;
         const parent = path.parent && path.parent.node ? path.parent.node : null;
-        const target = (parent && parent.type && parent.type.startsWith('Export')) ? parent : node;
+        const target = parent && parent.type && parent.type.startsWith('Export') ? parent : node;
         const range = getNodeRange(target, src);
         if (range) {
           const adj = adjustRangeToLastClosingBrace(range[0], range[1], src);
@@ -152,25 +156,40 @@ module.exports = function(fileInfo, api, opts) {
         }
       });
       // const X = class { }
-      root.find(j.VariableDeclarator, { id: { name } }).filter(path => path.node.init && path.node.init.type === 'ClassExpression').forEach(path => {
-        const varDecl = path.parent && path.parent.node ? path.parent.node : null;
-        const parentParent = path.parent && path.parent.parentPath && path.parent.parentPath.node ? path.parent.parentPath.node : null;
-        const target = (parentParent && parentParent.type && parentParent.type.startsWith('Export')) ? parentParent : (varDecl || path.node);
-        const range = getNodeRange(target, src);
-        if (range) {
-          const adj = adjustRangeToLastClosingBrace(range[0], range[1], src);
-          matches.push({ start: adj[0], end: adj[1], desc: 'Variable(ClassExpression)' });
-        }
-      });
+      root
+        .find(j.VariableDeclarator, { id: { name } })
+        .filter((path) => path.node.init && path.node.init.type === 'ClassExpression')
+        .forEach((path) => {
+          const varDecl = path.parent && path.parent.node ? path.parent.node : null;
+          const parentParent =
+            path.parent && path.parent.parentPath && path.parent.parentPath.node
+              ? path.parent.parentPath.node
+              : null;
+          const target =
+            parentParent && parentParent.type && parentParent.type.startsWith('Export')
+              ? parentParent
+              : varDecl || path.node;
+          const range = getNodeRange(target, src);
+          if (range) {
+            const adj = adjustRangeToLastClosingBrace(range[0], range[1], src);
+            matches.push({ start: adj[0], end: adj[1], desc: 'Variable(ClassExpression)' });
+          }
+        });
     } else if (kind === 'method') {
       const className = options.class || options.className;
       const methodName = options.method || options.name;
       if (!className || !methodName) return null;
       // Named class declarations
-      root.find(j.ClassDeclaration, { id: { name: className } }).forEach(classPath => {
-        const body = classPath.node.body && classPath.node.body.body || [];
-        body.forEach(elem => {
-          if ((elem.type === 'MethodDefinition' || elem.type === 'ClassMethod') && !elem.computed && elem.key && elem.key.type === 'Identifier' && elem.key.name === methodName) {
+      root.find(j.ClassDeclaration, { id: { name: className } }).forEach((classPath) => {
+        const body = (classPath.node.body && classPath.node.body.body) || [];
+        body.forEach((elem) => {
+          if (
+            (elem.type === 'MethodDefinition' || elem.type === 'ClassMethod') &&
+            !elem.computed &&
+            elem.key &&
+            elem.key.type === 'Identifier' &&
+            elem.key.name === methodName
+          ) {
             // target: whole method (signature + body) unless bodyOnly requested
             const target = bodyOnly && elem.value && elem.value.body ? elem.value.body : elem;
             const range = getNodeRange(target, src);
@@ -182,30 +201,40 @@ module.exports = function(fileInfo, api, opts) {
         });
       });
       // class expressions assigned to variables: const C = class { method() {} }
-      root.find(j.VariableDeclarator).filter(path => path.node.init && path.node.init.type === 'ClassExpression').forEach(path => {
-        const varInit = path.node.init;
-        const idName = path.node.id && path.node.id.type === 'Identifier' ? path.node.id.name : null;
-        if (idName !== className) return;
-        const body = varInit.body && varInit.body.body || [];
-        body.forEach(elem => {
-          if ((elem.type === 'MethodDefinition' || elem.type === 'ClassMethod') && !elem.computed && elem.key && elem.key.type === 'Identifier' && elem.key.name === methodName) {
-            const target = bodyOnly && elem.value && elem.value.body ? elem.value.body : elem;
-            const range = getNodeRange(target, src);
-            if (range) {
-              const adj = adjustRangeToLastClosingBrace(range[0], range[1], src);
-              matches.push({ start: adj[0], end: adj[1], desc: 'MethodDefinition(ClassExpr)' });
+      root
+        .find(j.VariableDeclarator)
+        .filter((path) => path.node.init && path.node.init.type === 'ClassExpression')
+        .forEach((path) => {
+          const varInit = path.node.init;
+          const idName =
+            path.node.id && path.node.id.type === 'Identifier' ? path.node.id.name : null;
+          if (idName !== className) return;
+          const body = (varInit.body && varInit.body.body) || [];
+          body.forEach((elem) => {
+            if (
+              (elem.type === 'MethodDefinition' || elem.type === 'ClassMethod') &&
+              !elem.computed &&
+              elem.key &&
+              elem.key.type === 'Identifier' &&
+              elem.key.name === methodName
+            ) {
+              const target = bodyOnly && elem.value && elem.value.body ? elem.value.body : elem;
+              const range = getNodeRange(target, src);
+              if (range) {
+                const adj = adjustRangeToLastClosingBrace(range[0], range[1], src);
+                matches.push({ start: adj[0], end: adj[1], desc: 'MethodDefinition(ClassExpr)' });
+              }
             }
-          }
+          });
         });
-      });
     } else if (kind === 'function') {
       const name = options.name;
       if (!name) return null;
       // FunctionDeclaration
-      root.find(j.FunctionDeclaration, { id: { name } }).forEach(path => {
+      root.find(j.FunctionDeclaration, { id: { name } }).forEach((path) => {
         const node = path.node;
         const parent = path.parent && path.parent.node ? path.parent.node : null;
-        const target = (parent && parent.type && parent.type.startsWith('Export')) ? parent : node;
+        const target = parent && parent.type && parent.type.startsWith('Export') ? parent : node;
         const range = getNodeRange(target, src);
         if (range) {
           const adj = adjustRangeToLastClosingBrace(range[0], range[1], src);
@@ -213,23 +242,43 @@ module.exports = function(fileInfo, api, opts) {
         }
       });
       // const f = function() {} or const f = () => {}
-      root.find(j.VariableDeclarator, { id: { name } }).filter(path => path.node.init && (path.node.init.type === 'FunctionExpression' || path.node.init.type === 'ArrowFunctionExpression')).forEach(path => {
-        const varDecl = path.parent && path.parent.node ? path.parent.node : null;
-        const parentParent = path.parent && path.parent.parentPath && path.parent.parentPath.node ? path.parent.parentPath.node : null;
-        const target = (parentParent && parentParent.type && parentParent.type.startsWith('Export')) ? parentParent : (varDecl || path.node);
-        const range = getNodeRange(target, src);
-        if (range) {
-          const adj = adjustRangeToLastClosingBrace(range[0], range[1], src);
-          matches.push({ start: adj[0], end: adj[1], desc: 'Variable(FunctionExpression)' });
-        }
-      });
+      root
+        .find(j.VariableDeclarator, { id: { name } })
+        .filter(
+          (path) =>
+            path.node.init &&
+            (path.node.init.type === 'FunctionExpression' ||
+              path.node.init.type === 'ArrowFunctionExpression'),
+        )
+        .forEach((path) => {
+          const varDecl = path.parent && path.parent.node ? path.parent.node : null;
+          const parentParent =
+            path.parent && path.parent.parentPath && path.parent.parentPath.node
+              ? path.parent.parentPath.node
+              : null;
+          const target =
+            parentParent && parentParent.type && parentParent.type.startsWith('Export')
+              ? parentParent
+              : varDecl || path.node;
+          const range = getNodeRange(target, src);
+          if (range) {
+            const adj = adjustRangeToLastClosingBrace(range[0], range[1], src);
+            matches.push({ start: adj[0], end: adj[1], desc: 'Variable(FunctionExpression)' });
+          }
+        });
     } else if (kind === 'variable') {
       const name = options.name;
       if (!name) return null;
-      root.find(j.VariableDeclarator, { id: { name } }).forEach(path => {
+      root.find(j.VariableDeclarator, { id: { name } }).forEach((path) => {
         const varDecl = path.parent && path.parent.node ? path.parent.node : null;
-        const parentParent = path.parent && path.parent.parentPath && path.parent.parentPath.node ? path.parent.parentPath.node : null;
-        const target = (parentParent && parentParent.type && parentParent.type.startsWith('Export')) ? parentParent : (varDecl || path.node);
+        const parentParent =
+          path.parent && path.parent.parentPath && path.parent.parentPath.node
+            ? path.parent.parentPath.node
+            : null;
+        const target =
+          parentParent && parentParent.type && parentParent.type.startsWith('Export')
+            ? parentParent
+            : varDecl || path.node;
         const range = getNodeRange(target, src);
         if (range) {
           const adj = adjustRangeToLastClosingBrace(range[0], range[1], src);

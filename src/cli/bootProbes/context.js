@@ -151,7 +151,8 @@ export function createBootProbeResult({
   error = null,
   tooling = '',
 } = {}) {
-  const toolingSummary = typeof tooling === 'string' ? tooling.trim() : String(tooling || '').trim();
+  const toolingSummary =
+    typeof tooling === 'string' ? tooling.trim() : String(tooling || '').trim();
 
   return {
     detected: Boolean(detected),

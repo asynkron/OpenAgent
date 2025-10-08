@@ -30,14 +30,14 @@ export const NodeBootProbe = {
           ? `${label} is installed and ready to use`
           : `${label} is not installed`;
         return { name: label, available, summary };
-      })
+      }),
     );
 
     const workspaceMatches = await Promise.all(
       WORKSPACE_INDICATORS.map(async (indicator) => ({
         indicator,
         present: await context.fileExists(indicator),
-      }))
+      })),
     );
 
     const presentIndicators = workspaceMatches

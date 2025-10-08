@@ -54,7 +54,12 @@ export const PythonBootProbe = {
     const pyFiles = entries.filter((entry) => entry.isFile() && /\.py$/i.test(entry.name));
     if (pyFiles.length > 0) {
       detected = true;
-      details.push(`Python source files (${pyFiles.slice(0, 3).map((entry) => entry.name).join(', ')})`);
+      details.push(
+        `Python source files (${pyFiles
+          .slice(0, 3)
+          .map((entry) => entry.name)
+          .join(', ')})`,
+      );
     }
 
     if (await context.fileExists('src')) {
@@ -80,7 +85,7 @@ export const PythonBootProbe = {
           ? `${label} is installed and ready to use`
           : `${label} is not installed`;
         return { name: label, available, summary };
-      })
+      }),
     );
 
     const installedTools = toolAvailability.filter((tool) => tool.available);

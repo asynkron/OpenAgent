@@ -46,7 +46,7 @@ export const GitBootProbe = {
     // Parse the first remote entry from .git/config to inform the agent about upstream state.
     const gitConfig = await context.readTextFile('.git/config');
     if (gitConfig) {
-      const remoteMatch = gitConfig.match(/\[remote "([^"]+)"\][^\[]+?url\s*=\s*(.+)/);
+      const remoteMatch = gitConfig.match(/\[remote "([^"]+)"\][^[]+?url\s*=\s*(.+)/);
       if (remoteMatch) {
         details.push(`remote ${remoteMatch[1]} → ${remoteMatch[2].trim()}`);
       }

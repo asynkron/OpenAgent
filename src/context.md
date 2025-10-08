@@ -13,7 +13,7 @@
 - `commands/`: shell execution, read/edit/replace helpers, string quoting utilities.
 - `config/`: system prompt discovery and workspace metadata.
 - `openai/`: memoized OpenAI client factory.
-- `ui/`: transport-agnostic UI bindings (e.g., WebSocket adapters) for the runtime.
+- `bindings/`: transport bindings (e.g., WebSocket adapters) for the runtime.
 - `utils/`: cancellation manager, text helpers, output combiner.
 
 ## Positive Signals

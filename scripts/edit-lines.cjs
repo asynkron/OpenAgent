@@ -13,12 +13,16 @@ const os = require('os');
 const child_process = require('child_process');
 
 function usage() {
-  console.error('Usage: node scripts/edit-lines.cjs --file <file> --start <N> --count <C> (--text "..." | --text-file <path>) [--apply] [--check]');
+  console.error(
+    'Usage: node scripts/edit-lines.cjs --file <file> --start <N> --count <C> (--text "..." | --text-file <path>) [--apply] [--check]',
+  );
   process.exit(2);
 }
 
 const argv = process.argv.slice(2);
-function hasFlag(name) { return argv.includes(name); }
+function hasFlag(name) {
+  return argv.includes(name);
+}
 function getArg(name, alt) {
   const i = argv.indexOf(name);
   if (i >= 0 && i + 1 < argv.length) return argv[i + 1];
@@ -40,17 +44,28 @@ const check = hasFlag('--check');
 if (!filePath || !startArg || (textArg === undefined && textFileArg === undefined)) usage();
 
 const start = parseInt(startArg, 10);
-if (isNaN(start) || start < 1) { console.error('--start must be an integer >= 1'); process.exit(2); }
+if (isNaN(start) || start < 1) {
+  console.error('--start must be an integer >= 1');
+  process.exit(2);
+}
 
 let count = 0;
 if (countArg !== undefined) {
   count = parseInt(countArg, 10);
-  if (isNaN(count) || count < 0) { console.error('--count must be an integer >= 0'); process.exit(2); }
+  if (isNaN(count) || count < 0) {
+    console.error('--count must be an integer >= 0');
+    process.exit(2);
+  }
 }
 
 let replacementText = '';
 if (textFileArg) {
-  try { replacementText = fs.readFileSync(textFileArg, 'utf8'); } catch (e) { console.error('Failed to read --text-file:', e.message); process.exit(1); }
+  try {
+    replacementText = fs.readFileSync(textFileArg, 'utf8');
+  } catch (e) {
+    console.error('Failed to read --text-file:', e.message);
+    process.exit(1);
+  }
 } else if (textArg !== undefined) {
   replacementText = textArg;
 }
@@ -58,7 +73,12 @@ if (textFileArg) {
 const origExists = fs.existsSync(filePath);
 let origContent = '';
 if (origExists) {
-  try { origContent = fs.readFileSync(filePath, 'utf8'); } catch (e) { console.error('Failed to read file:', e.message); process.exit(1); }
+  try {
+    origContent = fs.readFileSync(filePath, 'utf8');
+  } catch (e) {
+    console.error('Failed to read file:', e.message);
+    process.exit(1);
+  }
 }
 
 // Normalize CRLF to LF for predictable behavior
@@ -72,13 +92,16 @@ if (origHadTrailingNewline && lines.length > 0 && lines[lines.length - 1] === ''
 const replNormalized = replacementText.replace(/\r\n/g, '\n');
 const replHadTrailingNewline = replNormalized.endsWith('\n');
 let insertLines = replNormalized.length ? replNormalized.split('\n') : [];
-if (replHadTrailingNewline && insertLines.length > 0 && insertLines[insertLines.length - 1] === '') insertLines.pop();
+if (replHadTrailingNewline && insertLines.length > 0 && insertLines[insertLines.length - 1] === '')
+  insertLines.pop();
 
 // Compute insert position (1-based to 0-based). Clamp to lines.length+1 (append at end)
 const maxInsertIndex = lines.length + 1;
 let insertIndex = start;
 if (insertIndex > maxInsertIndex) {
-  console.warn(`start (${start}) is beyond end of file (lines=${lines.length}); clamping to ${maxInsertIndex} (append).`);
+  console.warn(
+    `start (${start}) is beyond end of file (lines=${lines.length}); clamping to ${maxInsertIndex} (append).`,
+  );
   insertIndex = maxInsertIndex;
 }
 const insertPos = insertIndex - 1; // 0-based
@@ -103,7 +126,11 @@ fs.writeFileSync(newTmp, newContent, 'utf8');
 
 function runDiff(a, b) {
   try {
-    const res = child_process.spawnSync('diff', ['-u', '--label', `a/${filePath}`, '--label', `b/${filePath}`, a, b], { encoding: 'utf8' });
+    const res = child_process.spawnSync(
+      'diff',
+      ['-u', '--label', `a/${filePath}`, '--label', `b/${filePath}`, a, b],
+      { encoding: 'utf8' },
+    );
     if (res.error) throw res.error;
     return res.stdout || '';
   } catch (err) {
@@ -132,7 +159,10 @@ if (apply) {
     if (check && (ext === '.js' || ext === '.cjs' || ext === '.mjs')) {
       const chk = child_process.spawnSync('node', ['--check', filePath], { encoding: 'utf8' });
       if (chk.status !== 0) {
-        console.error('Syntax check failed after applying change; rolling back. Output:\n', chk.stderr || chk.stdout);
+        console.error(
+          'Syntax check failed after applying change; rolling back. Output:\n',
+          chk.stderr || chk.stdout,
+        );
         if (origExists) fs.copyFileSync(backup, filePath);
         if (fs.existsSync(backup)) fs.unlinkSync(backup);
         process.exit(3);
@@ -143,7 +173,9 @@ if (apply) {
     console.error('Successfully applied edit to', filePath);
   } catch (err) {
     console.error('Failed to apply edit:', err.message);
-    try { if (origExists) fs.copyFileSync(backup, filePath); } catch (e) {}
+    try {
+      if (origExists) fs.copyFileSync(backup, filePath);
+    } catch (e) {}
     process.exit(1);
   }
 } else {

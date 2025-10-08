@@ -28,7 +28,10 @@ const TOOL_CHECKS = [
 ];
 
 function formatExampleEntries(entries) {
-  const sample = entries.slice(0, 3).map((entry) => entry.name).join(', ');
+  const sample = entries
+    .slice(0, 3)
+    .map((entry) => entry.name)
+    .join(', ');
   return entries.length > 3 ? `${sample}, …` : sample;
 }
 
@@ -67,7 +70,9 @@ export const JvmBootProbe = {
     }
 
     const rootEntries = await context.getRootEntries();
-    const javaFiles = rootEntries.filter((entry) => entry.isFile?.() && /\.(java|kt|kts|scala)$/i.test(entry.name));
+    const javaFiles = rootEntries.filter(
+      (entry) => entry.isFile?.() && /\.(java|kt|kts|scala)$/i.test(entry.name),
+    );
     if (javaFiles.length > 0) {
       detected = true;
       details.push(`JVM sources (${formatExampleEntries(javaFiles)})`);
@@ -80,7 +85,7 @@ export const JvmBootProbe = {
           ? `${label} is installed and ready to use`
           : `${label} is not installed`;
         return { name: label, available, summary };
-      })
+      }),
     );
 
     const installedTools = toolAvailability.filter((tool) => tool.available);

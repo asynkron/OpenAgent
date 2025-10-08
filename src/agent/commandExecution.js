@@ -26,11 +26,7 @@ function createCommandHandlers() {
   return [new ReadCommand(), new ExecuteCommand()];
 }
 
-export async function executeAgentCommand({
-  command,
-  runCommandFn,
-  runReadFn,
-}) {
+export async function executeAgentCommand({ command, runCommandFn, runReadFn }) {
   const normalizedCommand = command || {};
   const cwd = normalizedCommand.cwd || '.';
   const timeout =

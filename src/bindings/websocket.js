@@ -1,5 +1,5 @@
 /**
- * WebSocket UI binding for the agent runtime.
+ * WebSocket binding for the agent runtime.
  *
  * Translates incoming WebSocket messages into agent prompts/cancellation
  * events and streams runtime output events back over the socket as JSON.
@@ -117,7 +117,7 @@ async function safeSend(socket, formatter, event, { suppressErrors = false } = {
     payload = formatter(event);
   } catch (error) {
     if (!suppressErrors) {
-      console.error('[openagent:websocket-ui] Failed to format outgoing event:', error);
+      console.error('[openagent:websocket-binding] Failed to format outgoing event:', error);
     }
     return false;
   }
@@ -134,13 +134,13 @@ async function safeSend(socket, formatter, event, { suppressErrors = false } = {
     return true;
   } catch (error) {
     if (!suppressErrors) {
-      console.error('[openagent:websocket-ui] Failed to send runtime event to socket:', error);
+      console.error('[openagent:websocket-binding] Failed to send runtime event to socket:', error);
     }
     return false;
   }
 }
 
-export function createWebSocketUi({
+export function createWebSocketBinding({
   socket,
   runtimeOptions = {},
   createRuntime = createAgentRuntime,
@@ -235,7 +235,7 @@ export function createWebSocketUi({
 
   const handleError = (error) => {
     if (closed) return;
-    console.error('[openagent:websocket-ui] Socket error encountered:', error);
+    console.error('[openagent:websocket-binding] Socket error encountered:', error);
     void stop({ reason: 'socket-error', cancel: cancelOnDisconnect });
   };
 
@@ -360,7 +360,7 @@ export function createWebSocketUi({
 
   if (autoStart) {
     start().catch((error) => {
-      console.error('[openagent:websocket-ui] Failed to start agent runtime:', error);
+      console.error('[openagent:websocket-binding] Failed to start agent runtime:', error);
     });
   }
 
@@ -371,4 +371,4 @@ export function createWebSocketUi({
   };
 }
 
-export default { createWebSocketUi };
+export default { createWebSocketBinding };

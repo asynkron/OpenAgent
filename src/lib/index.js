@@ -43,7 +43,7 @@ import {
   SYSTEM_PROMPT,
 } from '../config/systemPrompt.js';
 import { createAgentLoop, createAgentRuntime, extractResponseText } from '../agent/loop.js';
-import { createWebSocketUi } from '../ui/websocket.js';
+import { createWebSocketBinding } from '../bindings/websocket.js';
 import {
   setStartupFlags,
   parseStartupFlagsFromArgv,
@@ -91,7 +91,7 @@ export {
   createAgentLoop,
   createAgentRuntime,
   extractResponseText,
-  createWebSocketUi,
+  createWebSocketBinding,
   setStartupFlags,
   parseStartupFlagsFromArgv,
   applyStartupFlagsFromArgv,
@@ -139,7 +139,7 @@ const exported = {
   createAgentLoop,
   createAgentRuntime,
   extractResponseText,
-  createWebSocketUi,
+  createWebSocketBinding,
   setStartupFlags,
   parseStartupFlagsFromArgv,
   applyStartupFlagsFromArgv,

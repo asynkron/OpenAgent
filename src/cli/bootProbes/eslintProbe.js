@@ -22,7 +22,11 @@ export const EslintBootProbe = {
 
     const packageJson = await context.readJsonFile('package.json');
     if (packageJson) {
-      const dependencies = { ...packageJson.dependencies, ...packageJson.devDependencies, ...packageJson.peerDependencies };
+      const dependencies = {
+        ...packageJson.dependencies,
+        ...packageJson.devDependencies,
+        ...packageJson.peerDependencies,
+      };
       if (dependencies.eslint) {
         detected = true;
         details.push(`package.json declares eslint ${dependencies.eslint}`);

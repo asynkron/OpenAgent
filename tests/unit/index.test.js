@@ -140,7 +140,6 @@ describe('isPreapprovedCommand', () => {
     const cfg = { allowlist: [{ name: 'ls' }] };
     expect(mod.isPreapprovedCommand({ run: 'ls &> output.txt' }, cfg)).toBe(false);
   });
-
 });
 
 describe('shellSplit', () => {
@@ -229,10 +228,9 @@ describe('loadPreapprovedConfig', () => {
     }
   });
 });
-
-describe('createWebSocketUi export', () => {
+describe('createWebSocketBinding export', () => {
   test('exposes the WebSocket binding helper', async () => {
     const { mod } = await loadModule();
-    expect(typeof mod.createWebSocketUi).toBe('function');
+    expect(typeof mod.createWebSocketBinding).toBe('function');
   });
 });

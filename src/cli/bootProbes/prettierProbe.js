@@ -23,7 +23,11 @@ export const PrettierBootProbe = {
 
     const packageJson = await context.readJsonFile('package.json');
     if (packageJson) {
-      const dependencies = { ...packageJson.dependencies, ...packageJson.devDependencies, ...packageJson.peerDependencies };
+      const dependencies = {
+        ...packageJson.dependencies,
+        ...packageJson.devDependencies,
+        ...packageJson.peerDependencies,
+      };
       if (dependencies.prettier) {
         detected = true;
         details.push(`package.json declares prettier ${dependencies.prettier}`);

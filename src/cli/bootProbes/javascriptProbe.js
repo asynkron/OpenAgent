@@ -1,7 +1,13 @@
 import { createBootProbeResult } from './context.js';
 
 const LOCKFILES = ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lockb'];
-const BABEL_CONFIGS = ['babel.config.js', 'babel.config.cjs', 'babel.config.mjs', '.babelrc', '.babelrc.js'];
+const BABEL_CONFIGS = [
+  'babel.config.js',
+  'babel.config.cjs',
+  'babel.config.mjs',
+  '.babelrc',
+  '.babelrc.js',
+];
 const TOOL_CHECKS = [
   { name: 'comby' },
   { name: 'jscodeshift' },
@@ -21,7 +27,9 @@ export const JavaScriptBootProbe = {
       const name = typeof packageJson.name === 'string' ? packageJson.name : undefined;
       const version = typeof packageJson.version === 'string' ? packageJson.version : undefined;
       if (name || version) {
-        details.push(`package.json${name ? ` name=${name}` : ''}${version ? ` version=${version}` : ''}`);
+        details.push(
+          `package.json${name ? ` name=${name}` : ''}${version ? ` version=${version}` : ''}`,
+        );
       } else {
         details.push('package.json present');
       }
@@ -63,12 +71,17 @@ export const JavaScriptBootProbe = {
       details.push('tsconfig.json');
     }
 
-    const esmEntries = await context.findRootEntries((entry) =>
-      entry.isFile() && /\.(mjs|cjs)$/i.test(entry.name)
+    const esmEntries = await context.findRootEntries(
+      (entry) => entry.isFile() && /\.(mjs|cjs)$/i.test(entry.name),
     );
     if (esmEntries.length > 0) {
       detected = true;
-      details.push(`module files (${esmEntries.slice(0, 3).map((entry) => entry.name).join(', ')})`);
+      details.push(
+        `module files (${esmEntries
+          .slice(0, 3)
+          .map((entry) => entry.name)
+          .join(', ')})`,
+      );
     }
 
     const toolAvailability = await Promise.all(
@@ -81,7 +94,7 @@ export const JavaScriptBootProbe = {
             ? `${tool.label ?? tool.name} is installed and ready to use`
             : `${tool.label ?? tool.name} is not installed`,
         };
-      })
+      }),
     );
 
     const installedTools = toolAvailability.filter((tool) => tool.available);

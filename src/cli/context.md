@@ -6,7 +6,6 @@
 
 ## Modules
 
-
 - `bootProbes/`: language/OS detectors that run before the agent loop to surface repo hints in CLI mode, include recommended tooling blurbs for detected stacks, and export a formatter so the detected context can enrich the system prompt. The JavaScript probe also reports whether helper refactoring binaries (comby, jscodeshift, ast-grep, acorn) are already available on the PATH, the Node.js probe summarises runtime/package-manager availability (node, npx, npm, pnpm, yarn, bun), and additional probes now cover Go, Rust, JVM build tooling, and containerisation signals.
 - `runtime.js`: wires the agent runtime to the terminal renderer and exports `agentLoop` plus command tracking helpers used by the CLI entry point.
 - `io.js`: readline wrapper with ESC detection (emits `ESCAPE_EVENT`, cancels active operations, highlights prompts).
@@ -14,7 +13,6 @@
 - `thinking.js`: spinner that displays elapsed time while awaiting API responses.
 - `status.js`: prints transient status lines such as the remaining context window before issuing model requests.
 - `runner.js`: parses CLI arguments, runs boot probes to describe the workspace, forwards template/shortcut subcommands, funnels their summary into the system prompt, and launches the agent loop.
-
 
 ## Positive Signals
 

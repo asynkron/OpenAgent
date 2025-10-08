@@ -47,10 +47,7 @@ These rules render the invalid examples below as actionable diagnostics—consul
     "command": {
       "type": "object",
       "additionalProperties": false,
-      "oneOf": [
-        { "required": ["shell", "run", "cwd"] },
-        { "required": ["read"] },
-      ],
+      "oneOf": [{ "required": ["shell", "run", "cwd"] }, { "required": ["read"] }],
       "properties": {
         "description": { "type": "string" },
         "shell": { "type": "string" },
@@ -59,7 +56,7 @@ These rules render the invalid examples below as actionable diagnostics—consul
         "timeout_sec": { "type": "integer", "minimum": 1 },
         "filter_regex": { "type": "string" },
         "tail_lines": { "type": "integer", "minimum": 1 },
-        "read": { "$ref": "#/$defs/readCommand" },
+        "read": { "$ref": "#/$defs/readCommand" }
       }
     }
   },
@@ -207,7 +204,6 @@ comments are for you, not to be included in your response:
 
 Do not present the user a "wall of text". Be concise, but informative. Use bullet points, lists, and tables where appropriate. Always use Markdown formatting in the "message" field.
 Headers and emphasis are allowed, but avoid excessive use of them.
-
 
 ## Working with patch or temporary files
 

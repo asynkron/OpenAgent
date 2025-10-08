@@ -75,52 +75,27 @@
     },
     {
       "name": "git",
-      "subcommands": [
-        "status",
-        "log",
-        "show",
-        "diff",
-        "rev-parse",
-        "branch",
-        "remote",
-        "describe"
-      ]
+      "subcommands": ["status", "log", "show", "diff", "rev-parse", "branch", "remote", "describe"]
     },
     {
       "name": "python",
-      "subcommands": [
-        "--version",
-        "-V"
-      ]
+      "subcommands": ["--version", "-V"]
     },
     {
       "name": "python3",
-      "subcommands": [
-        "--version",
-        "-V"
-      ]
+      "subcommands": ["--version", "-V"]
     },
     {
       "name": "pip",
-      "subcommands": [
-        "list",
-        "show",
-        "--version"
-      ]
+      "subcommands": ["list", "show", "--version"]
     },
     {
       "name": "node",
-      "subcommands": [
-        "--version",
-        "-v"
-      ]
+      "subcommands": ["--version", "-v"]
     },
     {
       "name": "npm",
-      "subcommands": [
-        "--version",
-        "-v"
-      ]
+      "subcommands": ["--version", "-v"]
     },
     {
       "name": "curl",

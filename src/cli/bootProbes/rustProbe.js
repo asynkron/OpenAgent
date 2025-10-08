@@ -15,7 +15,10 @@ const TOOL_CHECKS = [
 ];
 
 function formatExampleEntries(entries) {
-  const sample = entries.slice(0, 3).map((entry) => entry.name).join(', ');
+  const sample = entries
+    .slice(0, 3)
+    .map((entry) => entry.name)
+    .join(', ');
   return entries.length > 3 ? `${sample}, …` : sample;
 }
 
@@ -39,7 +42,9 @@ export const RustBootProbe = {
 
         if (directory === 'src') {
           const srcEntries = await context.readDirEntries('src');
-          const rustFiles = srcEntries.filter((entry) => entry.isFile?.() && /\.rs$/i.test(entry.name));
+          const rustFiles = srcEntries.filter(
+            (entry) => entry.isFile?.() && /\.rs$/i.test(entry.name),
+          );
           if (rustFiles.length > 0) {
             details.push(`Rust sources (${formatExampleEntries(rustFiles)})`);
           }
@@ -61,7 +66,7 @@ export const RustBootProbe = {
           ? `${label} is installed and ready to use`
           : `${label} is not installed`;
         return { name: label, available, summary };
-      })
+      }),
     );
 
     const installedTools = toolAvailability.filter((tool) => tool.available);

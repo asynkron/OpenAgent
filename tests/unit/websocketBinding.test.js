@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 
-import { createWebSocketUi } from '../../src/ui/websocket.js';
+import { createWebSocketBinding } from '../../src/bindings/websocket.js';
 import { AsyncQueue } from '../../src/utils/asyncQueue.js';
 
 function createMockSocket() {
@@ -53,18 +53,18 @@ function createMockRuntime() {
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
-describe('createWebSocketUi', () => {
+describe('createWebSocketBinding', () => {
   test('forwards prompts and outbound events', async () => {
     const socket = createMockSocket();
     const { runtime, outputs, resolveStart } = createMockRuntime();
 
-    const ui = createWebSocketUi({
+    const binding = createWebSocketBinding({
       socket,
       createRuntime: () => runtime,
       autoStart: false,
     });
 
-    const startPromise = ui.start();
+    const startPromise = binding.start();
     await flush();
     expect(runtime.start).toHaveBeenCalledTimes(1);
 
@@ -85,7 +85,7 @@ describe('createWebSocketUi', () => {
     expect(JSON.parse(payload)).toEqual({ type: 'status', message: 'ready' });
 
     resolveStart();
-    await ui.stop({ cancel: false });
+    await binding.stop({ cancel: false });
     await startPromise;
   });
 
@@ -93,13 +93,13 @@ describe('createWebSocketUi', () => {
     const socket = createMockSocket();
     const { runtime, resolveStart } = createMockRuntime();
 
-    const ui = createWebSocketUi({
+    const binding = createWebSocketBinding({
       socket,
       createRuntime: () => runtime,
       autoStart: false,
     });
 
-    const startPromise = ui.start();
+    const startPromise = binding.start();
     await flush();
 
     socket.emit('close');
@@ -115,7 +115,7 @@ describe('createWebSocketUi', () => {
     const socket = createMockSocket();
     const { runtime, resolveStart } = createMockRuntime();
 
-    const ui = createWebSocketUi({
+    const binding = createWebSocketBinding({
       socket,
       createRuntime: () => runtime,
       autoStart: false,
@@ -124,7 +124,7 @@ describe('createWebSocketUi', () => {
       },
     });
 
-    const startPromise = ui.start();
+    const startPromise = binding.start();
     await flush();
 
     socket.emit('message', 'ignored');
@@ -135,7 +135,7 @@ describe('createWebSocketUi', () => {
     expect(JSON.parse(payload).type).toBe('error');
 
     resolveStart();
-    await ui.stop({ cancel: false });
+    await binding.stop({ cancel: false });
     await startPromise;
   });
 
@@ -143,7 +143,7 @@ describe('createWebSocketUi', () => {
     const socket = createMockSocket();
     const { runtime, resolveStart } = createMockRuntime();
 
-    createWebSocketUi({
+    createWebSocketBinding({
       socket,
       createRuntime: () => runtime,
       autoStart: true,

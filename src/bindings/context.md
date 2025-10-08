@@ -1,8 +1,8 @@
-# Directory Context: src/ui
+# Directory Context: src/bindings
 
 ## Purpose
 
-- Houses UI bindings that connect the agent runtime to transport layers other than the CLI.
+- Houses bindings that connect the agent runtime to transport layers other than the CLI.
 - Provides adapters that translate socket or web events into agent input queues and forward agent output events back to clients.
 
 ## Notes

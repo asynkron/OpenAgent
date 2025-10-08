@@ -1,14 +1,7 @@
 import { createBootProbeResult } from './context.js';
 
 // Canonical files that normally appear in Go workspaces.
-const GO_FILES = [
-  'go.mod',
-  'go.sum',
-  'go.work',
-  'go.work.sum',
-  'Gopkg.toml',
-  'Gopkg.lock',
-];
+const GO_FILES = ['go.mod', 'go.sum', 'go.work', 'go.work.sum', 'Gopkg.toml', 'Gopkg.lock'];
 
 // Directory layouts that often signal multi-package Go projects.
 const GO_DIRECTORIES = ['cmd', 'pkg', 'internal'];
@@ -21,7 +14,10 @@ const TOOL_CHECKS = [
 ];
 
 function formatExampleEntries(entries) {
-  const sample = entries.slice(0, 3).map((entry) => entry.name).join(', ');
+  const sample = entries
+    .slice(0, 3)
+    .map((entry) => entry.name)
+    .join(', ');
   return entries.length > 3 ? `${sample}, …` : sample;
 }
 
@@ -59,7 +55,7 @@ export const GoBootProbe = {
           ? `${label} is installed and ready to use`
           : `${label} is not installed`;
         return { name: label, available, summary };
-      })
+      }),
     );
 
     const installedTools = toolAvailability.filter((tool) => tool.available);

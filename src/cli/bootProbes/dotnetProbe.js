@@ -24,19 +24,34 @@ export const DotNetBootProbe = {
     const csprojFiles = entries.filter((entry) => entry.isFile() && entry.name.endsWith('.csproj'));
     if (csprojFiles.length > 0) {
       detected = true;
-      details.push(`.csproj (${csprojFiles.slice(0, 2).map((entry) => entry.name).join(', ')})`);
+      details.push(
+        `.csproj (${csprojFiles
+          .slice(0, 2)
+          .map((entry) => entry.name)
+          .join(', ')})`,
+      );
     }
 
     const slnFiles = entries.filter((entry) => entry.isFile() && entry.name.endsWith('.sln'));
     if (slnFiles.length > 0) {
       detected = true;
-      details.push(`solution (${slnFiles.slice(0, 2).map((entry) => entry.name).join(', ')})`);
+      details.push(
+        `solution (${slnFiles
+          .slice(0, 2)
+          .map((entry) => entry.name)
+          .join(', ')})`,
+      );
     }
 
     const csFiles = entries.filter((entry) => entry.isFile() && entry.name.endsWith('.cs'));
     if (csFiles.length > 0) {
       detected = true;
-      details.push(`C# source files (${csFiles.slice(0, 3).map((entry) => entry.name).join(', ')})`);
+      details.push(
+        `C# source files (${csFiles
+          .slice(0, 3)
+          .map((entry) => entry.name)
+          .join(', ')})`,
+      );
     }
 
     if (await context.fileExists('src')) {
