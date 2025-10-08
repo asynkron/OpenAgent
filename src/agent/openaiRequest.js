@@ -48,7 +48,7 @@ export async function requestModelCompletion({
               maxItems: 3,
               items: { $ref: '#/$defs/planStep' },
               description:
-                'You MUST provide a plan when have a set goal, Progress tracker for multi-step work; use [] when resetting to a new plan.',
+                'You MUST provide a plan when have a set goal, NEVER drop/reset a plan without discussion, the plan stays on utill otherwise agreed upon, Progress tracker for multi-step work; use [] when resetting to a new plan.',
             },
             command: {
               type: 'object',
@@ -88,7 +88,7 @@ export async function requestModelCompletion({
               },
               oneOf: [{ required: ['shell', 'run', 'cwd'] }, { required: ['read'] }],
               description:
-                'Next tool invocation to execute when a plan contains non-complete steps.',
+                'You MUST provide the next tool invocation to execute if a plan contains non-complete steps.',
             },
           },
           $defs: {
