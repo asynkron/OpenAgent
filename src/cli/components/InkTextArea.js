@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 
 const h = React.createElement;
@@ -8,49 +8,6 @@ function clamp(value, min, max) {
   if (value < min) return min;
   if (value > max) return max;
   return value;
-}
-
-function computePositions(text, width) {
-  const safeWidth = Math.max(1, width | 0);
-  const positions = [{ line: 0, column: 0 }];
-  let line = 0;
-  let column = 0;
-
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index];
-
-    if (char === '\n') {
-      line += 1;
-      column = 0;
-      positions.push({ line, column });
-      continue;
-    }
-
-    column += 1;
-    if (column >= safeWidth) {
-      column = 0;
-      line += 1;
-    }
-    positions.push({ line, column });
-  }
-
-  return positions;
-}
-
-function findIndexForLineColumn(positions, targetLine, targetColumn) {
-  let fallbackIndex = 0;
-  for (let index = 0; index < positions.length; index += 1) {
-    const pos = positions[index];
-    if (pos.line === targetLine) {
-      if (pos.column >= targetColumn) {
-        return index;
-      }
-      fallbackIndex = index;
-    } else if (pos.line > targetLine) {
-      break;
-    }
-  }
-  return fallbackIndex;
 }
 
 const ARROW_LABELS = {
@@ -84,7 +41,6 @@ export function InkTextArea({
   ...textProps
 }) {
   const [caretIndex, setCaretIndex] = useState(() => clamp(0, 0, value.length));
-  const caretColumnRef = useRef(0);
   const [showCaret, setShowCaret] = useState(true);
   const [lastKeyEvent, setLastKeyEvent] = useState(() => ({
     rawInput: '',
@@ -93,18 +49,15 @@ export function InkTextArea({
   }));
   const interactive = isActive && !isDisabled;
 
-  const positions = useMemo(() => computePositions(value, width), [value, width]);
-  const maxIndex = positions.length - 1;
+  const normalizedWidth = useMemo(() => Math.max(1, Math.floor(width ?? 1)), [width]);
+  const maxIndex = value.length;
 
   useEffect(() => {
     setCaretIndex((prev) => clamp(prev, 0, maxIndex));
-  }, [maxIndex, value]);
+  }, [maxIndex]);
 
-  const caretPosition = positions[caretIndex] ?? { line: 0, column: 0 };
-
-  useEffect(() => {
-    caretColumnRef.current = caretPosition.column;
-  }, [caretPosition.column]);
+  const caretLine = Math.floor(caretIndex / normalizedWidth);
+  const caretColumn = caretIndex % normalizedWidth;
 
   useEffect(() => {
     if (!interactive) {
@@ -150,37 +103,25 @@ export function InkTextArea({
         return;
       }
 
-      const isShiftLineBreak = key.return && key.shift;
-      const isLineFeed = input === '\n';
-
-      if (isShiftLineBreak || isLineFeed) {
-        const nextValue = `${value.slice(0, caretIndex)}\n${value.slice(caretIndex)}`;
-        updateValue(nextValue, caretIndex + 1);
-        return;
-      }
-
-      if (key.return && !specialKeys.shift) {
+      if (key.return) {
         onSubmit?.(value);
         return;
       }
 
       if (key.upArrow) {
-        const targetLine = Math.max(0, caretPosition.line - 1);
-        if (targetLine === caretPosition.line) {
+        if (caretIndex === 0) {
           return;
         }
-        const nextIndex = findIndexForLineColumn(positions, targetLine, caretColumnRef.current);
+        const nextIndex = Math.max(0, caretIndex - normalizedWidth);
         setCaretIndex(nextIndex);
         return;
       }
 
       if (key.downArrow) {
-        const targetLine = caretPosition.line + 1;
-        const hasLine = positions.some((pos) => pos.line === targetLine);
-        if (!hasLine) {
+        const nextIndex = Math.min(value.length, caretIndex + normalizedWidth);
+        if (nextIndex === caretIndex) {
           return;
         }
-        const nextIndex = findIndexForLineColumn(positions, targetLine, caretColumnRef.current);
         setCaretIndex(nextIndex);
         return;
       }
@@ -196,20 +137,16 @@ export function InkTextArea({
       }
 
       if (key.home) {
-        const nextIndex = findIndexForLineColumn(positions, caretPosition.line, 0);
+        const rowStart = caretLine * normalizedWidth;
+        const nextIndex = clamp(rowStart, 0, value.length);
         setCaretIndex(nextIndex);
         return;
       }
 
       if (key.end) {
-        const targetLine = caretPosition.line;
-        let nextIndex = caretIndex;
-        for (let index = caretIndex; index < positions.length; index += 1) {
-          if (positions[index].line !== targetLine) {
-            break;
-          }
-          nextIndex = index;
-        }
+        const rowStart = caretLine * normalizedWidth;
+        const rowEnd = clamp(rowStart + normalizedWidth, 0, value.length);
+        const nextIndex = Math.max(rowStart, rowEnd);
         setCaretIndex(nextIndex);
         return;
       }
@@ -234,19 +171,17 @@ export function InkTextArea({
         return;
       }
 
-      if (input && input !== '\u0000') {
+      if (input && input !== '\u0000' && input !== '\n') {
         const nextValue = `${value.slice(0, caretIndex)}${input}${value.slice(caretIndex)}`;
         updateValue(nextValue, caretIndex + input.length);
       }
     },
     [
-      caretColumnRef,
       caretIndex,
-      caretPosition.column,
-      caretPosition.line,
+      caretLine,
       interactive,
+      normalizedWidth,
       onSubmit,
-      positions,
       updateValue,
       value,
     ],
@@ -283,8 +218,8 @@ export function InkTextArea({
     textSegments = [displaySource];
   }
 
-  const caretLineDisplay = caretPosition.line + 1;
-  const caretColumnDisplay = caretPosition.column + 1;
+  const caretLineDisplay = caretLine + 1;
+  const caretColumnDisplay = caretColumn + 1;
 
   const lastKeyDisplay = useMemo(() => {
     if (lastKeyEvent.printableInput) {
