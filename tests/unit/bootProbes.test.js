@@ -173,6 +173,18 @@ describe('boot probes', () => {
     });
   });
 
+  it('does not report Rust when only generic directories are present', async () => {
+    await withTempDir(async (dir) => {
+      await mkdir(join(dir, 'src'), { recursive: true });
+      await writeFile(join(dir, 'src', 'index.js'), 'console.log("hello");\n', 'utf8');
+
+      const results = await runBootProbes({ cwd: dir, emit: () => {} });
+      const rustResult = results.find((result) => result.probe === 'Rust');
+
+      expect(rustResult).toBeUndefined();
+    });
+  });
+
   it('detects ESLint configuration from package.json and config files', async () => {
     await withTempDir(async (dir) => {
       await writeFile(
