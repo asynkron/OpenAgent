@@ -1,5 +1,6 @@
 import { register as registerCancellation } from '../utils/cancellation.js';
 import { createResponse } from '../openai/responses.js';
+import { ASSISTANT_RESPONSE_TOOL } from './responseToolSchema.js';
 import { createEscWaiter, resetEscState } from './escState.js';
 
 export async function requestModelCompletion({
@@ -30,6 +31,7 @@ export async function requestModelCompletion({
     text: {
       format: { type: 'json_object' },
     },
+    tools: [ASSISTANT_RESPONSE_TOOL],
     options: requestOptions,
   });
 

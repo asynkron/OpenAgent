@@ -24,6 +24,7 @@ describe('requestModelCompletion', () => {
     }));
 
     const { requestModelCompletion } = await import('../../src/agent/openaiRequest.js');
+    const { ASSISTANT_RESPONSE_TOOL } = await import('../../src/agent/responseToolSchema.js');
 
     const completionValue = { data: 'ok' };
     const openai = { responses: { create: jest.fn().mockResolvedValue(completionValue) } };
@@ -52,6 +53,14 @@ describe('requestModelCompletion', () => {
     expect(cleanupMock).toHaveBeenCalledTimes(1);
     expect(resetEscStateMock).toHaveBeenCalledWith(escState);
     expect(history).toHaveLength(0);
+    const [payload, options] = openai.responses.create.mock.calls[0];
+    expect(payload).toMatchObject({
+      model: 'gpt-test',
+      input: history,
+      text: { format: { type: 'json_object' } },
+    });
+    expect(payload.tools).toEqual([ASSISTANT_RESPONSE_TOOL]);
+    expect(options).toEqual({ signal: expect.any(Object) });
   });
 
   test('returns canceled when ESC is triggered', async () => {
