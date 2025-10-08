@@ -47,7 +47,8 @@ export async function requestModelCompletion({
               type: 'array',
               maxItems: 3,
               items: { $ref: '#/$defs/planStep' },
-              description: 'Progress tracker for multi-step work; omit or use [] when idle.',
+              description:
+                'You MUST provide a plan when have a set goal, Progress tracker for multi-step work; use [] when resetting to a new plan.',
             },
             command: {
               type: 'object',
