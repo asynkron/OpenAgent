@@ -55,6 +55,9 @@ try {
   process.exit(1);
 }
 
+// Add a visited set to avoid infinite recursion when traversing the AST
+const visitedNodes = new WeakSet();
+
 // Simple scope model and two-phase analysis (collect declarations, then resolve references)
 let scopeIdCounter = 0;
 function createScope(type, node, parent) {
@@ -96,6 +99,10 @@ function collectPatternIdentifiers(node, cb) {
 function buildScopes(node, parentScope) {
   if (!node || typeof node.type !== 'string') return;
 
+  // Prevent revisiting the same node (defensive against AST cycles or accidental parent links)
+  if (visitedNodes.has(node)) return;
+  visitedNodes.add(node);
+
   // assign scope pointer for this node (use parentScope by default; some nodes create new scopes for their children)
   node.__scope = parentScope;
 
@@ -117,9 +124,9 @@ function buildScopes(node, parentScope) {
 
   // FunctionDeclaration: hoisted into parentScope; create a function scope for body
   if (node.type === 'FunctionDeclaration') {
-    if (node.id && node.id.type === 'Identifier') parentScope.decls.set(node.id.name, { node: node, kind: 'function' });
+    if (node.id && node.id.type === 'Identifier' && parentScope) parentScope.decls.set(node.id.name, { node: node, kind: 'function' });
     const fnScope = createScope('function', node, parentScope);
-    parentScope.children.push(fnScope);
+    if (parentScope) parentScope.children.push(fnScope);
     // add params to function scope
     for (const p of node.params || []) collectPatternIdentifiers(p, (name, idNode) => fnScope.decls.set(name, { node: idNode, kind: 'param' }));
     // body is a BlockStatement
@@ -130,7 +137,7 @@ function buildScopes(node, parentScope) {
   // FunctionExpression / ArrowFunctionExpression: create inner function scope
   if (node.type === 'FunctionExpression' || node.type === 'ArrowFunctionExpression') {
     const fnScope = createScope('function', node, parentScope);
-    parentScope.children.push(fnScope);
+    if (parentScope) parentScope.children.push(fnScope);
     // name of FunctionExpression (if present) is local to fnScope
     if (node.type === 'FunctionExpression' && node.id && node.id.type === 'Identifier') fnScope.decls.set(node.id.name, { node: node.id, kind: 'functionExpression' });
     for (const p of node.params || []) collectPatternIdentifiers(p, (name, idNode) => fnScope.decls.set(name, { node: idNode, kind: 'param' }));
@@ -141,7 +148,7 @@ function buildScopes(node, parentScope) {
   // BlockStatement: block scope (for let/const)
   if (node.type === 'BlockStatement') {
     const blockScope = createScope('block', node, parentScope);
-    parentScope.children.push(blockScope);
+    if (parentScope) parentScope.children.push(blockScope);
     for (const stmt of node.body || []) buildScopes(stmt, blockScope);
     return;
   }
@@ -149,7 +156,7 @@ function buildScopes(node, parentScope) {
   // CatchClause: creates a block scope with param
   if (node.type === 'CatchClause') {
     const catchScope = createScope('block', node, parentScope);
-    parentScope.children.push(catchScope);
+    if (parentScope) parentScope.children.push(catchScope);
     if (node.param) collectPatternIdentifiers(node.param, (name, idNode) => catchScope.decls.set(name, { node: idNode, kind: 'param' }));
     if (node.body) buildScopes(node.body, catchScope);
     return;
@@ -164,9 +171,9 @@ function buildScopes(node, parentScope) {
           let s = parentScope;
           while (s && s.type !== 'function') s = s.parent;
           if (!s) s = parentScope;
-          s.decls.set(name, { node: idNode, kind: 'var' });
+          if (s) s.decls.set(name, { node: idNode, kind: 'var' });
         } else {
-          parentScope.decls.set(name, { node: idNode, kind: node.kind });
+          if (parentScope) parentScope.decls.set(name, { node: idNode, kind: node.kind });
         }
       });
     }
@@ -177,7 +184,7 @@ function buildScopes(node, parentScope) {
 
   // ClassDeclaration: add to parent scope
   if (node.type === 'ClassDeclaration') {
-    if (node.id && node.id.type === 'Identifier') parentScope.decls.set(node.id.name, { node: node, kind: 'class' });
+    if (node.id && node.id.type === 'Identifier' && parentScope) parentScope.decls.set(node.id.name, { node: node, kind: 'class' });
     // traverse class body
     if (node.body) buildScopes(node.body, parentScope);
     return;
@@ -188,6 +195,7 @@ function buildScopes(node, parentScope) {
     let top = parentScope;
     while (top && top.parent) top = top.parent;
     if (!top) top = parentScope;
+    if (!top) return;
     for (const spec of node.specifiers || []) {
       if (spec.local && spec.local.type === 'Identifier') top.decls.set(spec.local.name, { node: spec.local, kind: 'import' });
     }
@@ -263,7 +271,6 @@ function markReplacement(start, end, newText) {
 }
 
 // add declaration site(s) from target scope (there could be multiple decl nodes for destructuring, params etc).
-// iterate through targetScope.decls and add all nodes whose name === oldName
 for (const [name, info] of targetScope.decls.entries()) {
   if (name !== oldName) continue;
   const n = info.node;
@@ -307,7 +314,7 @@ function isIdentifierNonRef(node, parent) {
 }
 
 // Generic walker to find Identifier nodes — we walk the tree and pass parent to the visitor
-function walkForIdentifiers(node, parent) {
+function walkIdentifiers(node, parent) {
   if (!node || typeof node.type !== 'string') return;
   // If this node is an Identifier candidate
   if (node.type === 'Identifier' && node.name === oldName) {
@@ -324,14 +331,14 @@ function walkForIdentifiers(node, parent) {
   for (const key of Object.keys(node)) {
     const child = node[key];
     if (Array.isArray(child)) {
-      for (const c of child) if (c && typeof c.type === 'string') walkForIdentifiers(c, node);
+      for (const c of child) if (c && typeof c.type === 'string') walkIdentifiers(c, node);
     } else if (child && typeof child.type === 'string') {
-      walkForIdentifiers(child, node);
+      walkIdentifiers(child, node);
     }
   }
 }
 
-walkForIdentifiers(ast, null);
+walkIdentifiers(ast, null);
 
 if (replacements.size === 0) {
   console.error('No references to rename were found for the selected declaration (no-op).');
