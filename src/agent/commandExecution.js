@@ -1,5 +1,4 @@
 import { shellSplit } from '../utils/text.js';
-import ApplyPatchCommand from './commands/ApplyPatchCommand.js';
 import ExecuteCommand from './commands/ExecuteCommand.js';
 import ReadCommand from './commands/ReadCommand.js';
 
@@ -14,8 +13,7 @@ const DEFAULT_TIMEOUT_SEC = 60;
  * @property {string} runKeyword Lower-cased first token from `runTokens`.
  * @property {(command: object, cwd: string, timeout: number, shell?: string) => Promise<object>} runCommandFn
  * @property {(spec: object, cwd: string) => Promise<object>} runReadFn
- * @property {(spec: object, cwd: string, timeout: number) => Promise<object>} runApplyPatchFn
-*/
+ */
 
 /**
  * @typedef {Object} ICommand
@@ -25,18 +23,13 @@ const DEFAULT_TIMEOUT_SEC = 60;
 
 /** @returns {ICommand[]} */
 function createCommandHandlers() {
-  return [
-    new ApplyPatchCommand(),
-    new ReadCommand(),
-    new ExecuteCommand(),
-  ];
+  return [new ReadCommand(), new ExecuteCommand()];
 }
 
 export async function executeAgentCommand({
   command,
   runCommandFn,
   runReadFn,
-  runApplyPatchFn,
 }) {
   const normalizedCommand = command || {};
   const cwd = normalizedCommand.cwd || '.';
@@ -59,7 +52,6 @@ export async function executeAgentCommand({
     runKeyword,
     runCommandFn,
     runReadFn,
-    runApplyPatchFn,
   };
 
   for (const handler of handlers) {

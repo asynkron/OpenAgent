@@ -5,7 +5,6 @@ describe('executeAgentCommand', () => {
   const makeDeps = () => ({
     runCommandFn: jest.fn(async () => ({ stdout: 'run', stderr: '', exit_code: 0 })),
     runReadFn: jest.fn(async () => ({ stdout: 'read', stderr: '', exit_code: 0 })),
-    runApplyPatchFn: jest.fn(async () => ({ stdout: 'apply', stderr: '', exit_code: 0 })),
   });
 
   test('executes read command when read spec provided', async () => {
@@ -17,28 +16,6 @@ describe('executeAgentCommand', () => {
     expect(deps.runReadFn).toHaveBeenCalledWith(command.read, '/repo');
     expect(result.stdout).toBe('read');
     expect(executionDetails).toEqual({ type: 'READ', spec: command.read });
-  });
-
-  test('executes apply_patch command when structured payload provided', async () => {
-    const deps = makeDeps();
-    const command = {
-      apply_patch: { target: 'src/file.txt', patch: 'diff --git a/src/file.txt b/src/file.txt\n@@ -1 +1 @@\n-old\n+new\n' },
-      cwd: '/repo',
-      timeout_sec: 42,
-    };
-
-    const { result, executionDetails } = await executeAgentCommand({ command, ...deps });
-
-    expect(deps.runApplyPatchFn).toHaveBeenCalledWith(
-      expect.objectContaining({ target: 'src/file.txt', patch: expect.stringContaining('diff --git') }),
-      '/repo',
-      42,
-    );
-    expect(result.stdout).toBe('apply');
-    expect(executionDetails).toEqual({
-      type: 'APPLY_PATCH',
-      spec: expect.objectContaining({ target: 'src/file.txt' }),
-    });
   });
 
   test('merges read tokens when run command starts with read', async () => {

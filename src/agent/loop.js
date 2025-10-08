@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 
 import { SYSTEM_PROMPT } from '../config/systemPrompt.js';
 import { getOpenAIClient, MODEL } from '../openai/client.js';
-import { runCommand, runRead, runApplyPatch } from '../commands/run.js';
+import { runCommand, runRead } from '../commands/run.js';
 import {
   isPreapprovedCommand,
   isSessionApproved,
@@ -37,7 +37,6 @@ export function createAgentRuntime({
   model = MODEL,
   runCommandFn = runCommand,
   runReadFn = runRead,
-  runApplyPatchFn = runApplyPatch,
   applyFilterFn = applyFilter,
   tailLinesFn = tailLines,
   isPreapprovedCommandFn = isPreapprovedCommand,
@@ -334,7 +333,6 @@ export function createAgentRuntime({
               onDebug: emitDebug,
               runCommandFn,
               runReadFn,
-              runApplyPatchFn,
               applyFilterFn,
               tailLinesFn,
               getNoHumanFlag,

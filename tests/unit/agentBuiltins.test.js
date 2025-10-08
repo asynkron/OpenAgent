@@ -43,7 +43,6 @@ function createRuntimeWithQueue(queue, overrides = {}) {
       killed: false,
       runtime_ms: 1,
     }),
-    runApplyPatchFn: jest.fn(),
     applyFilterFn: (text) => text,
     tailLinesFn: (text) => text,
     isPreapprovedCommandFn: () => false,
@@ -80,7 +79,6 @@ function createRuntimeWithQueue(queue, overrides = {}) {
     runWithPrompts,
     runCommandFn: config.runCommandFn,
     runReadFn: config.runReadFn,
-    runApplyPatchFn: config.runApplyPatchFn,
   };
 }
 
@@ -124,43 +122,6 @@ describe('agent built-in command parsing', () => {
     expect(configuredRead).toHaveBeenCalledWith({ path: './docs/some file.md' }, '/repo');
   });
 
-  test('apply_patch built-in invokes runApplyPatch with structured payload', async () => {
-    const applyCall = {
-      message: 'Apply patch to file',
-      plan: [],
-      command: {
-        apply_patch: {
-          target: 'src/app.js',
-          patch: 'diff --git a/src/app.js b/src/app.js\n@@ -1 +1 @@\n-old\n+new\n',
-        },
-        cwd: '/repo',
-        timeout_sec: 12,
-      },
-    };
-
-    const followUp = { message: 'done', plan: [], command: null };
-    const runApplyPatchFn = jest.fn().mockResolvedValue({
-      stdout: 'Applied patch',
-      stderr: '',
-      exit_code: 0,
-      killed: false,
-      runtime_ms: 2,
-    });
-
-    const { runWithPrompts, runApplyPatchFn: configuredApply } = createRuntimeWithQueue(
-      [buildResponsePayload(applyCall), buildResponsePayload(followUp)],
-      { runApplyPatchFn },
-    );
-
-    await runWithPrompts();
-
-    expect(configuredApply).toHaveBeenCalledWith(
-      expect.objectContaining({ target: 'src/app.js', patch: expect.any(String) }),
-      '/repo',
-      12,
-    );
-  });
-
   test('read built-in parses numeric options', async () => {
     const readCall = {
       message: 'Read with limits',
@@ -201,5 +162,4 @@ describe('agent built-in command parsing', () => {
       '.',
     );
   });
-
 });

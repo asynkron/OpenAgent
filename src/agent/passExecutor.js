@@ -70,7 +70,6 @@ export async function executeAgentPass({
   onDebug = null,
   runCommandFn,
   runReadFn,
-  runApplyPatchFn,
   applyFilterFn,
   tailLinesFn,
   getNoHumanFlag,
@@ -402,7 +401,6 @@ export async function executeAgentPass({
     command: parsed.command,
     runCommandFn,
     runReadFn,
-    runApplyPatchFn,
   });
 
   let key = parsed?.command?.key;
