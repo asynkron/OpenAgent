@@ -1,17 +1,13 @@
 #!/usr/bin/env node
 // scripts/rename-identifier.cjs
-// Scope-aware identifier renamer for a single file.
-// - Finds a single declaration for the old name (if multiple, choose with --index)
-// - Renames the declaration and all references that resolve to that binding (respects shadowing)
-// - Dry-run: prints unified diff. Use --apply to write the file.
-// - Use --check to run `node --check` after applying and rollback on syntax errors.
+// Scope-aware per-file renamer (acorn-based).
+// - Finds a declaration for the old name and renames the declaration + all references that resolve to that binding.
+// - Dry-run prints a unified diff. Use --apply to write the file. Use --check to run `node --check` after applying.
 
-/* eslint-disable no-console */
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const child_process = require('child_process');
-
 let acorn;
 try { acorn = require('acorn'); } catch (e) {
   console.error('Missing dependency: acorn. Install with `npm install --no-save acorn`');
@@ -55,23 +51,17 @@ try {
   process.exit(1);
 }
 
-// Add a visited set to avoid infinite recursion when traversing the AST
-const visitedNodes = new WeakSet();
-const walkVisited = new WeakSet();
-
-// Simple scope model and two-phase analysis (collect declarations, then resolve references)
 let scopeIdCounter = 0;
 function createScope(type, node, parent) {
-  return { id: ++scopeIdCounter, type, node, parent, decls: new Map(), children: [] };
+  const s = { id: ++scopeIdCounter, type, node, parent, decls: new Map(), children: [] };
+  if (parent) parent.children.push(s);
+  return s;
 }
 
-// Collect identifier names from patterns (Identifier, ObjectPattern, ArrayPattern, AssignmentPattern, RestElement)
 function collectPatternIdentifiers(node, cb) {
   if (!node) return;
   switch (node.type) {
-    case 'Identifier':
-      cb(node.name, node);
-      break;
+    case 'Identifier': cb(node.name, node); break;
     case 'ObjectPattern':
       for (const prop of node.properties || []) {
         if (prop.type === 'Property') collectPatternIdentifiers(prop.value, cb);
@@ -79,180 +69,134 @@ function collectPatternIdentifiers(node, cb) {
       }
       break;
     case 'ArrayPattern':
-      for (const el of node.elements || []) {
-        if (!el) continue;
-        collectPatternIdentifiers(el, cb);
-      }
+      for (const el of node.elements || []) if (el) collectPatternIdentifiers(el, cb);
       break;
-    case 'AssignmentPattern':
-      collectPatternIdentifiers(node.left, cb);
-      break;
-    case 'RestElement':
-      collectPatternIdentifiers(node.argument, cb);
-      break;
-    default:
-      // unsupported pattern (e.g., MemberExpression), ignore
-      break;
+    case 'AssignmentPattern': collectPatternIdentifiers(node.left, cb); break;
+    case 'RestElement': collectPatternIdentifiers(node.argument, cb); break;
+    default: break;
   }
 }
 
-// Phase 1: build scopes and collect declarations
-function buildScopes(node, parentScope) {
+function nearestFunctionScope(scope) {
+  let s = scope;
+  while (s && s.type !== 'function' && s.type !== 'program') s = s.parent;
+  return s || scope;
+}
+
+// Build lexical scopes and attach __scope to every node we visit
+const rootScope = createScope('program', ast, null);
+
+function traverse(node, parent, scope) {
   if (!node || typeof node.type !== 'string') return;
-  if (walkVisited.has(node)) return;
-  walkVisited.add(node);
+  // attach scope pointer for resolution
+  node.__scope = scope;
 
-  // Prevent revisiting the same node (defensive against AST cycles or accidental parent links)
-  if (visitedNodes.has(node)) return;
-  visitedNodes.add(node);
+  switch (node.type) {
+    case 'Program':
+      for (const stmt of node.body || []) traverse(stmt, node, scope);
+      return;
 
-  // assign scope pointer for this node (use parentScope by default; some nodes create new scopes for their children)
-  node.__scope = parentScope;
+    case 'FunctionDeclaration':
+      if (node.id && node.id.type === 'Identifier') scope.decls.set(node.id.name, { node: node.id, kind: 'function' });
+      const fnScope = createScope('function', node, scope);
+      // params
+      for (const p of node.params || []) collectPatternIdentifiers(p, (name, idNode) => fnScope.decls.set(name, { node: idNode, kind: 'param' }));
+      traverse(node.body, node, fnScope);
+      return;
 
-  // Helper to recurse with the same scope
-  function recurse(child) {
-    if (!child) return;
-    if (Array.isArray(child)) {
-      for (const c of child) if (c && typeof c.type === 'string') buildScopes(c, parentScope);
-    } else if (child && typeof child.type === 'string') buildScopes(child, parentScope);
-  }
-
-  // Program (top-level) => treat as a function-like scope for var-hoisting purposes
-  if (node.type === 'Program') {
-    const rootScope = createScope('function', node, null);
-    node.__scope = rootScope;
-    for (const stmt of node.body || []) buildScopes(stmt, rootScope);
-    return rootScope; // return the root scope
-  }
-
-  // FunctionDeclaration: hoisted into parentScope; create a function scope for body
-  if (node.type === 'FunctionDeclaration') {
-    if (node.id && node.id.type === 'Identifier' && parentScope) parentScope.decls.set(node.id.name, { node: node, kind: 'function' });
-    const fnScope = createScope('function', node, parentScope);
-    if (parentScope) parentScope.children.push(fnScope);
-    // add params to function scope
-    for (const p of node.params || []) collectPatternIdentifiers(p, (name, idNode) => fnScope.decls.set(name, { node: idNode, kind: 'param' }));
-    // body is a BlockStatement
-    if (node.body) buildScopes(node.body, fnScope);
-    return;
-  }
-
-  // FunctionExpression / ArrowFunctionExpression: create inner function scope
-  if (node.type === 'FunctionExpression' || node.type === 'ArrowFunctionExpression') {
-    const fnScope = createScope('function', node, parentScope);
-    if (parentScope) parentScope.children.push(fnScope);
-    // name of FunctionExpression (if present) is local to fnScope
-    if (node.type === 'FunctionExpression' && node.id && node.id.type === 'Identifier') fnScope.decls.set(node.id.name, { node: node.id, kind: 'functionExpression' });
-    for (const p of node.params || []) collectPatternIdentifiers(p, (name, idNode) => fnScope.decls.set(name, { node: idNode, kind: 'param' }));
-    if (node.body) buildScopes(node.body, fnScope);
-    return;
-  }
-
-  // BlockStatement: block scope (for let/const)
-  if (node.type === 'BlockStatement') {
-    const blockScope = createScope('block', node, parentScope);
-    if (parentScope) parentScope.children.push(blockScope);
-    for (const stmt of node.body || []) buildScopes(stmt, blockScope);
-    return;
-  }
-
-  // CatchClause: creates a block scope with param
-  if (node.type === 'CatchClause') {
-    const catchScope = createScope('block', node, parentScope);
-    if (parentScope) parentScope.children.push(catchScope);
-    if (node.param) collectPatternIdentifiers(node.param, (name, idNode) => catchScope.decls.set(name, { node: idNode, kind: 'param' }));
-    if (node.body) buildScopes(node.body, catchScope);
-    return;
-  }
-
-  // VariableDeclaration: add declarators to appropriate scope (var => nearest function scope, let/const => current block scope)
-  if (node.type === 'VariableDeclaration') {
-    for (const decl of node.declarations || []) {
-      collectPatternIdentifiers(decl.id, (name, idNode) => {
-        if (node.kind === 'var') {
-          // find nearest function scope
-          let s = parentScope;
-          while (s && s.type !== 'function') s = s.parent;
-          if (!s) s = parentScope;
-          if (s) s.decls.set(name, { node: idNode, kind: 'var' });
-        } else {
-          if (parentScope) parentScope.decls.set(name, { node: idNode, kind: node.kind });
-        }
-      });
+    case 'FunctionExpression':
+    case 'ArrowFunctionExpression': {
+      const fScope = createScope('function', node, scope);
+      if (node.type === 'FunctionExpression' && node.id && node.id.type === 'Identifier') fScope.decls.set(node.id.name, { node: node.id, kind: 'functionExpression' });
+      for (const p of node.params || []) collectPatternIdentifiers(p, (name, idNode) => fScope.decls.set(name, { node: idNode, kind: 'param' }));
+      traverse(node.body, node, fScope);
+      return;
     }
-    // descend into initializers
-    for (const decl of node.declarations || []) if (decl.init) buildScopes(decl.init, parentScope);
-    return;
-  }
 
-  // ClassDeclaration: add to parent scope
-  if (node.type === 'ClassDeclaration') {
-    if (node.id && node.id.type === 'Identifier' && parentScope) parentScope.decls.set(node.id.name, { node: node, kind: 'class' });
-    // traverse class body
-    if (node.body) buildScopes(node.body, parentScope);
-    return;
-  }
-
-  // ImportDeclaration: add to top-level (Program) scope
-  if (node.type === 'ImportDeclaration') {
-    let top = parentScope;
-    while (top && top.parent) top = top.parent;
-    if (!top) top = parentScope;
-    if (!top) return;
-    for (const spec of node.specifiers || []) {
-      if (spec.local && spec.local.type === 'Identifier') top.decls.set(spec.local.name, { node: spec.local, kind: 'import' });
+    case 'BlockStatement': {
+      const bScope = createScope('block', node, scope);
+      for (const stmt of node.body || []) traverse(stmt, node, bScope);
+      return;
     }
-    return;
+
+    case 'CatchClause': {
+      const cScope = createScope('block', node, scope);
+      if (node.param) collectPatternIdentifiers(node.param, (name, idNode) => cScope.decls.set(name, { node: idNode, kind: 'param' }));
+      traverse(node.body, node, cScope);
+      return;
+    }
+
+    case 'VariableDeclaration':
+      for (const decl of node.declarations || []) {
+        collectPatternIdentifiers(decl.id, (name, idNode) => {
+          if (node.kind === 'var') {
+            const fn = nearestFunctionScope(scope);
+            fn.decls.set(name, { node: idNode, kind: 'var' });
+          } else {
+            scope.decls.set(name, { node: idNode, kind: node.kind });
+          }
+        });
+      }
+      for (const decl of node.declarations || []) if (decl.init) traverse(decl.init, node, scope);
+      return;
+
+    case 'ClassDeclaration':
+      if (node.id && node.id.type === 'Identifier') scope.decls.set(node.id.name, { node: node.id, kind: 'class' });
+      if (node.body) traverse(node.body, node, scope);
+      return;
+
+    case 'ImportDeclaration': {
+      // register names on top-level
+      let top = scope; while (top && top.parent) top = top.parent;
+      const topScope = top || scope;
+      for (const spec of node.specifiers || []) if (spec.local && spec.local.type === 'Identifier') topScope.decls.set(spec.local.name, { node: spec.local, kind: 'import' });
+      return;
+    }
+
+    default:
+      break;
   }
 
-  // Generic traversal for everything else: assign node.__scope and recurse
+  // Generic traversal for other nodes
   for (const key of Object.keys(node)) {
+    if (key === '__scope') continue;
     const child = node[key];
     if (Array.isArray(child)) {
-      for (const c of child) if (c && typeof c.type === 'string') buildScopes(c, parentScope);
-    } else if (child && typeof child.type === 'string') {
-      buildScopes(child, parentScope);
+      for (const c of child) if (c && typeof c.type === 'string' && /^[A-Z]/.test(c.type)) traverse(c, node, scope);
+    } else if (child && typeof child.type === 'string' && /^[A-Z]/.test(child.type)) {
+      traverse(child, node, scope);
     }
   }
 }
 
-// run phase 1
-const rootScope = buildScopes(ast, null);
-if (!rootScope) {
-  console.error('Internal: failed to build scopes (unexpected AST shape)');
-  process.exit(1);
-}
+// Initialize traversal
+for (const stmt of ast.body || []) traverse(stmt, ast, rootScope);
 
-// collect candidate declarations for oldName
+// Collect candidate declarations
 const candidates = [];
-function collectScopes(scope) {
+function collectCandidates(scope) {
   if (scope.decls && scope.decls.has(oldName)) {
-    const info = scope.decls.get(oldName);
-    // some decl entries have node pointing to the Identifier node or to Declarator/function/class node; normalize
-    let declNode = info && info.node ? info.node : null;
-    // try to find a sensible node to show location
-    if (!declNode && info && info.node === undefined) declNode = scope.node;
-    candidates.push({ scope, declNode, kind: info.kind || 'unknown' });
+    candidates.push({ scope, info: scope.decls.get(oldName) });
   }
-  for (const ch of scope.children || []) collectScopes(ch);
+  for (const ch of scope.children || []) collectCandidates(ch);
 }
-collectScopes(rootScope);
+collectCandidates(rootScope);
 
 if (candidates.length === 0) {
   console.error(`No declaration for '${oldName}' found in ${filePath}`);
   process.exit(1);
 }
 
-let chosen;
+let chosen = null;
 if (candidates.length === 1) chosen = candidates[0];
 else {
   if (indexArg === undefined) {
     console.error(`Found ${candidates.length} declarations for '${oldName}':`);
     candidates.forEach((c, i) => {
-      const n = c.declNode || c.scope.node || {};
+      const n = c.info && c.info.node ? c.info.node : c.scope.node || {};
       const s = n.loc && n.loc.start ? `${n.loc.start.line}:${n.loc.start.column}` : `@${n.start || 0}`;
       const snippet = (n.start !== undefined && n.end !== undefined) ? src.slice(n.start, Math.min(n.end, n.start + 160)).split('\n')[0].replace(/\s+/g,' ') : '<unknown>';
-      console.error(`${i}: kind=${c.kind} scope=${c.scope.type} (${s}) => ${snippet.slice(0,140)}`);
+      console.error(`${i}: kind=${c.info.kind || 'unknown'} scope=${c.scope.type} (${s}) => ${snippet.slice(0,140)}`);
     });
     console.error('Rerun with --index <N> to pick one of the above.');
     process.exit(2);
@@ -265,138 +209,107 @@ else {
 
 const targetScope = chosen.scope;
 
-// Phase 2: find all identifier nodes that resolve to targetScope
-const replacements = new Map(); // key = "start:end" -> {start,end,newText}
-
-function markReplacement(start, end, newText) {
-  const key = `${start}:${end}`;
-  replacements.set(key, { start, end, newText });
-}
-
-// add declaration site(s) from target scope (there could be multiple decl nodes for destructuring, params etc).
-for (const [name, info] of targetScope.decls.entries()) {
-  if (name !== oldName) continue;
-  const n = info.node;
-  if (n && typeof n.start === 'number' && typeof n.end === 'number') {
-    markReplacement(n.start, n.end, newName);
-  }
-}
-
-// resolver: given a node (we'll use node.__scope), find the declaring scope for 'oldName'
-function resolveDeclScope(node) {
-  let s = node && node.__scope ? node.__scope : null;
-  // If node.__scope is null (shouldn't happen), fallback to rootScope
-  if (!s) s = rootScope;
-  while (s) {
-    if (s.decls && s.decls.has(oldName)) return s;
-    s = s.parent;
-  }
-  return null;
-}
-
-// helper: detect contexts where Identifier is not a variable reference (property key, label, import/export specifier, property name of member expression when not computed, etc.)
+// Helper: detect non-reference identifier contexts
 function isIdentifierNonRef(node, parent) {
   if (!parent) return false;
-  // Declaration identifiers (we still include declarations explicitly earlier)
   if ((parent.type === 'VariableDeclarator' && parent.id === node)
       || (parent.type === 'FunctionDeclaration' && parent.id === node)
       || (parent.type === 'ClassDeclaration' && parent.id === node)
       || (parent.type === 'FunctionExpression' && parent.id === node)) return true;
-  // Object property key (non-computed)
   if ((parent.type === 'Property' || parent.type === 'ObjectProperty') && parent.key === node && parent.computed === false) return true;
-  // Member expression property when not computed: obj.prop -> 'prop' is not a reference to a binding
   if (parent.type === 'MemberExpression' && parent.property === node && parent.computed === false) return true;
-  // MethodDefinition key
   if (parent.type === 'MethodDefinition' && parent.key === node && parent.computed === false) return true;
-  // Import / Export specifiers
   if (parent.type && parent.type.startsWith('Import')) return true;
   if (parent.type && parent.type.startsWith('Export')) return true;
-  // Labeled statement
   if ((parent.type === 'LabeledStatement' || parent.type === 'BreakStatement' || parent.type === 'ContinueStatement') && parent.label === node) return true;
   return false;
 }
 
-// Generic walker to find Identifier nodes — we walk the tree and pass parent to the visitor
-function walkIdentifiers(node, parent) {
+// Collect replacements: declaration sites + references that resolve to the same scope
+const replacements = new Map();
+function markReplacement(start, end, newText) { replacements.set(`${start}:${end}`, { start, end, newText }); }
+
+// Add declaration nodes from chosen scope
+for (const [name, info] of targetScope.decls.entries()) {
+  if (name !== oldName) continue;
+  const n = info.node;
+  if (n && typeof n.start === 'number' && typeof n.end === 'number') markReplacement(n.start, n.end, newName);
+}
+
+// Walk AST to locate Identifier nodes and resolve them
+function findIds(node, parent) {
   if (!node || typeof node.type !== 'string') return;
-  if (walkVisited.has(node)) return;
-  walkVisited.add(node);
-  // If this node is an Identifier candidate
   if (node.type === 'Identifier' && node.name === oldName) {
     if (!isIdentifierNonRef(node, parent)) {
-      // find the declaration scope for this reference
-      const declScope = resolveDeclScope(node);
-      if (declScope && declScope.id === targetScope.id) {
-        // this reference resolves to the target declaration -> rename
+      // resolve by walking __scope up to find declaring scope
+      let s = node.__scope || rootScope;
+      while (s) {
+        if (s.decls && s.decls.has(oldName)) break;
+        s = s.parent;
+      }
+      if (s && s.id === targetScope.id) {
         if (typeof node.start === 'number' && typeof node.end === 'number') markReplacement(node.start, node.end, newName);
       }
     }
   }
-  // Recurse children
   for (const key of Object.keys(node)) {
+    if (key === '__scope') continue;
     const child = node[key];
     if (Array.isArray(child)) {
-      for (const c of child) if (c && typeof c.type === 'string') walkIdentifiers(c, node);
-    } else if (child && typeof child.type === 'string') {
-      walkIdentifiers(child, node);
+      for (const c of child) if (c && typeof c.type === 'string' && /^[A-Z]/.test(c.type)) findIds(c, node);
+    } else if (child && typeof child.type === 'string' && /^[A-Z]/.test(child.type)) {
+      findIds(child, node);
     }
   }
 }
 
-walkIdentifiers(ast, null);
+findIds(ast, null);
 
 if (replacements.size === 0) {
   console.error('No references to rename were found for the selected declaration (no-op).');
   process.exit(0);
 }
 
-// Build new source by applying replacements from end -> start
+// Apply replacements from end -> start
 const edits = Array.from(replacements.values()).sort((a, b) => b.start - a.start);
 let newSource = src;
 for (const e of edits) {
   newSource = newSource.slice(0, e.start) + e.newText + newSource.slice(e.end);
 }
 
-// Write temps and show diff -u
+// Emit diff
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rename-id-'));
 const origTmp = path.join(tmpDir, 'orig');
 const newTmp = path.join(tmpDir, 'new');
 fs.writeFileSync(origTmp, src, 'utf8');
 fs.writeFileSync(newTmp, newSource, 'utf8');
-
 function runDiff(a, b) {
-  try {
-    const res = child_process.spawnSync('diff', ['-u', '--label', `a/${filePath}`, '--label', `b/${filePath}`, a, b], { encoding: 'utf8' });
-    if (res.error) throw res.error;
-    return res.stdout || '';
-  } catch (err) {
-    console.error('Failed to run diff -u (is diff installed?).\nFalling back to printing the new file content.');
-    return null;
-  }
+  try { const res = child_process.spawnSync('diff', ['-u', '--label', `a/${filePath}`, '--label', `b/${filePath}`, a, b], { encoding: 'utf8' }); if (res.error) throw res.error; return res.stdout || ''; } catch (err) { return null; }
 }
-
 const patch = runDiff(origTmp, newTmp);
 if (patch === null) {
   console.log('----- BEGIN NEW FILE CONTENT -----');
   console.log(newSource);
   console.log('----- END NEW FILE CONTENT -----');
 } else {
-  if (patch.trim() === '') console.log('No changes detected (no-op).');
-  else console.log(patch);
+  if (patch.trim() === '') console.log('No changes detected (no-op).'); else console.log(patch);
 }
 
 if (apply) {
   const backup = filePath + '.bak.rename-identifier';
   try {
-    fs.copyFileSync(filePath, backup);
+    if (fs.existsSync(filePath)) fs.copyFileSync(filePath, backup);
     fs.writeFileSync(filePath, newSource, 'utf8');
     if (check) {
-      const chk = child_process.spawnSync('node', ['--check', filePath], { encoding: 'utf8' });
-      if (chk.status !== 0) {
-        console.error('Syntax check failed after applying change; rolling back. Output:\n', chk.stderr || chk.stdout);
-        fs.copyFileSync(backup, filePath);
-        fs.unlinkSync(backup);
-        process.exit(3);
+      const ext = path.extname(filePath).toLowerCase();
+      if (ext === '.js' || ext === '.cjs' || ext === '.mjs') {
+        const chk = child_process.spawnSync('node', ['--check', filePath], { encoding: 'utf8' });
+        if (chk.status !== 0) {
+          console.error('Syntax check failed after applying change; rolling back. Output:\n', chk.stderr || chk.stdout);
+          if (fs.existsSync(backup)) fs.copyFileSync(backup, filePath);
+          if (fs.existsSync(backup)) fs.unlinkSync(backup);
+          process.exit(3);
+        }
       }
     }
     if (fs.existsSync(backup)) fs.unlinkSync(backup);

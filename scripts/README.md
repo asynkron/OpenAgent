@@ -20,40 +20,6 @@ General workflow
 
 Scripts
 
-## replace-function.cjs
-
-What it does
-
-- Replaces a named function in a single file. Supported targets:
-  - `FunctionDeclaration` (e.g., `function foo() {}`)
-  - A single-variable declarator where the initializer is a function/arrow (e.g., `const foo = () => {}`) — only when the variable declaration contains a single declarator.
-
-When to use
-
-- Replace the entire implementation of a function in a single file (refactor or replace with regenerated code).
-- Not intended for repo-wide refactors or cross-file symbol updates.
-
-Usage
-
-Dry-run (preview unified diff):
-
-```
-node scripts/replace-function.cjs --file path/to/file.js --name myFn --replacement path/to/newFn.js
-```
-
-Apply with syntax check:
-
-```
-node scripts/replace-function.cjs --file path/to/file.js --name myFn --replacement path/to/newFn.js --apply --check
-```
-
-Notes
-
-- If multiple matches are found, the script prints candidates; re-run with `--index N` to pick one.
-- When applying, a backup is created at `path/to/file.js.bak.replace-fn` until the operation succeeds.
-- The script will try to preserve `export` prefixes when helpful.
-- The script prints `No changes detected` if the replacement equals the existing text in the targeted range.
-
 ## rename-identifier.cjs
 
 What it does
@@ -97,7 +63,6 @@ Add these to `package.json` to make invocation shorter:
 
 ```json
 "scripts": {
-  "replace-fn": "node scripts/replace-function.cjs",
   "rename-id": "node scripts/rename-identifier.cjs"
 }
 ```

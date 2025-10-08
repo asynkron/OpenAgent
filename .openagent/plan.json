@@ -1,17 +1,1 @@
-[
-  {
-    "step": "1",
-    "title": "Patch scripts/rename-identifier.cjs and run quick tests",
-    "status": "running"
-  },
-  {
-    "step": "2",
-    "title": "Review test output and iterate if failures remain",
-    "status": "pending"
-  },
-  {
-    "step": "3",
-    "title": "Document outcome and tidy up (if tests pass)",
-    "status": "pending"
-  }
-]
+[]
