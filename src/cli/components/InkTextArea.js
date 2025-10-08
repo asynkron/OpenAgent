@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Text, useInput } from 'ink';
+import { Box, Text, useInput } from 'ink';
 
 const h = React.createElement;
 const BLINK_INTERVAL_MS = 500;
@@ -53,6 +53,19 @@ function findIndexForLineColumn(positions, targetLine, targetColumn) {
   return fallbackIndex;
 }
 
+function extractSpecialKeys(key) {
+  if (!key || typeof key !== 'object') {
+    return [];
+  }
+
+  return Object.entries(key)
+    .filter((entry) => {
+      const [name, value] = entry;
+      return typeof value === 'boolean' && value && name !== 'isShiftPressed';
+    })
+    .map(([name]) => name);
+}
+
 export function InkTextArea({
   value = '',
   onChange,
@@ -66,6 +79,11 @@ export function InkTextArea({
   const [caretIndex, setCaretIndex] = useState(() => clamp(0, 0, value.length));
   const caretColumnRef = useRef(0);
   const [showCaret, setShowCaret] = useState(true);
+  const [lastKeyEvent, setLastKeyEvent] = useState(() => ({
+    rawInput: '',
+    printableInput: '',
+    specialKeys: [],
+  }));
   const interactive = isActive && !isDisabled;
 
   const positions = useMemo(() => computePositions(value, width), [value, width]);
@@ -111,6 +129,15 @@ export function InkTextArea({
       if (!interactive) {
         return;
       }
+
+      const printableInput = input && input !== '\u0000' ? input : '';
+      const specialKeys = extractSpecialKeys(key);
+
+      setLastKeyEvent({
+        rawInput: input,
+        printableInput,
+        specialKeys,
+      });
 
       if (key.return) {
         if (key.shift) {
@@ -223,16 +250,57 @@ export function InkTextArea({
   const afterCaret = displaySource.slice(insertionIndex);
   const composed = caretGlyph ? `${beforeCaret}${caretGlyph}${afterCaret}` : displaySource;
 
+  const caretLineDisplay = caretPosition.line + 1;
+  const caretColumnDisplay = caretPosition.column + 1;
+
+  const lastKeyDisplay = useMemo(() => {
+    if (lastKeyEvent.printableInput) {
+      return lastKeyEvent.printableInput;
+    }
+    if (lastKeyEvent.specialKeys.length > 0) {
+      return lastKeyEvent.specialKeys.join(' + ');
+    }
+    return 'n/a';
+  }, [lastKeyEvent]);
+
+  const modifierKeys = useMemo(
+    () =>
+      lastKeyEvent.specialKeys.filter((name) =>
+        ['shift', 'ctrl', 'meta', 'alt', 'option', 'super'].includes(name),
+      ),
+    [lastKeyEvent.specialKeys],
+  );
+
   const { dimColor, wrap, ...otherTextProps } = textProps;
 
   return h(
-    Text,
-    {
-      wrap: wrap ?? 'wrap',
-      dimColor: dimColor ?? !hasValue,
-      ...otherTextProps,
-    },
-    composed,
+    Box,
+    { flexDirection: 'column' },
+    h(
+      Text,
+      {
+        wrap: wrap ?? 'wrap',
+        dimColor: dimColor ?? !hasValue,
+        ...otherTextProps,
+      },
+      composed,
+    ),
+    h(
+      Box,
+      { flexDirection: 'column', marginTop: 1 },
+      h(Text, { color: 'gray', dimColor: true, key: 'debug-heading' }, 'Debug info'),
+      h(
+        Text,
+        { color: 'gray', key: 'debug-caret' },
+        `Caret: line ${caretLineDisplay}, column ${caretColumnDisplay}, index ${caretIndex}`,
+      ),
+      h(Text, { color: 'gray', key: 'debug-last-key' }, `Last key: ${lastKeyDisplay}`),
+      h(
+        Text,
+        { color: 'gray', key: 'debug-modifiers' },
+        `Special keys: ${modifierKeys.length > 0 ? modifierKeys.join(', ') : 'none'}`,
+      ),
+    ),
   );
 }
 
