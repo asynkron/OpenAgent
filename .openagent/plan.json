@@ -1,17 +1,12 @@
 [
   {
     "step": "1",
-    "title": "Analyze spinner-related rerender behavior",
+    "title": "Set AskHuman background to dark blue",
     "status": "completed"
   },
   {
     "step": "2",
-    "title": "Optimize CLI rendering to isolate spinner updates",
-    "status": "completed"
-  },
-  {
-    "step": "3",
-    "title": "Validate changes (format/tests)",
+    "title": "Confirm change and summarize",
     "status": "completed"
   }
 ]

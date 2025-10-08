@@ -60,11 +60,25 @@ export function AskHuman({ prompt = '▷', onSubmit }) {
     { isActive: true },
   );
 
-  return h(Box, { flexDirection: 'column', marginTop: 1 }, [
-    h(Text, { color: 'blueBright', bold: true, key: 'prompt' }, normalizedPrompt),
-    h(Text, { key: 'value' }, value || ' '),
-    h(Text, { dimColor: true, key: 'hint' }, 'Press Enter to submit • Esc to cancel'),
-  ]);
+  return h(
+    Box,
+    {
+      flexDirection: 'column',
+      marginTop: 1,
+      paddingX: 1,
+      paddingY: 0,
+      backgroundColor: '#0b1c33',
+    },
+    [
+      h(Text, { color: 'white', bold: true, key: 'prompt' }, normalizedPrompt),
+      h(Text, { color: 'white', key: 'value' }, value || ' '),
+      h(
+        Text,
+        { dimColor: true, color: 'white', key: 'hint' },
+        'Press Enter to submit • Esc to cancel',
+      ),
+    ],
+  );
 }
 
 export default AskHuman;
