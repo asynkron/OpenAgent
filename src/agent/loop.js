@@ -131,6 +131,7 @@ export function createAgentRuntime({
     },
     async reset() {
       if (activePlan.length === 0) {
+        emitPlanProgressEvent(activePlan);
         return clonePlan(activePlan);
       }
       activePlan = [];
@@ -250,16 +251,11 @@ export function createAgentRuntime({
 
   const emitPlanProgressEvent = (plan) => {
     const progress = computePlanProgress(plan);
-
-    if (progress.totalSteps === 0) {
-      lastPlanProgressSignature = undefined;
-      return progress;
-    }
-
     const signature = `${progress.completedSteps}|${progress.totalSteps}`;
 
     if (signature !== lastPlanProgressSignature) {
-      lastPlanProgressSignature = signature;
+      lastPlanProgressSignature =
+        progress.totalSteps === 0 && progress.completedSteps === 0 ? undefined : signature;
       emit({ type: 'plan-progress', progress });
     }
 

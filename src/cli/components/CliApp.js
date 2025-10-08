@@ -7,11 +7,9 @@ import AskHuman from './AskHuman.js';
 import HumanMessage from './HumanMessage.js';
 import Command from './Command.js';
 import Plan from './Plan.js';
-import PlanProgress from './PlanProgress.js';
 import DebugPanel from './DebugPanel.js';
 import StatusMessage from './StatusMessage.js';
 import ContextUsage from './ContextUsage.js';
-import ThinkingIndicator from './ThinkingIndicator.js';
 
 const MAX_TIMELINE_ENTRIES = 100;
 const MAX_DEBUG_ENTRIES = 20;
@@ -19,7 +17,6 @@ const MAX_DEBUG_ENTRIES = 20;
 const h = React.createElement;
 
 const MemoPlan = React.memo(Plan);
-const MemoPlanProgress = React.memo(PlanProgress);
 const MemoContextUsage = React.memo(ContextUsage);
 const MemoAgentResponse = React.memo(AgentResponse);
 const MemoHumanMessage = React.memo(HumanMessage);
@@ -364,10 +361,14 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
   const hasDebugEvents = debugEvents.length > 0;
   const children = [];
 
-  children.push(h(MemoPlan, { plan, key: 'plan' }));
-  if (planProgress.seen) {
-    children.push(h(MemoPlanProgress, { progress: planProgress.value, key: 'plan-progress' }));
-  }
+  children.push(
+    h(MemoPlan, {
+      plan,
+      progress: planProgress.value,
+      key: 'plan',
+    }),
+  );
+
   if (contextUsage) {
     children.push(h(MemoContextUsage, { usage: contextUsage, key: 'context-usage' }));
   }
@@ -377,8 +378,6 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
   if (hasDebugEvents) {
     children.push(h(MemoDebugPanel, { events: debugEvents, key: 'debug' }));
   }
-
-  children.push(h(ThinkingIndicator, { active: thinking, key: 'thinking' }));
 
   if (thinking || inputRequest) {
     children.push(
