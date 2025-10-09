@@ -276,12 +276,15 @@ export function transformToRows(source, maxWidth, options = {}) {
   for (let index = 0; index < source.length; index += 1) {
     const char = source[index];
 
-    if (char === '\n') {
+    if (char === '\n' || char === '\r') {
       const text = source.slice(rowStartIndex, index);
       rows.push({
         text,
         startIndex: rowStartIndex,
       });
+      if (char === '\r' && source[index + 1] === '\n') {
+        index += 1;
+      }
       rowStartIndex = index + 1;
       column = 0;
       lastBreakWasNewline = true;
@@ -697,8 +700,30 @@ export function InkTextArea({
 
       const printableInput = input && input !== '\u0000' ? input : '';
       const specialKeys = extractSpecialKeys(key);
-      const shiftModifierActive = Boolean(key?.shift || key?.isShiftPressed);
-      const isShiftEnter = (key?.return && shiftModifierActive) || input === '\n';
+      const shiftModifierActive = Boolean(
+        key?.shift || key?.isShiftPressed || specialKeys.includes('shift'),
+      );
+      const isLineFeedInput = printableInput === '\n';
+      const isCarriageReturnInput = printableInput === '\r';
+      const isShiftOnlySequence =
+        shiftModifierActive &&
+        !key?.return &&
+        printableInput.length === 0 &&
+        !key?.tab &&
+        !key?.escape &&
+        !key?.upArrow &&
+        !key?.downArrow &&
+        !key?.leftArrow &&
+        !key?.rightArrow &&
+        !key?.pageUp &&
+        !key?.pageDown &&
+        !key?.delete &&
+        !key?.backspace;
+      const isShiftEnter =
+        isLineFeedInput ||
+        (key?.return && shiftModifierActive) ||
+        (isCarriageReturnInput && shiftModifierActive) ||
+        isShiftOnlySequence;
 
       setLastKeyEvent({
         rawInput: input,
