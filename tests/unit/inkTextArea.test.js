@@ -82,6 +82,37 @@ describe('InkTextArea input handling', () => {
     unmount();
   });
 
+  test('inserts a newline without submitting when shift+enter is received', async () => {
+    const handleSubmit = jest.fn();
+    const handleChange = jest.fn();
+
+    const { stdin, unmount, lastFrame } = render(
+      React.createElement(ControlledInkTextArea, {
+        initialValue: '',
+        onSubmit: handleSubmit,
+        onChange: handleChange,
+      }),
+    );
+
+    stdin.write('hello');
+    await flush();
+
+    handleChange.mockClear();
+
+    stdin.write('\n');
+    await flush();
+
+    expect(handleSubmit).not.toHaveBeenCalled();
+    expect(handleChange).toHaveBeenLastCalledWith('hello\n');
+
+    const caret = caretPositionFromFrame(lastFrame());
+    expect(caret.index).toBe(6);
+    expect(caret.line).toBe(2);
+    expect(caret.column).toBe(1);
+
+    unmount();
+  });
+
   test('moves caret with left/right arrow keys', async () => {
     const { stdin, unmount, lastFrame } = render(
       React.createElement(InkTextArea, {

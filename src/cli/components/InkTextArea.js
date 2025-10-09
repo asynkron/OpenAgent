@@ -697,6 +697,8 @@ export function InkTextArea({
 
       const printableInput = input && input !== '\u0000' ? input : '';
       const specialKeys = extractSpecialKeys(key);
+      const shiftModifierActive = Boolean(key?.shift || key?.isShiftPressed);
+      const isShiftEnter = (key?.return && shiftModifierActive) || input === '\n';
 
       setLastKeyEvent({
         rawInput: input,
@@ -731,7 +733,7 @@ export function InkTextArea({
           return true;
         }
 
-        if (key.return) {
+        if (key.return && !isShiftEnter) {
           return handleCommandSelection();
         }
 
@@ -746,8 +748,15 @@ export function InkTextArea({
         return;
       }
 
-      if (key.return) {
+      if (key.return && !isShiftEnter) {
         onSubmit?.(value);
+        return;
+      }
+
+      if (isShiftEnter) {
+        // Shift+Enter (or a raw newline input) inserts a line break at the caret instead of submitting.
+        const nextValue = `${value.slice(0, caretIndex)}\n${value.slice(caretIndex)}`;
+        updateValue(nextValue, caretIndex + 1);
         return;
       }
 
