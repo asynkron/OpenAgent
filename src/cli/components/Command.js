@@ -2,7 +2,6 @@ import React from 'react';
 import { Box, Text } from 'ink';
 
 import { buildCommandRenderData } from './commandUtils.js';
-import theme from '../theme.js';
 
 const h = React.createElement;
 
@@ -37,64 +36,34 @@ export function Command({ command, result, preview = {}, execution = {} }) {
   }
 
   const { type, detail, summaryLines } = data;
-  const lines = [];
+  const children = [];
 
-  lines.push(
+  children.push(
     h(
       Text,
-      { key: 'heading', color: theme.command.fg },
+      { key: 'heading' },
       h(Text, { color: 'blueBright', bold: true }, type),
       h(Text, null, ` ${detail}`),
     ),
   );
 
   summaryLines.forEach((line, index) => {
-    lines.push(h(SummaryLine, { line, index, key: `summary-${index}` }));
+    children.push(h(SummaryLine, { line, index, key: `summary-${index}` }));
   });
-
-  const header = h(
-    Box,
-    {
-      key: 'window-header',
-      width: '100%',
-      paddingX: 1,
-      paddingY: 0,
-      height: 1,
-      backgroundColor: theme.command.headerBg ?? theme.command.bg,
-      alignItems: 'center',
-      gap: 1,
-    },
-    h(Text, { color: '#ff5f56' }, '●'),
-    h(Text, { color: '#ffbd2e' }, '●'),
-    h(Text, { color: '#27c93f' }, '●'),
-  );
-
-  const content = h(
-    Box,
-    {
-      key: 'command-body',
-      flexDirection: 'column',
-      paddingX: 1,
-      paddingY: 1,
-      backgroundColor: theme.command.bg,
-      width: '100%',
-      alignSelf: 'stretch',
-      flexGrow: 1,
-    },
-    ...lines,
-  );
 
   return h(
     Box,
     {
       flexDirection: 'column',
       marginTop: 1,
+      paddingX: 1,
+      paddingY: 1,
+      backgroundColor: 'black',
       width: '100%',
       alignSelf: 'stretch',
       flexGrow: 1,
     },
-    header,
-    content,
+    children,
   );
 }
 

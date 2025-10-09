@@ -21,16 +21,7 @@ export function getConfiguredReasoningEffort() {
   return ENV_REASONING_EFFORT;
 }
 
-export function createResponse({
-  openai,
-  model,
-  input,
-  text,
-  tools,
-  toolChoice,
-  options,
-  reasoningEffort,
-}) {
+export function createResponse({ openai, model, input, text, tools, options, reasoningEffort }) {
   if (!openai || !openai.responses || typeof openai.responses.create !== 'function') {
     throw new Error('Invalid OpenAI client instance provided.');
   }
@@ -38,19 +29,12 @@ export function createResponse({
   const payload = {
     model,
     input,
+    tools,
+    tool_choice: {
+      type: 'function',
+      name: 'open-agent',
+    },
   };
-
-  if (tools && Array.isArray(tools) && tools.length > 0) {
-    payload.tools = tools;
-  }
-
-  if (text) {
-    payload.text = text;
-  }
-
-  if (toolChoice) {
-    payload.tool_choice = toolChoice;
-  }
 
   const effort = normalizeReasoningEffort(reasoningEffort) ?? ENV_REASONING_EFFORT;
   if (effort) {

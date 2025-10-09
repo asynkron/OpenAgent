@@ -2,7 +2,6 @@ import React from 'react';
 import { Box, Text } from 'ink';
 
 import { wrapStructuredContent } from '../render.js';
-import theme from '../theme.js';
 
 const h = React.createElement;
 
@@ -23,12 +22,12 @@ export function HumanMessage({ message }) {
       marginTop: 1,
       paddingX: 1,
       paddingY: 1,
-      backgroundColor: theme.human.bg,
+      backgroundColor: '#1f1f1f',
       width: '100%',
       alignSelf: 'stretch',
       flexGrow: 1,
     },
-    h(Text, { color: theme.human.fg }, prepared),
+    h(Text, null, prepared),
   );
 }
 

@@ -3,8 +3,6 @@
  * compatibility console renderers.
  */
 
-const DEFAULT_SHELL_LABEL = process.platform === 'win32' ? 'cmd.exe' : 'sh';
-
 export function normalizePreviewLines(preview) {
   if (!preview) {
     return [];
@@ -78,116 +76,6 @@ export function parseReadSegments(stdout) {
   return segments;
 }
 
-function extractShellCandidate(candidate) {
-  if (candidate == null) {
-    return undefined;
-  }
-  if (typeof candidate === 'string' || typeof candidate === 'boolean') {
-    return candidate;
-  }
-  if (typeof candidate === 'object' && !Array.isArray(candidate) && 'shell' in candidate) {
-    const value = candidate.shell;
-    if (typeof value === 'string' || typeof value === 'boolean') {
-      return value;
-    }
-  }
-  return undefined;
-}
-
-function normalizeShellLabel(shellCandidate) {
-  if (shellCandidate === undefined) {
-    return '';
-  }
-  if (typeof shellCandidate === 'string') {
-    return shellCandidate.trim();
-  }
-  if (shellCandidate === true) {
-    return DEFAULT_SHELL_LABEL;
-  }
-  return '';
-}
-
-function resolveShellLabel(execution, command) {
-  const shellCandidate =
-    extractShellCandidate(execution?.command?.shell) ??
-    extractShellCandidate(execution?.shell) ??
-    extractShellCandidate(command?.shell);
-  return normalizeShellLabel(shellCandidate);
-}
-
-function resolveRunValue(execution, command) {
-  if (execution?.command && 'run' in execution.command) {
-    return execution.command.run;
-  }
-  if (execution && 'run' in execution) {
-    return execution.run;
-  }
-  return command?.run;
-}
-
-function normalizeRunText(runValue) {
-  if (typeof runValue === 'string') {
-    return runValue.trim();
-  }
-  if (Array.isArray(runValue)) {
-    const parts = [];
-    for (const part of runValue) {
-      if (part == null) {
-        continue;
-      }
-      const stringified = typeof part === 'string' ? part : String(part);
-      const trimmed = stringified.trim();
-      if (trimmed) {
-        parts.push(trimmed);
-      }
-    }
-    return parts.join(' ');
-  }
-  return '';
-}
-
-function splitRunText(runText) {
-  if (!runText) {
-    return { head: '', tail: '' };
-  }
-  const match = runText.match(/^(\S+)(\s+.*)?$/);
-  if (!match) {
-    return { head: runText, tail: '' };
-  }
-  return {
-    head: match[1] || '',
-    tail: match[2] ? match[2].trim() : '',
-  };
-}
-
-function buildExecuteHeadingParts(execution, command) {
-  const shellLabel = resolveShellLabel(execution, command);
-  const runText = normalizeRunText(resolveRunValue(execution, command));
-  if (shellLabel) {
-    return {
-      label: shellLabel,
-      detail: runText,
-    };
-  }
-  if (runText) {
-    const { head, tail } = splitRunText(runText);
-    if (head) {
-      return {
-        label: head,
-        detail: tail,
-      };
-    }
-    return {
-      label: 'EXECUTE',
-      detail: runText,
-    };
-  }
-  return {
-    label: 'EXECUTE',
-    detail: 'shell command',
-  };
-}
-
 export function inferCommandType(command, execution) {
   if (!command || typeof command !== 'object') {
     return 'EXECUTE';
@@ -254,10 +142,15 @@ export function buildHeadingDetail(type, execution, command) {
       }
       return `(${parts.join(', ')})`;
     }
-    case 'EXECUTE':
     default: {
-      const { detail } = buildExecuteHeadingParts(execution, command);
-      return detail;
+      const runValue =
+        (execution?.command && typeof execution.command.run === 'string'
+          ? execution.command.run
+          : typeof command?.run === 'string'
+            ? command.run
+            : '') || '';
+      const trimmed = runValue.trim();
+      return `(${trimmed || 'shell command'})`;
     }
   }
 }
@@ -367,31 +260,16 @@ export function buildCommandRenderData(command, result, preview = {}, execution 
 
   const normalizedExecution =
     execution && typeof execution === 'object' ? execution : preview.execution || {};
-  const commandType = inferCommandType(command, normalizedExecution).toUpperCase();
-  const headingParts =
-    commandType === 'EXECUTE'
-      ? buildExecuteHeadingParts(normalizedExecution, command)
-      : {
-          label: commandType,
-          detail: buildHeadingDetail(commandType, normalizedExecution, command),
-        };
-
-  const headingLabel = headingParts.label ?? commandType;
-  const detail = headingParts.detail ?? '';
+  const type = inferCommandType(command, normalizedExecution).toUpperCase();
+  const detail = buildHeadingDetail(type, normalizedExecution, command);
   const description = extractCommandDescription(command, normalizedExecution);
   const summaryLines = [];
 
-  const summaryContext = {
-    command,
-    result,
-    preview,
-    execution: normalizedExecution,
-    summaryLines,
-  };
+  const summaryContext = { command, result, preview, execution: normalizedExecution, summaryLines };
 
-  if (commandType === 'READ') {
+  if (type === 'READ') {
     summarizeReadCommand(summaryContext);
-  } else if (commandType === 'EDIT' || commandType === 'REPLACE') {
+  } else if (type === 'EDIT' || type === 'REPLACE') {
     summarizeEditOrReplace(summaryContext);
   } else {
     summarizeExecute(summaryContext);
@@ -423,7 +301,7 @@ export function buildCommandRenderData(command, result, preview = {}, execution 
   }
 
   return {
-    type: headingLabel,
+    type,
     detail,
     description,
     summaryLines,

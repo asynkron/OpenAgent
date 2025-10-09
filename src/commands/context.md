@@ -6,7 +6,7 @@
 
 ## Key Files
 
-- `run.js` — spawns shell commands with timeout/cancellation support, captures stdout/stderr to temp files, exposes `runCommand` plus helper wrappers (uses `.openagent/temp`), and surfaces invalid command payloads for debugging.
+- `run.js` — spawns shell commands with timeout/cancellation support, captures stdout/stderr to temp files, and exposes `runCommand` plus helper wrappers (uses `.openagent/temp`).
 - `read.js` — performs filesystem reads based on structured specs (path, max bytes/lines) with encoding handling.
 - `readSpec.js` — parses `read` command token syntax and merges specs.
 

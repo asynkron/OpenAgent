@@ -286,18 +286,7 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
       } else if (Array.isArray(cmd) && cmd.length > 0) {
         child = spawn(cmd[0], cmd.slice(1), spawnOptions);
       } else {
-        let serializedCommand;
-        try {
-          serializedCommand = JSON.stringify(cmd);
-        } catch {
-          serializedCommand = undefined;
-        }
-        if (!serializedCommand) {
-          serializedCommand = String(cmd);
-        }
-        throw new Error(
-          `Command must be a string or a non-empty array. Received payload: ${serializedCommand}`,
-        );
+        throw new Error('Command must be a string or a non-empty array.');
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
