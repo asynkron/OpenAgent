@@ -342,9 +342,17 @@ describe('InkTextArea input handling', () => {
     await flush();
     expect(stripAnsi(lastFrame())).toContain('Switch the active language model');
 
-    stdin.write('model gpt-4o');
+    stdin.write('model gpt');
     await flush();
-    const frame = stripAnsi(lastFrame());
+
+    let frame = stripAnsi(lastFrame());
+    expect(frame).not.toContain('Switch the active language model');
+    expect(frame).toContain('Switch to the flagship GPT-4o model');
+    expect(frame).toContain('Use the faster GPT-4o mini variant');
+
+    stdin.write('-4o');
+    await flush();
+    frame = stripAnsi(lastFrame());
 
     // Only the GPT-4o variants should remain visible for this specific query.
     expect(frame).not.toContain('Switch the active language model');
