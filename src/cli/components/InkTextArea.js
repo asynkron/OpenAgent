@@ -395,7 +395,13 @@ export function InkTextArea({
     rawInput: '',
     printableInput: '',
     specialKeys: [],
+    shiftModifierActive: false,
   }));
+  const lastKeyEventRef = useRef({
+    printableInput: '',
+    wasReturnKey: false,
+    shiftModifierActive: false,
+  });
   const desiredColumnRef = useRef(null);
   const [commandHighlightIndex, setCommandHighlightIndex] = useState(0);
   const interactive = isActive && !isDisabled;
@@ -719,16 +725,34 @@ export function InkTextArea({
         !key?.pageDown &&
         !key?.delete &&
         !key?.backspace;
+      const previousKeyEvent = lastKeyEventRef.current;
+
       const isShiftEnter =
         isLineFeedInput ||
         (key?.return && shiftModifierActive) ||
         (isCarriageReturnInput && shiftModifierActive) ||
         isShiftOnlySequence;
 
+      const isPlainReturnFollowedByLineFeed =
+        isLineFeedInput &&
+        !shiftModifierActive &&
+        !key?.return &&
+        previousKeyEvent?.wasReturnKey &&
+        !previousKeyEvent.shiftModifierActive;
+
+      const shouldInsertNewline = isShiftEnter && !isPlainReturnFollowedByLineFeed;
+
+      lastKeyEventRef.current = {
+        printableInput,
+        wasReturnKey: Boolean(key?.return),
+        shiftModifierActive,
+      };
+
       setLastKeyEvent({
         rawInput: input,
         printableInput,
         specialKeys,
+        shiftModifierActive,
       });
 
       const commandNavigationHandled = (() => {
@@ -758,7 +782,7 @@ export function InkTextArea({
           return true;
         }
 
-        if (key.return && !isShiftEnter) {
+        if (key.return && !shouldInsertNewline) {
           return handleCommandSelection();
         }
 
@@ -773,12 +797,12 @@ export function InkTextArea({
         return;
       }
 
-      if (key.return && !isShiftEnter) {
+      if (key.return && !shouldInsertNewline) {
         onSubmit?.(value);
         return;
       }
 
-      if (isShiftEnter) {
+      if (shouldInsertNewline) {
         // Shift+Enter (or a raw newline input) inserts a line break at the caret instead of submitting.
         const nextValue = `${value.slice(0, caretIndex)}\n${value.slice(caretIndex)}`;
         updateValue(nextValue, caretIndex + 1);

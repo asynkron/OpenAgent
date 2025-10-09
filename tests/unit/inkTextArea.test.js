@@ -82,6 +82,31 @@ describe('InkTextArea input handling', () => {
     unmount();
   });
 
+  test('ignores trailing line feed emitted after a plain return press', async () => {
+    const handleSubmit = jest.fn();
+    const handleChange = jest.fn();
+
+    const { stdin, unmount } = render(
+      React.createElement(ControlledInkTextArea, {
+        initialValue: 'ready',
+        onChange: handleChange,
+        onSubmit: handleSubmit,
+      }),
+    );
+
+    stdin.write('\r');
+    await flush();
+
+    stdin.write('\n');
+    await flush();
+
+    expect(handleSubmit).toHaveBeenCalledTimes(1);
+    expect(handleSubmit).toHaveBeenCalledWith('ready');
+    expect(handleChange).not.toHaveBeenCalled();
+
+    unmount();
+  });
+
   test('inserts a newline without submitting when shift+enter is received', async () => {
     const handleSubmit = jest.fn();
     const handleChange = jest.fn();
