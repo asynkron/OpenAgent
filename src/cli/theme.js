@@ -5,16 +5,16 @@
 export const theme = Object.freeze({
   human: {
     fg: '#f5f5f5',
-    bg: '#1f1f1f',
+    bg: '#3a3a3dff',
   },
   agent: {
     fg: '#f5f5f5',
-    bg: '#050505',
+    bg: '',
   },
   command: {
     fg: '#f5f5f5',
-    bg: '#000000',
-    headerBg: '#1f1f1f',
+    bg: '',
+    headerBg: '',
   },
   prompt: {
     fg: '#ffffff',
