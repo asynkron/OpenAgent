@@ -1,6 +1,7 @@
 const STRATEGY_DIRECT = 'direct';
 const STRATEGY_CODE_FENCE = 'code_fence';
 const STRATEGY_BALANCED_SLICE = 'balanced_slice';
+const STRATEGY_ESCAPED_NEWLINES = 'escaped_newlines';
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -19,6 +20,18 @@ function firstNonEmptyString(...candidates) {
   }
 
   return '';
+}
+
+function escapeBareLineBreaks(input) {
+  if (typeof input !== 'string') {
+    return null;
+  }
+
+  if (!/(?:\r\n|\n|\r)/.test(input)) {
+    return null;
+  }
+
+  return input.replace(/\r?\n/g, '\\n');
 }
 
 function normalizeFlatCommand(command) {
@@ -68,6 +81,30 @@ function normalizeNestedRunCommand(command) {
   return merged;
 }
 
+function normalizeNestedShellCommand(command) {
+  const nested = command.shell;
+  if (!isPlainObject(nested)) {
+    return normalizeFlatCommand(command);
+  }
+
+  const { command: nestedCommand, run: nestedRun, shell: nestedShell, ...nestedRest } = nested;
+  const { shell: _ignoredShell, ...rest } = command;
+
+  const merged = { ...nestedRest, ...rest };
+  const runString = firstNonEmptyString(rest.run, nestedCommand, nestedRun);
+  const shellString = firstNonEmptyString(nestedShell);
+
+  if (runString) {
+    merged.run = runString;
+  }
+
+  if (shellString && shellString !== merged.run) {
+    merged.shell = shellString;
+  }
+
+  return merged;
+}
+
 function normalizeCommandPayload(command) {
   if (!isPlainObject(command)) {
     return command;
@@ -75,6 +112,10 @@ function normalizeCommandPayload(command) {
 
   if (isPlainObject(command.run)) {
     return normalizeNestedRunCommand(command);
+  }
+
+  if (isPlainObject(command.shell)) {
+    return normalizeNestedShellCommand(command);
   }
 
   return normalizeFlatCommand(command);
@@ -207,6 +248,14 @@ export function parseAssistantResponse(rawContent) {
   const direct = attemptParse(trimmed, STRATEGY_DIRECT, attempts);
   if (direct) {
     return direct;
+  }
+
+  const escapedNewlines = escapeBareLineBreaks(trimmed);
+  if (escapedNewlines) {
+    const recovered = attemptParse(escapedNewlines, STRATEGY_ESCAPED_NEWLINES, attempts);
+    if (recovered) {
+      return recovered;
+    }
   }
 
   const fenced = extractFromCodeFence(trimmed);

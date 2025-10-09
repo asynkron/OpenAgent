@@ -3,15 +3,26 @@ import { jest } from '@jest/globals';
 import {
   loadAgentWithMockedModules,
   queueModelResponse,
+  queueModelCompletion,
   resetQueuedResponses,
 } from './agentRuntimeTestHarness.js';
 import { createTestRunnerUI } from './testRunnerUI.js';
+import {
+  nestedShellResponseText,
+  rawNestedShellResponsePayload,
+} from './__fixtures__/openaiNestedShellResponse.js';
 
 jest.setTimeout(20000);
 
 beforeEach(() => {
   resetQueuedResponses();
 });
+
+// Sanity-check that the captured payload still mirrors the OpenAI response we
+// debugged; a missing `stage` would mean the fixture drifted or parsing failed.
+if (!rawNestedShellResponsePayload.includes('"stage": "openai-response"')) {
+  throw new Error('OpenAI nested shell response fixture lost its stage metadata.');
+}
 
 test('agent runtime executes one mocked command then exits on user request', async () => {
   process.env.OPENAI_API_KEY = 'test-key';
@@ -55,6 +66,58 @@ test('agent runtime executes one mocked command then exits on user request', asy
   expect(runCommandMock).toHaveBeenCalledTimes(1);
   const commandEvent = ui.events.find((evt) => evt.type === 'command-result');
   expect(commandEvent).toBeTruthy();
+});
+
+test('agent runtime executes nested shell commands from raw response strings', async () => {
+  process.env.OPENAI_API_KEY = 'test-key';
+  const { agent } = await loadAgentWithMockedModules();
+  agent.STARTUP_FORCE_AUTO_APPROVE = true;
+
+  queueModelCompletion({
+    status: 'success',
+    completion: {
+      output: [
+        {
+          type: 'message',
+          content: [
+            {
+              type: 'output_text',
+              text: nestedShellResponseText,
+            },
+          ],
+        },
+      ],
+    },
+  });
+
+  queueModelResponse({
+    message: 'Mocked follow-up',
+    plan: [],
+    command: null,
+  });
+
+  const runCommandMock = jest.fn().mockResolvedValue({
+    stdout: 'hello\n',
+    stderr: '',
+    exit_code: 0,
+    killed: false,
+    runtime_ms: 1,
+  });
+
+  const runtime = agent.createAgentRuntime({
+    getAutoApproveFlag: () => agent.STARTUP_FORCE_AUTO_APPROVE,
+    runCommandFn: runCommandMock,
+  });
+
+  const ui = createTestRunnerUI(runtime);
+  ui.queueUserInput('Run the raw command', 'exit');
+
+  await ui.start();
+
+  const errorEvents = ui.events.filter((event) => event.type === 'error');
+  expect(errorEvents).toHaveLength(0);
+  expect(runCommandMock).toHaveBeenCalledTimes(1);
+  expect(runCommandMock).toHaveBeenCalledWith('echo hello', '.', 60, undefined);
 });
 
 const driveRefusalAutoResponse = async (refusalMessage) => {
