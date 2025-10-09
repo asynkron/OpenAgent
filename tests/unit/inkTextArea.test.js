@@ -7,6 +7,20 @@ function stripAnsi(value) {
   return value.replace(/\u001B\[[0-9;]*m/g, '');
 }
 
+function ControlledInkTextArea(props) {
+  const { initialValue = '', onChange, ...rest } = props;
+  const [value, setValue] = React.useState(initialValue);
+
+  return React.createElement(InkTextArea, {
+    ...rest,
+    value,
+    onChange(nextValue) {
+      setValue(nextValue);
+      onChange?.(nextValue);
+    },
+  });
+}
+
 describe('InkTextArea input handling', () => {
   async function flush() {
     await new Promise((resolve) => setImmediate(resolve));
@@ -206,6 +220,61 @@ describe('InkTextArea input handling', () => {
     const resizedLines = lastFrame().split('\n');
     expect(stripAnsi(resizedLines[0])).toMatch(/^ ?abc$/);
     expect(stripAnsi(resizedLines[1])).toBe('def');
+
+    unmount();
+  });
+
+  test('offers slash menu suggestions and selects highlighted item', async () => {
+    const slashItems = [
+      { id: 'model', label: 'model', description: 'Switch the active model' },
+      { id: 'mode', label: 'mode', description: 'Change interaction mode' },
+      { id: 'help', label: 'help' },
+    ];
+    const handleSelect = jest.fn();
+    const handleSubmit = jest.fn();
+
+    const { stdin, lastFrame, unmount } = render(
+      React.createElement(ControlledInkTextArea, {
+        initialValue: '',
+        slashMenuItems: slashItems,
+        onSlashCommandSelect: handleSelect,
+        onSubmit: handleSubmit,
+      }),
+    );
+
+    stdin.write('/');
+    await flush();
+    expect(stripAnsi(lastFrame())).toContain('model');
+    expect(stripAnsi(lastFrame())).toContain('mode');
+    expect(stripAnsi(lastFrame())).toContain('help');
+
+    stdin.write('m');
+    await flush();
+    expect(stripAnsi(lastFrame())).toContain('model');
+    expect(stripAnsi(lastFrame())).toContain('mode');
+    expect(stripAnsi(lastFrame())).not.toContain('help');
+
+    stdin.write('o');
+    await flush();
+    expect(lastFrame()).toContain('\u001B[7mmodel');
+
+    stdin.write('\u001B[B');
+    await flush();
+    expect(lastFrame()).toContain('\u001B[7mmode');
+
+    stdin.write('\r');
+    await flush();
+
+    expect(handleSubmit).not.toHaveBeenCalled();
+    expect(handleSelect).toHaveBeenCalledTimes(1);
+    expect(handleSelect).toHaveBeenCalledWith({
+      item: slashItems[1],
+      query: 'mo',
+      range: { startIndex: 0, endIndex: 3 },
+      replacement: '',
+      value: '',
+    });
+    expect(lastFrame()).not.toContain('┌');
 
     unmount();
   });

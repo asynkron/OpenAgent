@@ -4,6 +4,79 @@ import { Box, Text, useInput, useStdout } from 'ink';
 const h = React.createElement;
 const BLINK_INTERVAL_MS = 500;
 
+function isWhitespace(char) {
+  if (!char) {
+    return false;
+  }
+  return /\s/u.test(char);
+}
+
+function normalizeSlashItem(item, index) {
+  if (!item || typeof item !== 'object') {
+    return null;
+  }
+
+  const labelSource =
+    item.label ?? item.title ?? item.name ?? item.id ?? item.key ?? `item-${index}`;
+  const label = typeof labelSource === 'string' ? labelSource : String(labelSource);
+  const description =
+    typeof item.description === 'string' && item.description.length > 0
+      ? item.description
+      : undefined;
+  const keywords = Array.isArray(item.keywords)
+    ? item.keywords.filter((keyword) => typeof keyword === 'string')
+    : [];
+  const insertValue =
+    typeof item.insertValue === 'string'
+      ? item.insertValue
+      : typeof item.replacement === 'string'
+        ? item.replacement
+        : undefined;
+
+  return {
+    id: item.id ?? index,
+    label,
+    description,
+    keywords,
+    insertValue,
+    source: item,
+  };
+}
+
+function computeActiveSlash(value, caretIndex) {
+  if (typeof value !== 'string' || value.length === 0) {
+    return null;
+  }
+
+  const clampedIndex = clamp(caretIndex ?? value.length, 0, value.length);
+  const textToCaret = value.slice(0, clampedIndex);
+  const slashIndex = textToCaret.lastIndexOf('/');
+
+  if (slashIndex === -1) {
+    return null;
+  }
+
+  if (slashIndex > 0 && !isWhitespace(textToCaret[slashIndex - 1])) {
+    return null;
+  }
+
+  const query = textToCaret.slice(slashIndex + 1);
+
+  if (/\s/u.test(query)) {
+    return null;
+  }
+
+  if (query.includes('\u0000')) {
+    return null;
+  }
+
+  return {
+    startIndex: slashIndex,
+    endIndex: clampedIndex,
+    query,
+  };
+}
+
 function clamp(value, min, max) {
   if (value < min) return min;
   if (value > max) return max;
@@ -57,7 +130,7 @@ export function transformToRows(source, maxWidth, options = {}) {
   const safeWidth = Math.max(1, Math.floor(maxWidth ?? 1));
   const horizontalPadding =
     toNonNegativeInteger(paddingLeft) + toNonNegativeInteger(paddingRight);
-  const effectiveWidth = Math.max(1, safeWidth - horizontalPadding - 5);
+  const effectiveWidth = Math.max(1, safeWidth - horizontalPadding);
   const rows = [];
 
   let rowStartIndex = 0;
@@ -149,6 +222,8 @@ export function InkTextArea({
   width,
   isActive = true,
   isDisabled = false,
+  slashMenuItems = [],
+  onSlashCommandSelect,
   ...rest
 }) {
   const {
@@ -182,6 +257,7 @@ export function InkTextArea({
     specialKeys: [],
   }));
   const desiredColumnRef = useRef(null);
+  const [slashHighlightIndex, setSlashHighlightIndex] = useState(0);
   const interactive = isActive && !isDisabled;
 
   const { stdout } = useStdout();
@@ -264,6 +340,85 @@ export function InkTextArea({
   const caretLine = caretPosition.rowIndex;
   const caretColumn = caretPosition.column;
 
+  const normalizedSlashItems = useMemo(
+    () =>
+      Array.isArray(slashMenuItems)
+        ? slashMenuItems
+            .map((item, index) => normalizeSlashItem(item, index))
+            .filter(Boolean)
+        : [],
+    [slashMenuItems],
+  );
+
+  const activeSlash = useMemo(
+    () => computeActiveSlash(value, caretIndex),
+    [caretIndex, value],
+  );
+
+  const slashMatches = useMemo(() => {
+    if (!activeSlash) {
+      return [];
+    }
+
+    const normalizedQuery = activeSlash.query.toLowerCase();
+    const hasQuery = normalizedQuery.length > 0;
+
+    return normalizedSlashItems
+      .map((item, index) => {
+        if (!hasQuery) {
+          return { item, index };
+        }
+
+        const haystack = [item.label, item.description ?? '', ...item.keywords]
+          .join(' ')
+          .toLowerCase();
+
+        if (!haystack.includes(normalizedQuery)) {
+          return null;
+        }
+
+        return { item, index };
+      })
+      .filter(Boolean);
+  }, [activeSlash, normalizedSlashItems]);
+
+  const slashMenuVisible = Boolean(activeSlash) && slashMatches.length > 0;
+
+  const slashSignatureRef = useRef(null);
+
+  useEffect(() => {
+    if (!slashMenuVisible) {
+      slashSignatureRef.current = null;
+      if (slashHighlightIndex !== 0) {
+        setSlashHighlightIndex(0);
+      }
+      return;
+    }
+
+    const signature = `${activeSlash.startIndex}:${activeSlash.query}`;
+    if (slashSignatureRef.current !== signature) {
+      slashSignatureRef.current = signature;
+      setSlashHighlightIndex(0);
+      return;
+    }
+
+    setSlashHighlightIndex((prev) => clamp(prev, 0, slashMatches.length - 1));
+  }, [
+    activeSlash?.query,
+    activeSlash?.startIndex,
+    slashHighlightIndex,
+    slashMatches.length,
+    slashMenuVisible,
+  ]);
+
+  const resolvedSlashHighlightIndex = slashMenuVisible
+    ? Math.min(slashHighlightIndex, slashMatches.length - 1)
+    : 0;
+
+  const selectedSlashMatch = slashMenuVisible
+    ? slashMatches[resolvedSlashHighlightIndex] ?? slashMatches[0]
+    : null;
+
   const resetDesiredColumn = useCallback(() => {
     desiredColumnRef.current = null;
   }, []);
@@ -294,6 +449,41 @@ export function InkTextArea({
     [onChange, resetDesiredColumn],
   );
 
+  const handleSlashSelection = useCallback(() => {
+    if (!slashMenuVisible || !selectedSlashMatch || !activeSlash) {
+      return false;
+    }
+
+    const { item } = selectedSlashMatch;
+    const replacement = item.insertValue ?? '';
+    const before = value.slice(0, activeSlash.startIndex);
+    const after = value.slice(activeSlash.endIndex);
+    const nextValue = `${before}${replacement}${after}`;
+    const nextCaretIndex = before.length + replacement.length;
+
+    updateValue(nextValue, nextCaretIndex);
+    onSlashCommandSelect?.({
+      item: item.source ?? item,
+      query: activeSlash.query,
+      range: {
+        startIndex: activeSlash.startIndex,
+        endIndex: activeSlash.endIndex,
+      },
+      replacement,
+      value: nextValue,
+    });
+
+    setSlashHighlightIndex(0);
+    return true;
+  }, [
+    activeSlash,
+    onSlashCommandSelect,
+    selectedSlashMatch,
+    slashMenuVisible,
+    updateValue,
+    value,
+  ]);
+
   const handleInput = useCallback(
     (input, key) => {
       if (!interactive) {
@@ -308,6 +498,44 @@ export function InkTextArea({
         printableInput,
         specialKeys,
       });
+
+      const slashNavigationHandled = (() => {
+        if (!slashMenuVisible) {
+          return false;
+        }
+
+        const total = slashMatches.length;
+
+        if (total === 0) {
+          return false;
+        }
+
+        if (key.upArrow || (key.tab && key.shift)) {
+          setSlashHighlightIndex((prev) => {
+            const next = (prev - 1 + total) % total;
+            return next;
+          });
+          return true;
+        }
+
+        if (key.downArrow || (key.tab && !key.shift)) {
+          setSlashHighlightIndex((prev) => {
+            const next = (prev + 1) % total;
+            return next;
+          });
+          return true;
+        }
+
+        if (key.return) {
+          return handleSlashSelection();
+        }
+
+        return false;
+      })();
+
+      if (slashNavigationHandled) {
+        return;
+      }
 
       if (key.ctrl || key.meta) {
         return;
@@ -403,10 +631,12 @@ export function InkTextArea({
     [
       caretIndex,
       caretPosition,
+      handleSlashSelection,
       interactive,
       onSubmit,
-      resetDesiredColumn,
       rows,
+      slashMatches.length,
+      slashMenuVisible,
       updateValue,
       value,
     ],
@@ -515,6 +745,110 @@ export function InkTextArea({
     [lastKeyEvent.specialKeys],
   );
 
+  const slashMenuElement = useMemo(() => {
+    if (!slashMenuVisible) {
+      return null;
+    }
+
+    return h(
+      Box,
+      {
+        key: 'slash-menu',
+        flexDirection: 'column',
+        borderStyle: 'round',
+        borderColor: 'cyan',
+        marginTop: 1,
+        width: '100%',
+      },
+      ...slashMatches.map((match, index) => {
+        const isSelected = index === resolvedSlashHighlightIndex;
+        const segments = [
+          h(
+            Text,
+            {
+              key: 'label',
+              inverse: isSelected,
+            },
+            match.item.label,
+          ),
+        ];
+
+        if (match.item.description) {
+          segments.push(
+            h(
+              Text,
+              {
+                key: 'spacer',
+              },
+              ' ',
+            ),
+          );
+          segments.push(
+            h(
+              Text,
+              {
+                key: 'description',
+                color: isSelected ? undefined : 'gray',
+                dimColor: !isSelected,
+              },
+              match.item.description,
+            ),
+          );
+        }
+
+        return h(
+          Box,
+          {
+            key: `slash-item-${match.item.id ?? index}`,
+            paddingX: 1,
+          },
+          ...segments,
+        );
+      }),
+    );
+  }, [resolvedSlashHighlightIndex, slashMatches, slashMenuVisible]);
+
+  const shouldRenderDebug = process.env.NODE_ENV === 'test';
+
+  const debugElement = useMemo(() => {
+    if (!shouldRenderDebug) {
+      return null;
+    }
+
+    return h(
+      Box,
+      { flexDirection: 'column', marginTop: 1 },
+      h(Text, { color: 'gray', dimColor: true, key: 'debug-heading' }, 'Debug info'),
+      h(
+        Text,
+        { color: 'gray', key: 'debug-width' },
+        `Width: ${normalizedWidth} (effective: ${effectiveWidth}, prop: ${widthPropDisplay}, measured: ${measuredWidthDisplay})`,
+      ),
+      h(
+        Text,
+        { color: 'gray', key: 'debug-caret' },
+        `Caret: line ${caretLineDisplay}, column ${caretColumnDisplay}, index ${caretIndex}`,
+      ),
+      h(Text, { color: 'gray', key: 'debug-last-key' }, `Last key: ${lastKeyDisplay}`),
+      h(
+        Text,
+        { color: 'gray', key: 'debug-modifiers' },
+        `Special keys: ${modifierKeys.length > 0 ? modifierKeys.join(', ') : 'none'}`,
+      ),
+    );
+  }, [
+    caretColumnDisplay,
+    caretIndex,
+    caretLineDisplay,
+    effectiveWidth,
+    lastKeyDisplay,
+    measuredWidthDisplay,
+    modifierKeys,
+    normalizedWidth,
+    shouldRenderDebug,
+    widthPropDisplay,
+  ]);
+
   const containerProps = useMemo(() => {
     const style = {
       flexDirection: 'column',
@@ -579,6 +913,8 @@ export function InkTextArea({
     Box,
     containerProps,
     h(Box, { flexDirection: 'column', width: '100%' }, ...rowElements),
+    slashMenuElement,
+    debugElement,
     // h(
     //   Box,
     //   { flexDirection: 'column', marginTop: 1 },
