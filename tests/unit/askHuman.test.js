@@ -3,8 +3,11 @@ import { describe, expect, jest, test } from '@jest/globals';
 import { render } from 'ink-testing-library';
 import AskHuman, { HUMAN_SLASH_COMMANDS } from '../../src/cli/components/AskHuman.js';
 
+const ESC = String.fromCharCode(27);
+const ANSI_ESCAPE_PATTERN = new RegExp(`${ESC}\\[[0-9;]*m`, 'g');
+
 function stripAnsi(value) {
-  return value.replace(/\u001B\[[0-9;]*m/g, '');
+  return value.replace(ANSI_ESCAPE_PATTERN, '');
 }
 
 async function flush() {

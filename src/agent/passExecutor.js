@@ -8,8 +8,6 @@ import { executeAgentCommand } from './commandExecution.js';
 import { summarizeContextUsage } from '../utils/contextUsage.js';
 import { extractResponseText } from '../openai/responseUtils.js';
 import { validateAssistantResponse } from './responseValidator.js';
-import { log } from 'node:console';
-import { json } from 'node:stream/consumers';
 
 const REFUSAL_AUTO_RESPONSE = 'continue';
 const REFUSAL_STATUS_MESSAGE =

@@ -17,6 +17,7 @@
 - Tests validate both success and failure modes (e.g., cancellation branches, invalid response handling).
 - Coverage mirrors directory structure, making it easy to find corresponding specs when editing code.
 - Response parser coverage now asserts command payload normalization, newline sanitization, and reuses the captured integration fixture to guarantee the exact OpenAI payload stays parseable.
+- ANSI stripping helpers compute escape sequences at runtime, keeping lint satisfied without weakening terminal normalization checks.
 
 ## Risks / Gaps
 
