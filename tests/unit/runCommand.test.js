@@ -56,9 +56,7 @@ describe('runCommand', () => {
   test('throws when invoked without a normalized string command', async () => {
     const { runCommand } = await import('../../src/commands/run.js');
 
-    await expect(runCommand({ bad: true }, '.', 1)).rejects.toThrow(
-      'normalized command string',
-    );
+    await expect(runCommand({ bad: true }, '.', 1)).rejects.toThrow('normalized command string');
   });
 
   test('kills child process when cancellation is triggered', async () => {
@@ -206,5 +204,4 @@ describe('runCommand', () => {
       expect.objectContaining({ shell: true }),
     );
   });
-
 });

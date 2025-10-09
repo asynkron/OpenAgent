@@ -81,8 +81,9 @@ export class PromptCoordinator {
 
     if (hasEscWaiters) {
       escState.trigger?.(payload ?? { reason: 'ui-cancel' });
-      this.emitEvent({ type: 'status', level: 'warn', message: 'Cancellation requested by UI.' });
     }
+
+    this.emitEvent({ type: 'status', level: 'warn', message: 'Cancellation requested by UI.' });
   }
 
   /**

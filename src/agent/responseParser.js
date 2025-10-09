@@ -63,11 +63,7 @@ function normalizeFlatCommand(command) {
     return { ...rest, run: shellString };
   }
 
-  const {
-    cmd: _ignoredCmd,
-    command_line: _ignoredCommandLine,
-    ...rest
-  } = command;
+  const { cmd: _ignoredCmd, command_line: _ignoredCommandLine, ...rest } = command;
   return { ...rest };
 }
 
@@ -100,7 +96,7 @@ function normalizeNestedRunCommand(command) {
     nestedCmd,
     nestedCommandLine,
     topLevelCmd,
-    topLevelCommandLine
+    topLevelCommandLine,
   );
   const shellString = firstNonEmptyString(nestedShell, topLevelShell);
 
@@ -146,7 +142,7 @@ function normalizeNestedShellCommand(command) {
     nestedCmd,
     nestedCommandLine,
     topLevelCmd,
-    topLevelCommandLine
+    topLevelCommandLine,
   );
   const shellString = firstNonEmptyString(nestedShell);
 

@@ -7,10 +7,7 @@ import { renderMarkdownMessage } from '../render.js';
 
 const h = React.createElement;
 const { command } = theme;
-const {
-  colors: commandColors,
-  props: commandProps,
-} = command;
+const { colors: commandColors, props: commandProps } = command;
 const commandContainerProps = commandProps?.container ?? {};
 const commandHeadingProps = commandProps?.heading ?? {};
 const commandHeadingBadgeProps = commandProps?.headingBadge ?? {};
@@ -220,11 +217,7 @@ export function Command({ command: commandData, result, preview = {}, execution 
     containerProps.backgroundColor = commandColors.bg;
   }
 
-  return h(
-    Box,
-    containerProps,
-    children,
-  );
+  return h(Box, containerProps, children);
 }
 
 export default Command;

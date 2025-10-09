@@ -1,6 +1,15 @@
 {
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "always",
+    "source.organizeImports": "never"
+  },
   "prettier.requireConfig": true,
-  "prettier.prettierPath": "${workspaceFolder}/node_modules/prettier/index.js"
+  "prettier.prettierPath": "${workspaceFolder}/node_modules/prettier/index.js",
+  "eslint.experimental.useFlatConfig": true,
+  "eslint.nodePath": "${workspaceFolder}/node_modules",
+  "eslint.packageManager": "npm",
+  "eslint.workingDirectories": ["./"],
+  "eslint.validate": ["javascript"]
 }

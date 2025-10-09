@@ -7,7 +7,7 @@
 ## Key Workflows
 
 - `test.yml` — runs linting and Jest suites on pull requests and pushes.
-- `auto-release.yml` — bumps the npm version on merges to `main`, tags releases, and triggers publication.
+- `auto-release.yml` — bumps the npm patch version on merges to `main`, tags releases, and triggers publication.
 - `publish.yml` — publishes `@asynkron/openagent` to npm on release events (skips if the version already exists).
 
 ## Positive Signals
@@ -17,7 +17,7 @@
 
 ## Risks / Gaps
 
-- Release automation assumes `npm version minor`; manual overrides require editing the workflow.
+- Release automation assumes `npm version patch`; manual overrides require editing the workflow.
 - No nightly smoke tests—issues that require runtime execution outside Jest could slip through.
 
 ## Related Context

@@ -53,10 +53,7 @@ export const HUMAN_SLASH_COMMANDS = [
 
 const h = React.createElement;
 const { human } = theme;
-const {
-  colors: humanColors,
-  props: humanProps,
-} = human;
+const { colors: humanColors, props: humanProps } = human;
 const askHumanProps = humanProps?.askHuman ?? {};
 
 /**
@@ -111,14 +108,10 @@ export function AskHuman({ onSubmit, thinking = false, contextUsage = null }) {
   };
 
   const inputDisplay = thinking
-    ? h(
-        Text,
-        { key: 'spinner', ...spinnerProps, color: spinnerColor },
-        [
-          h(Spinner, { type: 'dots', key: 'spinner-icon' }),
-          ' Thinking…',
-        ],
-      )
+    ? h(Text, { key: 'spinner', ...spinnerProps, color: spinnerColor }, [
+        h(Spinner, { type: 'dots', key: 'spinner-icon' }),
+        ' Thinking…',
+      ])
     : h(InkTextArea, {
         key: 'value',
         ...textAreaProps,
@@ -186,14 +179,10 @@ export function AskHuman({ onSubmit, thinking = false, contextUsage = null }) {
     ...(askHumanProps.footer ?? {}),
   };
 
-  return h(
-    Box,
-    containerProps,
-    [
-      h(Box, { key: 'inputRow', ...inputRowProps }, [inputDisplay]),
-      h(Box, { key: 'footer', ...footerProps }, footerChildren),
-    ],
-  );
+  return h(Box, containerProps, [
+    h(Box, { key: 'inputRow', ...inputRowProps }, [inputDisplay]),
+    h(Box, { key: 'footer', ...footerProps }, footerChildren),
+  ]);
 }
 
 export default AskHuman;

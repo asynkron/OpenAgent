@@ -36,4 +36,4 @@
 
 - Tooling & ops: [`scripts/context.md`](scripts/context.md), [`.github/context.md`](.github/context.md), [`.githooks/context.md`](.githooks/context.md).
 - Runtime state: [`.openagent/context.md`](.openagent/context.md).
-- IDE/project metadata: [`.idea/context.md`](.idea/context.md).
+- IDE/project metadata: [`.idea/context.md`](.idea/context.md), [`.vscode/context.md`](.vscode/context.md).

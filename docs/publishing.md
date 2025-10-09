@@ -6,7 +6,7 @@ This guide explains how the automated GitHub Actions workflow ships the `openage
 
 Two workflows collaborate to ship a release:
 
-1. `.github/workflows/auto-release.yml` runs on every push to `main`. It bumps the version with `npm version minor`, pushes the
+1. `.github/workflows/auto-release.yml` runs on every push to `main`. It bumps the version with `npm version patch`, pushes the
    commit and tag, then creates (or reuses) a GitHub Release for that tag.
 2. `.github/workflows/publish.yml` reacts to the published release event and performs the npm publish.
 
