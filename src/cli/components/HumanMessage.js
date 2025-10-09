@@ -2,8 +2,10 @@ import React from 'react';
 import { Box, Text } from 'ink';
 
 import { wrapStructuredContent } from '../render.js';
+import theme from '../theme.js';
 
 const h = React.createElement;
+const { human } = theme;
 
 /**
  * Renders human-provided inputs within the timeline so conversations stay paired.
@@ -22,12 +24,12 @@ export function HumanMessage({ message }) {
       marginTop: 1,
       paddingX: 1,
       paddingY: 1,
-      backgroundColor: '#1f1f1f',
+      backgroundColor: human.bg,
       width: '100%',
       alignSelf: 'stretch',
       flexGrow: 1,
     },
-    h(Text, null, prepared),
+    h(Text, { color: human.fg }, prepared),
   );
 }
 
