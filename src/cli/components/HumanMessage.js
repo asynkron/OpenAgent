@@ -6,6 +6,10 @@ import theme from '../theme.js';
 
 const h = React.createElement;
 const { human } = theme;
+const {
+  colors: humanColors,
+  props: humanProps = {},
+} = human;
 
 /**
  * Renders human-provided inputs within the timeline so conversations stay paired.
@@ -17,19 +21,24 @@ export function HumanMessage({ message }) {
     return null;
   }
 
+  const containerProps = {
+    ...(humanProps.container ?? {}),
+  };
+  if (!containerProps.backgroundColor) {
+    containerProps.backgroundColor = humanColors.bg;
+  }
+
+  const textProps = {
+    ...(humanProps.text ?? {}),
+  };
+  if (!textProps.color) {
+    textProps.color = humanColors.fg;
+  }
+
   return h(
     Box,
-    {
-      flexDirection: 'column',
-      marginTop: 1,
-      paddingX: 1,
-      paddingY: 1,
-      backgroundColor: human.bg,
-      width: '100%',
-      alignSelf: 'stretch',
-      flexGrow: 1,
-    },
-    h(Text, { color: human.fg }, prepared),
+    containerProps,
+    h(Text, textProps, prepared),
   );
 }
 

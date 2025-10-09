@@ -6,6 +6,7 @@ import theme from '../theme.js';
 
 const h = React.createElement;
 const { agent } = theme;
+const { colors: agentColors, props: agentProps = {} } = agent;
 
 /**
  * Renders assistant messages using Ink so Markdown formatting carries through to
@@ -20,20 +21,21 @@ export function AgentResponse({ message }) {
 
   const rendered = renderMarkdownMessage(prepared);
 
-  return h(
-    Box,
-    {
-      flexDirection: 'column',
-      marginTop: 1,
-      paddingX: 1,
-      paddingY: 1,
-      backgroundColor: agent.bg,
-      width: '100%',
-      alignSelf: 'stretch',
-      flexGrow: 1,
-    },
-    h(Text, { color: agent.fg }, rendered),
-  );
+  const containerProps = {
+    ...(agentProps.container ?? {}),
+  };
+  if (!containerProps.backgroundColor) {
+    containerProps.backgroundColor = agentColors.bg;
+  }
+
+  const textProps = {
+    ...(agentProps.text ?? {}),
+  };
+  if (!textProps.color) {
+    textProps.color = agentColors.fg;
+  }
+
+  return h(Box, containerProps, h(Text, textProps, rendered));
 }
 
 export default AgentResponse;

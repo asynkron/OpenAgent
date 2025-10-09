@@ -53,6 +53,11 @@ export const HUMAN_SLASH_COMMANDS = [
 
 const h = React.createElement;
 const { human } = theme;
+const {
+  colors: humanColors,
+  props: humanProps,
+} = human;
+const askHumanProps = humanProps?.askHuman ?? {};
 
 /**
  * Collects free-form user input while keeping the prompt visible inside the Ink
@@ -94,13 +99,29 @@ export function AskHuman({ onSubmit, thinking = false, contextUsage = null }) {
     [interactive, onSubmit],
   );
 
+  const spinnerProps = {
+    marginLeft: 1,
+    ...(askHumanProps.spinnerText ?? {}),
+  };
+  const spinnerColor = spinnerProps.color ?? humanColors.fg;
+
+  const textAreaProps = {
+    marginLeft: 1,
+    ...(askHumanProps.textArea ?? {}),
+  };
+
   const inputDisplay = thinking
-    ? h(Text, { color: human.fg, key: 'spinner', marginLeft: 1 }, [
-        h(Spinner, { type: 'dots', key: 'spinner-icon' }),
-        ' Thinking…',
-      ])
+    ? h(
+        Text,
+        { key: 'spinner', ...spinnerProps, color: spinnerColor },
+        [
+          h(Spinner, { type: 'dots', key: 'spinner-icon' }),
+          ' Thinking…',
+        ],
+      )
     : h(InkTextArea, {
         key: 'value',
+        ...textAreaProps,
         value,
         onChange: setValue,
         onSubmit: handleSubmit,
@@ -108,35 +129,69 @@ export function AskHuman({ onSubmit, thinking = false, contextUsage = null }) {
 
         isActive: interactive,
         isDisabled: locked,
-        marginLeft: 1,
       });
 
   const hintMessage = thinking
     ? 'Waiting for the AI to finish thinking…'
     : 'Press Enter to submit • Shift+Enter for newline • Esc to cancel';
 
-  const footerChildren = [h(Text, { dimColor: true, color: human.fg, key: 'hint' }, hintMessage)];
+  const footerHintProps = {
+    dimColor: true,
+    ...(askHumanProps.footerHint ?? {}),
+  };
+  const footerHintColor = footerHintProps.color ?? humanColors.fg;
+  const footerHintDimColor = footerHintProps.dimColor ?? true;
+
+  const footerChildren = [
+    h(
+      Text,
+      {
+        key: 'hint',
+        ...footerHintProps,
+        dimColor: footerHintDimColor,
+        color: footerHintColor,
+      },
+      hintMessage,
+    ),
+  ];
 
   if (contextUsage) {
     footerChildren.push(h(ContextUsage, { usage: contextUsage, key: 'context-usage' }));
   }
 
+  const containerProps = {
+    flexDirection: 'column',
+    marginTop: 1,
+    paddingX: 1,
+    paddingY: 0,
+    backgroundColor: humanColors.bg,
+    ...(askHumanProps.container ?? {}),
+  };
+
+  if (!containerProps.backgroundColor) {
+    containerProps.backgroundColor = humanColors.bg;
+  }
+
+  const inputRowProps = {
+    flexDirection: 'row',
+    paddingX: 1,
+    paddingY: 1,
+    ...(askHumanProps.inputRow ?? {}),
+  };
+
+  const footerProps = {
+    flexDirection: 'column',
+    paddingX: 1,
+    paddingBottom: 1,
+    ...(askHumanProps.footer ?? {}),
+  };
+
   return h(
     Box,
-    {
-      flexDirection: 'column',
-      marginTop: 1,
-      paddingX: 1,
-      paddingY: 0,
-      backgroundColor: human.bg,
-    },
+    containerProps,
     [
-      h(Box, { flexDirection: 'row', key: 'inputRow', paddingX: 1, paddingY: 1 }, [inputDisplay]),
-      h(
-        Box,
-        { flexDirection: 'column', key: 'footer', paddingX: 1, paddingBottom: 1 },
-        footerChildren,
-      ),
+      h(Box, { key: 'inputRow', ...inputRowProps }, [inputDisplay]),
+      h(Box, { key: 'footer', ...footerProps }, footerChildren),
     ],
   );
 }

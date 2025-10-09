@@ -7,6 +7,16 @@ import { renderMarkdownMessage } from '../render.js';
 
 const h = React.createElement;
 const { command } = theme;
+const {
+  colors: commandColors,
+  props: commandProps,
+} = command;
+const commandContainerProps = commandProps?.container ?? {};
+const commandHeadingProps = commandProps?.heading ?? {};
+const commandHeadingBadgeProps = commandProps?.headingBadge ?? {};
+const commandHeadingDetailProps = commandProps?.headingDetail ?? {};
+const commandSummaryLineProps = commandProps?.summaryLine ?? {};
+const commandRunContainerProps = commandProps?.runContainer ?? {};
 
 const BEGIN_PATCH_MARKER = '*** Begin Patch';
 const END_PATCH_MARKER = '*** End Patch';
@@ -83,24 +93,35 @@ function renderDiffSegment(content, key) {
 }
 
 function SummaryLine({ line, index }) {
-  const baseProps = { key: index, color: command.fg };
+  const baseProps = { key: index, ...(commandSummaryLineProps.base ?? {}) };
+  const baseColor = baseProps.color ?? commandColors.fg;
+
+  const buildProps = (styleKey, fallbackColor) => {
+    const style = commandSummaryLineProps[styleKey] ?? {};
+    const merged = { ...baseProps, ...style };
+    if (!merged.color) {
+      merged.color = fallbackColor ?? baseColor;
+    }
+    return merged;
+  };
+
+  const text = `   ${line.text}`;
 
   switch (line.kind) {
     case 'error-arrow':
-      return h(Text, { ...baseProps, color: 'red' }, `└ ${line.text}`);
     case 'error-indent':
-      return h(Text, { ...baseProps, color: 'red' }, `   ${line.text}`);
+      return h(Text, buildProps('error', 'red'), text);
     case 'indent':
-      return h(Text, { ...baseProps, dimColor: true }, `   ${line.text}`);
-    case 'exit-code':
-      return h(
-        Text,
-        { ...baseProps, color: line.status === 'success' ? 'green' : 'red' },
-        `   ${line.text}`,
-      );
+      return h(Text, buildProps('indent'), text);
+    case 'exit-code': {
+      const statusKey = line.status === 'success' ? 'success' : 'error';
+      const fallbackColor = line.status === 'success' ? 'green' : 'red';
+      return h(Text, buildProps(statusKey, fallbackColor), text);
+    }
     case 'arrow':
+      return h(Text, buildProps('arrow'), text);
     default:
-      return h(Text, { ...baseProps, dimColor: true }, `└ ${line.text}`);
+      return h(Text, buildProps('default'), text);
   }
 }
 
@@ -117,12 +138,30 @@ export function Command({ command: commandData, result, preview = {}, execution 
   const { type, detail, summaryLines } = data;
   const children = [];
 
+  const headingProps = { key: 'heading', ...commandHeadingProps };
+  if (!headingProps.color) {
+    headingProps.color = commandColors.fg;
+  }
+
+  const headingBadgeProps = { ...commandHeadingBadgeProps };
+  if (!headingBadgeProps.backgroundColor) {
+    headingBadgeProps.backgroundColor = commandColors.headerBg;
+  }
+  if (!headingBadgeProps.color) {
+    headingBadgeProps.color = commandColors.fg;
+  }
+  if (headingBadgeProps.bold === undefined) {
+    headingBadgeProps.bold = true;
+  }
+
+  const headingDetailProps = { ...commandHeadingDetailProps };
+
   children.push(
     h(
       Text,
-      { key: 'heading', color: command.fg },
-      h(Text, { backgroundColor: command.headerBg, color: command.fg, bold: true }, ` ${type} `),
-      h(Text, null, ` ${detail}`),
+      headingProps,
+      h(Text, headingBadgeProps, ` ${type} `),
+      h(Text, headingDetailProps, ` ${detail}`),
     ),
   );
 
@@ -146,17 +185,17 @@ export function Command({ command: commandData, result, preview = {}, execution 
     });
 
     if (runElements.length > 0) {
-      children.push(
-        h(
-          Box,
-          {
-            key: 'command-run',
-            flexDirection: 'column',
-            marginTop: 1,
-          },
-          runElements,
-        ),
-      );
+      const runContainerProps = {
+        key: 'command-run',
+        flexDirection: 'column',
+        marginTop: 1,
+        ...commandRunContainerProps,
+      };
+      if (!runContainerProps.flexDirection) {
+        runContainerProps.flexDirection = 'column';
+      }
+
+      children.push(h(Box, runContainerProps, runElements));
     }
   }
 
@@ -164,18 +203,26 @@ export function Command({ command: commandData, result, preview = {}, execution 
     children.push(h(SummaryLine, { line, index, key: `summary-${index}` }));
   });
 
+  const containerProps = {
+    borderStyle: 'round',
+    flexDirection: 'column',
+    marginTop: 1,
+    paddingX: 1,
+    paddingY: 1,
+    backgroundColor: commandColors.bg,
+    width: '100%',
+    alignSelf: 'stretch',
+    flexGrow: 1,
+    ...commandContainerProps,
+  };
+
+  if (!containerProps.backgroundColor) {
+    containerProps.backgroundColor = commandColors.bg;
+  }
+
   return h(
     Box,
-    {
-      flexDirection: 'column',
-      marginTop: 1,
-      paddingX: 1,
-      paddingY: 1,
-      backgroundColor: command.bg,
-      width: '100%',
-      alignSelf: 'stretch',
-      flexGrow: 1,
-    },
+    containerProps,
     children,
   );
 }
