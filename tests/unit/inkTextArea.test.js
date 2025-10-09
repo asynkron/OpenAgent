@@ -311,6 +311,49 @@ describe('InkTextArea input handling', () => {
     unmount();
   });
 
+  test('excludes commands that only match via example text in descriptions', async () => {
+    const slashItems = [
+      {
+        id: 'model',
+        label: 'model',
+        description: 'Switch the active language model (e.g. /model gpt-4o)',
+      },
+      {
+        id: 'model-gpt-4o',
+        label: 'model gpt-4o',
+        description: 'Switch to the flagship GPT-4o model',
+      },
+      {
+        id: 'model-gpt-4o-mini',
+        label: 'model gpt-4o-mini',
+        description: 'Use the faster GPT-4o mini variant',
+      },
+    ];
+
+    const { stdin, lastFrame, unmount } = render(
+      React.createElement(ControlledInkTextArea, {
+        initialValue: '',
+        slashMenuItems: slashItems,
+        onSubmit: jest.fn(),
+      }),
+    );
+
+    stdin.write('/');
+    await flush();
+    expect(stripAnsi(lastFrame())).toContain('Switch the active language model');
+
+    stdin.write('model gpt-4o');
+    await flush();
+    const frame = stripAnsi(lastFrame());
+
+    // Only the GPT-4o variants should remain visible for this specific query.
+    expect(frame).not.toContain('Switch the active language model');
+    expect(frame).toContain('Switch to the flagship GPT-4o model');
+    expect(frame).toContain('Use the faster GPT-4o mini variant');
+
+    unmount();
+  });
+
   test('supports multiple command triggers with async providers and location rules', async () => {
     const files = [
       { id: 'alpha', label: 'alpha.txt' },
