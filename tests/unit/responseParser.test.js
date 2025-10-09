@@ -1,8 +1,12 @@
 import { describe, expect, test } from '@jest/globals';
 
 import { parseAssistantResponse } from '../../src/agent/responseParser.js';
+import { nestedShellResponseText } from '../integration/__fixtures__/openaiNestedShellResponse.js';
 
 const DIRECT_PAYLOAD = '{"foo":"bar"}';
+
+// Reuse the real nested-shell payload captured from OpenAI to keep the unit and
+// integration suites aligned on the tricky newline-and-shell normalization case.
 
 describe('parseAssistantResponse', () => {
   test('parses direct JSON payloads without recovery', () => {
@@ -56,6 +60,47 @@ describe('parseAssistantResponse', () => {
     expect(result.ok).toBe(true);
     expect(result.value).toEqual({
       message: 'Running command `echo hello`.',
+      command: {
+        cwd: '.',
+        run: 'echo hello',
+      },
+    });
+  });
+
+  test('normalizes nested shell command payloads emitted by the model', () => {
+    const payload = JSON.stringify({
+      message: 'Running command `echo hello`.',
+      command: {
+        shell: {
+          command: 'echo hello',
+          cwd: '.',
+          shell: '/bin/bash',
+        },
+        timeout_sec: 5,
+      },
+    });
+
+    const result = parseAssistantResponse(payload);
+
+    expect(result.ok).toBe(true);
+    expect(result.value).toEqual({
+      message: 'Running command `echo hello`.',
+      command: {
+        cwd: '.',
+        timeout_sec: 5,
+        run: 'echo hello',
+        shell: '/bin/bash',
+      },
+    });
+  });
+
+  test('recovers payloads containing bare newline characters from the model', () => {
+    const result = parseAssistantResponse(nestedShellResponseText);
+
+    expect(result.ok).toBe(true);
+    expect(result.recovery).toEqual({ strategy: 'escaped_newlines' });
+    expect(result.value).toEqual({
+      message: 'Running `echo\nhello`.',
       command: {
         cwd: '.',
         run: 'echo hello',

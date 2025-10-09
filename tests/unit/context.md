@@ -16,7 +16,7 @@
 
 - Tests validate both success and failure modes (e.g., cancellation branches, invalid response handling).
 - Coverage mirrors directory structure, making it easy to find corresponding specs when editing code.
-- Response parser coverage now asserts command payload normalization, guarding against schema shifts from the model.
+- Response parser coverage now asserts command payload normalization, newline sanitization, and reuses the captured integration fixture to guarantee the exact OpenAI payload stays parseable.
 
 ## Risks / Gaps
 
