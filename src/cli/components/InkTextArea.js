@@ -54,11 +54,38 @@ function defaultFilterItem(item, context) {
     return true;
   }
 
-  const haystack = [item.label, item.description ?? '', ...(item.keywords ?? [])]
-    .join(' ')
-    .toLowerCase();
+  const tokens = normalizedQuery
+    .split(/\s+/u)
+    .map((token) => token.trim())
+    .filter(Boolean);
 
-  return haystack.includes(normalizedQuery);
+  if (tokens.length === 0) {
+    return true;
+  }
+
+  const normalizedDescription =
+    typeof item.description === 'string'
+      ? item.description.replace(/\([^)]*\)/gu, ' ')
+      : '';
+
+  const haystackParts = [
+    item.label,
+    item.insertValue,
+    normalizedDescription,
+    ...(item.keywords ?? []),
+  ]
+    .filter((part) => typeof part === 'string' && part.length > 0)
+    .map((part) => part.toLowerCase());
+
+  if (haystackParts.length === 0) {
+    return false;
+  }
+
+  // Ensure every token from the query appears in at least one searchable field so
+  // long example strings (e.g., descriptions) do not cause overly broad matches.
+  return tokens.every((token) =>
+    haystackParts.some((part) => part.includes(token)),
+  );
 }
 
 function normalizeCommandDefinition(definition, index) {
