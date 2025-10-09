@@ -71,8 +71,18 @@ export class PromptCoordinator {
     if (this.cancelFn) {
       this.cancelFn('ui-cancel');
     }
-    this.escState?.trigger?.(payload ?? { reason: 'ui-cancel' });
-    this.emitEvent({ type: 'status', level: 'warn', message: 'Cancellation requested by UI.' });
+    const escState = this.escState;
+    const hasEscWaiters = Boolean(
+      escState &&
+        escState.waiters &&
+        typeof escState.waiters.size === 'number' &&
+        escState.waiters.size > 0,
+    );
+
+    if (hasEscWaiters) {
+      escState.trigger?.(payload ?? { reason: 'ui-cancel' });
+      this.emitEvent({ type: 'status', level: 'warn', message: 'Cancellation requested by UI.' });
+    }
   }
 
   /**
