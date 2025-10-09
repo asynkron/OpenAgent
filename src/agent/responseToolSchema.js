@@ -71,13 +71,11 @@ const RESPONSE_PARAMETERS_SCHEMA = {
     },
     runCommand: {
       type: 'object',
-      required: ['confirmed', 'shell', 'run', 'cwd'],
+      description:
+        'MUST follow this format: {"shell":"/bin/bash","run":"ls -la","cwd":"/home/user","timeout_sec":30,"filter_regex":".*\\.txt$","tail_lines":10}',
+      required: ['shell', 'run', 'cwd'],
       additionalProperties: false,
       properties: {
-        confirmed: {
-          type: 'integer',
-          description: '1337 if you actually read and understood this spec. REQUIRED!',
-        },
         shell: {
           type: 'string',
           description: 'Shell executable to launch when running commands.',

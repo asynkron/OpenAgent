@@ -35,11 +35,17 @@ function escapeBareLineBreaks(input) {
 }
 
 function normalizeFlatCommand(command) {
-  const runString = firstNonEmptyString(command.run);
+  const runString = firstNonEmptyString(command.run, command.cmd, command.command_line);
   const shellString = firstNonEmptyString(command.shell);
 
   if (runString) {
-    const { run: _ignoredRun, shell: _ignoredShell, ...rest } = command;
+    const {
+      run: _ignoredRun,
+      cmd: _ignoredCmd,
+      command_line: _ignoredCommandLine,
+      shell: _ignoredShell,
+      ...rest
+    } = command;
     const normalized = { ...rest, run: runString };
     if (shellString) {
       normalized.shell = shellString;
@@ -48,11 +54,21 @@ function normalizeFlatCommand(command) {
   }
 
   if (shellString) {
-    const { shell: _ignoredShell, ...rest } = command;
+    const {
+      shell: _ignoredShell,
+      cmd: _ignoredCmd,
+      command_line: _ignoredCommandLine,
+      ...rest
+    } = command;
     return { ...rest, run: shellString };
   }
 
-  return { ...command };
+  const {
+    cmd: _ignoredCmd,
+    command_line: _ignoredCommandLine,
+    ...rest
+  } = command;
+  return { ...rest };
 }
 
 function normalizeNestedRunCommand(command) {
@@ -61,11 +77,31 @@ function normalizeNestedRunCommand(command) {
     return normalizeFlatCommand(command);
   }
 
-  const { run: nestedRun, command: nestedCommand, shell: nestedShell, ...nestedRest } = nested;
-  const { run: _ignoredRun, shell: topLevelShell, ...rest } = command;
+  const {
+    run: nestedRun,
+    command: nestedCommand,
+    cmd: nestedCmd,
+    command_line: nestedCommandLine,
+    shell: nestedShell,
+    ...nestedRest
+  } = nested;
+  const {
+    run: _ignoredRun,
+    cmd: topLevelCmd,
+    command_line: topLevelCommandLine,
+    shell: topLevelShell,
+    ...rest
+  } = command;
 
   const merged = { ...rest, ...nestedRest };
-  const runString = firstNonEmptyString(nestedCommand, nestedRun);
+  const runString = firstNonEmptyString(
+    nestedCommand,
+    nestedRun,
+    nestedCmd,
+    nestedCommandLine,
+    topLevelCmd,
+    topLevelCommandLine
+  );
   const shellString = firstNonEmptyString(nestedShell, topLevelShell);
 
   if (runString) {
@@ -87,11 +123,31 @@ function normalizeNestedShellCommand(command) {
     return normalizeFlatCommand(command);
   }
 
-  const { command: nestedCommand, run: nestedRun, shell: nestedShell, ...nestedRest } = nested;
-  const { shell: _ignoredShell, ...rest } = command;
+  const {
+    command: nestedCommand,
+    run: nestedRun,
+    cmd: nestedCmd,
+    command_line: nestedCommandLine,
+    shell: nestedShell,
+    ...nestedRest
+  } = nested;
+  const {
+    shell: _ignoredShell,
+    cmd: topLevelCmd,
+    command_line: topLevelCommandLine,
+    ...rest
+  } = command;
 
   const merged = { ...nestedRest, ...rest };
-  const runString = firstNonEmptyString(rest.run, nestedCommand, nestedRun);
+  const runString = firstNonEmptyString(
+    rest.run,
+    nestedCommand,
+    nestedRun,
+    nestedCmd,
+    nestedCommandLine,
+    topLevelCmd,
+    topLevelCommandLine
+  );
   const shellString = firstNonEmptyString(nestedShell);
 
   if (runString) {
