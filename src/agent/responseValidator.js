@@ -9,7 +9,7 @@ import { OPENAGENT_RESPONSE_TOOL } from './responseToolSchema.js';
  */
 
 const ajv = new Ajv({ allErrors: true, strict: false });
-const STATUS_ENUM = [...OPENAGENT_RESPONSE_TOOL.function.parameters.$defs.planStep.properties.status.enum];
+const STATUS_ENUM = [...OPENAGENT_RESPONSE_TOOL];
 
 const PLAN_STEP_SCHEMA = {
   $id: 'PlanStep',
