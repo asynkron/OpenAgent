@@ -142,4 +142,6 @@ export const OPENAGENT_RESPONSE_TOOL = deepFreeze({
   },
 });
 
+export const ASSISTANT_RESPONSE_TOOL = OPENAGENT_RESPONSE_TOOL;
+
 export default OPENAGENT_RESPONSE_TOOL;

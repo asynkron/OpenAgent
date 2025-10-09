@@ -343,11 +343,11 @@ describe('InkTextArea input handling', () => {
 
     stdin.write('o');
     await flush();
-    expect(lastFrame()).toContain('\u001B[7mmodel');
+    expect(stripAnsi(lastFrame())).toContain('› model');
 
     stdin.write('\u001B[B');
     await flush();
-    expect(lastFrame()).toContain('\u001B[7mmode');
+    expect(stripAnsi(lastFrame())).toContain('› mode');
 
     stdin.write('\r');
     await flush();

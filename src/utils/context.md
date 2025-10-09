@@ -19,6 +19,7 @@
 
 - Utilities are mostly pure and individually unit-tested, minimizing regressions when refactoring.
 - Plan utilities implement tree-aware merging, enabling plan persistence features.
+- Cancellation manager now uses a concise stack/WeakMap model, making registration/unregistration behaviour easier to follow.
 
 ## Risks / Gaps
 

@@ -25,7 +25,7 @@
         "id": "fc_061bda23eccb547f0068e758498fcc8198a25c75b990e84afb",
         "type": "function_call",
         "status": "completed",
-        "arguments": "{\"message\":\"Running `echo hello`.\",\"command\":{\"shell\":{\"command\":\"echo hello\",\"cwd\":\".\"}}}",
+        "arguments": "{\"message\":\"Running `echo\\nhello`.\",\"command\":{\"shell\":{\"command\":\"echo hello\",\"cwd\":\".\"}}}",
         "call_id": "call_EnnzD9YAOjNE60bzeNQPaAZs",
         "name": "open-agent"
       }
@@ -206,5 +206,5 @@
     "metadata": {},
     "output_text": ""
   },
-  "responseText": "{\"message\":\"Running `echo hello`.\",\"command\":{\"shell\":{\"command\":\"echo hello\",\"cwd\":\".\"}}}"
+  "responseText": "{\"message\":\"Running `echo\\nhello`.\",\"command\":{\"shell\":{\"command\":\"echo hello\",\"cwd\":\".\"}}}"
 }

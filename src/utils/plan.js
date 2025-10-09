@@ -5,64 +5,43 @@
 const PLAN_CHILD_KEYS = ['substeps', 'children', 'steps'];
 const COMPLETED_STATUSES = new Set(['completed', 'complete', 'done', 'finished']);
 
-function isCompletedStatus(status) {
-  if (typeof status !== 'string') {
-    return false;
-  }
+const asPlanArray = (value) => (Array.isArray(value) ? value : []);
 
-  const normalized = status.trim().toLowerCase();
+function isCompletedStatus(status) {
+  const normalized = typeof status === 'string' ? status.trim().toLowerCase() : '';
   if (!normalized) {
     return false;
   }
 
-  if (COMPLETED_STATUSES.has(normalized)) {
-    return true;
-  }
-
-  return normalized.startsWith('complete');
+  return COMPLETED_STATUSES.has(normalized) || normalized.startsWith('complete');
 }
 
 function normalizeStepLabel(stepValue) {
-  if (stepValue === null || stepValue === undefined) {
-    return '';
-  }
-
-  const raw = String(stepValue).trim();
-  if (!raw) {
-    return '';
-  }
-
-  return raw.replace(/\.+$/, '');
+  return String(stepValue ?? '').trim().replace(/\.+$/, '');
 }
 
-function createPlanKey(item, fallbackIndex) {
-  if (!item || typeof item !== 'object') {
-    return `index:${fallbackIndex}`;
-  }
-
+function createPlanKey(item = {}, fallbackIndex) {
   const label = normalizeStepLabel(item.step);
   if (label) {
     return `step:${label.toLowerCase()}`;
   }
 
-  if (typeof item.title === 'string' && item.title.trim().length > 0) {
-    return `title:${item.title.trim().toLowerCase()}`;
+  const title = typeof item.title === 'string' ? item.title.trim().toLowerCase() : '';
+  if (title) {
+    return `title:${title}`;
   }
 
   return `index:${fallbackIndex}`;
 }
 
-function clonePlanItem(item) {
-  if (!item || typeof item !== 'object') {
-    return {};
-  }
-
+function clonePlanItem(item = {}) {
   const cloned = { ...item };
 
   for (const key of PLAN_CHILD_KEYS) {
-    if (Array.isArray(item[key])) {
-      cloned[key] = item[key].map((child) => clonePlanItem(child));
-    } else if (cloned[key] && !Array.isArray(cloned[key])) {
+    const children = asPlanArray(item[key]);
+    if (children.length > 0) {
+      cloned[key] = children.map(clonePlanItem);
+    } else {
       delete cloned[key];
     }
   }
@@ -70,43 +49,36 @@ function clonePlanItem(item) {
   return cloned;
 }
 
-function selectChildKey(existingItem, incomingItem) {
-  for (const key of PLAN_CHILD_KEYS) {
-    if (Array.isArray(incomingItem?.[key])) {
-      return key;
-    }
-  }
-
-  for (const key of PLAN_CHILD_KEYS) {
-    if (Array.isArray(existingItem?.[key])) {
-      return key;
-    }
-  }
-
-  return null;
+function selectChildKey(existingItem = {}, incomingItem = {}) {
+  return (
+    PLAN_CHILD_KEYS.find((key) => Array.isArray(incomingItem[key])) ??
+    PLAN_CHILD_KEYS.find((key) => Array.isArray(existingItem[key])) ??
+    null
+  );
 }
 
-function mergePlanItems(existingItem, incomingItem) {
-  if (!incomingItem || typeof incomingItem !== 'object') {
-    return clonePlanItem(existingItem);
-  }
-
-  if (!existingItem || typeof existingItem !== 'object') {
-    return clonePlanItem(incomingItem);
-  }
-
+function mergePlanItems(existingItem = {}, incomingItem = {}) {
   const base = clonePlanItem(existingItem);
   const incoming = clonePlanItem(incomingItem);
-  const merged = { ...base, ...incoming };
 
+  if (Object.keys(base).length === 0) {
+    return incoming;
+  }
+
+  if (Object.keys(incoming).length === 0) {
+    return base;
+  }
+
+  const merged = { ...base, ...incoming };
   const childKey = selectChildKey(existingItem, incomingItem);
+
   if (childKey) {
-    const existingChildren = Array.isArray(existingItem[childKey]) ? existingItem[childKey] : [];
-    const incomingChildren = Array.isArray(incomingItem[childKey]) ? incomingItem[childKey] : [];
+    const existingChildren = asPlanArray(existingItem[childKey]);
+    const incomingChildren = asPlanArray(incomingItem[childKey]);
     merged[childKey] = mergePlanTrees(existingChildren, incomingChildren);
 
     for (const key of PLAN_CHILD_KEYS) {
-      if (key !== childKey && key in merged) {
+      if (key !== childKey) {
         delete merged[key];
       }
     }
@@ -115,9 +87,9 @@ function mergePlanItems(existingItem, incomingItem) {
   return merged;
 }
 
-export function mergePlanTrees(existingPlan = [], incomingPlan = []) {
-  const existing = Array.isArray(existingPlan) ? existingPlan : [];
-  const incoming = Array.isArray(incomingPlan) ? incomingPlan : [];
+export function mergePlanTrees(existingPlan, incomingPlan) {
+  const existing = asPlanArray(existingPlan);
+  const incoming = asPlanArray(incomingPlan);
 
   if (incoming.length === 0) {
     return [];
@@ -125,22 +97,20 @@ export function mergePlanTrees(existingPlan = [], incomingPlan = []) {
 
   const existingIndex = new Map();
   existing.forEach((item, index) => {
-    existingIndex.set(createPlanKey(item, index), { item, index });
+    existingIndex.set(createPlanKey(item, index), item);
   });
 
   const usedKeys = new Set();
-  const result = [];
-
-  incoming.forEach((item, index) => {
+  const result = incoming.map((item, index) => {
     const key = createPlanKey(item, index);
     const existingMatch = existingIndex.get(key);
 
     if (existingMatch) {
-      result.push(mergePlanItems(existingMatch.item, item));
       usedKeys.add(key);
-    } else {
-      result.push(clonePlanItem(item));
+      return mergePlanItems(existingMatch, item);
     }
+
+    return clonePlanItem(item);
   });
 
   existing.forEach((item, index) => {
@@ -154,72 +124,55 @@ export function mergePlanTrees(existingPlan = [], incomingPlan = []) {
 }
 
 export function planHasOpenSteps(plan) {
-  const hasOpen = (items) => {
-    if (!Array.isArray(items)) {
-      return false;
-    }
-
-    for (const item of items) {
+  const hasOpen = (items) =>
+    asPlanArray(items).some((item) => {
       if (!item || typeof item !== 'object') {
-        continue;
+        return false;
       }
 
-      const normalizedStatus =
-        typeof item.status === 'string' ? item.status.trim().toLowerCase() : '';
+      const status = typeof item.status === 'string' ? item.status.trim().toLowerCase() : '';
+      const childKey = PLAN_CHILD_KEYS.find((key) => asPlanArray(item[key]).length > 0);
 
-      const childKey = PLAN_CHILD_KEYS.find((key) => Array.isArray(item[key]));
       if (childKey && hasOpen(item[childKey])) {
         return true;
       }
 
-      if (normalizedStatus !== 'completed') {
-        return true;
-      }
-    }
-
-    return false;
-  };
+      return status !== 'completed';
+    });
 
   return hasOpen(plan);
 }
 
 function aggregateProgress(items) {
-  let completed = 0;
-  let total = 0;
-
-  if (!Array.isArray(items) || items.length === 0) {
-    return { completed, total };
-  }
-
-  for (const item of items) {
-    if (!item || typeof item !== 'object') {
-      continue;
-    }
-
-    const childKey = PLAN_CHILD_KEYS.find(
-      (key) => Array.isArray(item[key]) && item[key].length > 0,
-    );
-
-    if (childKey) {
-      const childProgress = aggregateProgress(item[childKey]);
-      if (childProgress.total > 0) {
-        completed += childProgress.completed;
-        total += childProgress.total;
-        continue;
+  return asPlanArray(items).reduce(
+    (acc, item) => {
+      if (!item || typeof item !== 'object') {
+        return acc;
       }
-    }
 
-    total += 1;
-    if (isCompletedStatus(item.status)) {
-      completed += 1;
-    }
-  }
+      const childKey = PLAN_CHILD_KEYS.find((key) => asPlanArray(item[key]).length > 0);
 
-  return { completed, total };
+      if (childKey) {
+        const childProgress = aggregateProgress(item[childKey]);
+        if (childProgress.total > 0) {
+          acc.completed += childProgress.completed;
+          acc.total += childProgress.total;
+          return acc;
+        }
+      }
+
+      acc.total += 1;
+      if (isCompletedStatus(item.status)) {
+        acc.completed += 1;
+      }
+      return acc;
+    },
+    { completed: 0, total: 0 },
+  );
 }
 
 export function computePlanProgress(plan) {
-  const { completed, total } = aggregateProgress(Array.isArray(plan) ? plan : []);
+  const { completed, total } = aggregateProgress(plan);
   const ratio = total > 0 ? Math.min(1, Math.max(0, completed / total)) : 0;
   const remaining = Math.max(0, total - completed);
 
@@ -231,7 +184,7 @@ export function computePlanProgress(plan) {
   };
 }
 
-function formatPlanLine(item, index, ancestors, depth, lines) {
+function formatPlanLine(item = {}, index, ancestors, depth, lines) {
   if (!item || typeof item !== 'object') {
     return;
   }
@@ -239,15 +192,13 @@ function formatPlanLine(item, index, ancestors, depth, lines) {
   const sanitizedStep = normalizeStepLabel(item.step);
   const hasExplicitStep = sanitizedStep.length > 0;
   const labelParts = hasExplicitStep
-    ? sanitizedStep.split('.').filter((part) => part.length > 0)
+    ? sanitizedStep.split('.').filter(Boolean)
     : [...ancestors, String(index + 1)];
 
   const stepLabel = labelParts.join('.');
   const indent = '  '.repeat(depth);
-  const title =
-    typeof item.title === 'string' && item.title.trim().length > 0 ? item.title.trim() : '';
-  const status =
-    typeof item.status === 'string' && item.status.trim().length > 0 ? item.status.trim() : '';
+  const title = typeof item.title === 'string' ? item.title.trim() : '';
+  const status = typeof item.status === 'string' ? item.status.trim() : '';
 
   const lineParts = [];
   if (stepLabel) {
@@ -266,7 +217,7 @@ function formatPlanLine(item, index, ancestors, depth, lines) {
 
   lines.push(`${indent}${lineParts.join(' ')}`.trimEnd());
 
-  const childKey = PLAN_CHILD_KEYS.find((key) => Array.isArray(item[key]));
+  const childKey = PLAN_CHILD_KEYS.find((key) => asPlanArray(item[key]).length > 0);
   if (childKey) {
     const nextAncestors = hasExplicitStep ? labelParts : [...ancestors, String(index + 1)];
     formatPlanSection(item[childKey], nextAncestors, depth + 1, lines);
@@ -274,11 +225,7 @@ function formatPlanLine(item, index, ancestors, depth, lines) {
 }
 
 function formatPlanSection(items, ancestors, depth, lines) {
-  if (!Array.isArray(items) || items.length === 0) {
-    return;
-  }
-
-  items.forEach((item, index) => {
+  asPlanArray(items).forEach((item, index) => {
     formatPlanLine(item, index, ancestors, depth, lines);
   });
 }
@@ -286,12 +233,13 @@ function formatPlanSection(items, ancestors, depth, lines) {
 export function planToMarkdown(plan) {
   const header = '# Active Plan\n\n';
 
-  if (!Array.isArray(plan) || plan.length === 0) {
+  const normalizedPlan = asPlanArray(plan);
+  if (normalizedPlan.length === 0) {
     return `${header}_No active plan._\n`;
   }
 
   const lines = [];
-  formatPlanSection(plan, [], 0, lines);
+  formatPlanSection(normalizedPlan, [], 0, lines);
 
   if (lines.length === 0) {
     return `${header}_No active plan._\n`;

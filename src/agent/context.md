@@ -20,6 +20,7 @@
 - Extensive unit coverage ensures protocol parsing/validation logic stays aligned with prompts.
 - Plan management persists state to `.openagent/plan.json` and supports optional plan merging.
 - Approval flow separates policy (`services/commandApprovalService.js`) from human interaction logic.
+- OpenAI request handling centralizes cancellation helpers and ESC state transitions, reducing defensive guard code in the runtime loop.
 
 ## Risks / Gaps
 

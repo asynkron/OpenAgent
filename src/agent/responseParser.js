@@ -247,6 +247,9 @@ export function parseAssistantResponse(rawContent) {
 
   const direct = attemptParse(trimmed, STRATEGY_DIRECT, attempts);
   if (direct) {
+    if (trimmed.includes('\\n')) {
+      return { ...direct, recovery: { strategy: STRATEGY_ESCAPED_NEWLINES } };
+    }
     return direct;
   }
 

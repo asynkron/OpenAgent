@@ -11,10 +11,11 @@ export class PromptCoordinator {
    * @param {{ trigger?: Function }} [options.escState]
    * @param {(payload?: any) => void} [options.cancelFn]
    */
-  constructor({ emitEvent, escState, cancelFn } = {}) {
+  constructor({ emitEvent, escState, cancelFn, emitCancellationWithoutWaiters = false } = {}) {
     this.emitEvent = typeof emitEvent === 'function' ? emitEvent : () => {};
     this.escState = escState || null;
     this.cancelFn = typeof cancelFn === 'function' ? cancelFn : null;
+    this.emitCancellationWithoutWaiters = Boolean(emitCancellationWithoutWaiters);
 
     /** @type {string[]} */
     this.buffered = [];
@@ -68,9 +69,7 @@ export class PromptCoordinator {
    * @param {any} payload
    */
   handleCancel(payload = null) {
-    if (this.cancelFn) {
-      this.cancelFn('ui-cancel');
-    }
+    const cancellationApplied = Boolean(this.cancelFn && this.cancelFn('ui-cancel'));
     const escState = this.escState;
     const hasEscWaiters = Boolean(
       escState &&
@@ -81,6 +80,11 @@ export class PromptCoordinator {
 
     if (hasEscWaiters) {
       escState.trigger?.(payload ?? { reason: 'ui-cancel' });
+      this.emitEvent({ type: 'status', level: 'warn', message: 'Cancellation requested by UI.' });
+      return;
+    }
+
+    if (cancellationApplied || this.emitCancellationWithoutWaiters) {
       this.emitEvent({ type: 'status', level: 'warn', message: 'Cancellation requested by UI.' });
     }
   }

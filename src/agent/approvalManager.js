@@ -35,11 +35,11 @@ export class ApprovalManager {
     logWarn,
     logSuccess,
   }) {
-    this.isPreapprovedCommand = isPreapprovedCommand;
-    this.isSessionApproved = isSessionApproved;
-    this.approveForSession = approveForSession;
-    this.getAutoApproveFlag = getAutoApproveFlag;
-    this.askHuman = askHuman;
+    this.isPreapprovedCommand = isPreapprovedCommand ?? (() => false);
+    this.isSessionApproved = isSessionApproved ?? (() => false);
+    this.approveForSession = approveForSession ?? (() => {});
+    this.getAutoApproveFlag = getAutoApproveFlag ?? (() => false);
+    this.askHuman = askHuman ?? (() => Promise.resolve(''));
     this.preapprovedCfg = preapprovedCfg;
     this.logInfo = typeof logInfo === 'function' ? logInfo : () => {};
     this.logWarn = typeof logWarn === 'function' ? logWarn : () => {};
@@ -56,15 +56,15 @@ export class ApprovalManager {
       return { approved: false, source: null };
     }
 
-    if (this.isPreapprovedCommand && this.isPreapprovedCommand(command, this.preapprovedCfg)) {
+    if (this.isPreapprovedCommand(command, this.preapprovedCfg)) {
       return { approved: true, source: 'allowlist' };
     }
 
-    if (this.isSessionApproved && this.isSessionApproved(command)) {
+    if (this.isSessionApproved(command)) {
       return { approved: true, source: 'session' };
     }
 
-    if (this.getAutoApproveFlag && this.getAutoApproveFlag()) {
+    if (this.getAutoApproveFlag()) {
       return { approved: true, source: 'flag' };
     }
 
@@ -86,22 +86,35 @@ export class ApprovalManager {
       'Select 1, 2, or 3: ',
     ].join('\n');
 
-    while (true) {
-      const raw = this.askHuman ? await this.askHuman(prompt) : '';
-      const input = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+    const responses = new Map([
+      ['1', 'approve_once'],
+      ['y', 'approve_once'],
+      ['yes', 'approve_once'],
+      ['2', 'approve_session'],
+      ['3', 'reject'],
+      ['n', 'reject'],
+      ['no', 'reject'],
+    ]);
 
-      if (input === '1' || input === 'y' || input === 'yes') {
+    while (true) {
+      const raw = await this.askHuman(prompt);
+      const input = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+      const decision = responses.get(input);
+
+      if (decision === 'approve_once') {
         this.logSuccess('Approved (run once).');
-        return { decision: 'approve_once' };
+        return { decision };
       }
-      if (input === '2') {
+
+      if (decision === 'approve_session') {
         this.recordSessionApproval(command);
         this.logSuccess('Approved and added to session approvals.');
-        return { decision: 'approve_session' };
+        return { decision };
       }
-      if (input === '3' || input === 'n' || input === 'no') {
+
+      if (decision === 'reject') {
         this.logWarn('Command execution canceled by human (requested alternative).');
-        return { decision: 'reject', reason: 'human_declined' };
+        return { decision, reason: 'human_declined' };
       }
 
       this.logWarn('Please enter 1, 2, or 3.');
@@ -113,9 +126,7 @@ export class ApprovalManager {
    * @param {Object} command
    */
   recordSessionApproval(command) {
-    if (this.approveForSession) {
-      this.approveForSession(command);
-    }
+    this.approveForSession(command);
   }
 }
 

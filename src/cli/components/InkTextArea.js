@@ -1010,6 +1010,15 @@ export function InkTextArea({
           h(
             Text,
             {
+              key: 'indicator',
+              color: isSelected ? 'cyan' : 'gray',
+              dimColor: !isSelected,
+            },
+            isSelected ? '› ' : '  ',
+          ),
+          h(
+            Text,
+            {
               key: 'label',
               inverse: isSelected,
             },

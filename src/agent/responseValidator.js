@@ -1,131 +1,130 @@
+import Ajv from 'ajv';
+
+import { OPENAGENT_RESPONSE_TOOL } from './responseToolSchema.js';
+
 /**
  * Validates assistant JSON responses to ensure they follow the required protocol.
  * The validator returns a list of human-readable errors instead of throwing so the
  * caller can surface structured feedback back to the LLM.
  */
 
-const ALLOWED_STATUSES = new Set(['pending', 'running', 'completed']);
-const PLAN_CHILD_KEYS = ['substeps'];
+const ajv = new Ajv({ allErrors: true, strict: false });
+const STATUS_ENUM = [...OPENAGENT_RESPONSE_TOOL.function.parameters.$defs.planStep.properties.status.enum];
 
-function isPlainObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+const PLAN_STEP_SCHEMA = {
+  $id: 'PlanStep',
+  type: 'object',
+  required: ['step', 'title', 'status'],
+  additionalProperties: false,
+  properties: {
+    step: { type: 'string' },
+    title: { type: 'string' },
+    status: { type: 'string', enum: STATUS_ENUM },
+    substeps: {
+      type: 'array',
+      items: { $ref: 'PlanStep' },
+    },
+  },
+};
+
+ajv.addSchema(PLAN_STEP_SCHEMA);
+const validatePlanStep = ajv.getSchema('PlanStep');
+
+if (!validatePlanStep) {
+  throw new Error('Failed to compile plan step schema for response validation.');
 }
 
-function normalizeStatus(value) {
-  if (typeof value !== 'string') {
-    return '';
-  }
-
-  return value.trim().toLowerCase();
+function formatAjvErrors(errors = [], prefix) {
+  return errors
+    .map((error) => {
+      const location = error.instancePath ? `${prefix}${error.instancePath}` : prefix;
+      return `${location} ${error.message}`.trim();
+    })
+    .filter(Boolean);
 }
 
-function validatePlanItem(item, path, state, errors) {
-  if (!isPlainObject(item)) {
-    errors.push(`${path} must be an object.`);
-    return;
+function analyzePlan(planValue, errors) {
+  if (typeof planValue === 'undefined' || planValue === null) {
+    return { hasOpenSteps: false, firstOpenStatus: '', runningCount: 0 };
   }
 
-  const stepLabel =
-    typeof item.step === 'string' ? item.step.trim() : String(item.step ?? '').trim();
-  if (!stepLabel) {
-    errors.push(`${path} is missing a non-empty "step" label.`);
+  if (!Array.isArray(planValue)) {
+    errors.push('"plan" must be an array.');
+    return { hasOpenSteps: false, firstOpenStatus: '', runningCount: 0 };
   }
 
-  if (typeof item.title !== 'string' || !item.title.trim()) {
-    errors.push(`${path} is missing a non-empty "title".`);
+  if (planValue.length > 3) {
+    errors.push('Plan must not contain more than 3 top-level steps.');
   }
 
-  const normalizedStatus = normalizeStatus(item.status);
-  if (!ALLOWED_STATUSES.has(normalizedStatus)) {
-    errors.push(
-      `${path} has invalid status "${item.status}". Expected pending, running, or completed.`,
-    );
-  }
+  const state = { hasOpenSteps: false, firstOpenStatus: '', runningCount: 0 };
 
-  if (normalizedStatus === 'running') {
-    state.runningCount += 1;
-  }
+  const visit = (items, path) => {
+    items.forEach((item, index) => {
+      const stepPath = `${path}[${index}]`;
 
-  if (!state.firstOpenStatus && normalizedStatus !== 'completed') {
-    state.firstOpenStatus = normalizedStatus;
-  }
+      if (!validatePlanStep(item)) {
+        errors.push(...formatAjvErrors(validatePlanStep.errors ?? [], stepPath));
+        return;
+      }
 
-  if (normalizedStatus !== 'completed') {
-    state.hasOpenSteps = true;
-  }
+      const status = item.status.trim().toLowerCase();
+      if (!state.firstOpenStatus && status !== 'completed') {
+        state.firstOpenStatus = status;
+      }
+      if (status === 'running') {
+        state.runningCount += 1;
+      }
+      if (status !== 'completed') {
+        state.hasOpenSteps = true;
+      }
 
-  for (const key of PLAN_CHILD_KEYS) {
-    const children = item[key];
-    if (typeof children === 'undefined') {
-      continue;
-    }
-
-    if (!Array.isArray(children)) {
-      errors.push(`${path}.${key} must be an array when present.`);
-      continue;
-    }
-
-    children.forEach((child, index) => {
-      validatePlanItem(child, `${path}.${key}[${index}]`, state, errors);
+      if (Array.isArray(item.substeps) && item.substeps.length > 0) {
+        visit(item.substeps, `${stepPath}.substeps`);
+      }
     });
-  }
+  };
+
+  visit(planValue, 'plan');
+  return state;
 }
 
 export function validateAssistantResponse(payload) {
-  const errors = [];
-
-  if (!isPlainObject(payload)) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     return {
       valid: false,
       errors: ['Assistant response must be a JSON object.'],
     };
   }
 
+  const errors = [];
+
   if (
-    typeof payload.message !== 'undefined' &&
+    payload.message !== undefined &&
     payload.message !== null &&
     typeof payload.message !== 'string'
   ) {
     errors.push('"message" must be a string when provided.');
   }
 
-  const plan = Array.isArray(payload.plan) ? payload.plan : payload.plan === undefined ? [] : null;
-  if (plan === null) {
-    errors.push('"plan" must be an array.');
-  }
-
   const command = payload.command ?? null;
-  if (command !== null && !isPlainObject(command)) {
+  if (command !== null && (typeof command !== 'object' || Array.isArray(command))) {
     errors.push('"command" must be null or an object.');
   }
 
-  if (Array.isArray(plan)) {
-    if (plan.length > 3) {
-      errors.push('Plan must not contain more than 3 top-level steps.');
+  const { hasOpenSteps, firstOpenStatus, runningCount } = analyzePlan(payload.plan, errors);
+
+  if (hasOpenSteps) {
+    if (firstOpenStatus !== 'running') {
+      errors.push('The next pending plan step must be marked as "running".');
     }
 
-    const state = {
-      runningCount: 0,
-      firstOpenStatus: '',
-      hasOpenSteps: false,
-    };
+    if (runningCount === 0) {
+      errors.push('At least one plan step must have status "running" when a plan is active.');
+    }
 
-    plan.forEach((item, index) => {
-      validatePlanItem(item, `plan[${index}]`, state, errors);
-    });
-
-    if (state.hasOpenSteps) {
-      if (state.firstOpenStatus !== 'running') {
-        errors.push('The next pending plan step must be marked as "running".');
-      }
-
-      if (state.runningCount === 0) {
-        errors.push('At least one plan step must have status "running" when a plan is active.');
-      }
-
-      if (command === null) {
-        errors.push('Active plans require a "command" to execute next.');
-      }
+    if (!command) {
+      errors.push('Active plans require a "command" to execute next.');
     }
   }
 

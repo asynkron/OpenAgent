@@ -4,48 +4,61 @@
  * can share across modules.
  */
 
+const noop = () => {};
+
 const state = {
   stack: [],
-  tokens: new Map(),
+  entries: new WeakMap(),
+  pending: null,
 };
 
-function cleanupStack() {
-  for (let i = state.stack.length - 1; i >= 0; i -= 1) {
-    const entry = state.stack[i];
-    if (!entry || entry.removed) {
-      state.stack.splice(i, 1);
-      if (entry && entry.token) {
-        if (!entry.canceled) {
-          state.tokens.delete(entry.token);
-        }
-      }
-    }
-  }
+function entryFor(token) {
+  return token ? state.entries.get(token) ?? null : null;
 }
 
-function getTopEntry() {
-  cleanupStack();
-  if (state.stack.length === 0) {
+function snapshotEntry(token, entry) {
+  if (!entry) {
     return null;
   }
-  return state.stack[state.stack.length - 1];
+
+  return {
+    token,
+    description: entry.description,
+    canceled: entry.canceled,
+    reason: entry.reason,
+    createdAt: entry.createdAt,
+    cancelError: entry.cancelError,
+  };
 }
 
-function removeEntry(entry) {
-  if (!entry) {
+function pruneStack() {
+  while (state.stack.length > 0) {
+    const token = state.stack[state.stack.length - 1];
+    const entry = entryFor(token);
+    if (!entry || entry.cleared) {
+      state.stack.pop();
+      continue;
+    }
+    break;
+  }
+}
+
+function removeToken(token) {
+  const entry = entryFor(token);
+  if (!entry || entry.cleared) {
     return;
   }
-  const index = state.stack.findIndex((candidate) => candidate === entry);
+
+  entry.cleared = true;
+  const index = state.stack.indexOf(token);
   if (index !== -1) {
     state.stack.splice(index, 1);
   }
-  entry.removed = true;
-  if (entry.token && !entry.canceled) {
-    state.tokens.delete(entry.token);
-  }
+  pruneStack();
 }
 
-function markCanceled(entry, reason) {
+function markCanceled(token, reason) {
+  const entry = entryFor(token);
   if (!entry || entry.canceled) {
     return false;
   }
@@ -53,79 +66,82 @@ function markCanceled(entry, reason) {
   entry.canceled = true;
   entry.reason = reason ?? null;
 
-  if (typeof entry.cancelFn === 'function') {
-    try {
-      entry.cancelFn(reason);
-    } catch (error) {
-      entry.cancelError = error;
-    }
+  try {
+    entry.cancelFn(reason);
+  } catch (error) {
+    entry.cancelError = error;
   }
 
-  removeEntry(entry);
+  removeToken(token);
   return true;
 }
 
 export function register({ description = 'operation', onCancel } = {}) {
-  cleanupStack();
+  pruneStack();
 
-  const token = Symbol('cancellation-operation');
+  const token = {};
   const entry = {
-    token,
-    description,
-    cancelFn: typeof onCancel === 'function' ? onCancel : null,
+    description: typeof description === 'string' ? description.trim() || 'operation' : 'operation',
+    cancelFn: typeof onCancel === 'function' ? onCancel : noop,
     canceled: false,
     reason: null,
     createdAt: Date.now(),
     cancelError: null,
-    removed: false,
+    cleared: false,
   };
 
-  state.stack.push(entry);
-  state.tokens.set(token, entry);
+  state.stack.push(token);
+  state.entries.set(token, entry);
+
+  if (state.pending !== null) {
+    const pendingReason = state.pending;
+    state.pending = null;
+    markCanceled(token, pendingReason);
+  }
 
   return {
     token,
     isCanceled: () => entry.canceled,
-    cancel: (reason) => markCanceled(entry, reason),
+    cancel: (reason) => markCanceled(token, reason),
     setCancelCallback: (fn) => {
-      entry.cancelFn = typeof fn === 'function' ? fn : null;
+      entry.cancelFn = typeof fn === 'function' ? fn : noop;
     },
     updateDescription: (desc) => {
-      if (typeof desc === 'string') {
-        const normalized = desc.trim();
-        if (normalized) {
-          entry.description = normalized;
-        }
+      const next = typeof desc === 'string' ? desc.trim() : '';
+      if (next) {
+        entry.description = next;
       }
     },
-    unregister: () => {
-      if (!entry.removed) {
-        removeEntry(entry);
-      }
-    },
+    unregister: () => removeToken(token),
   };
 }
 
 export function cancel(reason) {
-  const active = getTopEntry();
-  if (!active) {
+  pruneStack();
+  const token = state.stack[state.stack.length - 1];
+  if (!token) {
+    state.pending = reason ?? null;
     return false;
   }
-  return markCanceled(active, reason);
+  return markCanceled(token, reason);
 }
 
 export function isCanceled(token) {
-  cleanupStack();
+  pruneStack();
   if (token) {
-    const entry = state.tokens.get(token);
+    const entry = entryFor(token);
     return entry ? entry.canceled : false;
   }
-  const active = getTopEntry();
-  return active ? active.canceled : false;
+
+  const activeToken = state.stack[state.stack.length - 1];
+  const activeEntry = entryFor(activeToken);
+  return activeEntry ? activeEntry.canceled : false;
 }
 
 export function getActiveOperation() {
-  return getTopEntry();
+  pruneStack();
+  const token = state.stack[state.stack.length - 1];
+  return snapshotEntry(token, entryFor(token));
 }
 
 export default {

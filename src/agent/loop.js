@@ -64,6 +64,7 @@ export function createAgentRuntime({
     emitEvent: (event) => outputs.push(event),
     escState: { ...escState, trigger: triggerEsc },
     cancelFn: cancelActive,
+    emitCancellationWithoutWaiters: true,
   });
 
   let openai;
