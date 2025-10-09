@@ -54,35 +54,10 @@ export async function requestModelCompletion({
               type: 'object',
               additionalProperties: false,
               properties: {
-                shell: {
-                  type: 'string',
-                  description: 'Shell executable to launch when running commands.',
-                },
-                run: {
-                  type: 'string',
-                  description: 'Command string to execute in the provided shell.',
-                },
-                cwd: {
-                  type: 'string',
-                  description: 'Working directory for shell execution.',
-                },
-                timeout_sec: {
-                  type: 'integer',
-                  minimum: 1,
-                  description: 'Optional timeout guard for long-running commands.',
-                },
-                filter_regex: {
-                  type: 'string',
-                  description: 'Optional regex used to filter command output.',
-                },
-                tail_lines: {
-                  type: 'integer',
-                  minimum: 1,
-                  description: 'Optional number of trailing lines to return from output.',
-                },
+                run: { $ref: '#/$defs/runCommand' },
                 read: { $ref: '#/$defs/readCommand' },
               },
-              oneOf: [{ required: ['shell', 'run', 'cwd'] }, { required: ['read'] }],
+              oneOf: [{ required: ['run'] }, { required: ['read'] }],
               description:
                 'Next tool invocation to execute when a plan contains non-complete steps. may NOT be raw string, e.g command: "ls"',
             },
@@ -112,6 +87,43 @@ export async function requestModelCompletion({
                 encoding: { type: 'string' },
                 max_bytes: { type: 'integer', minimum: 1 },
                 max_lines: { type: 'integer', minimum: 1 },
+              },
+            },
+            runCommand: {
+              type: 'object',
+              required: ['confirmed', 'shell', 'run', 'cwd'],
+              additionalProperties: false,
+              properties: {
+                confirmed: {
+                  type: 'integer',
+                  description: '1337 if you actually read and understood this spec. REQUIRED!',
+                },
+                shell: {
+                  type: 'string',
+                  description: 'Shell executable to launch when running commands.',
+                },
+                run: {
+                  type: 'string',
+                  description: 'Command string to execute in the provided shell.',
+                },
+                cwd: {
+                  type: 'string',
+                  description: 'Working directory for shell execution.',
+                },
+                timeout_sec: {
+                  type: 'integer',
+                  minimum: 1,
+                  description: 'Optional timeout guard for long-running commands.',
+                },
+                filter_regex: {
+                  type: 'string',
+                  description: 'Optional regex used to filter command output.',
+                },
+                tail_lines: {
+                  type: 'integer',
+                  minimum: 1,
+                  description: 'Optional number of trailing lines to return from output.',
+                },
               },
             },
           },
