@@ -25,8 +25,7 @@
         "id": "fc_061bda23eccb547f0068e758498fcc8198a25c75b990e84afb",
         "type": "function_call",
         "status": "completed",
-        "arguments": "{\"message\":\"Running `echo
-hello`.\",\"command\":{\"shell\":{\"command\":\"echo hello\",\"cwd\":\".\"}}}",
+        "arguments": "{\"message\":\"Running `echo hello`.\",\"command\":{\"shell\":{\"command\":\"echo hello\",\"cwd\":\".\"}}}",
         "call_id": "call_EnnzD9YAOjNE60bzeNQPaAZs",
         "name": "open-agent"
       }
@@ -55,15 +54,12 @@ hello`.\",\"command\":{\"shell\":{\"command\":\"echo hello\",\"cwd\":\".\"}}}",
     "tools": [
       {
         "type": "function",
-        "description": "Return the response envelope that matches the OpenAgent protocol
-(message, plan, and command fields).",
+        "description": "Return the response envelope that matches the OpenAgent protocol (message, plan, and command fields).",
         "name": "open-agent",
         "parameters": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "message"
-          ],
+          "required": ["message"],
           "properties": {
             "message": {
               "type": "string",
@@ -75,9 +71,7 @@ hello`.\",\"command\":{\"shell\":{\"command\":\"echo hello\",\"cwd\":\".\"}}}",
               "items": {
                 "$ref": "#/$defs/planStep"
               },
-              "description": "You MUST provide a plan when have a set goal, NEVER drop/reset a
-plan without discussion, the plan stays on utill otherwise agreed upon, Progress tracker for
-multi-step work; use [] when resetting to a new plan."
+              "description": "You MUST provide a plan when have a set goal, NEVER drop/reset a plan without discussion, the plan stays on utill otherwise agreed upon, Progress tracker for multi-step work; use [] when resetting to a new plan."
             },
             "command": {
               "type": "object",
@@ -92,28 +86,19 @@ multi-step work; use [] when resetting to a new plan."
               },
               "oneOf": [
                 {
-                  "required": [
-                    "run"
-                  ]
+                  "required": ["run"]
                 },
                 {
-                  "required": [
-                    "read"
-                  ]
+                  "required": ["read"]
                 }
               ],
-              "description": "Next tool invocation to execute when a plan contains non-complete
-steps. may NOT be raw string, e.g command: \"ls\""
+              "description": "Next tool invocation to execute when a plan contains non-complete steps. may NOT be raw string, e.g command: \"ls\""
             }
           },
           "$defs": {
             "planStep": {
               "type": "object",
-              "required": [
-                "step",
-                "title",
-                "status"
-              ],
+              "required": ["step", "title", "status"],
               "additionalProperties": false,
               "properties": {
                 "step": {
@@ -124,11 +109,7 @@ steps. may NOT be raw string, e.g command: \"ls\""
                 },
                 "status": {
                   "type": "string",
-                  "enum": [
-                    "pending",
-                    "running",
-                    "completed"
-                  ]
+                  "enum": ["pending", "running", "completed"]
                 },
                 "substeps": {
                   "type": "array",
@@ -140,9 +121,7 @@ steps. may NOT be raw string, e.g command: \"ls\""
             },
             "readCommand": {
               "type": "object",
-              "required": [
-                "path"
-              ],
+              "required": ["path"],
               "additionalProperties": false,
               "properties": {
                 "path": {
@@ -169,12 +148,7 @@ steps. may NOT be raw string, e.g command: \"ls\""
             },
             "runCommand": {
               "type": "object",
-              "required": [
-                "confirmed",
-                "shell",
-                "run",
-                "cwd"
-              ],
+              "required": ["confirmed", "shell", "run", "cwd"],
               "additionalProperties": false,
               "properties": {
                 "confirmed": {
@@ -232,6 +206,5 @@ steps. may NOT be raw string, e.g command: \"ls\""
     "metadata": {},
     "output_text": ""
   },
-  "responseText": "{\"message\":\"Running `echo
-hello`.\",\"command\":{\"shell\":{\"command\":\"echo hello\",\"cwd\":\".\"}}}"
+  "responseText": "{\"message\":\"Running `echo hello`.\",\"command\":{\"shell\":{\"command\":\"echo hello\",\"cwd\":\".\"}}}"
 }

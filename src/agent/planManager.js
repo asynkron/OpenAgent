@@ -37,7 +37,8 @@ export function createPlanManager({
   let activePlan = [];
   let lastProgressSignature = null;
 
-  const shouldMergePlans = () => Boolean(typeof getPlanMergeFlag === 'function' && getPlanMergeFlag());
+  const shouldMergePlans = () =>
+    Boolean(typeof getPlanMergeFlag === 'function' && getPlanMergeFlag());
 
   const emitPlanProgressEvent = (plan) => {
     const progress = computeProgress(plan);

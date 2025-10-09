@@ -64,9 +64,7 @@ function defaultFilterItem(item, context) {
   }
 
   const normalizedDescription =
-    typeof item.description === 'string'
-      ? item.description.replace(/\([^)]*\)/gu, ' ')
-      : '';
+    typeof item.description === 'string' ? item.description.replace(/\([^)]*\)/gu, ' ') : '';
 
   const haystackParts = [
     item.label,
@@ -85,9 +83,7 @@ function defaultFilterItem(item, context) {
     const contiguousQuery = normalizedQuery.trim().replace(/\s+/gu, ' ');
 
     if (contiguousQuery.length > 0) {
-      const hasContiguousMatch = haystackParts.some((part) =>
-        part.includes(contiguousQuery),
-      );
+      const hasContiguousMatch = haystackParts.some((part) => part.includes(contiguousQuery));
 
       if (!hasContiguousMatch) {
         return false;
@@ -97,9 +93,7 @@ function defaultFilterItem(item, context) {
 
   // Ensure every token from the query appears in at least one searchable field so
   // long example strings (e.g., descriptions) do not cause overly broad matches.
-  return tokens.every((token) =>
-    haystackParts.some((part) => part.includes(token)),
-  );
+  return tokens.every((token) => haystackParts.some((part) => part.includes(token)));
 }
 
 function normalizeCommandDefinition(definition, index) {
@@ -122,9 +116,7 @@ function normalizeCommandDefinition(definition, index) {
     typeof definition.filterItem === 'function' ? definition.filterItem : defaultFilterItem;
 
   const staticItems = Array.isArray(definition.items)
-    ? definition.items
-        .map((item, itemIndex) => normalizeSlashItem(item, itemIndex))
-        .filter(Boolean)
+    ? definition.items.map((item, itemIndex) => normalizeSlashItem(item, itemIndex)).filter(Boolean)
     : [];
 
   const getItems = typeof definition.getItems === 'function' ? definition.getItems : null;
@@ -235,12 +227,9 @@ function toNonNegativeInteger(value) {
 
 function resolveHorizontalPadding({ padding, paddingX, paddingLeft, paddingRight }) {
   const base = toNonNegativeInteger(padding);
-  const horizontal =
-    paddingX !== undefined ? toNonNegativeInteger(paddingX) : base;
-  const left =
-    paddingLeft !== undefined ? toNonNegativeInteger(paddingLeft) : horizontal;
-  const right =
-    paddingRight !== undefined ? toNonNegativeInteger(paddingRight) : horizontal;
+  const horizontal = paddingX !== undefined ? toNonNegativeInteger(paddingX) : base;
+  const left = paddingLeft !== undefined ? toNonNegativeInteger(paddingLeft) : horizontal;
+  const right = paddingRight !== undefined ? toNonNegativeInteger(paddingRight) : horizontal;
   return { paddingLeft: left, paddingRight: right };
 }
 
@@ -264,8 +253,7 @@ function extractSpecialKeys(key) {
 export function transformToRows(source, maxWidth, options = {}) {
   const { paddingLeft = 0, paddingRight = 0 } = options ?? {};
   const safeWidth = Math.max(1, Math.floor(maxWidth ?? 1));
-  const horizontalPadding =
-    toNonNegativeInteger(paddingLeft) + toNonNegativeInteger(paddingRight);
+  const horizontalPadding = toNonNegativeInteger(paddingLeft) + toNonNegativeInteger(paddingRight);
   const effectiveWidth = Math.max(1, safeWidth - horizontalPadding);
   const rows = [];
 
@@ -454,17 +442,16 @@ export function InkTextArea({
     setCaretIndex((prev) => clamp(prev, 0, maxIndex));
   }, [maxIndex]);
 
-  const { paddingLeft: resolvedPaddingLeft, paddingRight: resolvedPaddingRight } =
-    useMemo(
-      () =>
-        resolveHorizontalPadding({
-          padding,
-          paddingX,
-          paddingLeft,
-          paddingRight,
-        }),
-      [padding, paddingLeft, paddingRight, paddingX],
-    );
+  const { paddingLeft: resolvedPaddingLeft, paddingRight: resolvedPaddingRight } = useMemo(
+    () =>
+      resolveHorizontalPadding({
+        padding,
+        paddingX,
+        paddingLeft,
+        paddingRight,
+      }),
+    [padding, paddingLeft, paddingRight, paddingX],
+  );
 
   const effectiveWidth = useMemo(
     () => Math.max(1, normalizedWidth - resolvedPaddingLeft - resolvedPaddingRight),
@@ -489,15 +476,16 @@ export function InkTextArea({
   const [dynamicCommandItems, setDynamicCommandItems] = useState(() => ({}));
 
   const normalizedCommands = useMemo(() => {
-    const legacyDefinitions = Array.isArray(slashMenuItems) && slashMenuItems.length > 0
-      ? [
-          {
-            id: 'legacy-slash-command',
-            trigger: '/',
-            items: slashMenuItems,
-          },
-        ]
-      : [];
+    const legacyDefinitions =
+      Array.isArray(slashMenuItems) && slashMenuItems.length > 0
+        ? [
+            {
+              id: 'legacy-slash-command',
+              trigger: '/',
+              items: slashMenuItems,
+            },
+          ]
+        : [];
 
     const providedDefinitions = Array.isArray(commandMenus) ? commandMenus : [];
 
@@ -629,7 +617,7 @@ export function InkTextArea({
     : 0;
 
   const selectedCommandMatch = commandMenuVisible
-    ? commandMatches[resolvedCommandHighlightIndex] ?? commandMatches[0]
+    ? (commandMatches[resolvedCommandHighlightIndex] ?? commandMatches[0])
     : null;
 
   const resetDesiredColumn = useCallback(() => {
@@ -917,14 +905,7 @@ export function InkTextArea({
       paddingLeft: resolvedPaddingLeft,
       paddingRight: resolvedPaddingRight,
     });
-  }, [
-    hasValue,
-    normalizedWidth,
-    placeholder,
-    resolvedPaddingLeft,
-    resolvedPaddingRight,
-    rows,
-  ]);
+  }, [hasValue, normalizedWidth, placeholder, resolvedPaddingLeft, resolvedPaddingRight, rows]);
 
   const textStyle = useMemo(() => {
     const { dimColor, wrap, ...otherTextProps } = textProps;
@@ -1069,11 +1050,7 @@ export function InkTextArea({
         );
       }),
     );
-  }, [
-    commandMatches,
-    commandMenuVisible,
-    resolvedCommandHighlightIndex,
-  ]);
+  }, [commandMatches, commandMenuVisible, resolvedCommandHighlightIndex]);
 
   const shouldRenderDebug = process.env.NODE_ENV === 'test';
 

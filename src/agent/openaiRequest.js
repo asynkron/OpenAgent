@@ -12,7 +12,7 @@ export async function requestModelCompletion({
   startThinkingFn,
   stopThinkingFn,
   setNoHumanFlag,
-  emitEvent = () => { },
+  emitEvent = () => {},
 }) {
   const { promise: escPromise, cleanup: cleanupEscWaiter } = createEscWaiter(escState);
 

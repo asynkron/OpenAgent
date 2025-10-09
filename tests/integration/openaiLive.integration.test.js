@@ -218,7 +218,12 @@ async function runSinglePass({ prompt, workspaceDir, events }) {
     const { dir: workspaceDir, cleanup } = createWorkspace();
     const events = [];
     const targetFile = path.join(workspaceDir, 'live-verification.md');
-    const expectedContent = ['# Live Verification', '- Uses real OpenAI response', '- Confirms markdown creation', ''].join('\n');
+    const expectedContent = [
+      '# Live Verification',
+      '- Uses real OpenAI response',
+      '- Confirms markdown creation',
+      '',
+    ].join('\n');
 
     try {
       const prompt = [

@@ -68,7 +68,7 @@ export async function executeAgentPass({
   openai,
   model,
   history,
-  emitEvent = () => { },
+  emitEvent = () => {},
   onDebug = null,
   runCommandFn,
   runReadFn,
@@ -186,9 +186,9 @@ export async function executeAgentPass({
   if (!parseResult.ok) {
     const attempts = Array.isArray(parseResult.attempts)
       ? parseResult.attempts.map(({ strategy, error }) => ({
-        strategy,
-        message: error instanceof Error ? error.message : String(error),
-      }))
+          strategy,
+          message: error instanceof Error ? error.message : String(error),
+        }))
       : [];
 
     emitEvent({

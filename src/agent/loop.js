@@ -3,7 +3,6 @@
  * writing directly to the CLI.
  */
 
-
 import { SYSTEM_PROMPT } from '../config/systemPrompt.js';
 import { getOpenAIClient, MODEL } from '../openai/client.js';
 import { runCommand, runRead } from '../commands/run.js';
