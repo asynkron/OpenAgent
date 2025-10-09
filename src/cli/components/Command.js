@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Text } from 'ink';
 
 import { buildCommandRenderData } from './commandUtils.js';
+import theme from '../theme.js';
 
 const h = React.createElement;
 
@@ -41,7 +42,7 @@ export function Command({ command, result, preview = {}, execution = {} }) {
   lines.push(
     h(
       Text,
-      { key: 'heading' },
+      { key: 'heading', color: theme.command.fg },
       h(Text, { color: 'blueBright', bold: true }, type),
       h(Text, null, ` ${detail}`),
     ),
@@ -59,7 +60,7 @@ export function Command({ command, result, preview = {}, execution = {} }) {
       paddingX: 1,
       paddingY: 0,
       height: 1,
-      backgroundColor: '#1f1f1f',
+      backgroundColor: theme.command.headerBg ?? theme.command.bg,
       alignItems: 'center',
       gap: 1,
     },
@@ -75,7 +76,7 @@ export function Command({ command, result, preview = {}, execution = {} }) {
       flexDirection: 'column',
       paddingX: 1,
       paddingY: 1,
-      backgroundColor: 'black',
+      backgroundColor: theme.command.bg,
       width: '100%',
       alignSelf: 'stretch',
       flexGrow: 1,

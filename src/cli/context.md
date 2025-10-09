@@ -11,6 +11,7 @@
 - `runner.js` & `runtime.js` — orchestrate CLI startup, configure the agent runtime, and pipe events into Ink.
 - `render.js`, `status.js`, `thinking.js` — helper utilities for formatting markdown, plan progress, context usage, and spinner indicators.
 - `io.js` — wraps readline/Ink input handling, exposing `askHuman` and ESC detection constants.
+- `theme.js` — shared color palette so components render human/agent/prompt/command sections consistently.
 
 ## Positive Signals
 
