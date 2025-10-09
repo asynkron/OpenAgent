@@ -21,6 +21,24 @@ import { runRead } from './read.js';
 
 const SCRATCH_ROOT = resolve('.openagent', 'temp');
 
+function substituteApplyPatchCommand(command) {
+  const replacement = 'node scripts/apply_patch.mjs';
+
+  if (typeof command === 'string') {
+    const leadingWhitespaceMatch = command.match(/^\s*/);
+    const leadingWhitespace = leadingWhitespaceMatch ? leadingWhitespaceMatch[0] : '';
+    const trimmed = command.slice(leadingWhitespace.length);
+
+    if (/^apply_patch(?=\s|$)/.test(trimmed)) {
+      return `${leadingWhitespace}${trimmed.replace(/^apply_patch\b/, replacement)}`;
+    }
+
+    return command;
+  }
+
+  return command;
+}
+
 function prepareTempOutputs() {
   mkdirSync(SCRATCH_ROOT, { recursive: true });
   const tempDir = mkdtempSync(join(SCRATCH_ROOT, 'cmd-'));
@@ -66,9 +84,16 @@ function cleanupTempDir(tempDir) {
 }
 
 export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
+  const normalizedCommand = substituteApplyPatchCommand(cmd);
+
+  if (typeof normalizedCommand !== 'string') {
+    throw new TypeError('runCommand expects a normalized command string.');
+  }
+
+  const trimmedCommand = normalizedCommand.trim();
+
   return new Promise((resolve) => {
     const startTime = Date.now();
-    const isStringCommand = typeof cmd === 'string';
     let child;
     let killed = false;
     let canceled = false;
@@ -117,7 +142,7 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
 
     const spawnOptions = {
       cwd,
-      shell: shell !== undefined ? shell : isStringCommand,
+      shell: shell !== undefined ? shell : true,
     };
 
     const appendLine = (output, line) => {
@@ -147,16 +172,7 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
       return null;
     };
 
-    const commandLabel = providedLabel
-      ? String(providedLabel).trim()
-      : isStringCommand
-        ? String(cmd || '').trim()
-        : Array.isArray(cmd)
-          ? cmd
-              .map((part) => String(part))
-              .join(' ')
-              .trim()
-          : '';
+    const commandLabel = providedLabel ? String(providedLabel).trim() : trimmedCommand;
 
     const operationDescription =
       providedDescription && String(providedDescription).trim()
@@ -281,13 +297,7 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
     });
 
     try {
-      if (isStringCommand) {
-        child = spawn(cmd, spawnOptions);
-      } else if (Array.isArray(cmd) && cmd.length > 0) {
-        child = spawn(cmd[0], cmd.slice(1), spawnOptions);
-      } else {
-        throw new Error('Command must be a string or a non-empty array.');
-      }
+      child = spawn(normalizedCommand, spawnOptions);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       finalize(

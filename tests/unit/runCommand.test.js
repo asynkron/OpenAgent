@@ -53,6 +53,14 @@ describe('runCommand', () => {
     jest.useRealTimers();
   });
 
+  test('throws when invoked without a normalized string command', async () => {
+    const { runCommand } = await import('../../src/commands/run.js');
+
+    await expect(runCommand({ bad: true }, '.', 1)).rejects.toThrow(
+      'normalized command string',
+    );
+  });
+
   test('kills child process when cancellation is triggered', async () => {
     const spawnMock = jest.fn();
 
@@ -118,7 +126,7 @@ describe('runCommand', () => {
 
     spawnMock.mockReturnValue(child);
 
-    const promise = runCommand(['cat'], '.', 5, {
+    const promise = runCommand('cat', '.', 5, {
       stdin: 'hello world',
       closeStdin: false,
       commandLabel: 'cat',
@@ -167,4 +175,36 @@ describe('runCommand', () => {
     expect(result.stderr).toContain('Command timed out after 1s');
     expect(result.killed).toBe(true);
   });
+
+  test('substitutes apply_patch shell command with local wrapper for string commands', async () => {
+    const spawnMock = jest.fn();
+
+    jest.unstable_mockModule('node:child_process', () => ({
+      spawn: spawnMock,
+    }));
+
+    setupCancellationMocks();
+
+    const { runCommand } = await import('../../src/commands/run.js');
+
+    const child = new EventEmitter();
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    child.stdout.setEncoding = jest.fn();
+    child.stderr.setEncoding = jest.fn();
+    child.kill = jest.fn();
+
+    spawnMock.mockReturnValue(child);
+
+    const promise = runCommand("apply_patch <<'PATCH'\nfoo\nPATCH", '.', 5);
+
+    child.emit('close', 0);
+    await promise;
+
+    expect(spawnMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^node scripts\/apply_patch\.mjs/),
+      expect.objectContaining({ shell: true }),
+    );
+  });
+
 });
