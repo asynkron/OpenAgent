@@ -104,6 +104,10 @@ describe('createResponse', () => {
         model: 'gpt-5-codex',
         input: [],
         tools: [tool],
+        tool_choice: {
+          type: 'function',
+          name: 'open-agent',
+        },
       },
       undefined,
     );

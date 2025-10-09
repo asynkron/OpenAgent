@@ -15,7 +15,7 @@
 - Client initialization performs configuration validation (model support, base URL sanity) before runtime usage.
 - Unit tests simulate request/response flows, catching regressions in API contract parsing.
 - Tool-aware extraction ensures agent parsing works even when models omit free-form text output.
-- `responses.js` now trims unused parameters from the createResponse helper so callers pass only API-relevant fields.
+- `responses.js` only attaches the OpenAgent tool schema when callers explicitly request it, keeping summary calls lightweight while enforcing the shared contract during agent passes.
 
 ## Risks / Gaps
 
