@@ -38,7 +38,8 @@ export function wrapStructuredContent(message) {
 
 export function renderMarkdownMessage(message) {
   const prepared = wrapStructuredContent(message);
-  return marked.parse(prepared, { renderer: terminalRenderer });
+  const rendered = marked.parse(prepared, { renderer: terminalRenderer });
+  return typeof rendered === 'string' ? rendered.trimEnd() : rendered;
 }
 
 function colorizeSymbol(symbol, color) {
