@@ -12,7 +12,7 @@
 - `commands/` subdirectory — specialized handlers for `read` vs. generic execute operations.
 - `historyCompactor.js`, `observationBuilder.js`, `responseParser.js`, `responseValidator.js`, `responseToolSchema.js` — manage conversation state, define the response envelope schema (including the named OpenAI tool contract), parse Responses API payloads, normalize assistant command payloads (including newline sanitization), and validate protocol compliance.
 - `openaiRequest.js` — builds structured responses requests with retries and timeout handling.
-- `promptCoordinator.js`, `escState.js` — route human prompts, handle ESC cancellations.
+- `promptCoordinator.js`, `escState.js` — route human prompts, handle ESC cancellations, and guard against idle ESC presses latching cancellations.
 - `passExecutor.js` — handles multi-pass reasoning loops (execute/reflect cycles) when the model requests continuations.
 
 ## Positive Signals
