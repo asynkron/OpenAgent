@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Text } from 'ink';
 
 import { renderMarkdownMessage, wrapStructuredContent } from '../render.js';
+import theme from '../theme.js';
 
 const h = React.createElement;
 
@@ -25,11 +26,12 @@ export function AgentResponse({ message }) {
       marginTop: 1,
       paddingX: 1,
       paddingY: 1,
+      backgroundColor: theme.agent.bg,
       width: '100%',
       alignSelf: 'stretch',
       flexGrow: 1,
     },
-    h(Text, null, rendered),
+    h(Text, { color: theme.agent.fg }, rendered),
   );
 }
 

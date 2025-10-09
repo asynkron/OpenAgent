@@ -3,6 +3,7 @@ import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import ContextUsage from './ContextUsage.js';
 import InkTextArea from './InkTextArea.js';
+import theme from '../theme.js';
 
 const h = React.createElement;
 /**
@@ -46,7 +47,7 @@ export function AskHuman({ onSubmit, thinking = false, contextUsage = null }) {
   );
 
   const inputDisplay = thinking
-    ? h(Text, { color: 'white', key: 'spinner', marginLeft: 1 }, [
+    ? h(Text, { color: theme.prompt.fg, key: 'spinner', marginLeft: 1 }, [
       h(Spinner, { type: 'dots', key: 'spinner-icon' }),
       ' Thinking…',
     ])
@@ -65,7 +66,9 @@ export function AskHuman({ onSubmit, thinking = false, contextUsage = null }) {
     ? 'Waiting for the AI to finish thinking…'
     : 'Press Enter to submit • Shift+Enter for newline • Esc to cancel';
 
-  const footerChildren = [h(Text, { dimColor: true, color: 'white', key: 'hint' }, hintMessage)];
+  const footerChildren = [
+    h(Text, { dimColor: true, color: theme.prompt.fg, key: 'hint' }, hintMessage),
+  ];
 
   if (contextUsage) {
     footerChildren.push(h(ContextUsage, { usage: contextUsage, key: 'context-usage' }));
@@ -78,7 +81,7 @@ export function AskHuman({ onSubmit, thinking = false, contextUsage = null }) {
       marginTop: 1,
       paddingX: 1,
       paddingY: 0,
-      backgroundColor: '#370c21ff',
+      backgroundColor: theme.prompt.bg,
     },
     [
       h(Box, { flexDirection: 'row', key: 'inputRow', paddingX: 1, paddingY: 1 }, [inputDisplay]),
