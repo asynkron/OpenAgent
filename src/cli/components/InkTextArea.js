@@ -81,6 +81,20 @@ function defaultFilterItem(item, context) {
     return false;
   }
 
+  if (tokens.length > 1) {
+    const contiguousQuery = normalizedQuery.trim().replace(/\s+/gu, ' ');
+
+    if (contiguousQuery.length > 0) {
+      const hasContiguousMatch = haystackParts.some((part) =>
+        part.includes(contiguousQuery),
+      );
+
+      if (!hasContiguousMatch) {
+        return false;
+      }
+    }
+  }
+
   // Ensure every token from the query appears in at least one searchable field so
   // long example strings (e.g., descriptions) do not cause overly broad matches.
   return tokens.every((token) =>
