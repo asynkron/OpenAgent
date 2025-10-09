@@ -106,6 +106,34 @@ function normalizeNestedShellCommand(command) {
 }
 
 function normalizeCommandPayload(command) {
+  if (typeof command === 'string') {
+    const trimmed = command.trim();
+    if (!trimmed) {
+      return {};
+    }
+    return { run: trimmed };
+  }
+
+  if (Array.isArray(command)) {
+    const parts = command
+      .map((part) => {
+        if (typeof part === 'string') {
+          return part.trim();
+        }
+        if (part === null || part === undefined) {
+          return '';
+        }
+        return String(part).trim();
+      })
+      .filter((part) => part);
+
+    if (parts.length === 0) {
+      return {};
+    }
+
+    return { run: parts.join(' ') };
+  }
+
   if (!isPlainObject(command)) {
     return command;
   }

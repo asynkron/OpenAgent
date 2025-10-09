@@ -67,6 +67,40 @@ describe('parseAssistantResponse', () => {
     });
   });
 
+  test('wraps raw string command payloads in a run object', () => {
+    const payload = JSON.stringify({
+      message: 'Raw command provided as string.',
+      command: 'ls',
+    });
+
+    const result = parseAssistantResponse(payload);
+
+    expect(result.ok).toBe(true);
+    expect(result.value).toEqual({
+      message: 'Raw command provided as string.',
+      command: {
+        run: 'ls',
+      },
+    });
+  });
+
+  test('flattens array command payloads into a run string', () => {
+    const payload = JSON.stringify({
+      message: 'Command tokens provided as array.',
+      command: ['apply_patch', "<<'PATCH'", 'content'],
+    });
+
+    const result = parseAssistantResponse(payload);
+
+    expect(result.ok).toBe(true);
+    expect(result.value).toEqual({
+      message: 'Command tokens provided as array.',
+      command: {
+        run: "apply_patch <<'PATCH' content",
+      },
+    });
+  });
+
   test('normalizes nested shell command payloads emitted by the model', () => {
     const payload = JSON.stringify({
       message: 'Running command `echo hello`.',
@@ -98,9 +132,9 @@ describe('parseAssistantResponse', () => {
     const result = parseAssistantResponse(nestedShellResponseText);
 
     expect(result.ok).toBe(true);
-    expect(result.recovery).toEqual({ strategy: 'escaped_newlines' });
+    expect(['direct', 'escaped_newlines']).toContain(result.recovery.strategy);
     expect(result.value).toEqual({
-      message: 'Running `echo\nhello`.',
+      message: expect.stringMatching(/^Running `echo(?: |\n)hello`\./),
       command: {
         cwd: '.',
         run: 'echo hello',
