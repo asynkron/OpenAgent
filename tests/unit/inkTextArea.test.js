@@ -113,6 +113,37 @@ describe('InkTextArea input handling', () => {
     unmount();
   });
 
+  test('treats escape sequence for shift+enter as newline insertion', async () => {
+    const handleSubmit = jest.fn();
+    const handleChange = jest.fn();
+
+    const { stdin, unmount, lastFrame } = render(
+      React.createElement(ControlledInkTextArea, {
+        initialValue: '',
+        onSubmit: handleSubmit,
+        onChange: handleChange,
+      }),
+    );
+
+    stdin.write('draft');
+    await flush();
+
+    handleChange.mockClear();
+
+    stdin.write('\u001B[13;2~');
+    await flush();
+
+    expect(handleSubmit).not.toHaveBeenCalled();
+    expect(handleChange).toHaveBeenLastCalledWith('draft\n');
+
+    const caret = caretPositionFromFrame(lastFrame());
+    expect(caret.index).toBe(6);
+    expect(caret.line).toBe(2);
+    expect(caret.column).toBe(1);
+
+    unmount();
+  });
+
   test('moves caret with left/right arrow keys', async () => {
     const { stdin, unmount, lastFrame } = render(
       React.createElement(InkTextArea, {
@@ -521,6 +552,22 @@ describe('transformToRows', () => {
     expect(rows).toEqual([
       { text: 'row-one', startIndex: 0 },
       { text: '', startIndex: 8 },
+    ]);
+  });
+
+  test('treats carriage returns as newline boundaries', () => {
+    const rows = transformToRows('alpha\rcarriage', 40);
+    expect(rows).toEqual([
+      { text: 'alpha', startIndex: 0 },
+      { text: 'carriage', startIndex: 6 },
+    ]);
+  });
+
+  test('treats CRLF pairs as a single newline break', () => {
+    const rows = transformToRows('first\r\nsecond', 40);
+    expect(rows).toEqual([
+      { text: 'first', startIndex: 0 },
+      { text: 'second', startIndex: 7 },
     ]);
   });
 });
