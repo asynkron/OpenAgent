@@ -6,7 +6,7 @@ const thisFilePath = fileURLToPath(import.meta.url);
 const thisDir = path.dirname(thisFilePath);
 const originalUnstableMockModule = jest.unstable_mockModule.bind(jest);
 const shouldMockOpenAI = process.env.OPENAGENT_LIVE_OPENAI !== '1';
-let mockingEnabled = shouldMockOpenAI;
+const mockingEnabled = shouldMockOpenAI;
 
 // Allow test files to continue using relative specifiers when mocking alongside this setup file.
 function resolveCallerPath() {

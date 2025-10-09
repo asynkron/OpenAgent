@@ -205,7 +205,7 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
       resolve(payload);
     };
 
-    const complete = (code, { unregisterCancellation } = {}) => {
+    const complete = (code, cleanup = {}) => {
       closeOutputFds();
 
       const stdoutContent = safeReadFile(stdoutPath);
@@ -235,7 +235,7 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
           killed,
           runtime_ms: Date.now() - startTime,
         },
-        { unregisterCancellation: cancellation?.unregister },
+        cleanup,
       );
     };
 

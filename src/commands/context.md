@@ -14,6 +14,7 @@
 
 - Command execution isolates side effects from the agent loop, simplifying testing via mocks.
 - Read spec parsing supports both inline tokens and JSON payloads, giving prompts flexibility.
+- `run.js` ensures cancellation handlers are unregistered during all completion paths to avoid dangling callbacks.
 
 ## Risks / Gaps
 

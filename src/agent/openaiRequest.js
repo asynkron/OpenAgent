@@ -59,7 +59,7 @@ export async function requestModelCompletion({
     input: history,
     text: { format: { type: 'json_object' } },
     tools: [OPENAGENT_RESPONSE_TOOL],
-    toolChoice: {
+    tool_choice: {     
       type: 'function',
       name: 'open-agent',
     },

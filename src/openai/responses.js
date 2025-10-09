@@ -31,6 +31,7 @@ export function createResponse({
   options,
   reasoningEffort,
 }) {
+
   if (!openai || !openai.responses || typeof openai.responses.create !== 'function') {
     throw new Error('Invalid OpenAI client instance provided.');
   }
@@ -39,6 +40,14 @@ export function createResponse({
     model,
     input,
   };
+
+  if (Array.isArray(tools) && tools.length > 0) {
+    payload.tools = tools;
+    payload.tool_choice = {
+      type: 'function',
+      name: 'open-agent',
+    };
+  }
 
   if (text) {
     payload.text = text;
