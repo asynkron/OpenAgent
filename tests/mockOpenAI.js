@@ -5,6 +5,8 @@ import { beforeEach, jest } from '@jest/globals';
 const thisFilePath = fileURLToPath(import.meta.url);
 const thisDir = path.dirname(thisFilePath);
 const originalUnstableMockModule = jest.unstable_mockModule.bind(jest);
+const shouldMockOpenAI = process.env.OPENAGENT_LIVE_OPENAI !== '1';
+let mockingEnabled = shouldMockOpenAI;
 
 // Allow test files to continue using relative specifiers when mocking alongside this setup file.
 function resolveCallerPath() {
@@ -102,6 +104,9 @@ function OpenAIMock() {
 
 // Default stub used by suites that do not override the OpenAI client explicitly.
 const registerOpenAIMock = () => {
+  if (!mockingEnabled) {
+    return;
+  }
   jest.unstable_mockModule('openai', () => ({
     default: OpenAIMock,
     OpenAI: OpenAIMock,
@@ -119,7 +124,9 @@ if (originalResetModules) {
   };
 }
 
-registerOpenAIMock();
+if (mockingEnabled) {
+  registerOpenAIMock();
+}
 
 beforeEach(() => {
   registerOpenAIMock();
