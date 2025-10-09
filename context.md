@@ -12,7 +12,7 @@
 - `prompts/` & `schemas/` — authoritative protocol prompts plus JSON schema for validation. Linked details in [`prompts/context.md`](prompts/context.md) and [`schemas/context.md`](schemas/context.md).
 - `docs/` — design notes, operational guides, and meta documentation for contributors. See [`docs/context.md`](docs/context.md).
 - `scripts/` — maintenance utilities for editing code, validating assets, and release hygiene. See [`scripts/context.md`](scripts/context.md).
-- Operational metadata: `.github/` workflows, `.githooks/` local hooks, `.idea/` IDE settings, `.openagent/` runtime plan snapshots.
+- Operational metadata: `.github/` workflows, `.githooks/` local hooks, `.idea/` IDE settings, `.vscode/` workspace defaults, `.openagent/` runtime plan snapshots.
 
 ## Positive Signals
 
