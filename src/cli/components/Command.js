@@ -36,9 +36,9 @@ export function Command({ command, result, preview = {}, execution = {} }) {
   }
 
   const { type, detail, summaryLines } = data;
-  const children = [];
+  const lines = [];
 
-  children.push(
+  lines.push(
     h(
       Text,
       { key: 'heading' },
@@ -48,14 +48,31 @@ export function Command({ command, result, preview = {}, execution = {} }) {
   );
 
   summaryLines.forEach((line, index) => {
-    children.push(h(SummaryLine, { line, index, key: `summary-${index}` }));
+    lines.push(h(SummaryLine, { line, index, key: `summary-${index}` }));
   });
 
-  return h(
+  const header = h(
     Box,
     {
+      key: 'window-header',
+      width: '100%',
+      paddingX: 1,
+      paddingY: 0,
+      height: 1,
+      backgroundColor: '#1f1f1f',
+      alignItems: 'center',
+      gap: 1,
+    },
+    h(Text, { color: '#ff5f56' }, '●'),
+    h(Text, { color: '#ffbd2e' }, '●'),
+    h(Text, { color: '#27c93f' }, '●'),
+  );
+
+  const content = h(
+    Box,
+    {
+      key: 'command-body',
       flexDirection: 'column',
-      marginTop: 1,
       paddingX: 1,
       paddingY: 1,
       backgroundColor: 'black',
@@ -63,7 +80,20 @@ export function Command({ command, result, preview = {}, execution = {} }) {
       alignSelf: 'stretch',
       flexGrow: 1,
     },
-    children,
+    ...lines,
+  );
+
+  return h(
+    Box,
+    {
+      flexDirection: 'column',
+      marginTop: 1,
+      width: '100%',
+      alignSelf: 'stretch',
+      flexGrow: 1,
+    },
+    header,
+    content,
   );
 }
 
