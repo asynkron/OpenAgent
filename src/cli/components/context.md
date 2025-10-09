@@ -26,8 +26,8 @@
 
 ## Maintenance Notes
 
-- Layout wrappers such as `Command` explicitly set `width: '100%'`/`alignSelf: 'stretch'` so timeline entries fill the
-  terminal width consistently.
+- Layout wrappers such as `Command` and the `Timeline` container explicitly set `width: '100%'`/`alignSelf: 'stretch'`
+  so timeline entries fill the terminal width consistently.
 
 ## Related Context
 
