@@ -43,38 +43,133 @@ function normalizeSlashItem(item, index) {
   };
 }
 
-function computeActiveSlash(value, caretIndex) {
+function defaultFilterItem(item, context) {
+  if (!context) {
+    return true;
+  }
+
+  const { normalizedQuery } = context;
+
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  const haystack = [item.label, item.description ?? '', ...(item.keywords ?? [])]
+    .join(' ')
+    .toLowerCase();
+
+  return haystack.includes(normalizedQuery);
+}
+
+function normalizeCommandDefinition(definition, index) {
+  if (!definition || typeof definition !== 'object') {
+    return null;
+  }
+
+  const trigger =
+    typeof definition.trigger === 'string' && definition.trigger.length > 0
+      ? definition.trigger
+      : '/';
+
+  const allowInline = Boolean(definition.allowInline);
+  const shouldActivate =
+    typeof definition.shouldActivate === 'function'
+      ? definition.shouldActivate
+      : ({ precedingChar }) => allowInline || !precedingChar || isWhitespace(precedingChar);
+
+  const filterItem =
+    typeof definition.filterItem === 'function' ? definition.filterItem : defaultFilterItem;
+
+  const staticItems = Array.isArray(definition.items)
+    ? definition.items
+        .map((item, itemIndex) => normalizeSlashItem(item, itemIndex))
+        .filter(Boolean)
+    : [];
+
+  const getItems = typeof definition.getItems === 'function' ? definition.getItems : null;
+  const allowNewlines = Boolean(definition.allowNewlines);
+
+  return {
+    id: definition.id ?? `command-${index}`,
+    trigger,
+    triggerLength: trigger.length,
+    allowNewlines,
+    allowInline,
+    shouldActivate,
+    filterItem,
+    getItems,
+    staticItems,
+    order: index,
+    source: definition,
+  };
+}
+
+function computeActiveCommand(value, caretIndex, commands) {
   if (typeof value !== 'string' || value.length === 0) {
+    return null;
+  }
+
+  if (!Array.isArray(commands) || commands.length === 0) {
     return null;
   }
 
   const clampedIndex = clamp(caretIndex ?? value.length, 0, value.length);
   const textToCaret = value.slice(0, clampedIndex);
-  const slashIndex = textToCaret.lastIndexOf('/');
+  let bestMatch = null;
 
-  if (slashIndex === -1) {
-    return null;
+  for (const command of commands) {
+    const triggerIndex = textToCaret.lastIndexOf(command.trigger);
+
+    if (triggerIndex === -1) {
+      continue;
+    }
+
+    const queryStart = triggerIndex + command.triggerLength;
+
+    if (queryStart > clampedIndex) {
+      continue;
+    }
+
+    const query = textToCaret.slice(queryStart);
+
+    if (!command.allowNewlines && query.includes('\n')) {
+      continue;
+    }
+
+    if (query.includes('\u0000')) {
+      continue;
+    }
+
+    const precedingChar = triggerIndex > 0 ? textToCaret[triggerIndex - 1] : '';
+
+    const context = {
+      value,
+      caretIndex: clampedIndex,
+      triggerIndex,
+      query,
+      precedingChar,
+      command: command.source ?? command,
+    };
+
+    if (!command.shouldActivate(context)) {
+      continue;
+    }
+
+    if (
+      !bestMatch ||
+      triggerIndex > bestMatch.startIndex ||
+      (triggerIndex === bestMatch.startIndex && command.order > bestMatch.command.order)
+    ) {
+      bestMatch = {
+        command,
+        startIndex: triggerIndex,
+        endIndex: clampedIndex,
+        query,
+      };
+    }
   }
 
-  if (slashIndex > 0 && !isWhitespace(textToCaret[slashIndex - 1])) {
-    return null;
-  }
-
-  const query = textToCaret.slice(slashIndex + 1);
-
-  if (/\s/u.test(query)) {
-    return null;
-  }
-
-  if (query.includes('\u0000')) {
-    return null;
-  }
-
-  return {
-    startIndex: slashIndex,
-    endIndex: clampedIndex,
-    query,
-  };
+  return bestMatch;
 }
 
 function clamp(value, min, max) {
@@ -223,6 +318,7 @@ export function InkTextArea({
   isActive = true,
   isDisabled = false,
   slashMenuItems = [],
+  commandMenus = [],
   onSlashCommandSelect,
   ...rest
 }) {
@@ -257,7 +353,7 @@ export function InkTextArea({
     specialKeys: [],
   }));
   const desiredColumnRef = useRef(null);
-  const [slashHighlightIndex, setSlashHighlightIndex] = useState(0);
+  const [commandHighlightIndex, setCommandHighlightIndex] = useState(0);
   const interactive = isActive && !isDisabled;
 
   const { stdout } = useStdout();
@@ -340,83 +436,150 @@ export function InkTextArea({
   const caretLine = caretPosition.rowIndex;
   const caretColumn = caretPosition.column;
 
-  const normalizedSlashItems = useMemo(
-    () =>
-      Array.isArray(slashMenuItems)
-        ? slashMenuItems
-            .map((item, index) => normalizeSlashItem(item, index))
-            .filter(Boolean)
-        : [],
-    [slashMenuItems],
+  const [dynamicCommandItems, setDynamicCommandItems] = useState(() => ({}));
+
+  const normalizedCommands = useMemo(() => {
+    const legacyDefinitions = Array.isArray(slashMenuItems) && slashMenuItems.length > 0
+      ? [
+          {
+            id: 'legacy-slash-command',
+            trigger: '/',
+            items: slashMenuItems,
+          },
+        ]
+      : [];
+
+    const providedDefinitions = Array.isArray(commandMenus) ? commandMenus : [];
+
+    return [...legacyDefinitions, ...providedDefinitions]
+      .map((definition, index) => normalizeCommandDefinition(definition, index))
+      .filter(Boolean);
+  }, [commandMenus, slashMenuItems]);
+
+  const activeCommand = useMemo(
+    () => computeActiveCommand(value, caretIndex, normalizedCommands),
+    [caretIndex, normalizedCommands, value],
   );
 
-  const activeSlash = useMemo(
-    () => computeActiveSlash(value, caretIndex),
-    [caretIndex, value],
-  );
+  const activeCommandId = activeCommand?.command?.id;
 
-  const slashMatches = useMemo(() => {
-    if (!activeSlash) {
+  useEffect(() => {
+    // Fetch dynamic command items whenever the active command relies on a callback.
+    if (!activeCommand) {
+      return undefined;
+    }
+
+    const { command } = activeCommand;
+
+    if (!command.getItems) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const signature = `${command.id}:${activeCommand.startIndex}:${activeCommand.query}`;
+
+    Promise.resolve(
+      command.getItems({
+        query: activeCommand.query,
+        command: command.source ?? command,
+        value,
+        caretIndex,
+        range: { startIndex: activeCommand.startIndex, endIndex: activeCommand.endIndex },
+      }),
+    )
+      .then((items) => (Array.isArray(items) ? items : []))
+      .catch(() => [])
+      .then((items) => {
+        if (cancelled) {
+          return;
+        }
+
+        const normalizedItems = items
+          .map((item, index) => normalizeSlashItem(item, index))
+          .filter(Boolean);
+
+        setDynamicCommandItems((prev) => {
+          const previousEntry = prev[command.id];
+
+          if (previousEntry && previousEntry.signature === signature) {
+            return prev;
+          }
+
+          return {
+            ...prev,
+            [command.id]: {
+              signature,
+              items: normalizedItems,
+            },
+          };
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCommand, caretIndex, value]);
+
+  const commandMatches = useMemo(() => {
+    if (!activeCommand) {
       return [];
     }
 
-    const normalizedQuery = activeSlash.query.toLowerCase();
-    const hasQuery = normalizedQuery.length > 0;
+    const { command } = activeCommand;
+    const asyncItems = dynamicCommandItems[command.id]?.items ?? [];
+    const allItems = [...command.staticItems, ...asyncItems];
 
-    return normalizedSlashItems
-      .map((item, index) => {
-        if (!hasQuery) {
-          return { item, index };
-        }
+    const normalizedQuery = activeCommand.query.toLowerCase();
 
-        const haystack = [item.label, item.description ?? '', ...item.keywords]
-          .join(' ')
-          .toLowerCase();
+    return allItems
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) =>
+        command.filterItem(item, {
+          query: activeCommand.query,
+          normalizedQuery,
+          command: command.source ?? command,
+          value,
+          caretIndex: activeCommand.endIndex,
+        }),
+      );
+  }, [activeCommand, caretIndex, dynamicCommandItems, value]);
 
-        if (!haystack.includes(normalizedQuery)) {
-          return null;
-        }
+  const commandMenuVisible = Boolean(activeCommand) && commandMatches.length > 0;
 
-        return { item, index };
-      })
-      .filter(Boolean);
-  }, [activeSlash, normalizedSlashItems]);
-
-  const slashMenuVisible = Boolean(activeSlash) && slashMatches.length > 0;
-
-  const slashSignatureRef = useRef(null);
+  const commandSignatureRef = useRef(null);
 
   useEffect(() => {
-    if (!slashMenuVisible) {
-      slashSignatureRef.current = null;
-      if (slashHighlightIndex !== 0) {
-        setSlashHighlightIndex(0);
+    if (!commandMenuVisible) {
+      commandSignatureRef.current = null;
+      if (commandHighlightIndex !== 0) {
+        setCommandHighlightIndex(0);
       }
       return;
     }
 
-    const signature = `${activeSlash.startIndex}:${activeSlash.query}`;
-    if (slashSignatureRef.current !== signature) {
-      slashSignatureRef.current = signature;
-      setSlashHighlightIndex(0);
+    const signature = `${activeCommand.startIndex}:${activeCommand.query}:${activeCommandId}`;
+    if (commandSignatureRef.current !== signature) {
+      commandSignatureRef.current = signature;
+      setCommandHighlightIndex(0);
       return;
     }
 
-    setSlashHighlightIndex((prev) => clamp(prev, 0, slashMatches.length - 1));
+    setCommandHighlightIndex((prev) => clamp(prev, 0, commandMatches.length - 1));
   }, [
-    activeSlash?.query,
-    activeSlash?.startIndex,
-    slashHighlightIndex,
-    slashMatches.length,
-    slashMenuVisible,
+    activeCommand?.query,
+    activeCommand?.startIndex,
+    activeCommandId,
+    commandHighlightIndex,
+    commandMatches.length,
+    commandMenuVisible,
   ]);
 
-  const resolvedSlashHighlightIndex = slashMenuVisible
-    ? Math.min(slashHighlightIndex, slashMatches.length - 1)
+  const resolvedCommandHighlightIndex = commandMenuVisible
+    ? Math.min(commandHighlightIndex, commandMatches.length - 1)
     : 0;
 
-  const selectedSlashMatch = slashMenuVisible
-    ? slashMatches[resolvedSlashHighlightIndex] ?? slashMatches[0]
+  const selectedCommandMatch = commandMenuVisible
+    ? commandMatches[resolvedCommandHighlightIndex] ?? commandMatches[0]
     : null;
 
   const resetDesiredColumn = useCallback(() => {
@@ -449,37 +612,38 @@ export function InkTextArea({
     [onChange, resetDesiredColumn],
   );
 
-  const handleSlashSelection = useCallback(() => {
-    if (!slashMenuVisible || !selectedSlashMatch || !activeSlash) {
+  const handleCommandSelection = useCallback(() => {
+    if (!commandMenuVisible || !selectedCommandMatch || !activeCommand) {
       return false;
     }
 
-    const { item } = selectedSlashMatch;
+    const { item } = selectedCommandMatch;
     const replacement = item.insertValue ?? '';
-    const before = value.slice(0, activeSlash.startIndex);
-    const after = value.slice(activeSlash.endIndex);
+    const before = value.slice(0, activeCommand.startIndex);
+    const after = value.slice(activeCommand.endIndex);
     const nextValue = `${before}${replacement}${after}`;
     const nextCaretIndex = before.length + replacement.length;
 
     updateValue(nextValue, nextCaretIndex);
     onSlashCommandSelect?.({
       item: item.source ?? item,
-      query: activeSlash.query,
+      query: activeCommand.query,
+      command: activeCommand.command.source ?? activeCommand.command,
       range: {
-        startIndex: activeSlash.startIndex,
-        endIndex: activeSlash.endIndex,
+        startIndex: activeCommand.startIndex,
+        endIndex: activeCommand.endIndex,
       },
       replacement,
       value: nextValue,
     });
 
-    setSlashHighlightIndex(0);
+    setCommandHighlightIndex(0);
     return true;
   }, [
-    activeSlash,
+    activeCommand,
     onSlashCommandSelect,
-    selectedSlashMatch,
-    slashMenuVisible,
+    selectedCommandMatch,
+    commandMenuVisible,
     updateValue,
     value,
   ]);
@@ -499,19 +663,19 @@ export function InkTextArea({
         specialKeys,
       });
 
-      const slashNavigationHandled = (() => {
-        if (!slashMenuVisible) {
+      const commandNavigationHandled = (() => {
+        if (!commandMenuVisible) {
           return false;
         }
 
-        const total = slashMatches.length;
+        const total = commandMatches.length;
 
         if (total === 0) {
           return false;
         }
 
         if (key.upArrow || (key.tab && key.shift)) {
-          setSlashHighlightIndex((prev) => {
+          setCommandHighlightIndex((prev) => {
             const next = (prev - 1 + total) % total;
             return next;
           });
@@ -519,7 +683,7 @@ export function InkTextArea({
         }
 
         if (key.downArrow || (key.tab && !key.shift)) {
-          setSlashHighlightIndex((prev) => {
+          setCommandHighlightIndex((prev) => {
             const next = (prev + 1) % total;
             return next;
           });
@@ -527,13 +691,13 @@ export function InkTextArea({
         }
 
         if (key.return) {
-          return handleSlashSelection();
+          return handleCommandSelection();
         }
 
         return false;
       })();
 
-      if (slashNavigationHandled) {
+      if (commandNavigationHandled) {
         return;
       }
 
@@ -631,12 +795,12 @@ export function InkTextArea({
     [
       caretIndex,
       caretPosition,
-      handleSlashSelection,
+      handleCommandSelection,
       interactive,
       onSubmit,
       rows,
-      slashMatches.length,
-      slashMenuVisible,
+      commandMatches.length,
+      commandMenuVisible,
       updateValue,
       value,
     ],
@@ -745,23 +909,23 @@ export function InkTextArea({
     [lastKeyEvent.specialKeys],
   );
 
-  const slashMenuElement = useMemo(() => {
-    if (!slashMenuVisible) {
+  const commandMenuElement = useMemo(() => {
+    if (!commandMenuVisible) {
       return null;
     }
 
     return h(
       Box,
       {
-        key: 'slash-menu',
+        key: 'command-menu',
         flexDirection: 'column',
         borderStyle: 'round',
         borderColor: 'cyan',
         marginTop: 1,
         width: '100%',
       },
-      ...slashMatches.map((match, index) => {
-        const isSelected = index === resolvedSlashHighlightIndex;
+      ...commandMatches.map((match, index) => {
+        const isSelected = index === resolvedCommandHighlightIndex;
         const segments = [
           h(
             Text,
@@ -799,14 +963,18 @@ export function InkTextArea({
         return h(
           Box,
           {
-            key: `slash-item-${match.item.id ?? index}`,
+            key: `command-item-${match.item.id ?? index}`,
             paddingX: 1,
           },
           ...segments,
         );
       }),
     );
-  }, [resolvedSlashHighlightIndex, slashMatches, slashMenuVisible]);
+  }, [
+    commandMatches,
+    commandMenuVisible,
+    resolvedCommandHighlightIndex,
+  ]);
 
   const shouldRenderDebug = process.env.NODE_ENV === 'test';
 
@@ -913,7 +1081,7 @@ export function InkTextArea({
     Box,
     containerProps,
     h(Box, { flexDirection: 'column', width: '100%' }, ...rowElements),
-    slashMenuElement,
+    commandMenuElement,
     debugElement,
     // h(
     //   Box,
