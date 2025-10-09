@@ -14,7 +14,7 @@ function deepFreeze(value) {
   return value;
 }
 
-const RESPONSE_PARAMETERS_SCHEMA = {
+export const RESPONSE_PARAMETERS_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   required: ['message'],
@@ -30,45 +30,53 @@ const RESPONSE_PARAMETERS_SCHEMA = {
       description: 'Progress tracker for multi-step work; omit or use [] when idle.',
     },
     command: {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        description: {
-          type: 'string',
-          description: 'Human-friendly summary of why the command is needed.',
-        },
-        shell: {
-          type: 'string',
-          description: 'Shell executable to launch when running commands.',
-        },
-        run: {
-          type: 'string',
-          description: 'Command string to execute in the provided shell.',
-        },
-        cwd: {
-          type: 'string',
-          description: 'Working directory for shell execution.',
-        },
-        timeout_sec: {
-          type: 'integer',
-          minimum: 1,
-          description: 'Optional timeout guard for long-running commands.',
-        },
-        filter_regex: {
-          type: 'string',
-          description: 'Optional regex used to filter command output.',
-        },
-        tail_lines: {
-          type: 'integer',
-          minimum: 1,
-          description: 'Optional number of trailing lines to return from output.',
-        },
-        read: {
-          $ref: '#/$defs/readCommand',
-        },
-      },
-      oneOf: [{ required: ['shell', 'run', 'cwd'] }, { required: ['read'] }],
       description: 'Next tool invocation to execute when a plan step is running.',
+      anyOf: [
+        { type: 'null' },
+        {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            description: {
+              type: 'string',
+              description: 'Human-friendly summary of why the command is needed.',
+            },
+            shell: {
+              type: 'string',
+              minLength: 1,
+              description: 'Shell executable to launch when running commands.',
+            },
+            run: {
+              type: 'string',
+              minLength: 1,
+              description: 'Command string to execute in the provided shell.',
+            },
+            cwd: {
+              type: 'string',
+              minLength: 1,
+              description: 'Working directory for shell execution.',
+            },
+            timeout_sec: {
+              type: 'integer',
+              minimum: 1,
+              description: 'Optional timeout guard for long-running commands.',
+            },
+            filter_regex: {
+              type: 'string',
+              description: 'Optional regex used to filter command output.',
+            },
+            tail_lines: {
+              type: 'integer',
+              minimum: 1,
+              description: 'Optional number of trailing lines to return from output.',
+            },
+            read: {
+              $ref: '#/$defs/readCommand',
+            },
+          },
+          oneOf: [{ required: ['run'] }, { required: ['read'] }],
+        },
+      ],
     },
   },
   $defs: {
@@ -141,5 +149,7 @@ export const OPENAGENT_RESPONSE_TOOL = deepFreeze({
     parameters: RESPONSE_PARAMETERS_SCHEMA,
   },
 });
+
+export const ASSISTANT_RESPONSE_TOOL = OPENAGENT_RESPONSE_TOOL;
 
 export default OPENAGENT_RESPONSE_TOOL;

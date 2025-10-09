@@ -57,7 +57,7 @@ export function transformToRows(source, maxWidth, options = {}) {
   const safeWidth = Math.max(1, Math.floor(maxWidth ?? 1));
   const horizontalPadding =
     toNonNegativeInteger(paddingLeft) + toNonNegativeInteger(paddingRight);
-  const effectiveWidth = Math.max(1, safeWidth - horizontalPadding - 5);
+  const effectiveWidth = Math.max(1, safeWidth - horizontalPadding);
   const rows = [];
 
   let rowStartIndex = 0;
@@ -575,31 +575,40 @@ export function InkTextArea({
     paddingY,
   ]);
 
+  const shouldRenderDebug =
+    process.env.NODE_ENV === 'test' || process.env.OPENAGENT_TEXTAREA_DEBUG === '1';
+
+  const debugElements = shouldRenderDebug
+    ? [
+        h(
+          Box,
+          { flexDirection: 'column', marginTop: 1 },
+          h(Text, { color: 'gray', dimColor: true, key: 'debug-heading' }, 'Debug info'),
+          h(
+            Text,
+            { color: 'gray', key: 'debug-width' },
+            `Width: ${normalizedWidth} (effective: ${effectiveWidth}, prop: ${widthPropDisplay}, measured: ${measuredWidthDisplay})`,
+          ),
+          h(
+            Text,
+            { color: 'gray', key: 'debug-caret' },
+            `Caret: line ${caretLineDisplay}, column ${caretColumnDisplay}, index ${caretIndex}`,
+          ),
+          h(Text, { color: 'gray', key: 'debug-last-key' }, `Last key: ${lastKeyDisplay}`),
+          h(
+            Text,
+            { color: 'gray', key: 'debug-modifiers' },
+            `Special keys: ${modifierKeys.length > 0 ? modifierKeys.join(', ') : 'none'}`,
+          ),
+        ),
+      ]
+    : [];
+
   return h(
     Box,
     containerProps,
     h(Box, { flexDirection: 'column', width: '100%' }, ...rowElements),
-    // h(
-    //   Box,
-    //   { flexDirection: 'column', marginTop: 1 },
-    //   h(Text, { color: 'gray', dimColor: true, key: 'debug-heading' }, 'Debug info'),
-    //   h(
-    //     Text,
-    //     { color: 'gray', key: 'debug-width' },
-    //     `Width: ${normalizedWidth} (effective: ${effectiveWidth}, prop: ${widthPropDisplay}, measured: ${measuredWidthDisplay})`,
-    //   ),
-    //   h(
-    //     Text,
-    //     { color: 'gray', key: 'debug-caret' },
-    //     `Caret: line ${caretLineDisplay}, column ${caretColumnDisplay}, index ${caretIndex}`,
-    //   ),
-    //   h(Text, { color: 'gray', key: 'debug-last-key' }, `Last key: ${lastKeyDisplay}`),
-    //   h(
-    //     Text,
-    //     { color: 'gray', key: 'debug-modifiers' },
-    //     `Special keys: ${modifierKeys.length > 0 ? modifierKeys.join(', ') : 'none'}`,
-    //   ),
-    // ),
+    ...debugElements,
   );
 }
 

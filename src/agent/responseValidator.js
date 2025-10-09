@@ -1,3 +1,7 @@
+import Ajv from 'ajv';
+
+import { RESPONSE_PARAMETERS_SCHEMA } from './responseToolSchema.js';
+
 /**
  * Validates assistant JSON responses to ensure they follow the required protocol.
  * The validator returns a list of human-readable errors instead of throwing so the
@@ -6,6 +10,9 @@
 
 const ALLOWED_STATUSES = new Set(['pending', 'running', 'completed']);
 const PLAN_CHILD_KEYS = ['substeps'];
+
+const ajv = new Ajv({ allErrors: true, strict: false });
+const validateResponseSchema = ajv.compile(RESPONSE_PARAMETERS_SCHEMA);
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -71,9 +78,110 @@ function validatePlanItem(item, path, state, errors) {
   }
 }
 
-export function validateAssistantResponse(payload) {
-  const errors = [];
+function formatSchemaErrors(errors = []) {
+  const messages = [];
+  const seen = new Set();
+  let missingRun = false;
+  let missingRead = false;
+  let commandVariantIssue = undefined;
 
+  for (const error of errors) {
+    const path = error.instancePath || '';
+    const keyword = error.keyword;
+
+    if (path === '/command' && keyword === 'type' && error.params?.type === 'null') {
+      // Ignore the null-branch failure when the object variant is being validated.
+      continue;
+    }
+
+    if (path === '/command' && keyword === 'required') {
+      const missingProperty = error.params?.missingProperty;
+      if (missingProperty === 'read') {
+        missingRead = true;
+      } else if (missingProperty === 'run') {
+        missingRun = true;
+      }
+      continue;
+    }
+
+    if (path === '/command' && keyword === 'oneOf') {
+      commandVariantIssue = Array.isArray(error.params?.passingSchemas)
+        ? { type: 'both', passing: error.params.passingSchemas }
+        : { type: 'neither' };
+      continue;
+    }
+
+    if (path === '/command' && keyword === 'additionalProperties') {
+      const prop = error.params?.additionalProperty;
+      if (prop) {
+        const message = `Command includes unsupported property "${prop}".`;
+        if (!seen.has(message)) {
+          messages.push(message);
+          seen.add(message);
+        }
+        continue;
+      }
+    }
+
+    if (path === '/command' && keyword === 'anyOf') {
+      // Allow specific messaging to handle execute vs. read variant errors.
+      continue;
+    }
+
+    if (path === '/plan' && keyword === 'maxItems') {
+      const message = 'Plan must not contain more than 3 top-level steps.';
+      if (!seen.has(message)) {
+        messages.push(message);
+        seen.add(message);
+      }
+      continue;
+    }
+
+    if (!path && keyword === 'required') {
+      const missingProperty = error.params?.missingProperty;
+      if (missingProperty) {
+        const message = `Assistant response is missing required field "${missingProperty}".`;
+        if (!seen.has(message)) {
+          messages.push(message);
+          seen.add(message);
+        }
+        continue;
+      }
+    }
+
+    const location = path || 'root';
+    const message = `Schema validation failed at ${location}: ${error.message}.`;
+    if (!seen.has(message)) {
+      messages.push(message);
+      seen.add(message);
+    }
+  }
+
+  if (missingRun && !seen.has('Command objects must include a non-empty string "run".')) {
+    messages.push('Command objects must include a non-empty string "run".');
+    seen.add('Command objects must include a non-empty string "run".');
+  }
+
+  if (missingRead && !seen.has('Command objects must include a "read" specification.')) {
+    messages.push('Command objects must include a "read" specification.');
+    seen.add('Command objects must include a "read" specification.');
+  }
+
+  if (commandVariantIssue) {
+    const message =
+      commandVariantIssue.type === 'both'
+        ? 'Read commands must not include "run" or "shell" fields.'
+        : 'Command must choose either execute or read variants.';
+    if (!seen.has(message)) {
+      messages.push(message);
+      seen.add(message);
+    }
+  }
+
+  return messages;
+}
+
+export function validateAssistantResponse(payload) {
   if (!isPlainObject(payload)) {
     return {
       valid: false,
@@ -81,23 +189,18 @@ export function validateAssistantResponse(payload) {
     };
   }
 
-  if (
-    typeof payload.message !== 'undefined' &&
-    payload.message !== null &&
-    typeof payload.message !== 'string'
-  ) {
-    errors.push('"message" must be a string when provided.');
+  const schemaValid = validateResponseSchema(payload);
+  if (!schemaValid) {
+    return {
+      valid: false,
+      errors: formatSchemaErrors(validateResponseSchema.errors),
+    };
   }
 
-  const plan = Array.isArray(payload.plan) ? payload.plan : payload.plan === undefined ? [] : null;
-  if (plan === null) {
-    errors.push('"plan" must be an array.');
-  }
+  const errors = [];
 
+  const plan = Array.isArray(payload.plan) ? payload.plan : [];
   const command = payload.command ?? null;
-  if (command !== null && !isPlainObject(command)) {
-    errors.push('"command" must be null or an object.');
-  }
 
   if (Array.isArray(plan)) {
     if (plan.length > 3) {
@@ -129,8 +232,42 @@ export function validateAssistantResponse(payload) {
     }
   }
 
-  if (command && Object.keys(command).length === 0) {
-    errors.push('Command objects must include execution details.');
+  if (!command) {
+    return {
+      valid: errors.length === 0,
+      errors,
+    };
+  }
+
+  const hasReadSpec = Object.prototype.hasOwnProperty.call(command, 'read');
+  const runValue = typeof command.run === 'string' ? command.run : '';
+  const shellValue = typeof command.shell === 'string' ? command.shell : '';
+  const cwdValue = typeof command.cwd === 'string' ? command.cwd : '';
+
+  const trimmedRun = runValue.trim();
+  const trimmedShell = shellValue.trim();
+  const trimmedCwd = cwdValue.trim();
+
+  if (!hasReadSpec) {
+    if (!trimmedRun) {
+      errors.push('Command objects must include a non-empty string "run".');
+    }
+
+    if (Object.prototype.hasOwnProperty.call(command, 'shell') && !trimmedShell) {
+      errors.push('When provided, "shell" must be a non-empty string.');
+    }
+  } else {
+    if (command.read !== undefined && !isPlainObject(command.read)) {
+      errors.push('"command.read" must be an object when provided.');
+    }
+
+    if (trimmedRun || trimmedShell) {
+      errors.push('Read commands must not include "run" or "shell" fields.');
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(command, 'cwd') && !trimmedCwd) {
+    errors.push('When provided, "cwd" must be a non-empty string.');
   }
 
   return {

@@ -15,6 +15,7 @@
 ## Positive Signals
 
 - Tests validate both success and failure modes (e.g., cancellation branches, invalid response handling).
+- Response validator suite now mirrors the shared JSON schema via Ajv, catching malformed execute/read payloads before they reach the runtime.
 - Coverage mirrors directory structure, making it easy to find corresponding specs when editing code.
 
 ## Risks / Gaps

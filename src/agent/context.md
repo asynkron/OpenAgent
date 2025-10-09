@@ -10,7 +10,7 @@
 - `approvalManager.js` — centralizes auto-approval checks (allowlist/session flags) and human prompts.
 - `commandExecution.js` — dispatches agent commands to handlers (`commands/`), tracks runtime metadata, and captures outputs.
 - `commands/` subdirectory — specialized handlers for `read` vs. generic execute operations.
-- `historyCompactor.js`, `observationBuilder.js`, `responseParser.js`, `responseValidator.js`, `responseToolSchema.js` — manage conversation state, define the response envelope schema (including the named OpenAI tool contract), parse Responses API payloads, and validate protocol compliance.
+- `historyCompactor.js`, `observationBuilder.js`, `responseParser.js`, `responseValidator.js`, `responseToolSchema.js` — manage conversation state, define the response envelope schema (including the named OpenAI tool contract), parse Responses API payloads, and validate protocol compliance (Ajv-backed checks mirror the shared schema, ensuring execute vs. read command payloads stay well-formed).
 - `openaiRequest.js` — builds structured responses requests with retries and timeout handling.
 - `promptCoordinator.js`, `escState.js` — route human prompts, handle ESC cancellations.
 - `passExecutor.js` — handles multi-pass reasoning loops (execute/reflect cycles) when the model requests continuations.
