@@ -42,6 +42,27 @@ describe('parseAssistantResponse', () => {
     });
   });
 
+  test('normalizes run commands emitted without a dedicated run property', () => {
+    const payload = JSON.stringify({
+      message: 'Running command `echo hello`.',
+      command: {
+        cwd: '.',
+        shell: 'echo hello',
+      },
+    });
+
+    const result = parseAssistantResponse(payload);
+
+    expect(result.ok).toBe(true);
+    expect(result.value).toEqual({
+      message: 'Running command `echo hello`.',
+      command: {
+        cwd: '.',
+        run: 'echo hello',
+      },
+    });
+  });
+
   test('returns structured attempts when parsing fails', () => {
     const result = parseAssistantResponse('not json at all');
 

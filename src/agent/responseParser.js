@@ -2,6 +2,98 @@ const STRATEGY_DIRECT = 'direct';
 const STRATEGY_CODE_FENCE = 'code_fence';
 const STRATEGY_BALANCED_SLICE = 'balanced_slice';
 
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function firstNonEmptyString(...candidates) {
+  for (const candidate of candidates) {
+    if (typeof candidate !== 'string') {
+      continue;
+    }
+
+    const trimmed = candidate.trim();
+    if (trimmed) {
+      return trimmed;
+    }
+  }
+
+  return '';
+}
+
+function normalizeFlatCommand(command) {
+  const runString = firstNonEmptyString(command.run);
+  const shellString = firstNonEmptyString(command.shell);
+
+  if (runString) {
+    const { run: _ignoredRun, shell: _ignoredShell, ...rest } = command;
+    const normalized = { ...rest, run: runString };
+    if (shellString) {
+      normalized.shell = shellString;
+    }
+    return normalized;
+  }
+
+  if (shellString) {
+    const { shell: _ignoredShell, ...rest } = command;
+    return { ...rest, run: shellString };
+  }
+
+  return { ...command };
+}
+
+function normalizeNestedRunCommand(command) {
+  const nested = command.run;
+  if (!isPlainObject(nested)) {
+    return normalizeFlatCommand(command);
+  }
+
+  const { run: nestedRun, command: nestedCommand, shell: nestedShell, ...nestedRest } = nested;
+  const { run: _ignoredRun, shell: topLevelShell, ...rest } = command;
+
+  const merged = { ...rest, ...nestedRest };
+  const runString = firstNonEmptyString(nestedCommand, nestedRun);
+  const shellString = firstNonEmptyString(nestedShell, topLevelShell);
+
+  if (runString) {
+    merged.run = runString;
+  } else if (shellString) {
+    merged.run = shellString;
+  }
+
+  if (shellString && merged.run && shellString !== merged.run) {
+    merged.shell = shellString;
+  }
+
+  return merged;
+}
+
+function normalizeCommandPayload(command) {
+  if (!isPlainObject(command)) {
+    return command;
+  }
+
+  if (isPlainObject(command.run)) {
+    return normalizeNestedRunCommand(command);
+  }
+
+  return normalizeFlatCommand(command);
+}
+
+function normalizeAssistantPayload(payload) {
+  if (!isPlainObject(payload)) {
+    return payload;
+  }
+
+  const normalized = { ...payload };
+
+  if ('command' in normalized) {
+    normalized.command = normalizeCommandPayload(normalized.command);
+  }
+
+  return normalized;
+}
+
 const OPENING_TO_CLOSING = new Map([
   ['{', '}'],
   ['[', ']'],
@@ -12,9 +104,10 @@ const CLOSERS = new Set(Array.from(OPENING_TO_CLOSING.values()));
 function attemptParse(text, strategy, attempts) {
   try {
     const value = JSON.parse(text);
+    const normalizedValue = normalizeAssistantPayload(value);
     return {
       ok: true,
-      value,
+      value: normalizedValue,
       normalizedText: text,
       recovery: { strategy },
     };
