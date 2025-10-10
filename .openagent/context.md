@@ -6,7 +6,7 @@
 
 ## Key Artifacts
 
-- `plan.json` — JSON array representing the merged/active plan (`src/agent/loop.js` manages it). Reused between sessions when plan merging is enabled.
+- `plan.json` — JSON array representing the merged/active plan (`src/agent/loop.js` manages it). Reused between sessions when plan merging is enabled and now gitignored so release automation never sees a dirty tree.
 
 ## Positive Signals
 

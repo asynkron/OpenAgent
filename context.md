@@ -23,7 +23,7 @@
 
 ## Risks / Gaps
 
-- Runtime behavior depends on persisted state in `.openagent/plan.json`; stale snapshots can confuse follow-up sessions and tests if not cleaned between runs.
+- Runtime behavior depends on persisted state in `.openagent/plan.json`; stale snapshots can confuse follow-up sessions and tests if not cleaned between runs even though the file is now gitignored.
 - Node dependencies are vendored via `node_modules/`; context indexing intentionally excludes them to avoid noise, so consult package docs when diving into third-party APIs.
 - No single architectural diagram ties the subsystems together—use the directory contexts plus `docs/` to reconstitute mental models.
 
