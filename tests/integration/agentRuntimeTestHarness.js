@@ -4,17 +4,34 @@ import { jest } from '@jest/globals';
 // without reaching out to the real OpenAI SDK.
 const modelCompletionQueue = [];
 
+let mockCallCounter = 0;
+
+function sanitizePayload(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return payload;
+  }
+
+  const sanitized = {};
+  for (const [key, value] of Object.entries(payload)) {
+    if (value === null || value === undefined) {
+      continue;
+    }
+    sanitized[key] = value;
+  }
+
+  return sanitized;
+}
+
 function buildCompletionFromPayload(payload) {
+  mockCallCounter += 1;
+  const normalized = sanitizePayload(payload);
   return {
     output: [
       {
-        type: 'message',
-        content: [
-          {
-            type: 'output_text',
-            text: JSON.stringify(payload),
-          },
-        ],
+        type: 'function_call',
+        name: 'open-agent',
+        call_id: `integration-call-${mockCallCounter}`,
+        arguments: JSON.stringify(normalized),
       },
     ],
   };
@@ -30,6 +47,7 @@ export function queueModelCompletion(outcome) {
 
 export function resetQueuedResponses() {
   modelCompletionQueue.length = 0;
+  mockCallCounter = 0;
 }
 
 export async function loadAgentWithMockedModules() {

@@ -8,7 +8,7 @@
 
 - `client.js` — lazily instantiates the OpenAI SDK client based on environment variables, validates models, and exposes `MODEL`, `getOpenAIClient`, `resetOpenAIClient`.
 - `responses.js` — constructs structured responses API calls, attaches tool schemas, handles retries, and normalizes errors.
-- `responseUtils.js` — extracts assistant tool arguments (preferring `function_call` arguments with text fallback) from Responses API payloads for downstream parsing.
+- `responseUtils.js` — normalizes OpenAI Responses payloads, exposing helpers to pull the sanitized `open-agent` tool call (for protocol validation) while still providing a text fallback for legacy/plain-text replies.
 
 ## Positive Signals
 

@@ -11,12 +11,16 @@ const setupPassExecutor = async () => {
     default: { requestModelCompletion },
   }));
 
-  const extractResponseText = jest
-    .fn()
-    .mockReturnValue('{"message":"  ","command":{"run":"   ","shell":"   "}}');
+  const extractOpenAgentToolCall = jest.fn().mockReturnValue({
+    name: 'open-agent',
+    call_id: 'call_mock_1',
+    arguments: '{"message":"  ","command":{"run":"   ","shell":"   "}}',
+  });
+  const extractResponseText = jest.fn();
   jest.unstable_mockModule('../../src/openai/responseUtils.js', () => ({
+    extractOpenAgentToolCall,
     extractResponseText,
-    default: { extractResponseText },
+    default: { extractOpenAgentToolCall, extractResponseText },
   }));
 
   const parseAssistantResponse = jest.fn(() => ({
@@ -88,7 +92,7 @@ const setupPassExecutor = async () => {
   return {
     executeAgentPass: mod.executeAgentPass,
     requestModelCompletion,
-    extractResponseText,
+    extractOpenAgentToolCall,
     parseAssistantResponse,
     validateAssistantResponseSchema,
     validateAssistantResponse,
@@ -108,7 +112,7 @@ describe('executeAgentPass', () => {
     const {
       executeAgentPass,
       requestModelCompletion,
-      extractResponseText,
+      extractOpenAgentToolCall,
       parseAssistantResponse,
       validateAssistantResponseSchema,
       validateAssistantResponse,
@@ -141,7 +145,7 @@ describe('executeAgentPass', () => {
 
     expect(result).toBe(false);
     expect(requestModelCompletion).toHaveBeenCalledTimes(1);
-    expect(extractResponseText).toHaveBeenCalledTimes(1);
+    expect(extractOpenAgentToolCall).toHaveBeenCalledTimes(1);
     expect(parseAssistantResponse).toHaveBeenCalledTimes(1);
     expect(validateAssistantResponseSchema).toHaveBeenCalledTimes(1);
     expect(validateAssistantResponse).toHaveBeenCalledTimes(1);
@@ -152,7 +156,7 @@ describe('executeAgentPass', () => {
     const {
       executeAgentPass,
       requestModelCompletion,
-      extractResponseText,
+      extractOpenAgentToolCall,
       parseAssistantResponse,
       validateAssistantResponseSchema,
       validateAssistantResponse,
@@ -188,7 +192,7 @@ describe('executeAgentPass', () => {
 
     expect(result).toBe(true);
     expect(requestModelCompletion).toHaveBeenCalledTimes(1);
-    expect(extractResponseText).toHaveBeenCalledTimes(1);
+    expect(extractOpenAgentToolCall).toHaveBeenCalledTimes(1);
     expect(parseAssistantResponse).toHaveBeenCalledTimes(1);
     expect(validateAssistantResponseSchema).toHaveBeenCalledTimes(1);
     expect(validateAssistantResponse).not.toHaveBeenCalled();

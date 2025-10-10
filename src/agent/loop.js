@@ -14,7 +14,7 @@ import {
 } from '../services/commandApprovalService.js';
 import { applyFilter, tailLines } from '../utils/text.js';
 import { executeAgentPass } from './passExecutor.js';
-import { extractResponseText } from '../openai/responseUtils.js';
+import { extractOpenAgentToolCall, extractResponseText } from '../openai/responseUtils.js';
 import { ApprovalManager } from './approvalManager.js';
 import { HistoryCompactor } from './historyCompactor.js';
 import { createEscState } from './escState.js';
@@ -276,10 +276,11 @@ export function createAgentLoop(options = {}) {
   };
 }
 
-export { extractResponseText } from '../openai/responseUtils.js';
+export { extractOpenAgentToolCall, extractResponseText } from '../openai/responseUtils.js';
 
 export default {
   createAgentLoop,
   createAgentRuntime,
+  extractOpenAgentToolCall,
   extractResponseText,
 };

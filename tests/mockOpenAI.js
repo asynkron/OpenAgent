@@ -55,17 +55,31 @@ jest.unstable_mockModule = (specifier, factory, options) => {
   return originalUnstableMockModule(specifier, factory, options);
 };
 
-function buildResponsePayload(payload) {
+function sanitizePayload(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return payload;
+  }
+
+  const sanitized = {};
+  for (const [key, value] of Object.entries(payload)) {
+    if (value === null || value === undefined) {
+      continue;
+    }
+    sanitized[key] = value;
+  }
+
+  return sanitized;
+}
+
+function buildResponsePayload(payload, callId) {
+  const normalized = sanitizePayload(payload);
   return {
     output: [
       {
-        type: 'message',
-        content: [
-          {
-            type: 'output_text',
-            text: JSON.stringify(payload),
-          },
-        ],
+        type: 'function_call',
+        name: 'open-agent',
+        call_id: callId ?? null,
+        arguments: JSON.stringify(normalized),
       },
     ],
   };
@@ -79,12 +93,13 @@ function OpenAIMock() {
       create: async () => {
         callCount += 1;
 
+        const callId = `mock-call-${callCount}`;
+
         if (callCount === 1) {
           return buildResponsePayload({
             message: 'Handshake ready',
             plan: [],
-            command: null,
-          });
+          }, callId);
         }
 
         return buildResponsePayload({
@@ -96,7 +111,7 @@ function OpenAIMock() {
             cwd: '.',
             timeout_sec: 5,
           },
-        });
+        }, callId);
       },
     },
   };
