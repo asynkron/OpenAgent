@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v npm >/dev/null 2>&1; then
+  echo "pre-push hook: npm is not available; skipping format check." >&2
+  exit 0
+fi
+
+echo "pre-push hook: running npm run format:check..."
+if npm run --silent format:check; then
+  echo "pre-push hook: formatting check passed."
+else
+  echo "pre-push hook: formatting issues detected. Please run 'npm run format'." >&2
+  exit 1
+fi

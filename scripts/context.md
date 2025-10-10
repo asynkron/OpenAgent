@@ -7,6 +7,7 @@
 ## Key Files
 
 - `apply_patch.mjs`, `edit-lines.mjs`, `replace-node.js`, `rename-identifier.mjs` — codemod helpers for structured edits.
+- `install-git-hooks.js` — configures `core.hooksPath` so local Git uses the repo's `.githooks` directory automatically. The script runs during `npm install`, `npm prepare`, and the lifecycle `pre*` scripts for lint, format, and test tasks.
 - `read.mjs` — implements the filesystem reader invoked via the normalized `read` command helper.
 - `validate-json-assets.js` — validates prompt JSON against `schemas/prompts.schema.json`.
 - `verify-release-tag.js` — ensures release tags align with package metadata before publishing.
