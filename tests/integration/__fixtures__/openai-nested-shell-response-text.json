@@ -59,9 +59,7 @@
         "parameters": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "message"
-          ],
+          "required": ["message"],
           "properties": {
             "message": {
               "type": "string",
@@ -83,20 +81,14 @@
                   "$ref": "#/$defs/runCommand"
                 }
               },
-              "required": [
-                "run"
-              ],
+              "required": ["run"],
               "description": "Next tool invocation to execute when a plan contains non-complete steps. may NOT be raw string, e.g command: \"ls\""
             }
           },
           "$defs": {
             "planStep": {
               "type": "object",
-              "required": [
-                "step",
-                "title",
-                "status"
-              ],
+              "required": ["step", "title", "status"],
               "additionalProperties": false,
               "properties": {
                 "step": {
@@ -107,11 +99,7 @@
                 },
                 "status": {
                   "type": "string",
-                  "enum": [
-                    "pending",
-                    "running",
-                    "completed"
-                  ]
+                  "enum": ["pending", "running", "completed"]
                 },
                 "substeps": {
                   "type": "array",
@@ -123,12 +111,7 @@
             },
             "command": {
               "type": "object",
-              "required": [
-                "confirmed",
-                "shell",
-                "run",
-                "cwd"
-              ],
+              "required": ["confirmed", "shell", "run", "cwd"],
               "additionalProperties": false,
               "properties": {
                 "confirmed": {
