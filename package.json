@@ -24,6 +24,12 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "preformat": "node ./scripts/install-git-hooks.js",
+    "preformat:check": "node ./scripts/install-git-hooks.js",
+    "prelint": "node ./scripts/install-git-hooks.js",
+    "pretest": "node ./scripts/install-git-hooks.js",
+    "prepare": "node ./scripts/install-git-hooks.js",
+    "postinstall": "node ./scripts/install-git-hooks.js",
     "release:verify-tag": "node ./scripts/verify-release-tag.js"
   },
   "keywords": [],

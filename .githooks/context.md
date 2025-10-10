@@ -6,7 +6,9 @@
 
 ## Key Scripts
 
-- `pre-commit` — runs `npm run lint` and `npm run test -- --bail --findRelatedTests` to block commits that break lint rules or related Jest suites.
+- `pre-commit` — runs `lint-staged` to apply Prettier/ESLint fixes to staged files before commit.
+- `pre-push` — verifies `npm run format:check` passes so pushes only proceed with repository-wide formatting.
+- `scripts/install-git-hooks.js` — automatically wires `core.hooksPath` to this directory during install, `prepare`, and the lifecycle `pre*` scripts for lint, format, and test tasks so hooks stay active for agents and humans.
 
 ## Positive Signals
 
@@ -14,8 +16,7 @@
 
 ## Risks / Gaps
 
-- Hook is opt-in; contributors must manually configure Git to use it.
-- Running lint/tests on every commit can be slow for large change sets; consider using `SKIP_PRECOMMIT` env var if documented.
+- Running repository-wide formatting checks on every push may add latency to large pushes.
 
 ## Related Context
 
