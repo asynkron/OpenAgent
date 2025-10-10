@@ -7,8 +7,7 @@
 ## Key Files
 
 - `run.js` — spawns shell commands with timeout/cancellation support, captures stdout/stderr to temp files, and exposes `runCommand` plus helper wrappers (uses `.openagent/temp`) while assuming upstream normalization has produced a string command and rejecting any other shape.
-- `read.js` — normalizes `read` run strings into `node scripts/read.mjs` invocations and exposes helpers to decode embedded specs.
-- `readSpec.js` — parses `read` command token syntax and merges specs.
+- `readSpec.js` — parses `read` command token syntax and merges specs for agents/CLI surfaces that still reason about the helper semantics.
 
 ## Positive Signals
 

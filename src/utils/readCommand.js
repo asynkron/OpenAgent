@@ -1,14 +1,13 @@
-import { parseReadSpecTokens } from './readSpec.js';
-import { shellSplit } from '../utils/text.js';
+import { shellSplit } from './text.js';
 
 const READ_SCRIPT = 'scripts/read.mjs';
 const READ_SCRIPT_COMMAND = 'node';
 
-function encodeSpec(spec) {
+function encodeReadSpec(spec) {
   return Buffer.from(JSON.stringify(spec ?? {}), 'utf8').toString('base64');
 }
 
-function decodeSpec(encoded) {
+function decodeReadSpec(encoded) {
   if (!encoded) {
     return null;
   }
@@ -22,30 +21,9 @@ function decodeSpec(encoded) {
   }
 }
 
-export function normalizeReadCommand(runValue, tokens) {
-  if (typeof runValue !== 'string') {
-    return { command: runValue, spec: null };
-  }
-
-  const trimmed = runValue.trim();
-  if (!trimmed) {
-    return { command: runValue, spec: null };
-  }
-
-  const effectiveTokens = Array.isArray(tokens) && tokens.length > 0 ? tokens : shellSplit(trimmed);
-  if (!effectiveTokens.length) {
-    return { command: trimmed, spec: null };
-  }
-
-  const keyword = effectiveTokens[0]?.toLowerCase();
-  if (keyword !== 'read') {
-    return { command: trimmed, spec: null };
-  }
-
-  const spec = parseReadSpecTokens(effectiveTokens.slice(1));
-  const encoded = encodeSpec(spec);
-  const normalized = `${READ_SCRIPT_COMMAND} ${READ_SCRIPT} --spec-base64 ${encoded}`;
-  return { command: normalized, spec };
+export function buildReadCommand(spec) {
+  const encoded = encodeReadSpec(spec);
+  return `${READ_SCRIPT_COMMAND} ${READ_SCRIPT} --spec-base64 ${encoded}`;
 }
 
 export function extractReadSpecFromCommand(runValue) {
@@ -75,17 +53,21 @@ export function extractReadSpecFromCommand(runValue) {
     const token = tokens[i];
     if (token === '--spec-base64') {
       const next = tokens[i + 1];
-      return decodeSpec(next ?? '');
+      return decodeReadSpec(next ?? '');
     }
     if (token.startsWith('--spec-base64=')) {
-      return decodeSpec(token.slice('--spec-base64='.length));
+      return decodeReadSpec(token.slice('--spec-base64='.length));
     }
   }
 
   return null;
 }
 
+export { READ_SCRIPT, READ_SCRIPT_COMMAND };
+
 export default {
-  normalizeReadCommand,
+  READ_SCRIPT,
+  READ_SCRIPT_COMMAND,
+  buildReadCommand,
   extractReadSpecFromCommand,
 };

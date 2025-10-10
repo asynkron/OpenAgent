@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 
 import { createAgentRuntime } from '../../src/agent/loop.js';
-import { extractReadSpecFromCommand } from '../../src/commands/read.js';
+import { extractReadSpecFromCommand } from '../../src/utils/readCommand.js';
 
 function buildResponsePayload(payload) {
   return Promise.resolve({

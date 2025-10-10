@@ -17,8 +17,6 @@ import { join, resolve } from 'node:path';
 
 import { register as registerCancellation } from '../utils/cancellation.js';
 
-import { normalizeReadCommand } from './read.js';
-
 const SCRATCH_ROOT = resolve('.openagent', 'temp');
 
 function substituteApplyPatchCommand(command) {
@@ -88,8 +86,7 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
     throw new TypeError('runCommand expects a normalized command string.');
   }
 
-  const { command: readNormalized } = normalizeReadCommand(cmd);
-  const normalizedCommand = substituteApplyPatchCommand(readNormalized);
+  const normalizedCommand = substituteApplyPatchCommand(cmd);
 
   if (typeof normalizedCommand !== 'string') {
     throw new TypeError('runCommand expects a normalized command string.');

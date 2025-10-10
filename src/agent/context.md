@@ -8,7 +8,7 @@
 
 - `loop.js` — orchestrates the event-driven runtime: manages plan snapshots, queues inputs/outputs, handles OpenAI calls, applies filters, and coordinates cancellation.
 - `approvalManager.js` — centralizes auto-approval checks (allowlist/session flags) and human prompts.
-- `commandExecution.js` — normalizes assistant commands (including the `read` helper) before dispatching to the default executor and tracks runtime metadata.
+- `commandExecution.js` — normalizes assistant commands (including translating the `read` helper into the bundled script via `utils/readCommand.js`) before dispatching to the default executor and tracks runtime metadata.
 - `commands/` subdirectory — houses the default execute strategy used for all shell invocations.
 - `historyCompactor.js`, `observationBuilder.js`, `responseParser.js`, `responseValidator.js`, `responseToolSchema.js` — manage conversation state, define the response envelope schema (including the named OpenAI tool contract), parse Responses API payloads, normalize assistant command payloads (including newline sanitization and mapping `cmd`/`command_line` aliases back to `run`), and validate protocol compliance.
 - `openaiRequest.js` — builds structured responses requests with retries and timeout handling.

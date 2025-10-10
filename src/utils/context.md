@@ -14,6 +14,7 @@
 - `output.js` — formatting helpers for CLI output and logs.
 - `plan.js` — plan tree merge/progress utilities used by agent runtime & UI.
 - `text.js` — string helpers (filters, tailing, shell splitting).
+- `readCommand.js` — shared helpers to build/extract read command specs so the agent runtime and CLI renderers treat the script invocation like any other shell command.
 
 ## Positive Signals
 

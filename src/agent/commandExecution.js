@@ -1,6 +1,7 @@
 import { shellSplit } from '../utils/text.js';
+import { buildReadCommand, extractReadSpecFromCommand } from '../utils/readCommand.js';
+import { parseReadSpecTokens } from '../commands/readSpec.js';
 import ExecuteCommand from './commands/ExecuteCommand.js';
-import { normalizeReadCommand } from '../commands/read.js';
 
 const DEFAULT_TIMEOUT_SEC = 60;
 
@@ -42,9 +43,17 @@ export async function executeAgentCommand({ command, runCommandFn }) {
 
   let readSpec = null;
   if (rawRun) {
-    const normalization = normalizeReadCommand(rawRun, runTokens);
-    normalizedCommand.run = normalization.command;
-    readSpec = normalization.spec;
+    const existingSpec = extractReadSpecFromCommand(rawRun);
+    if (existingSpec) {
+      readSpec = existingSpec;
+      normalizedCommand.run = rawRun;
+    } else if (runKeyword === 'read') {
+      const spec = parseReadSpecTokens(runTokens.slice(1));
+      readSpec = spec;
+      normalizedCommand.run = buildReadCommand(spec);
+    } else {
+      normalizedCommand.run = rawRun;
+    }
   } else {
     normalizedCommand.run = rawRun;
   }

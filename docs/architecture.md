@@ -34,7 +34,7 @@ flowchart LR
 
     subgraph Side Effects
         Shell["Shell Commands\n(src/commands/run.js)"]
-        Fs["File Reads\n(src/commands/read.js)"]
+        Fs["File Reads\n(scripts/read.mjs via src/utils/readCommand.js)"]
         Temp[".openagent/temp"]
     end
 

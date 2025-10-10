@@ -6,7 +6,7 @@ import {
   resetQueuedResponses,
 } from './agentRuntimeTestHarness.js';
 import { createTestRunnerUI } from './testRunnerUI.js';
-import { extractReadSpecFromCommand } from '../../src/commands/read.js';
+import { extractReadSpecFromCommand } from '../../src/utils/readCommand.js';
 
 jest.setTimeout(20000);
 

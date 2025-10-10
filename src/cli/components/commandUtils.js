@@ -1,4 +1,6 @@
-import { extractReadSpecFromCommand, normalizeReadCommand } from '../../commands/read.js';
+import { extractReadSpecFromCommand } from '../../utils/readCommand.js';
+import { parseReadSpecTokens } from '../../commands/readSpec.js';
+import { shellSplit } from '../../utils/text.js';
 
 /**
  * Shared formatting helpers for command summaries across Ink components and
@@ -78,6 +80,38 @@ export function parseReadSegments(stdout) {
   return segments;
 }
 
+function deriveReadSpecFromPayload(command) {
+  if (!command || typeof command !== 'object') {
+    return null;
+  }
+
+  const runValue = typeof command.run === 'string' ? command.run.trim() : '';
+  if (!runValue) {
+    return null;
+  }
+
+  const encodedSpec = extractReadSpecFromCommand(runValue);
+  if (encodedSpec) {
+    return encodedSpec;
+  }
+
+  const tokens = shellSplit(runValue);
+  if (tokens[0]?.toLowerCase() !== 'read') {
+    return null;
+  }
+
+  return parseReadSpecTokens(tokens.slice(1));
+}
+
+function resolveReadSpec(command, execution) {
+  return (
+    execution?.spec ||
+    deriveReadSpecFromPayload(execution?.command) ||
+    deriveReadSpecFromPayload(command) ||
+    null
+  );
+}
+
 export function inferCommandType(command, execution) {
   if (!command || typeof command !== 'object') {
     return 'EXECUTE';
@@ -92,8 +126,7 @@ export function inferCommandType(command, execution) {
 
   const runValue = typeof command.run === 'string' ? command.run.trim() : '';
   if (runValue) {
-    const specFromRun = extractReadSpecFromCommand(runValue);
-    if (specFromRun) {
+    if (extractReadSpecFromCommand(runValue)) {
       return 'READ';
     }
     const keyword = runValue.split(/\s+/)[0]?.toLowerCase();
@@ -112,11 +145,7 @@ function pluralize(word, count) {
 export function buildHeadingDetail(type, execution, command) {
   switch (type) {
     case 'READ': {
-      const spec =
-        execution?.spec ||
-        extractReadSpecFromCommand(command?.run) ||
-        (typeof command?.run === 'string' ? normalizeReadCommand(command.run).spec : null) ||
-        {};
+      const spec = resolveReadSpec(command, execution) || {};
       const paths = collectReadPaths(spec);
       return `([${paths.join(', ')}])`;
     }
@@ -197,11 +226,7 @@ function appendStdErr(summaryLines, stderrPreview) {
 
 function summarizeReadCommand({ command, result, preview, execution, summaryLines }) {
   const filtersApplied = Boolean(command?.filter_regex || command?.tail_lines);
-  const spec =
-    execution?.spec ||
-    extractReadSpecFromCommand(command?.run) ||
-    (typeof command?.run === 'string' ? normalizeReadCommand(command.run).spec : null) ||
-    {};
+  const spec = resolveReadSpec(command, execution) || {};
   const paths = collectReadPaths(spec);
 
   let segments = parseReadSegments(preview.stdout);
