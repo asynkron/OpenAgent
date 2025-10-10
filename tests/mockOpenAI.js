@@ -96,22 +96,28 @@ function OpenAIMock() {
         const callId = `mock-call-${callCount}`;
 
         if (callCount === 1) {
-          return buildResponsePayload({
-            message: 'Handshake ready',
-            plan: [],
-          }, callId);
+          return buildResponsePayload(
+            {
+              message: 'Handshake ready',
+              plan: [],
+            },
+            callId,
+          );
         }
 
-        return buildResponsePayload({
-          message: 'Mocked response',
-          plan: [],
-          command: {
-            shell: 'bash',
-            run: 'echo "MOCKED_OK"',
-            cwd: '.',
-            timeout_sec: 5,
+        return buildResponsePayload(
+          {
+            message: 'Mocked response',
+            plan: [],
+            command: {
+              shell: 'bash',
+              run: 'echo "MOCKED_OK"',
+              cwd: '.',
+              timeout_sec: 5,
+            },
           },
-        }, callId);
+          callId,
+        );
       },
     },
   };

@@ -1,14 +1,1 @@
-[
-  {
-    "step": "step_1",
-    "title": "Review repository context",
-    "status": "completed",
-    "substeps": []
-  },
-  {
-    "step": "step_2",
-    "title": "Display README.md contents",
-    "status": "completed",
-    "substeps": []
-  }
-]
+[]

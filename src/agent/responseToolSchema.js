@@ -34,13 +34,12 @@ export const RESPONSE_PARAMETERS_SCHEMA = {
       type: 'object',
       description:
         'Next tool invocation to execute when a plan contains non-complete steps. may NOT be raw string, e.g command: "ls". MUST follow this format: {"shell":"/bin/bash","run":"ls -la","cwd":"/home/user","timeout_sec":30,"filter_regex":".*\\.txt$","tail_lines":10}',
-      required: ['run'],
       additionalProperties: false,
       properties: {
         reason: {
           type: 'string',
           description:
-            'explain the human friendly reason why you want to run this command in this shell',
+            'explain the human friendly reason why you want to run this command in this shell, if only shell or run has values, not both, explain why',
         },
         shell: {
           type: 'string',

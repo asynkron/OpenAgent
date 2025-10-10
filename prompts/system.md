@@ -20,7 +20,7 @@ The command part of the protocol MUST follow this structure:
 
 ```json
 {
-  "confirmed": 1337,
+  "reason": "Reason for executing the command",
   "shell": "/bin/bash",
   "run": "ls -la",
   "cwd": "/home/user",
