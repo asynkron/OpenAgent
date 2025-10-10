@@ -7,8 +7,8 @@
 ## Key Workflows
 
 - `test.yml` — runs linting and Jest suites on pull requests and pushes.
-- `auto-release.yml` — bumps the npm patch version on merges to `main`, tags releases, and triggers publication.
-- `publish.yml` — publishes `@asynkron/openagent` to npm on release events (skips if the version already exists).
+- `auto-release.yml` — bumps the npm patch version on merges to `main`, tags releases, and now publishes directly to npm.
+- `publish.yml` — fallback workflow to publish `@asynkron/openagent` to npm on release events or manual dispatch (skips if the version already exists).
 
 ## Positive Signals
 
