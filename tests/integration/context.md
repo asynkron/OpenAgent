@@ -9,7 +9,6 @@
 - `agentLoop.integration.test.js` — validates the interactive loop emits expected events, respects plan persistence, and handles approvals.
 - `__fixtures__/openai-nested-shell-response-text.json` — captured OpenAI response payload (including the outer metadata) used to reproduce newline-heavy command payloads inside tests.
 - `__fixtures__/openaiNestedShellResponse.js` — helper that loads the captured payload and extracts the nested `responseText` string for the suites.
-- `agentRead.integration.test.js` — ensures `read` commands parse specs correctly and stream results.
 - `agentCancellation.integration.test.js` — covers ESC handling and cancellation propagation across queued commands.
 - `approvalFlow.integration.test.js` — exercises auto-approval, session approvals, and human prompts end-to-end.
 - `cmdStats.integration.test.js` — tracks command statistics service wiring.

@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-- Monorepo root for the OpenAgent project: a Node.js CLI agent that brokers structured conversations with OpenAI and executes shell/read commands with human-in-the-loop approvals.
+- Monorepo root for the OpenAgent project: a Node.js CLI agent that brokers structured conversations with OpenAI and executes shell commands with human-in-the-loop approvals.
 - Hosts source runtime (`src/`), CLI entry points (`bin/`), prompts & schemas that govern the JSON protocol, documentation, and automated tests.
 
 ## Key Subsystems

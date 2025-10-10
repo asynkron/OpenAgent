@@ -8,7 +8,7 @@
 
 - Prompt & protocol maintenance (`prompt-maintenance.md`, `context-indexing.md`).
 - Operational runbooks (`ops-overview.md`, `publishing.md`) now outline the patch-level auto-release workflow.
-- Engineering design notes (`class-interface-refactor-ideas.md`, `js-dependency-graph.md`) keep architectural diagrams aligned with the current module layout (e.g., `utils/readCommand.js` orchestrating `scripts/read.mjs`).
+- Engineering design notes (`class-interface-refactor-ideas.md`, `js-dependency-graph.md`) keep architectural diagrams aligned with the current module layout.
 - FAQ and troubleshooting guides (`faq.md`, `openai-cancellation.md`).
 
 ## Positive Signals

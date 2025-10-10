@@ -27,10 +27,6 @@ graph LR
   src_agent_loop_js --> src_utils_text_js
   src_cli_io_js --> src_utils_cancellation_js
   src_commands_preapproval_js --> src_utils_text_js
-  src_agent_commandExecution_js["src/agent/commandExecution.js"] --> src_utils_readCommand_js["src/utils/readCommand.js"]
-  src_agent_commandExecution_js --> src_commands_readSpec_js["src/commands/readSpec.js"]
-  src_cli_components_commandUtils_js["src/cli/components/commandUtils.js"] --> src_utils_readCommand_js
-  src_cli_components_commandUtils_js --> src_commands_readSpec_js
   src_commands_run_js --> src_utils_cancellation_js
 ```
 

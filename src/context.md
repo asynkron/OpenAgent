@@ -8,7 +8,7 @@
 
 - `agent/` — core orchestration loop, command execution strategies, approval flow, and plan management. See [`agent/context.md`](agent/context.md).
 - `cli/` — Ink-based terminal UI components, runtime wiring, and boot probes. See [`cli/context.md`](cli/context.md).
-- `commands/` — shell/read command executors and helpers.
+- `commands/` — shell command executors and helpers.
 - `services/` — command approval allowlist/session tracking, command statistics.
 - `openai/` — client configuration, request/response helpers, response extraction utilities.
 - `bindings/` — adapters for alternative front-ends (currently WebSocket binding).

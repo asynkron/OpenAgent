@@ -2,17 +2,15 @@
 
 ## Purpose & Scope
 
-- Low-level primitives that execute shell commands and read files on behalf of the agent runtime.
+- Low-level primitives that execute shell commands on behalf of the agent runtime.
 
 ## Key Files
 
 - `run.js` — spawns shell commands with timeout/cancellation support, captures stdout/stderr to temp files, and exposes `runCommand` plus helper wrappers (uses `.openagent/temp`) while assuming upstream normalization has produced a string command and rejecting any other shape.
-- `readSpec.js` — parses `read` command token syntax and merges specs for agents/CLI surfaces that still reason about the helper semantics.
 
 ## Positive Signals
 
 - Command execution isolates side effects from the agent loop, simplifying testing via mocks.
-- Read spec parsing helpers keep CLI displays accurate while delegating filesystem access to `scripts/read.mjs`.
 - `run.js` ensures cancellation handlers are unregistered during all completion paths to avoid dangling callbacks.
 - `run.js` rewrites legacy `apply_patch` invocations to the bundled `scripts/apply_patch.mjs` shim so models can continue using the
   familiar command while we control the implementation.

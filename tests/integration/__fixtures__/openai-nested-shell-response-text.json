@@ -79,19 +79,9 @@
               "properties": {
                 "run": {
                   "$ref": "#/$defs/runCommand"
-                },
-                "read": {
-                  "$ref": "#/$defs/readCommand"
                 }
               },
-              "oneOf": [
-                {
-                  "required": ["run"]
-                },
-                {
-                  "required": ["read"]
-                }
-              ],
+              "required": ["run"],
               "description": "Next tool invocation to execute when a plan contains non-complete steps. may NOT be raw string, e.g command: \"ls\""
             }
           },
@@ -116,33 +106,6 @@
                   "items": {
                     "$ref": "#/$defs/planStep"
                   }
-                }
-              }
-            },
-            "readCommand": {
-              "type": "object",
-              "required": ["path"],
-              "additionalProperties": false,
-              "properties": {
-                "path": {
-                  "type": "string"
-                },
-                "paths": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "encoding": {
-                  "type": "string"
-                },
-                "max_bytes": {
-                  "type": "integer",
-                  "minimum": 1
-                },
-                "max_lines": {
-                  "type": "integer",
-                  "minimum": 1
                 }
               }
             },

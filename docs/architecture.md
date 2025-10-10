@@ -34,7 +34,6 @@ flowchart LR
 
     subgraph Side Effects
         Shell["Shell Commands\n(src/commands/run.js)"]
-        Fs["File Reads\n(scripts/read.mjs via src/utils/readCommand.js)"]
         Temp[".openagent/temp"]
     end
 
@@ -56,7 +55,6 @@ flowchart LR
 
     ApprovalMgr --> ApprovalSvc
     CmdExec --> Shell
-    CmdExec --> Fs
     Shell --> Temp
     CmdExec --> StatsSvc
     Responses --> Loop
@@ -75,7 +73,7 @@ participant Loop as Agent Loop
 participant OA as OpenAI Response
 participant AP as Approval Manager
 participant CE as Command Executor
-participant SR as Shell / Read Handlers
+participant SR as Shell Handler
 
 U->>CLI: Provide command or approval
 
@@ -89,7 +87,7 @@ alt Requires command execution
 
     alt Approved
         Loop->>CE: Dispatch command request
-        CE->>SR: Execute shell/read operation [with limits]
+        CE->>SR: Execute shell command [with limits]
         SR-->>CE: Return stdout/stderr or file contents
         CE-->>Loop: Structured observation
     else Rejected
@@ -118,7 +116,6 @@ CLI-->>U: Render output [Ink components]
 
 - **Command Layer (`src/commands`)**
   - Executes shell commands with timeout/cancellation, storing stdout/stderr in `.openagent/temp`.
-  - Reads files based on structured specs; enforces byte/line limits.
 
 - **Services (`src/services`)**
   - Tracks pre-approved commands and session approvals.
