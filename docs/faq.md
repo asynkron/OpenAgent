@@ -47,21 +47,21 @@ The runtime expects the assistant to return JSON that matches `RESPONSE_PARAMETE
     {
       "step": "1",
       "title": "Check git status",
-      "status": "completed"
+      "status": "completed",
     },
     {
       "step": "2",
       "title": "Sync with origin/main",
-      "status": "completed"
-    }
+      "status": "completed",
+    },
   ],
   "command": {
     "reason": "List repository contents so the user can inspect the workspace.",
     "shell": "/bin/bash",
     "run": "ls -la",
     "cwd": "/workspace/OpenAgent",
-    "timeout_sec": 120
-  }
+    "timeout_sec": 120,
+  },
 }
 ```
 
@@ -77,11 +77,11 @@ If schema validation fails, the runtime pushes a corrective observation back to 
     "schema_validation_error": true,
     "message": "Schema validation failed: /command.shell: is required",
     "details": ["/command.shell: is required"],
-    "response_snippet": "{ \"message\": \"Missing shell\" }"
+    "response_snippet": "{ \"message\": \"Missing shell\" }",
   },
   "observation_metadata": {
-    "timestamp": "2024-05-13T17:45:00.000Z"
-  }
+    "timestamp": "2024-05-13T17:45:00.000Z",
+  },
 }
 ```
 
