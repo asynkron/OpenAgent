@@ -29,62 +29,79 @@ const Timeline = React.memo(function Timeline({ entries }) {
 
   return h(
     Box,
-    { width: '100%', alignSelf: 'stretch', flexDirection: 'column' },
-    h(Static, { items: entries }, (entry) => {
-      let content = null;
+    { width: '100%', alignSelf: 'stretch', flexDirection: 'column', flexGrow: 1 },
+    h(
+      Static,
+      {
+        items: entries,
+        itemKey: (item) => item.payload?.eventId ?? item.id,
+        style: { width: '100%', flexGrow: 1 },
+      },
+      (entry) => {
+        let content = null;
 
-      switch (entry.type) {
-        case 'assistant-message':
-          content = h(MemoAgentResponse, { message: entry.payload.message });
-          break;
-        case 'human-message':
-          content = h(MemoHumanMessage, { message: entry.payload.message });
-          break;
-        case 'command-result':
-          content = h(MemoCommand, {
-            command: entry.payload.command,
-            result: entry.payload.result,
-            preview: entry.payload.preview,
-            execution: entry.payload.execution,
-          });
-          break;
-        case 'banner': {
-          const elements = [];
-          if (entry.payload?.title) {
-            elements.push(
-              h(Text, { color: 'blueBright', bold: true, key: 'title' }, entry.payload.title),
+        switch (entry.type) {
+          case 'assistant-message':
+            content = h(MemoAgentResponse, {
+              key: entry.payload.eventId ?? entry.id,
+              message: entry.payload.message,
+            });
+            break;
+          case 'human-message':
+            content = h(MemoHumanMessage, { message: entry.payload.message });
+            break;
+          case 'command-result':
+            content = h(MemoCommand, {
+              command: entry.payload.command,
+              result: entry.payload.result,
+              preview: entry.payload.preview,
+              execution: entry.payload.execution,
+            });
+            break;
+          case 'banner': {
+            const elements = [];
+            if (entry.payload?.title) {
+              elements.push(
+                h(Text, { color: 'blueBright', bold: true, key: 'title' }, entry.payload.title),
+              );
+            }
+            if (entry.payload?.subtitle) {
+              elements.push(h(Text, { dimColor: true, key: 'subtitle' }, entry.payload.subtitle));
+            }
+            if (elements.length === 0) {
+              break;
+            }
+            content = h(
+              Box,
+              { flexDirection: 'column', marginBottom: 1, width: '100%', alignSelf: 'stretch' },
+              elements,
             );
-          }
-          if (entry.payload?.subtitle) {
-            elements.push(h(Text, { dimColor: true, key: 'subtitle' }, entry.payload.subtitle));
-          }
-          if (elements.length === 0) {
             break;
           }
-          content = h(
-            Box,
-            { flexDirection: 'column', marginBottom: 1, width: '100%', alignSelf: 'stretch' },
-            elements,
-          );
-          break;
+          case 'status':
+            content = h(MemoStatusMessage, { status: entry.payload });
+            break;
+          default:
+            break;
         }
-        case 'status':
-          content = h(MemoStatusMessage, { status: entry.payload });
-          break;
-        default:
-          break;
-      }
 
-      if (!content) {
-        return null;
-      }
+        if (!content) {
+          return null;
+        }
 
-      return h(
-        Box,
-        { key: entry.id, width: '100%', alignSelf: 'stretch', flexDirection: 'column' },
-        content,
-      );
-    }),
+        return h(
+          Box,
+          {
+            key: entry.id,
+            width: '100%',
+            flexGrow: 1,
+            alignSelf: 'stretch',
+            flexDirection: 'column',
+          },
+          content,
+        );
+      },
+    ),
   );
 });
 
@@ -208,7 +225,9 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
 
   const handleAssistantMessage = useCallback(
     (event) => {
-      appendEntry('assistant-message', { message: event.message ?? '' });
+      const eventId =
+        typeof event.__id === 'string' || typeof event.__id === 'number' ? event.__id : null;
+      appendEntry('assistant-message', { message: event.message ?? '', eventId });
     },
     [appendEntry],
   );

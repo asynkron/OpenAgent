@@ -30,6 +30,9 @@
   so timeline entries fill the terminal width consistently.
 - Debug panel events now carry stable identifiers (`{ id, content }`) so the panel can render without flicker when
   other animated components (thinking spinner, input caret) update the tree.
+- Timeline static rows also set `flexGrow: 1` to force full-width rendering even when nested components have
+  intrinsic sizing, and assistant entries reuse the originating runtime `__id` as their React key to prevent
+  memoized subtrees from resetting.
 
 ## Related Context
 
