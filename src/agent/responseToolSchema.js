@@ -37,13 +37,20 @@ export const RESPONSE_PARAMETERS_SCHEMA = {
       required: ['run'],
       additionalProperties: false,
       properties: {
+        reason: {
+          type: 'string',
+          description:
+            'explain the human friendly reason why you want to run this command in this shell',
+        },
         shell: {
           type: 'string',
-          description: 'Shell executable to launch when running commands.',
+          description:
+            'Shell executable to launch when running commands, may only contain value if "run" contains an actual command to run',
         },
         run: {
           type: 'string',
-          description: 'Command string to execute in the provided shell.',
+          description:
+            'Command string to execute in the provided shell. must be set if "shell" has a value, may NOT be set if "shell" has no value',
         },
         cwd: {
           type: 'string',
