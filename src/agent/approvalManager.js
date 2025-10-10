@@ -35,15 +35,21 @@ export class ApprovalManager {
     logWarn,
     logSuccess,
   }) {
-    this.isPreapprovedCommand = isPreapprovedCommand;
-    this.isSessionApproved = isSessionApproved;
-    this.approveForSession = approveForSession;
-    this.getAutoApproveFlag = getAutoApproveFlag;
-    this.askHuman = askHuman;
+    const noop = () => {};
+
+    this.isPreapprovedCommand =
+      typeof isPreapprovedCommand === 'function' ? isPreapprovedCommand : null;
+    this.isSessionApproved =
+      typeof isSessionApproved === 'function' ? isSessionApproved : null;
+    this.approveForSession =
+      typeof approveForSession === 'function' ? approveForSession : null;
+    this.getAutoApproveFlag =
+      typeof getAutoApproveFlag === 'function' ? getAutoApproveFlag : null;
+    this.askHuman = typeof askHuman === 'function' ? askHuman : null;
     this.preapprovedCfg = preapprovedCfg;
-    this.logInfo = typeof logInfo === 'function' ? logInfo : () => {};
-    this.logWarn = typeof logWarn === 'function' ? logWarn : () => {};
-    this.logSuccess = typeof logSuccess === 'function' ? logSuccess : () => {};
+    this.logInfo = typeof logInfo === 'function' ? logInfo : noop;
+    this.logWarn = typeof logWarn === 'function' ? logWarn : noop;
+    this.logSuccess = typeof logSuccess === 'function' ? logSuccess : noop;
   }
 
   /**
@@ -56,15 +62,15 @@ export class ApprovalManager {
       return { approved: false, source: null };
     }
 
-    if (this.isPreapprovedCommand && this.isPreapprovedCommand(command, this.preapprovedCfg)) {
+    if (this.isPreapprovedCommand?.(command, this.preapprovedCfg)) {
       return { approved: true, source: 'allowlist' };
     }
 
-    if (this.isSessionApproved && this.isSessionApproved(command)) {
+    if (this.isSessionApproved?.(command)) {
       return { approved: true, source: 'session' };
     }
 
-    if (this.getAutoApproveFlag && this.getAutoApproveFlag()) {
+    if (this.getAutoApproveFlag?.()) {
       return { approved: true, source: 'flag' };
     }
 
@@ -87,8 +93,8 @@ export class ApprovalManager {
     ].join('\n');
 
     while (true) {
-      const raw = this.askHuman ? await this.askHuman(prompt) : '';
-      const input = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+      const raw = (await this.askHuman?.(prompt)) ?? '';
+      const input = String(raw).trim().toLowerCase();
 
       if (input === '1' || input === 'y' || input === 'yes') {
         this.logSuccess('Approved (run once).');
@@ -113,9 +119,7 @@ export class ApprovalManager {
    * @param {Object} command
    */
   recordSessionApproval(command) {
-    if (this.approveForSession) {
-      this.approveForSession(command);
-    }
+    this.approveForSession?.(command);
   }
 }
 
