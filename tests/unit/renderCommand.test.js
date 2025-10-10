@@ -16,15 +16,15 @@ afterEach(() => {
   process.env = { ...defaultEnv };
 });
 
-describe('renderCommand (READ)', () => {
-  test('falls back to raw stdout when filtered payload is empty', async () => {
+describe('renderCommand (execute summary)', () => {
+  test('falls back to generic success message when preview has no stdout', async () => {
     const renderCommand = await loadRenderer();
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
     try {
-      const command = { run: 'read src/file.txt' };
+      const command = { run: 'cat src/file.txt' };
       const result = {
-        stdout: 'src/file.txt:::\nline 1\nline 2',
+        stdout: 'file contents',
         stderr: '',
         exit_code: 0,
         killed: false,
@@ -35,28 +35,29 @@ describe('renderCommand (READ)', () => {
         stderr: '',
         stdoutPreview: '',
         stderrPreview: '',
-        execution: { type: 'READ', spec: { path: 'src/file.txt' } },
+        execution: { type: 'EXECUTE' },
       };
 
       renderCommand(command, result, preview);
 
       const outputs = logSpy.mock.calls.map((call) => call[0]);
       expect(outputs).toHaveLength(2);
-      expect(outputs[1]).toContain('Read 2 lines from 1 file.');
-      expect(outputs[1]).toContain('src/file.txt: 2 lines');
+      expect(outputs[1]).toContain('EXECUTE (cat src/file.txt)');
+      expect(outputs[1]).toContain('Command completed successfully.');
+      expect(outputs[1]).toContain('Exit code: 0');
     } finally {
       logSpy.mockRestore();
     }
   });
 
-  test('reports zero lines when filters remove all output', async () => {
+  test('summarizes stdout preview when available', async () => {
     const renderCommand = await loadRenderer();
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
     try {
-      const command = { run: 'read src/file.txt', filter_regex: 'nomatch' };
+      const command = { run: 'cat src/file.txt' };
       const result = {
-        stdout: 'src/file.txt:::\nline 1\nline 2',
+        stdout: 'line 1\nline 2\nline 3',
         stderr: '',
         exit_code: 0,
         killed: false,
@@ -65,17 +66,18 @@ describe('renderCommand (READ)', () => {
       const preview = {
         stdout: '',
         stderr: '',
-        stdoutPreview: '',
+        stdoutPreview: 'line 1\nline 2\nline 3',
         stderrPreview: '',
-        execution: { type: 'READ', spec: { path: 'src/file.txt' } },
+        execution: { type: 'EXECUTE' },
       };
 
       renderCommand(command, result, preview);
 
       const outputs = logSpy.mock.calls.map((call) => call[0]);
       expect(outputs).toHaveLength(2);
-      expect(outputs[1]).toContain('No lines matched the applied filters across 1 file.');
-      expect(outputs[1]).toContain('src/file.txt: 0 lines');
+      expect(outputs[1]).toContain('line 1');
+      expect(outputs[1]).toContain('+ 1 more line');
+      expect(outputs[1]).toContain('line 3');
     } finally {
       logSpy.mockRestore();
     }

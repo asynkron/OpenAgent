@@ -31,13 +31,7 @@ const RESPONSE_PARAMETERS_SCHEMA = {
         'You MUST provide a plan when have a set goal, NEVER drop/reset a plan without discussion, the plan stays on utill otherwise agreed upon, Progress tracker for multi-step work; use [] when resetting to a new plan.',
     },
     command: {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        run: { $ref: '#/$defs/runCommand' },
-        read: { $ref: '#/$defs/readCommand' },
-      },
-      oneOf: [{ required: ['run'] }, { required: ['read'] }],
+      $ref: '#/$defs/runCommand',
       description:
         'Next tool invocation to execute when a plan contains non-complete steps. may NOT be raw string, e.g command: "ls"',
     },
@@ -57,23 +51,11 @@ const RESPONSE_PARAMETERS_SCHEMA = {
         },
       },
     },
-    readCommand: {
-      type: 'object',
-      required: ['path'],
-      additionalProperties: false,
-      properties: {
-        path: { type: 'string' },
-        paths: { type: 'array', items: { type: 'string' } },
-        encoding: { type: 'string' },
-        max_bytes: { type: 'integer', minimum: 1 },
-        max_lines: { type: 'integer', minimum: 1 },
-      },
-    },
     runCommand: {
       type: 'object',
       description:
         'MUST follow this format: {"shell":"/bin/bash","run":"ls -la","cwd":"/home/user","timeout_sec":30,"filter_regex":".*\\.txt$","tail_lines":10}',
-      required: ['shell', 'run', 'cwd'],
+      required: ['run'],
       additionalProperties: false,
       properties: {
         shell: {

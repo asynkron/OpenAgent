@@ -14,68 +14,6 @@ export function normalizePreviewLines(preview) {
   return lines;
 }
 
-export function collectReadPaths(spec) {
-  const paths = [];
-  if (!spec || typeof spec !== 'object') {
-    return paths;
-  }
-
-  const addPath = (candidate) => {
-    if (typeof candidate !== 'string') {
-      return;
-    }
-    const trimmed = candidate.trim();
-    if (!trimmed || paths.includes(trimmed)) {
-      return;
-    }
-    paths.push(trimmed);
-  };
-
-  addPath(spec.path);
-  if (Array.isArray(spec.paths)) {
-    for (const candidate of spec.paths) {
-      addPath(candidate);
-    }
-  }
-
-  return paths;
-}
-
-export function parseReadSegments(stdout) {
-  if (!stdout) {
-    return [];
-  }
-
-  const lines = String(stdout).split('\n');
-  const segments = [];
-  let current = null;
-
-  for (const line of lines) {
-    if (line.endsWith(':::')) {
-      if (current) {
-        const { path, content } = current;
-        while (content.length > 0 && content[content.length - 1] === '') {
-          content.pop();
-        }
-        segments.push({ path, lineCount: content.length });
-      }
-      current = { path: line.slice(0, -3), content: [] };
-    } else if (current) {
-      current.content.push(line);
-    }
-  }
-
-  if (current) {
-    const { path, content } = current;
-    while (content.length > 0 && content[content.length - 1] === '') {
-      content.pop();
-    }
-    segments.push({ path, lineCount: content.length });
-  }
-
-  return segments;
-}
-
 export function inferCommandType(command, execution) {
   if (!command || typeof command !== 'object') {
     return 'EXECUTE';
@@ -86,16 +24,7 @@ export function inferCommandType(command, execution) {
   }
 
   if (command.edit) return 'EDIT';
-  if (command.read) return 'READ';
   if (command.replace) return 'REPLACE';
-
-  const runValue = typeof command.run === 'string' ? command.run.trim() : '';
-  if (runValue) {
-    const keyword = runValue.split(/\s+/)[0]?.toLowerCase();
-    if (keyword === 'read') {
-      return 'READ';
-    }
-  }
 
   return 'EXECUTE';
 }
@@ -106,11 +35,6 @@ function pluralize(word, count) {
 
 export function buildHeadingDetail(type, execution, command) {
   switch (type) {
-    case 'READ': {
-      const spec = execution?.spec || command?.read || {};
-      const paths = collectReadPaths(spec);
-      return `([${paths.join(', ')}])`;
-    }
     case 'EDIT': {
       const spec = execution?.spec || command?.edit || {};
       const parts = [];
@@ -186,44 +110,6 @@ function appendStdErr(summaryLines, stderrPreview) {
   }
 }
 
-function summarizeReadCommand({ command, result, preview, execution, summaryLines }) {
-  const filtersApplied = Boolean(command?.filter_regex || command?.tail_lines);
-  const spec = execution?.spec || command?.read || {};
-  const paths = collectReadPaths(spec);
-
-  let segments = parseReadSegments(preview.stdout);
-  if (segments.length === 0 && !filtersApplied && result?.stdout) {
-    const fallbackSegments = parseReadSegments(result.stdout);
-    if (fallbackSegments.length > 0) {
-      segments = fallbackSegments;
-    }
-  }
-
-  if (segments.length > 0) {
-    const totalLines = segments.reduce((acc, item) => acc + item.lineCount, 0);
-    summaryLines.push({
-      kind: 'arrow',
-      text: `Read ${totalLines} ${pluralize('line', totalLines)} from ${segments.length} ${pluralize('file', segments.length)}.`,
-    });
-    for (const segment of segments) {
-      const label = segment.path || '(unknown path)';
-      summaryLines.push({
-        kind: 'indent',
-        text: `${label}: ${segment.lineCount} ${pluralize('line', segment.lineCount)}`,
-      });
-    }
-  } else if (paths.length > 0) {
-    const fileCount = paths.length;
-    const baseMessage = filtersApplied
-      ? `No lines matched the applied filters across ${fileCount} ${pluralize('file', fileCount)}.`
-      : `Read 0 lines from ${fileCount} ${pluralize('file', fileCount)}.`;
-    summaryLines.push({ kind: 'arrow', text: baseMessage });
-    for (const label of paths) {
-      summaryLines.push({ kind: 'indent', text: `${label}: 0 lines` });
-    }
-  }
-}
-
 function summarizeEditOrReplace({ preview, summaryLines }) {
   const stdoutLines = normalizePreviewLines(preview.stdoutPreview);
   if (stdoutLines.length === 0) {
@@ -267,9 +153,7 @@ export function buildCommandRenderData(command, result, preview = {}, execution 
 
   const summaryContext = { command, result, preview, execution: normalizedExecution, summaryLines };
 
-  if (type === 'READ') {
-    summarizeReadCommand(summaryContext);
-  } else if (type === 'EDIT' || type === 'REPLACE') {
+  if (type === 'EDIT' || type === 'REPLACE') {
     summarizeEditOrReplace(summaryContext);
   } else {
     summarizeExecute(summaryContext);
@@ -310,8 +194,6 @@ export function buildCommandRenderData(command, result, preview = {}, execution 
 
 export default {
   normalizePreviewLines,
-  collectReadPaths,
-  parseReadSegments,
   inferCommandType,
   buildHeadingDetail,
   extractCommandDescription,

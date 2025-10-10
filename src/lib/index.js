@@ -23,7 +23,7 @@ import {
   renderPlanProgress,
 } from '../cli/render.js';
 import { renderRemainingContext } from '../cli/status.js';
-import { runCommand, runRead } from '../commands/run.js';
+import { runCommand } from '../commands/run.js';
 import {
   CommandApprovalService,
   sessionApprovalService,
@@ -71,7 +71,6 @@ export {
   renderPlanProgress,
   renderRemainingContext,
   runCommand,
-  runRead,
   CommandApprovalService,
   sessionApprovalService,
   loadPreapprovedConfig,
@@ -119,7 +118,6 @@ const exported = {
   renderPlanProgress,
   renderRemainingContext,
   runCommand,
-  runRead,
   CommandApprovalService,
   sessionApprovalService,
   loadPreapprovedConfig,

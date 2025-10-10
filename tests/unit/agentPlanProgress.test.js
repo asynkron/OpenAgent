@@ -51,7 +51,6 @@ function createRuntimeWithQueue(queue, overrides = {}) {
       killed: false,
       runtime_ms: 1,
     }),
-    runReadFn: jest.fn(),
     runApplyPatchFn: jest.fn(),
     applyFilterFn: (text) => text,
     tailLinesFn: (text) => text,
