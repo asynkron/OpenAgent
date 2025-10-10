@@ -35,3 +35,54 @@ Escalate to the maintainer-on-call via `#openagent-maintainers` with logs, repro
 ## Where can I find implementation hotspots quickly?
 
 Consult the [docs/docs-crosslinks.md](./docs-crosslinks.md) matrix for direct links to relevant code modules.
+
+## What does a schema-validated `open-agent` tool response look like?
+
+The runtime expects the assistant to return JSON that matches `RESPONSE_PARAMETERS_SCHEMA` before any commands are executed. A minimal successful payload might look like this:
+
+```jsonc
+{
+  "message": "Confirmed the repo is synced with origin main.",
+  "plan": [
+    {
+      "step": "1",
+      "title": "Check git status",
+      "status": "completed"
+    },
+    {
+      "step": "2",
+      "title": "Sync with origin/main",
+      "status": "completed"
+    }
+  ],
+  "command": {
+    "reason": "List repository contents so the user can inspect the workspace.",
+    "shell": "/bin/bash",
+    "run": "ls -la",
+    "cwd": "/workspace/OpenAgent",
+    "timeout_sec": 120
+  }
+}
+```
+
+- `message` is always required and conveys the natural-language summary to the user.
+- `plan` is optional but, when present, must keep prior steps unless the user agrees to reset.
+- `command` stays absent when no tool invocation is needed; when supplied, it must include the `shell`/`run` pair plus any optional execution hints (`cwd`, `timeout_sec`, filters).
+
+If schema validation fails, the runtime pushes a corrective observation back to the model so it can retry with compliant JSON. The observation payload mirrors what `passExecutor` constructs:
+
+```jsonc
+{
+  "observation_for_llm": {
+    "schema_validation_error": true,
+    "message": "Schema validation failed: /command.shell: is required",
+    "details": ["/command.shell: is required"],
+    "response_snippet": "{ \"message\": \"Missing shell\" }"
+  },
+  "observation_metadata": {
+    "timestamp": "2024-05-13T17:45:00.000Z"
+  }
+}
+```
+
+The `message` summarizes the first schema error, while `details` enumerates each Ajv error string and `response_snippet` echoes part of the offending payload to provide debugging context.
