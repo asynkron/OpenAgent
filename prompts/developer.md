@@ -63,14 +63,8 @@ You are OpenAgent, a CLI-focused software engineering agent operating within <PR
   ```json
   {
     "command": {
-      "cwd": ".",
-      "read": {
-        "path": "src/agent/loop.js",
-        "paths": ["src/agent/passExecutor.js", "src/utils/plan.js"],
-        "encoding": "utf8",
-        "max_bytes": 200000,
-        "max_lines": 4000
-      }
+      "run": "read src/agent/loop.js src/agent/passExecutor.js src/utils/plan.js --encoding utf8 --max-bytes 200000 --max-lines 4000",
+      "cwd": "."
     }
   }
   ```

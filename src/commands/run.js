@@ -17,7 +17,7 @@ import { join, resolve } from 'node:path';
 
 import { register as registerCancellation } from '../utils/cancellation.js';
 
-import { runRead } from './read.js';
+import { normalizeReadCommand } from './read.js';
 
 const SCRATCH_ROOT = resolve('.openagent', 'temp');
 
@@ -84,7 +84,12 @@ function cleanupTempDir(tempDir) {
 }
 
 export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
-  const normalizedCommand = substituteApplyPatchCommand(cmd);
+  if (typeof cmd !== 'string') {
+    throw new TypeError('runCommand expects a normalized command string.');
+  }
+
+  const { command: readNormalized } = normalizeReadCommand(cmd);
+  const normalizedCommand = substituteApplyPatchCommand(readNormalized);
 
   if (typeof normalizedCommand !== 'string') {
     throw new TypeError('runCommand expects a normalized command string.');
@@ -373,9 +378,6 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
   });
 }
 
-export { runRead };
-
 export default {
   runCommand,
-  runRead,
 };

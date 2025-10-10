@@ -6,18 +6,15 @@
 
 ## Key Files
 
-- `ReadCommand.js` — detects `read` commands (either via `run` keyword or explicit `command.read`) and merges tokenized specs with structured payloads before delegating to `runRead`.
-- `ExecuteCommand.js` — fallback handler that shells out via `runCommand` for any other requests.
+- `ExecuteCommand.js` — default handler that shells out via `runCommand` once `commandExecution.js` normalizes built-in helpers like `read`.
 
 ## Positive Signals
 
-- Read handler merges CLI token specs with JSON payloads, enabling flexible prompt outputs while still validating paths.
-- Strategy pattern keeps command execution extensible without bloating the dispatcher.
+- Normalization happens upstream so the execute strategy can focus on shell invocation and reporting.
 
 ## Risks / Gaps
 
-- Only two handlers exist; add specialized commands (e.g., HTTP requests) carefully and update tests.
-- Error messaging for missing `read` paths is minimal; consider surfacing richer context to the model.
+- Handler surface is intentionally narrow; coordinate with `commandExecution.js` if introducing additional built-ins.
 
 ## Related Context
 

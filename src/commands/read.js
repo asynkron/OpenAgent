@@ -1,87 +1,91 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+import { parseReadSpecTokens } from './readSpec.js';
+import { shellSplit } from '../utils/text.js';
 
-export function normalizePaths(readSpec) {
-  const paths = [];
-  if (!readSpec || typeof readSpec !== 'object') {
-    return paths;
-  }
+const READ_SCRIPT = 'scripts/read.mjs';
+const READ_SCRIPT_COMMAND = 'node';
 
-  const seen = new Set();
-
-  const addPath = (relPath) => {
-    if (typeof relPath !== 'string') {
-      return;
-    }
-    const trimmed = relPath.trim();
-    if (!trimmed || seen.has(trimmed)) {
-      return;
-    }
-    seen.add(trimmed);
-    paths.push(trimmed);
-  };
-
-  if (typeof readSpec.path === 'string') {
-    addPath(readSpec.path);
-  }
-
-  if (Array.isArray(readSpec.paths)) {
-    for (const candidate of readSpec.paths) {
-      addPath(candidate);
-    }
-  }
-
-  return paths;
+function encodeSpec(spec) {
+  return Buffer.from(JSON.stringify(spec ?? {}), 'utf8').toString('base64');
 }
 
-export async function runRead(readSpec, cwd = '.') {
-  const start = Date.now();
+function decodeSpec(encoded) {
+  if (!encoded) {
+    return null;
+  }
+
   try {
-    if (!readSpec || typeof readSpec !== 'object') {
-      throw new Error('read spec must be an object');
-    }
-
-    const relPaths = normalizePaths(readSpec);
-    if (relPaths.length === 0) {
-      throw new Error('readSpec.path or readSpec.paths must include at least one path');
-    }
-
-    const encoding = readSpec.encoding || 'utf8';
-    const segments = [];
-
-    for (const relPath of relPaths) {
-      const absPath = path.resolve(cwd || '.', relPath);
-      let content = fs.readFileSync(absPath, { encoding });
-
-      if (typeof readSpec.max_bytes === 'number' && readSpec.max_bytes >= 0) {
-        const buffer = Buffer.from(content, encoding);
-        content = buffer.slice(0, readSpec.max_bytes).toString(encoding);
-      }
-
-      if (typeof readSpec.max_lines === 'number' && readSpec.max_lines >= 0) {
-        const lines = content.split('\n').slice(0, readSpec.max_lines);
-        content = lines.join('\n');
-      }
-
-      segments.push(`${relPath}:::\n${content}`);
-    }
-
-    return {
-      stdout: segments.join('\n'),
-      stderr: '',
-      exit_code: 0,
-      killed: false,
-      runtime_ms: Date.now() - start,
-    };
-  } catch (err) {
-    return {
-      stdout: '',
-      stderr: err && err.message ? err.message : String(err),
-      exit_code: 1,
-      killed: false,
-      runtime_ms: Date.now() - start,
-    };
+    const json = Buffer.from(encoded, 'base64').toString('utf8');
+    const parsed = JSON.parse(json);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch (error) {
+    return null;
   }
 }
 
-export default { runRead };
+export function normalizeReadCommand(runValue, tokens) {
+  if (typeof runValue !== 'string') {
+    return { command: runValue, spec: null };
+  }
+
+  const trimmed = runValue.trim();
+  if (!trimmed) {
+    return { command: runValue, spec: null };
+  }
+
+  const effectiveTokens = Array.isArray(tokens) && tokens.length > 0 ? tokens : shellSplit(trimmed);
+  if (!effectiveTokens.length) {
+    return { command: trimmed, spec: null };
+  }
+
+  const keyword = effectiveTokens[0]?.toLowerCase();
+  if (keyword !== 'read') {
+    return { command: trimmed, spec: null };
+  }
+
+  const spec = parseReadSpecTokens(effectiveTokens.slice(1));
+  const encoded = encodeSpec(spec);
+  const normalized = `${READ_SCRIPT_COMMAND} ${READ_SCRIPT} --spec-base64 ${encoded}`;
+  return { command: normalized, spec };
+}
+
+export function extractReadSpecFromCommand(runValue) {
+  if (typeof runValue !== 'string') {
+    return null;
+  }
+
+  const trimmed = runValue.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const tokens = shellSplit(trimmed);
+  if (tokens.length < 2) {
+    return null;
+  }
+
+  const [firstToken, secondToken] = tokens;
+  const scriptMatches =
+    firstToken === READ_SCRIPT_COMMAND && (secondToken === READ_SCRIPT || secondToken.endsWith(`/${READ_SCRIPT}`));
+
+  if (!scriptMatches) {
+    return null;
+  }
+
+  for (let i = 2; i < tokens.length; i += 1) {
+    const token = tokens[i];
+    if (token === '--spec-base64') {
+      const next = tokens[i + 1];
+      return decodeSpec(next ?? '');
+    }
+    if (token.startsWith('--spec-base64=')) {
+      return decodeSpec(token.slice('--spec-base64='.length));
+    }
+  }
+
+  return null;
+}
+
+export default {
+  normalizeReadCommand,
+  extractReadSpecFromCommand,
+};

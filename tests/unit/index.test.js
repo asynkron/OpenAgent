@@ -44,16 +44,10 @@ async function loadModule(
   }
 
   if (typeof runCommandMock === 'function') {
-    const runRead = jest.fn();
-    const runApplyPatch = jest.fn();
     jest.unstable_mockModule('../../src/commands/run.js', () => ({
       runCommand: runCommandMock,
-      runRead,
-      runApplyPatch,
       default: {
         runCommand: runCommandMock,
-        runRead,
-        runApplyPatch,
       },
     }));
   }

@@ -1,49 +1,55 @@
 import { jest } from '@jest/globals';
+
 import { executeAgentCommand } from '../../src/agent/commandExecution.js';
+import { extractReadSpecFromCommand } from '../../src/commands/read.js';
 
 describe('executeAgentCommand', () => {
   const makeDeps = () => ({
     runCommandFn: jest.fn(async () => ({ stdout: 'run', stderr: '', exit_code: 0 })),
-    runReadFn: jest.fn(async () => ({ stdout: 'read', stderr: '', exit_code: 0 })),
   });
 
-  test('executes read command when read spec provided', async () => {
+  test('normalizes read run strings into script invocation', async () => {
     const deps = makeDeps();
-    const command = { read: { path: 'README.md' }, cwd: '/repo' };
+    const command = { run: 'read README.md', cwd: '/repo' };
 
     const { result, executionDetails } = await executeAgentCommand({ command, ...deps });
 
-    expect(deps.runReadFn).toHaveBeenCalledWith(command.read, '/repo');
-    expect(result.stdout).toBe('read');
-    expect(executionDetails).toEqual({ type: 'READ', spec: command.read });
+    expect(deps.runCommandFn).toHaveBeenCalledTimes(1);
+    const [normalizedRun, cwdArg, timeoutArg] = deps.runCommandFn.mock.calls[0];
+    expect(normalizedRun.startsWith('node scripts/read.mjs --spec-base64')).toBe(true);
+    expect(cwdArg).toBe('/repo');
+    expect(timeoutArg).toBe(60);
+
+    const decodedSpec = extractReadSpecFromCommand(normalizedRun);
+    expect(decodedSpec).toEqual({ path: 'README.md' });
+
+    expect(result.stdout).toBe('run');
+    expect(executionDetails.type).toBe('READ');
+    expect(executionDetails.spec).toEqual({ path: 'README.md' });
+    expect(executionDetails.command.run).toBe(normalizedRun);
   });
 
-  test('merges read tokens when run command starts with read', async () => {
+  test('preserves numeric read options when normalizing', async () => {
     const deps = makeDeps();
     const command = {
-      run: 'read logs/app.log --max-lines 20 --max-bytes=512',
-      read: { encoding: 'utf8' },
-      cwd: '/app',
+      run: 'read ./logs/app.log --max-lines 20 --max-bytes=512 --encoding utf8',
+      cwd: '.',
     };
 
-    const { result, executionDetails } = await executeAgentCommand({ command, ...deps });
+    const { executionDetails } = await executeAgentCommand({ command, ...deps });
 
-    expect(deps.runReadFn).toHaveBeenCalledTimes(1);
-    const [specArg, cwdArg] = deps.runReadFn.mock.calls[0];
-    expect(cwdArg).toBe('/app');
-    expect(specArg).toEqual(
-      expect.objectContaining({
-        path: 'logs/app.log',
-        encoding: 'utf8',
-        max_lines: 20,
-        max_bytes: 512,
-      }),
-    );
-    expect(result.stdout).toBe('read');
-    expect(executionDetails.type).toBe('READ');
+    const normalizedRun = deps.runCommandFn.mock.calls[0][0];
+    const decodedSpec = extractReadSpecFromCommand(normalizedRun);
+    expect(decodedSpec).toEqual({
+      path: './logs/app.log',
+      max_lines: 20,
+      max_bytes: 512,
+      encoding: 'utf8',
+    });
+    expect(executionDetails.spec).toEqual(decodedSpec);
   });
 
-  test('falls back to runCommand when no other handlers match', async () => {
+  test('falls back to runCommand for non-read invocations', async () => {
     const deps = makeDeps();
     const command = { run: 'node index.js', cwd: '/project', timeout_sec: 120 };
 

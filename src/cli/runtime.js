@@ -9,7 +9,7 @@ import {
   setNoHumanFlag,
 } from '../lib/startupFlags.js';
 import { createAgentRuntime } from '../agent/loop.js';
-import { runCommand, runRead } from '../commands/run.js';
+import { runCommand } from '../commands/run.js';
 import {
   isPreapprovedCommand,
   isSessionApproved,
@@ -41,7 +41,6 @@ async function runAgentLoopWithCurrentDependencies(options = {}) {
     getDebugFlag,
     setNoHumanFlag,
     runCommandFn: runCommand,
-    runReadFn: runRead,
     applyFilterFn: applyFilter,
     tailLinesFn: tailLines,
     isPreapprovedCommandFn: isPreapprovedCommand,

@@ -7,6 +7,7 @@
 ## Key Files
 
 - `apply_patch.mjs`, `edit-lines.mjs`, `replace-node.js`, `rename-identifier.mjs` — codemod helpers for structured edits.
+- `read.mjs` — implements the filesystem reader invoked via the normalized `read` command helper.
 - `validate-json-assets.js` — validates prompt JSON against `schemas/prompts.schema.json`.
 - `verify-release-tag.js` — ensures release tags align with package metadata before publishing.
 - `README.md` & `patchexample.md` — usage documentation and examples for scripted edits.

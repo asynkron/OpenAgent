@@ -1,6 +1,6 @@
 import { shellSplit } from '../utils/text.js';
 import ExecuteCommand from './commands/ExecuteCommand.js';
-import ReadCommand from './commands/ReadCommand.js';
+import { normalizeReadCommand } from '../commands/read.js';
 
 const DEFAULT_TIMEOUT_SEC = 60;
 
@@ -12,7 +12,7 @@ const DEFAULT_TIMEOUT_SEC = 60;
  * @property {string[]} runTokens `command.run` (trimmed) tokenised via `shellSplit`.
  * @property {string} runKeyword Lower-cased first token from `runTokens`.
  * @property {(command: object, cwd: string, timeout: number, shell?: string) => Promise<object>} runCommandFn
- * @property {(spec: object, cwd: string) => Promise<object>} runReadFn
+ * @property {object|null} readSpec Parsed read specification when the command uses the read helper.
  */
 
 /**
@@ -23,21 +23,31 @@ const DEFAULT_TIMEOUT_SEC = 60;
 
 /** @returns {ICommand[]} */
 function createCommandHandlers() {
-  return [new ReadCommand(), new ExecuteCommand()];
+  return [new ExecuteCommand()];
 }
 
-export async function executeAgentCommand({ command, runCommandFn, runReadFn }) {
+export async function executeAgentCommand({ command, runCommandFn }) {
   const normalizedCommand = command || {};
   const cwd = normalizedCommand.cwd || '.';
   const timeout =
     typeof normalizedCommand.timeout_sec === 'number'
       ? normalizedCommand.timeout_sec
       : DEFAULT_TIMEOUT_SEC;
-  const runTokens =
+  const rawRun =
     typeof normalizedCommand.run === 'string' && normalizedCommand.run.trim()
-      ? shellSplit(normalizedCommand.run.trim())
-      : [];
+      ? normalizedCommand.run.trim()
+      : '';
+  const runTokens = rawRun ? shellSplit(rawRun) : [];
   const runKeyword = runTokens[0]?.toLowerCase() || '';
+
+  let readSpec = null;
+  if (rawRun) {
+    const normalization = normalizeReadCommand(rawRun, runTokens);
+    normalizedCommand.run = normalization.command;
+    readSpec = normalization.spec;
+  } else {
+    normalizedCommand.run = rawRun;
+  }
 
   const handlers = createCommandHandlers();
   const context = {
@@ -47,7 +57,7 @@ export async function executeAgentCommand({ command, runCommandFn, runReadFn }) 
     runTokens,
     runKeyword,
     runCommandFn,
-    runReadFn,
+    readSpec,
   };
 
   for (const handler of handlers) {

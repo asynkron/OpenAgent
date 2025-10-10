@@ -1,3 +1,5 @@
+import { extractReadSpecFromCommand, normalizeReadCommand } from '../../commands/read.js';
+
 /**
  * Shared formatting helpers for command summaries across Ink components and
  * compatibility console renderers.
@@ -86,11 +88,14 @@ export function inferCommandType(command, execution) {
   }
 
   if (command.edit) return 'EDIT';
-  if (command.read) return 'READ';
   if (command.replace) return 'REPLACE';
 
   const runValue = typeof command.run === 'string' ? command.run.trim() : '';
   if (runValue) {
+    const specFromRun = extractReadSpecFromCommand(runValue);
+    if (specFromRun) {
+      return 'READ';
+    }
     const keyword = runValue.split(/\s+/)[0]?.toLowerCase();
     if (keyword === 'read') {
       return 'READ';
@@ -107,7 +112,11 @@ function pluralize(word, count) {
 export function buildHeadingDetail(type, execution, command) {
   switch (type) {
     case 'READ': {
-      const spec = execution?.spec || command?.read || {};
+      const spec =
+        execution?.spec ||
+        extractReadSpecFromCommand(command?.run) ||
+        (typeof command?.run === 'string' ? normalizeReadCommand(command.run).spec : null) ||
+        {};
       const paths = collectReadPaths(spec);
       return `([${paths.join(', ')}])`;
     }
@@ -188,7 +197,11 @@ function appendStdErr(summaryLines, stderrPreview) {
 
 function summarizeReadCommand({ command, result, preview, execution, summaryLines }) {
   const filtersApplied = Boolean(command?.filter_regex || command?.tail_lines);
-  const spec = execution?.spec || command?.read || {};
+  const spec =
+    execution?.spec ||
+    extractReadSpecFromCommand(command?.run) ||
+    (typeof command?.run === 'string' ? normalizeReadCommand(command.run).spec : null) ||
+    {};
   const paths = collectReadPaths(spec);
 
   let segments = parseReadSegments(preview.stdout);

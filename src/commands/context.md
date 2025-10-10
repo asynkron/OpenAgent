@@ -7,13 +7,13 @@
 ## Key Files
 
 - `run.js` — spawns shell commands with timeout/cancellation support, captures stdout/stderr to temp files, and exposes `runCommand` plus helper wrappers (uses `.openagent/temp`) while assuming upstream normalization has produced a string command and rejecting any other shape.
-- `read.js` — performs filesystem reads based on structured specs (path, max bytes/lines) with encoding handling.
+- `read.js` — normalizes `read` run strings into `node scripts/read.mjs` invocations and exposes helpers to decode embedded specs.
 - `readSpec.js` — parses `read` command token syntax and merges specs.
 
 ## Positive Signals
 
 - Command execution isolates side effects from the agent loop, simplifying testing via mocks.
-- Read spec parsing supports both inline tokens and JSON payloads, giving prompts flexibility.
+- Read spec parsing helpers keep CLI displays accurate while delegating filesystem access to `scripts/read.mjs`.
 - `run.js` ensures cancellation handlers are unregistered during all completion paths to avoid dangling callbacks.
 - `run.js` rewrites legacy `apply_patch` invocations to the bundled `scripts/apply_patch.mjs` shim so models can continue using the
   familiar command while we control the implementation.

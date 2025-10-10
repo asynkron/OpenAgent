@@ -6,6 +6,7 @@ import {
   resetQueuedResponses,
 } from './agentRuntimeTestHarness.js';
 import { createTestRunnerUI } from './testRunnerUI.js';
+import { extractReadSpecFromCommand } from '../../src/commands/read.js';
 
 jest.setTimeout(20000);
 
@@ -13,7 +14,7 @@ beforeEach(() => {
   resetQueuedResponses();
 });
 
-test('agent runtime invokes runRead for read commands', async () => {
+test('agent runtime normalizes read commands to script execution', async () => {
   process.env.OPENAI_API_KEY = 'test-key';
   const { agent } = await loadAgentWithMockedModules();
   agent.STARTUP_FORCE_AUTO_APPROVE = true;
@@ -22,10 +23,7 @@ test('agent runtime invokes runRead for read commands', async () => {
     message: 'Mocked read response',
     plan: [],
     command: {
-      read: {
-        path: 'sample.txt',
-        encoding: 'utf8',
-      },
+      run: 'read sample.txt --encoding utf8',
       cwd: '.',
     },
   });
@@ -35,18 +33,16 @@ test('agent runtime invokes runRead for read commands', async () => {
     command: null,
   });
 
-  const runReadMock = jest.fn().mockResolvedValue({
+  const runCommandMock = jest.fn().mockResolvedValue({
     stdout: 'sample content',
     stderr: '',
     exit_code: 0,
     killed: false,
     runtime_ms: 2,
   });
-  const runCommandMock = jest.fn();
 
   const runtime = agent.createAgentRuntime({
     getAutoApproveFlag: () => agent.STARTUP_FORCE_AUTO_APPROVE,
-    runReadFn: runReadMock,
     runCommandFn: runCommandMock,
   });
 
@@ -55,7 +51,12 @@ test('agent runtime invokes runRead for read commands', async () => {
 
   await ui.start();
 
-  expect(runReadMock).toHaveBeenCalledTimes(1);
-  expect(runReadMock).toHaveBeenCalledWith({ path: 'sample.txt', encoding: 'utf8' }, '.');
-  expect(runCommandMock).not.toHaveBeenCalled();
+  expect(runCommandMock).toHaveBeenCalledTimes(1);
+  const [normalizedRun, cwdArg] = runCommandMock.mock.calls[0];
+  expect(cwdArg).toBe('.');
+  expect(normalizedRun.startsWith('node scripts/read.mjs --spec-base64')).toBe(true);
+  expect(extractReadSpecFromCommand(normalizedRun)).toEqual({
+    path: 'sample.txt',
+    encoding: 'utf8',
+  });
 });

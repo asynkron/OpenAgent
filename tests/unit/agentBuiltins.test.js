@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
 
 import { createAgentRuntime } from '../../src/agent/loop.js';
+import { extractReadSpecFromCommand } from '../../src/commands/read.js';
 
 function buildResponsePayload(payload) {
   return Promise.resolve({
@@ -31,13 +32,6 @@ function createRuntimeWithQueue(queue, overrides = {}) {
     model: 'test-model',
     runCommandFn: jest.fn().mockResolvedValue({
       stdout: '',
-      stderr: '',
-      exit_code: 0,
-      killed: false,
-      runtime_ms: 1,
-    }),
-    runReadFn: jest.fn().mockResolvedValue({
-      stdout: 'file contents',
       stderr: '',
       exit_code: 0,
       killed: false,
@@ -78,12 +72,11 @@ function createRuntimeWithQueue(queue, overrides = {}) {
     responsesCreate,
     runWithPrompts,
     runCommandFn: config.runCommandFn,
-    runReadFn: config.runReadFn,
   };
 }
 
 describe('agent built-in command parsing', () => {
-  test('read built-in with quoted path uses runRead', async () => {
+  test('read built-in with quoted path normalizes into read script', async () => {
     const readCall = {
       message: 'Read a file',
       plan: [],
@@ -99,7 +92,7 @@ describe('agent built-in command parsing', () => {
       command: null,
     };
 
-    const runReadFn = jest.fn().mockResolvedValue({
+    const runCommandFn = jest.fn().mockResolvedValue({
       stdout: 'mock content',
       stderr: '',
       exit_code: 0,
@@ -107,19 +100,19 @@ describe('agent built-in command parsing', () => {
       runtime_ms: 2,
     });
 
-    const {
-      runWithPrompts,
-      runReadFn: configuredRead,
-      responsesCreate,
-    } = createRuntimeWithQueue([buildResponsePayload(readCall), buildResponsePayload(followUp)], {
-      runReadFn,
-    });
+    const { runWithPrompts, runCommandFn: configuredRun, responsesCreate } = createRuntimeWithQueue(
+      [buildResponsePayload(readCall), buildResponsePayload(followUp)],
+      { runCommandFn },
+    );
 
     await runWithPrompts();
 
     expect(responsesCreate).toHaveBeenCalledTimes(2);
-    expect(configuredRead).toHaveBeenCalledTimes(1);
-    expect(configuredRead).toHaveBeenCalledWith({ path: './docs/some file.md' }, '/repo');
+    expect(configuredRun).toHaveBeenCalledTimes(1);
+    const [normalizedRun, cwdArg] = configuredRun.mock.calls[0];
+    expect(cwdArg).toBe('/repo');
+    const spec = extractReadSpecFromCommand(normalizedRun);
+    expect(spec).toEqual({ path: './docs/some file.md' });
   });
 
   test('read built-in parses numeric options', async () => {
@@ -137,7 +130,7 @@ describe('agent built-in command parsing', () => {
       command: null,
     };
 
-    const runReadFn = jest.fn().mockResolvedValue({
+    const runCommandFn = jest.fn().mockResolvedValue({
       stdout: 'mock content',
       stderr: '',
       exit_code: 0,
@@ -145,21 +138,21 @@ describe('agent built-in command parsing', () => {
       runtime_ms: 2,
     });
 
-    const { runWithPrompts, runReadFn: configuredRead } = createRuntimeWithQueue(
+    const { runWithPrompts, runCommandFn: configuredRun } = createRuntimeWithQueue(
       [buildResponsePayload(readCall), buildResponsePayload(followUp)],
-      { runReadFn },
+      { runCommandFn },
     );
 
     await runWithPrompts();
 
-    expect(configuredRead).toHaveBeenCalledWith(
-      {
-        path: './logs/app.log',
-        max_lines: 5,
-        max_bytes: 120,
-        encoding: 'utf8',
-      },
-      '.',
-    );
+    expect(configuredRun).toHaveBeenCalledTimes(1);
+    const normalizedRun = configuredRun.mock.calls[0][0];
+    const spec = extractReadSpecFromCommand(normalizedRun);
+    expect(spec).toEqual({
+      path: './logs/app.log',
+      max_lines: 5,
+      max_bytes: 120,
+      encoding: 'utf8',
+    });
   });
 });

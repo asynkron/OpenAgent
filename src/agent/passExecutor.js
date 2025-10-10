@@ -69,7 +69,6 @@ export async function executeAgentPass({
   emitEvent = () => {},
   onDebug = null,
   runCommandFn,
-  runReadFn,
   applyFilterFn,
   tailLinesFn,
   getNoHumanFlag,
@@ -401,7 +400,6 @@ export async function executeAgentPass({
   const { result, executionDetails } = await executeAgentCommand({
     command: parsed.command,
     runCommandFn,
-    runReadFn,
   });
 
   let key = parsed?.command?.key;

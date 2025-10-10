@@ -174,6 +174,37 @@ describe('runCommand', () => {
     expect(result.killed).toBe(true);
   });
 
+  test('normalizes read commands to bundled script', async () => {
+    const spawnMock = jest.fn();
+
+    jest.unstable_mockModule('node:child_process', () => ({
+      spawn: spawnMock,
+    }));
+
+    setupCancellationMocks();
+
+    const { runCommand } = await import('../../src/commands/run.js');
+    const { extractReadSpecFromCommand } = await import('../../src/commands/read.js');
+
+    const child = new EventEmitter();
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    child.stdout.setEncoding = jest.fn();
+    child.stderr.setEncoding = jest.fn();
+    child.kill = jest.fn();
+
+    spawnMock.mockReturnValue(child);
+
+    const promise = runCommand('read README.md', '.', 5);
+
+    child.emit('close', 0);
+    await promise;
+
+    const invokedCommand = spawnMock.mock.calls[0][0];
+    expect(invokedCommand.startsWith('node scripts/read.mjs --spec-base64')).toBe(true);
+    expect(extractReadSpecFromCommand(invokedCommand)).toEqual({ path: 'README.md' });
+  });
+
   test('substitutes apply_patch shell command with local wrapper for string commands', async () => {
     const spawnMock = jest.fn();
 
