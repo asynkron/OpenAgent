@@ -308,7 +308,13 @@ export async function executeAgentPass({
 
   emitEvent({ type: 'plan', plan: activePlan });
 
-  if (!parsed.command) {
+  const normalizedCommandRun =
+    typeof parsed.command?.run === 'string' ? parsed.command.run.trim() : '';
+  const normalizedCommandShell =
+    typeof parsed.command?.shell === 'string' ? parsed.command.shell.trim() : '';
+
+  // Commands that only contain blank run/shell values mean there's nothing to execute.
+  if (!parsed.command || (!normalizedCommandRun && !normalizedCommandShell)) {
     if (
       typeof getNoHumanFlag === 'function' &&
       typeof setNoHumanFlag === 'function' &&
