@@ -75,6 +75,29 @@ export const theme = Object.freeze({
       },
     },
   },
+  plan: {
+    colors: {
+      fg: '#f5f5f5',
+      bg: '#14202aff',
+      heading: '#7dd3fc',
+    },
+    props: {
+      container: {
+        flexDirection: 'column',
+        marginTop: 1,
+        paddingX: 1,
+        paddingY: 1,
+        backgroundColor: '#14202aff',
+        width: '100%',
+        alignSelf: 'stretch',
+        flexGrow: 1,
+      },
+      heading: {
+        color: '#7dd3fc',
+        bold: true,
+      },
+    },
+  },
   command: {
     colors: {
       fg: '#f5f5f5',
