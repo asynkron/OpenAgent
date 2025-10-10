@@ -7,6 +7,7 @@
 ## Key Modules
 
 - `loop.js` — orchestrates the event-driven runtime: manages plan snapshots, queues inputs/outputs, handles OpenAI calls, applies filters, and coordinates cancellation.
+- `loop.d.ts` — type declaration describing the runtime event stream, command payloads, and factory options for consumers that need TypeScript support.
 - `approvalManager.js` — centralizes auto-approval checks (allowlist/session flags) and human prompts; the constructor normalizes optional collaborators once so runtime logic can invoke them without repetitive type guards.
 - `commandExecution.js` — normalizes assistant commands before dispatching to the default executor and tracks runtime metadata.
 - `commands/` subdirectory — houses the default execute strategy used for all shell invocations.
