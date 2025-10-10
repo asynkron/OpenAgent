@@ -1,8 +1,6 @@
 import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 
 import { formatBootProbeSummary, runBootProbes } from '../../src/cli/bootProbes/index.js';
 import PythonBootProbe from '../../src/cli/bootProbes/pythonProbe.js';
@@ -15,8 +13,6 @@ import ContainerBootProbe from '../../src/cli/bootProbes/containerProbe.js';
 async function createTempDir(prefix = 'boot-probe-test-') {
   return mkdtemp(join(tmpdir(), prefix));
 }
-
-const execFileAsync = promisify(execFile);
 
 // eslint-disable-next-line no-control-regex
 function normalizeLine(value) {
@@ -155,30 +151,12 @@ describe('boot probes', () => {
     });
   });
 
-  // it('detects git repositories and surfaces branch information', async () => {
-  //   await withTempDir(async (dir) => {
-  //     // Create a basic git repository to exercise the GitBootProbe without relying on fixtures.
-  //     await execFileAsync('git', ['init'], { cwd: dir });
-  //     await writeFile(join(dir, 'README.md'), '# Sample repo\n', 'utf8');
-  //     await execFileAsync('git', ['add', 'README.md'], { cwd: dir });
-  //     await execFileAsync('git', ['commit', '-m', 'Initial commit'], { cwd: dir });
-
-  //     const results = await runBootProbes({ cwd: dir, emit: () => {} });
-  //     const gitResult = results.find((result) => result.probe === 'Git');
-
-  //     expect(gitResult).toBeDefined();
-  //     expect(gitResult.detected).toBe(true);
-  //     expect(gitResult.details.some((detail) => detail.includes('HEAD'))).toBe(true);
-  //     expect(gitResult.tooling).toContain('Git helpers');
-  //   });
-  // });
-
   it('does not report Rust when only generic directories are present', async () => {
     await withTempDir(async (dir) => {
       await mkdir(join(dir, 'src'), { recursive: true });
       await writeFile(join(dir, 'src', 'index.js'), 'console.log("hello");\n', 'utf8');
 
-      const results = await runBootProbes({ cwd: dir, emit: () => { } });
+      const results = await runBootProbes({ cwd: dir, emit: () => {} });
       const rustResult = results.find((result) => result.probe === 'Rust');
 
       expect(rustResult).toBeUndefined();
@@ -202,7 +180,7 @@ describe('boot probes', () => {
         'utf8',
       );
 
-      const results = await runBootProbes({ cwd: dir, emit: () => { } });
+      const results = await runBootProbes({ cwd: dir, emit: () => {} });
       const eslintResult = results.find((result) => result.probe === 'ESLint');
 
       expect(eslintResult).toBeDefined();
@@ -232,7 +210,7 @@ describe('boot probes', () => {
       await mkdir(join(dir, '.config'), { recursive: true });
       await writeFile(join(dir, '.prettierrc'), JSON.stringify({ semi: false }), 'utf8');
 
-      const results = await runBootProbes({ cwd: dir, emit: () => { } });
+      const results = await runBootProbes({ cwd: dir, emit: () => {} });
       const prettierResult = results.find((result) => result.probe === 'Prettier');
 
       expect(prettierResult).toBeDefined();
