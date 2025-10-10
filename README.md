@@ -1,3 +1,5 @@
+![Screenshot](./screenshot.png)
+
 # OpenAgent
 
 OpenAgent is a Node.js-based CLI agent that communicates with an LLM using a structured JSON protocol. It safely executes shell commands with human-in-the-loop approval, live progress tracking, and output controls.

@@ -31,6 +31,7 @@
 
 - On fresh clones run `node scripts/install-git-hooks.js` first so the repository's Git hooks are installed before other tasks.
 - Whenever code, docs, or prompts change, update the nearest `context.md` (and parent summaries) so the index remains trustworthy.
+- README now opens with `![Screenshot](./screenshot.png)` to preview the CLI.
 - Cross-reference sibling directories if behavior spans subsystems (e.g., CLI rendering ↔ agent runtime).
 
 ## Related Context
