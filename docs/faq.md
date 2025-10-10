@@ -14,6 +14,16 @@ Update the closest directory `context.md` and reflect the change in the [docs/do
 - `npm test`
 - Schema validation (part of the test suite) whenever prompts, templates, or shortcuts change.
 
+## How do I enable the repo's Git hooks?
+
+The hooks live in `.githooks/` and are opt-in. Point Git at that directory once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+From then on, every `git commit` runs the bundled `pre-commit` hook, which calls `lint-staged` so only staged files are auto-formatted (`prettier --write`) and linted (`eslint --fix`). If you ever need to run the same cleanup manually, use `npx lint-staged` or the broader `npm run format` / `npm run lint` scripts.
+
 ## How often should I audit documentation?
 
 Follow the cadence in [docs/ops-overview.md](./ops-overview.md): weekly spot-checks and monthly full audits of context indexes and cross-links.
