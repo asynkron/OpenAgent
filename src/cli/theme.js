@@ -6,15 +6,15 @@ export const theme = Object.freeze({
   human: {
     colors: {
       fg: '#f5f5f5',
-      bg: '#3a3a3dff',
+      bg: '#192834ff',
     },
     props: {
       container: {
         flexDirection: 'column',
-        marginTop: 1,
+        marginTop: 0,
         paddingX: 1,
         paddingY: 1,
-        backgroundColor: '#3a3a3dff',
+        backgroundColor: '#192834ff',
         width: '100%',
         alignSelf: 'stretch',
         flexGrow: 1,
@@ -25,10 +25,10 @@ export const theme = Object.freeze({
       askHuman: {
         container: {
           flexDirection: 'column',
-          marginTop: 1,
+          marginTop: 0,
           paddingX: 1,
           paddingY: 0,
-          backgroundColor: '#3a3a3dff',
+          backgroundColor: '#192834ff',
         },
         inputRow: {
           flexDirection: 'row',
@@ -62,7 +62,7 @@ export const theme = Object.freeze({
     props: {
       container: {
         flexDirection: 'column',
-        marginTop: 1,
+        marginTop: 0,
         paddingX: 1,
         paddingY: 1,
         backgroundColor: '',
@@ -158,7 +158,7 @@ export const theme = Object.freeze({
     props: {
       container: {
         flexDirection: 'column',
-        marginTop: 1,
+        marginTop: 0,
         paddingX: 1,
         paddingY: 1,
         backgroundColor: '#370c21ff',
