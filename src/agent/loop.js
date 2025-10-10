@@ -50,7 +50,11 @@ export function createAgentRuntime({
 } = {}) {
   const outputs = new AsyncQueue();
   const inputs = new AsyncQueue();
-  const emit = (event) => outputs.push(event);
+  let counter = 0;
+  const emit = (event) => {
+    event.__id = 'key' + counter++;
+    outputs.push(event);
+  };
 
   const planManager = createPlanManager({
     emit,
