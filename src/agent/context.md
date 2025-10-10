@@ -10,11 +10,11 @@
 - `approvalManager.js` — centralizes auto-approval checks (allowlist/session flags) and human prompts.
 - `commandExecution.js` — normalizes assistant commands before dispatching to the default executor and tracks runtime metadata.
 - `commands/` subdirectory — houses the default execute strategy used for all shell invocations.
-- `historyCompactor.js`, `observationBuilder.js`, `responseParser.js`, `responseValidator.js`, `responseToolSchema.js` — manage conversation state, define the response envelope schema (including the named OpenAI tool contract), parse Responses API payloads, normalize assistant command payloads (including newline sanitization and mapping `cmd`/`command_line` aliases back to `run`), and validate protocol compliance.
+- `historyCompactor.js`, `observationBuilder.js`, `responseParser.js`, `responseValidator.js`, `responseToolSchema.js` — manage conversation state, define the response envelope schema (including the named OpenAI tool contract), parse Responses API payloads, normalize assistant command payloads (including newline sanitization and mapping `cmd`/`command_line` aliases back to `run`), enforce JSON schema compliance, and validate protocol guardrails.
 - `openaiRequest.js` — builds structured responses requests with retries and timeout handling.
 - `promptCoordinator.js`, `escState.js` — route human prompts, handle ESC cancellations, and guard against idle ESC presses latching cancellations.
-- `passExecutor.js` — handles multi-pass reasoning loops (execute/reflect cycles) when the model requests continuations and now
-  skips blank run/shell payloads so empty commands fall back to the message-only path.
+- `passExecutor.js` — handles multi-pass reasoning loops (execute/reflect cycles) when the model requests continuations, now
+  skips blank run/shell payloads so empty commands fall back to the message-only path, and surfaces schema validation failures back to the model/event stream.
 
 ## Positive Signals
 
