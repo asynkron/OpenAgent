@@ -6,7 +6,7 @@ import { parseAssistantResponse } from './responseParser.js';
 import { requestModelCompletion } from './openaiRequest.js';
 import { executeAgentCommand } from './commandExecution.js';
 import { summarizeContextUsage } from '../utils/contextUsage.js';
-import { extractResponseText } from '../openai/responseUtils.js';
+import { extractOpenAgentToolCall } from '../openai/responseUtils.js';
 import { validateAssistantResponseSchema, validateAssistantResponse } from './responseValidator.js';
 
 const REFUSAL_AUTO_RESPONSE = 'continue';
@@ -157,12 +157,13 @@ export async function executeAgentPass({
   }
 
   const { completion } = completionResult;
-  const responseContent = extractResponseText(completion);
+  const toolCall = extractOpenAgentToolCall(completion);
+  const responseContent =
+    toolCall && typeof toolCall.arguments === 'string' ? toolCall.arguments : '';
 
   emitDebug(() => ({
     stage: 'openai-response',
-    completion,
-    responseText: responseContent,
+    toolCall,
   }));
 
   if (!responseContent) {

@@ -42,7 +42,12 @@ import {
   BASE_SYSTEM_PROMPT,
   SYSTEM_PROMPT,
 } from '../config/systemPrompt.js';
-import { createAgentLoop, createAgentRuntime, extractResponseText } from '../agent/loop.js';
+import {
+  createAgentLoop,
+  createAgentRuntime,
+  extractOpenAgentToolCall,
+  extractResponseText,
+} from '../agent/loop.js';
 import { createWebSocketBinding } from '../bindings/websocket.js';
 import {
   setStartupFlags,
@@ -89,6 +94,7 @@ export {
   SYSTEM_PROMPT,
   createAgentLoop,
   createAgentRuntime,
+  extractOpenAgentToolCall,
   extractResponseText,
   createWebSocketBinding,
   setStartupFlags,
@@ -136,6 +142,7 @@ const exported = {
   SYSTEM_PROMPT,
   createAgentLoop,
   createAgentRuntime,
+  extractOpenAgentToolCall,
   extractResponseText,
   createWebSocketBinding,
   setStartupFlags,

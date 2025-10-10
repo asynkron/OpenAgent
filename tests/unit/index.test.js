@@ -165,20 +165,16 @@ describe('tailLines', () => {
 });
 
 describe('extractResponseText', () => {
-  test('prefers output_text field', async () => {
-    const { mod } = await loadModule();
-    const response = { output_text: '  hello world  ' };
-    expect(mod.extractResponseText(response)).toBe('hello world');
-  });
-
-  test('returns function call arguments when present', async () => {
+  test('returns trimmed arguments from open-agent function call', async () => {
     const { mod } = await loadModule();
     const response = {
+      output_text: 'ignored text',
       output: [
         { type: 'reasoning', summary: [] },
         {
           type: 'function_call',
           name: 'open-agent',
+          call_id: 'call_1',
           arguments: '  {"message":"Hello there"}  ',
         },
         {
@@ -190,7 +186,22 @@ describe('extractResponseText', () => {
     expect(mod.extractResponseText(response)).toBe('{"message":"Hello there"}');
   });
 
-  test('falls back to output message content', async () => {
+  test('stringifies object arguments for open-agent function call', async () => {
+    const { mod } = await loadModule();
+    const response = {
+      output: [
+        {
+          type: 'function_call',
+          name: 'open-agent',
+          call_id: 'call_2',
+          arguments: { message: 'Structured payload' },
+        },
+      ],
+    };
+    expect(mod.extractResponseText(response)).toBe('{"message":"Structured payload"}');
+  });
+
+  test('falls back to output message content when no function call present', async () => {
     const { mod } = await loadModule();
     const response = {
       output: [
@@ -206,6 +217,43 @@ describe('extractResponseText', () => {
   test('returns empty string when no text present', async () => {
     const { mod } = await loadModule();
     expect(mod.extractResponseText({})).toBe('');
+  });
+});
+
+describe('extractOpenAgentToolCall', () => {
+  test('returns payload with trimmed arguments and call id', async () => {
+    const { mod } = await loadModule();
+    const response = {
+      output: [
+        {
+          type: 'function_call',
+          name: 'open-agent',
+          call_id: 'call_123',
+          arguments: '  {"message":"Payload"}  ',
+        },
+      ],
+    };
+
+    expect(mod.extractOpenAgentToolCall(response)).toEqual({
+      name: 'open-agent',
+      call_id: 'call_123',
+      arguments: '{"message":"Payload"}',
+    });
+  });
+
+  test('returns null when open-agent function call is missing', async () => {
+    const { mod } = await loadModule();
+    const response = {
+      output: [
+        {
+          type: 'function_call',
+          name: 'other-tool',
+          arguments: '{"message":"no-op"}',
+        },
+      ],
+    };
+
+    expect(mod.extractOpenAgentToolCall(response)).toBeNull();
   });
 });
 

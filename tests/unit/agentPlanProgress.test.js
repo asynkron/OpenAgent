@@ -5,17 +5,34 @@ import { tmpdir } from 'node:os';
 
 import { createAgentRuntime } from '../../src/agent/loop.js';
 
+let responseCounter = 0;
+
+function sanitizePayload(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return payload;
+  }
+
+  const sanitized = {};
+  for (const [key, value] of Object.entries(payload)) {
+    if (value === null || value === undefined) {
+      continue;
+    }
+    sanitized[key] = value;
+  }
+
+  return sanitized;
+}
+
 function buildResponsePayload(payload) {
+  responseCounter += 1;
+  const normalized = sanitizePayload(payload);
   return Promise.resolve({
     output: [
       {
-        type: 'message',
-        content: [
-          {
-            type: 'output_text',
-            text: JSON.stringify(payload),
-          },
-        ],
+        type: 'function_call',
+        name: 'open-agent',
+        call_id: `plan-progress-${responseCounter}`,
+        arguments: JSON.stringify(normalized),
       },
     ],
   });
@@ -93,7 +110,6 @@ describe('agent plan progress events', () => {
       buildResponsePayload({
         message: 'No plan tasks',
         plan: [],
-        command: null,
       }),
     ];
 
@@ -110,7 +126,6 @@ describe('agent plan progress events', () => {
       buildResponsePayload({
         message: 'Plan update',
         plan: [{ step: '1', title: 'Task', status: 'completed' }],
-        command: null,
       }),
     ];
 
@@ -123,4 +138,8 @@ describe('agent plan progress events', () => {
     expect(progressEvents).toHaveLength(1);
     expect(progressEvents[0].progress).toMatchObject({ completedSteps: 1, totalSteps: 1 });
   });
+});
+
+afterEach(() => {
+  responseCounter = 0;
 });

@@ -78,13 +78,10 @@ test('agent runtime executes nested shell commands from raw response strings', a
     completion: {
       output: [
         {
-          type: 'message',
-          content: [
-            {
-              type: 'output_text',
-              text: nestedShellResponseText,
-            },
-          ],
+          type: 'function_call',
+          name: 'open-agent',
+          call_id: 'fixture-call-1',
+          arguments: nestedShellResponseText,
         },
       ],
     },
