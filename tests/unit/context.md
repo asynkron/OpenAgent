@@ -6,7 +6,8 @@
 
 ## Key Groupings
 
-- Agent core: `commandExecution.test.js`, `approvalManager.test.js`, `responseParser.test.js`, `responseValidator.test.js`.
+- Agent core: `commandExecution.test.js`, `approvalManager.test.js`, `responseParser.test.js`, `responseValidator.test.js`,
+  `passExecutor.test.js` (covers blank command guard rails).
 - Planning & context: `plan.test.js`, `planUtils.test.js`, `agentPlanProgress.test.js`, `contextUsage.test.js`.
 - CLI/UI: `renderCommand.test.js`, `renderPlan.test.js`, `renderLanguage.test.js`, `CliApp` component tests, `inkTextArea.test.js` for keyboard handling/terminal resize behavior (including Shift+Enter escape sequences and CR/CRLF normalization), `promptCoordinator.test.js` covering ESC guard rails, and `askHuman.test.js` to ensure the slash menu suggestions stay wired to default shortcuts.
 - Utilities: `outputUtils.test.js`, `runCommand.test.js`, `cancellation.test.js`, `index.test.js` (aggregated helpers including response extraction with `function_call` coverage). `runCommand.test.js` now asserts the runner rejects non-string payloads to enforce upstream normalization.
