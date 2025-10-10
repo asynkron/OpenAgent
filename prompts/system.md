@@ -46,3 +46,11 @@ When you are working with a patch or temporary file, ensure that you clean up af
 ### Use temp directories
 
 When creating temporary files, use the system temp directory or a dedicated temp directory for your project.
+
+### Do not get stuck
+
+If you get stuck sending similar responses over and over, e.g. no updated plan, about the same message to the user, and no command, you should try to break the cycle by either:
+
+- Changing your approach or perspective on the problem
+- Asking for clarification or additional information from the user
+- Re-evaluating the constraints or requirements of the task

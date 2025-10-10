@@ -1,6 +1,8 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 
+import { renderMarkdownMessage } from '../render.js';
+
 const h = React.createElement;
 
 /**
@@ -11,10 +13,27 @@ export function DebugPanel({ events = [] }) {
     return null;
   }
 
-  const children = [h(Text, { color: 'gray', bold: true, key: 'heading' }, 'Debug')];
-  events.forEach((event, index) => {
-    children.push(h(Text, { color: 'gray', key: `debug-${index}` }, event));
-  });
+  const renderedEvents = events
+    .map((event, index) => {
+      const content = typeof event === 'string' ? event : String(event ?? '');
+      if (!content.trim()) {
+        return null;
+      }
+
+      const markdown = `\`\`\`json\n${content}\n\`\`\``;
+      const rendered = renderMarkdownMessage(markdown);
+      return h(Text, { key: `debug-${index}` }, rendered);
+    })
+    .filter(Boolean);
+
+  if (renderedEvents.length === 0) {
+    return null;
+  }
+
+  const children = [
+    h(Text, { color: 'gray', bold: true, key: 'heading' }, 'Debug'),
+    ...renderedEvents,
+  ];
 
   return h(Box, { flexDirection: 'column', marginTop: 1 }, children);
 }
