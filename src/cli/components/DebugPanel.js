@@ -15,14 +15,24 @@ export function DebugPanel({ events = [] }) {
 
   const renderedEvents = events
     .map((event, index) => {
-      const content = typeof event === 'string' ? event : String(event ?? '');
+      const key =
+        event && typeof event === 'object' && (event.id || event.id === 0)
+          ? event.id
+          : `debug-${index}`;
+      const content =
+        typeof event === 'string'
+          ? event
+          : typeof event?.content === 'string'
+            ? event.content
+            : String(event ?? '');
+
       if (!content.trim()) {
         return null;
       }
 
       const markdown = `\`\`\`json\n${content}\n\`\`\``;
       const rendered = renderMarkdownMessage(markdown);
-      return h(Text, { key: `debug-${index}` }, rendered);
+      return h(Text, { key }, rendered);
     })
     .filter(Boolean);
 

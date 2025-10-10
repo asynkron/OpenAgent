@@ -162,6 +162,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
   const runtimeRef = useRef(runtime);
   const { exit } = useApp();
   const entryIdRef = useRef(0);
+  const debugEventIdRef = useRef(0);
   const [plan, setPlan] = useState([]);
   const [planProgress, setPlanProgress] = useState({ seen: false, value: null });
   const [contextUsage, setContextUsage] = useState(null);
@@ -229,7 +230,17 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
       if (!formatted) {
         return prev;
       }
-      const next = [...prev, formatted];
+
+      debugEventIdRef.current += 1;
+      const entry = {
+        id:
+          typeof event.id === 'string' || typeof event.id === 'number'
+            ? event.id
+            : debugEventIdRef.current,
+        content: formatted,
+      };
+
+      const next = [...prev, entry];
       if (next.length > MAX_DEBUG_ENTRIES) {
         return next.slice(next.length - MAX_DEBUG_ENTRIES);
       }

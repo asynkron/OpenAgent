@@ -28,6 +28,8 @@
 
 - Layout wrappers such as `Command` and the `Timeline` container explicitly set `width: '100%'`/`alignSelf: 'stretch'`
   so timeline entries fill the terminal width consistently.
+- Debug panel events now carry stable identifiers (`{ id, content }`) so the panel can render without flicker when
+  other animated components (thinking spinner, input caret) update the tree.
 
 ## Related Context
 
