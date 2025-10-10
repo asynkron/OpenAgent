@@ -13,6 +13,7 @@ const REFUSAL_AUTO_RESPONSE = 'continue';
 const REFUSAL_STATUS_MESSAGE =
   'Assistant declined to help; auto-responding with "continue" to prompt another attempt.';
 const REFUSAL_MESSAGE_MAX_LENGTH = 160;
+const PLAN_REMINDER_AUTO_RESPONSE_LIMIT = 3;
 
 const REFUSAL_NEGATION_PATTERNS = [
   /\bcan['’]?t\b/i,
@@ -81,6 +82,7 @@ export async function executeAgentPass({
   historyCompactor,
   planManager,
   emitAutoApproveStatus = false,
+  planAutoResponseTracker = null,
 }) {
   const debugFn = typeof onDebug === 'function' ? onDebug : null;
   const emitDebug = (payloadOrFactory) => {
@@ -218,6 +220,27 @@ export async function executeAgentPass({
   }
 
   const parsed = parseResult.value;
+
+  const planAutoResponder =
+    planAutoResponseTracker && typeof planAutoResponseTracker === 'object'
+      ? planAutoResponseTracker
+      : null;
+
+  const incrementPlanReminder = () => {
+    if (!planAutoResponder || typeof planAutoResponder.increment !== 'function') {
+      return 1;
+    }
+
+    return planAutoResponder.increment();
+  };
+
+  const resetPlanReminder = () => {
+    if (!planAutoResponder || typeof planAutoResponder.reset !== 'function') {
+      return;
+    }
+
+    planAutoResponder.reset();
+  };
 
   emitDebug(() => ({
     stage: 'assistant-response',
@@ -385,21 +408,31 @@ export async function executeAgentPass({
       // When the assistant refuses without offering a plan or command, nudge it forward automatically.
       emitEvent({ type: 'status', level: 'info', message: REFUSAL_STATUS_MESSAGE });
       history.push({ role: 'user', content: REFUSAL_AUTO_RESPONSE });
+      resetPlanReminder();
       return true;
     }
 
     if (Array.isArray(activePlan) && planHasOpenSteps(activePlan)) {
-      emitEvent({
-        type: 'status',
-        level: 'warn',
-        message: planReminderMessage,
-      });
-      history.push({ role: 'user', content: planReminderMessage });
-      return true;
+      const attempt = incrementPlanReminder();
+
+      if (attempt <= PLAN_REMINDER_AUTO_RESPONSE_LIMIT) {
+        emitEvent({
+          type: 'status',
+          level: 'warn',
+          message: planReminderMessage,
+        });
+        history.push({ role: 'user', content: planReminderMessage });
+        return true;
+      }
+
+      return false;
     }
 
+    resetPlanReminder();
     return false;
   }
+
+  resetPlanReminder();
 
   if (approvalManager) {
     const autoApproval = approvalManager.shouldAutoApprove(parsed.command);
