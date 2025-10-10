@@ -272,22 +272,25 @@ export async function executeAgentPass({
   let activePlan = incomingPlan ?? [];
 
   if (planManager) {
-    try {
-      const mergingEnabled =
-        typeof planManager.isMergingEnabled === 'function' ? planManager.isMergingEnabled() : true;
+    const invokePlanManager = (method, ...args) =>
+      typeof method === 'function' ? method.call(planManager, ...args) : undefined;
 
-      if (incomingPlan && typeof planManager.update === 'function') {
-        const updated = await planManager.update(incomingPlan);
+    try {
+      const mergePreference = await invokePlanManager(planManager.isMergingEnabled);
+      const shouldMerge = mergePreference !== false;
+
+      if (incomingPlan) {
+        const updated = await invokePlanManager(planManager.update, incomingPlan);
         if (Array.isArray(updated)) {
           activePlan = updated;
         }
-      } else if (!incomingPlan && mergingEnabled && typeof planManager.get === 'function') {
-        const snapshot = planManager.get();
+      } else if (shouldMerge) {
+        const snapshot = await invokePlanManager(planManager.get);
         if (Array.isArray(snapshot)) {
           activePlan = snapshot;
         }
-      } else if (!incomingPlan && !mergingEnabled && typeof planManager.reset === 'function') {
-        const cleared = await planManager.reset();
+      } else {
+        const cleared = await invokePlanManager(planManager.reset);
         if (Array.isArray(cleared)) {
           activePlan = cleared;
         }
