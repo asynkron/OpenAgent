@@ -25,7 +25,7 @@ import { createPlanManager } from './planManager.js';
 
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 const PLAN_PENDING_REMINDER =
-  'There are open tasks in the plan. Do you need help or more info? If not, please continue working.';
+  'The plan is not completed, either send a command to continue, update the plan, take a deep breath and reanalyze the situation, add/remove steps or sub-steps, or abandon the plan if we don´t know how to continue';
 
 export function createAgentRuntime({
   systemPrompt = SYSTEM_PROMPT,
@@ -57,6 +57,22 @@ export function createAgentRuntime({
     emitStatus: (event) => outputs.push(event),
     getPlanMergeFlag,
   });
+
+  // Track how many consecutive plan reminders we have injected so that the
+  // agent eventually defers to a human if progress stalls.
+  let planReminderAutoResponseCount = 0;
+  const planAutoResponseTracker = {
+    increment() {
+      planReminderAutoResponseCount += 1;
+      return planReminderAutoResponseCount;
+    },
+    reset() {
+      planReminderAutoResponseCount = 0;
+    },
+    getCount() {
+      return planReminderAutoResponseCount;
+    },
+  };
 
   const { state: escState, trigger: triggerEsc, detach: detachEscListener } = createEscState();
   const promptCoordinator = new PromptCoordinator({
@@ -239,6 +255,7 @@ export function createAgentRuntime({
               approvalManager,
               historyCompactor,
               planManager,
+              planAutoResponseTracker,
               emitAutoApproveStatus,
             });
 

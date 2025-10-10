@@ -16,8 +16,9 @@
 - `passExecutor.js` — handles multi-pass reasoning loops (execute/reflect cycles) when the model requests continuations, now
   skips blank run/shell payloads so empty commands fall back to the message-only path, and surfaces schema validation failures back to the model/event stream.
 - `passExecutor.js` — handles multi-pass reasoning loops (execute/reflect cycles) when the model requests continuations, skips
-  blank run/shell payloads so empty commands fall back to the message-only path, and funnels plan manager calls through a single
-  helper to keep optional method checks centralized.
+  blank run/shell payloads so empty commands fall back to the message-only path, funnels plan manager calls through a single
+  helper to keep optional method checks centralized, and now caps plan reminder auto-responses to three consecutive attempts so
+  humans can step in before the loop stalls.
 
 ## Positive Signals
 

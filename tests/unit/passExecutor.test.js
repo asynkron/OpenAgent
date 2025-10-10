@@ -215,4 +215,103 @@ describe('executeAgentPass', () => {
       'response.command: Must be of type object.',
     ]);
   });
+
+  test('caps plan reminder auto-response after three consecutive attempts', async () => {
+    const {
+      executeAgentPass,
+      requestModelCompletion,
+      extractOpenAgentToolCall,
+      parseAssistantResponse,
+      validateAssistantResponseSchema,
+      validateAssistantResponse,
+      planHasOpenSteps,
+    } = await setupPassExecutor();
+
+    const emitEvent = jest.fn();
+    const history = [];
+
+    const planReminderMessage =
+      'The plan is not completed, either send a command to continue, update the plan, take a deep breath and reanalyze the situation, add/remove steps or sub-steps, or abandon the plan if we don´t know how to continue';
+
+    parseAssistantResponse.mockImplementation(() => ({
+      ok: true,
+      value: {
+        message: 'Still reviewing the open plan steps.',
+        plan: [{ step: 'Investigate', status: 'in_progress' }],
+        command: { run: '   ', shell: '   ' },
+      },
+      recovery: { strategy: 'direct' },
+    }));
+    planHasOpenSteps.mockReturnValue(true);
+
+    const tracker = {
+      count: 0,
+      increment() {
+        this.count += 1;
+        return this.count;
+      },
+      reset() {
+        this.count = 0;
+      },
+      getCount() {
+        return this.count;
+      },
+    };
+
+    const runPass = async () =>
+      executeAgentPass({
+        openai: {},
+        model: 'gpt-5-codex',
+        history,
+        emitEvent,
+        runCommandFn: jest.fn(),
+        applyFilterFn: jest.fn(),
+        tailLinesFn: jest.fn(),
+        getNoHumanFlag: () => false,
+        setNoHumanFlag: () => {},
+        planReminderMessage,
+        startThinkingFn: jest.fn(),
+        stopThinkingFn: jest.fn(),
+        escState: {},
+        approvalManager: null,
+        historyCompactor: null,
+        planManager: null,
+        emitAutoApproveStatus: false,
+        planAutoResponseTracker: tracker,
+      });
+
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      emitEvent.mockClear();
+      const previousHistoryLength = history.length;
+
+      const result = await runPass();
+
+      expect(result).toBe(true);
+      expect(requestModelCompletion).toHaveBeenCalledTimes(attempt);
+      expect(extractOpenAgentToolCall).toHaveBeenCalledTimes(attempt);
+      expect(parseAssistantResponse).toHaveBeenCalledTimes(attempt);
+      expect(validateAssistantResponseSchema).toHaveBeenCalledTimes(attempt);
+      expect(validateAssistantResponse).toHaveBeenCalledTimes(attempt);
+
+      expect(emitEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'status', level: 'warn', message: planReminderMessage }),
+      );
+      expect(history).toHaveLength(previousHistoryLength + 2);
+      expect(history[history.length - 1]).toEqual({ role: 'user', content: planReminderMessage });
+      expect(tracker.getCount()).toBe(attempt);
+    }
+
+    emitEvent.mockClear();
+    const previousHistoryLength = history.length;
+
+    const suppressedResult = await runPass();
+
+    expect(suppressedResult).toBe(false);
+    expect(emitEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'status', message: planReminderMessage }),
+    );
+    expect(history).toHaveLength(previousHistoryLength + 1);
+    expect(history[history.length - 1]).toEqual(expect.objectContaining({ role: 'assistant' }));
+    expect(tracker.getCount()).toBe(4);
+  });
 });
