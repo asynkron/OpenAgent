@@ -14,7 +14,7 @@ function deepFreeze(value) {
   return value;
 }
 
-const RESPONSE_PARAMETERS_SCHEMA = {
+export const RESPONSE_PARAMETERS_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   required: ['message'],

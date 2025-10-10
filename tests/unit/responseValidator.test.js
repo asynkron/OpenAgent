@@ -1,6 +1,35 @@
 import { describe, expect, test } from '@jest/globals';
 
-import { validateAssistantResponse } from '../../src/agent/responseValidator.js';
+import { validateAssistantResponseSchema, validateAssistantResponse } from '../../src/agent/responseValidator.js';
+
+describe('validateAssistantResponseSchema', () => {
+  test('accepts payload matching schema', () => {
+    const result = validateAssistantResponseSchema({
+      message: 'Ready',
+      plan: [],
+      command: { run: 'echo "hi"' },
+    });
+
+    expect(result).toEqual({ valid: true, errors: [] });
+  });
+
+  test('flags missing required message property', () => {
+    const result = validateAssistantResponseSchema({
+      plan: [],
+      command: null,
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: 'response',
+          message: 'Missing required property "message".',
+        }),
+      ]),
+    );
+  });
+});
 
 describe('validateAssistantResponse', () => {
   test('accepts minimal valid payload', () => {

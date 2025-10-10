@@ -7,7 +7,7 @@ import { requestModelCompletion } from './openaiRequest.js';
 import { executeAgentCommand } from './commandExecution.js';
 import { summarizeContextUsage } from '../utils/contextUsage.js';
 import { extractResponseText } from '../openai/responseUtils.js';
-import { validateAssistantResponse } from './responseValidator.js';
+import { validateAssistantResponseSchema, validateAssistantResponse } from './responseValidator.js';
 
 const REFUSAL_AUTO_RESPONSE = 'continue';
 const REFUSAL_STATUS_MESSAGE =
@@ -233,6 +233,48 @@ export async function executeAgentPass({
       level: 'info',
       message: `Assistant JSON parsed after applying ${parseResult.recovery.strategy.replace(/_/g, ' ')} recovery.`,
     });
+  }
+
+  const schemaValidation = validateAssistantResponseSchema(parsed);
+  if (!schemaValidation.valid) {
+    emitDebug(() => ({
+      stage: 'assistant-response-schema-validation-error',
+      message: 'Assistant response failed schema validation.',
+      errors: schemaValidation.errors,
+      raw: responseContent,
+    }));
+
+    emitEvent({
+      type: 'schema_validation_failed',
+      message: 'Assistant response failed schema validation.',
+      errors: schemaValidation.errors,
+      raw: responseContent,
+    });
+
+    const schemaMessages = schemaValidation.errors.map((error) => `${error.path}: ${error.message}`);
+    let summaryMessage;
+    if (schemaMessages.length === 1) {
+      summaryMessage = `Schema validation failed: ${schemaMessages[0]}`;
+    } else {
+      summaryMessage =
+        'Schema validation failed. Please address the following issues:\n- ' +
+        schemaMessages.join('\n- ');
+    }
+
+    const observation = {
+      observation_for_llm: {
+        schema_validation_error: true,
+        message: summaryMessage,
+        details: schemaMessages,
+        response_snippet: responseContent.slice(0, 4000),
+      },
+      observation_metadata: {
+        timestamp: new Date().toISOString(),
+      },
+    };
+
+    history.push({ role: 'user', content: JSON.stringify(observation) });
+    return true;
   }
 
   const validation = validateAssistantResponse(parsed);

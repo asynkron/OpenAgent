@@ -29,10 +29,12 @@ const setupPassExecutor = async () => {
     default: { parseAssistantResponse },
   }));
 
+  const validateAssistantResponseSchema = jest.fn(() => ({ valid: true, errors: [] }));
   const validateAssistantResponse = jest.fn(() => ({ valid: true, errors: [] }));
   jest.unstable_mockModule('../../src/agent/responseValidator.js', () => ({
+    validateAssistantResponseSchema,
     validateAssistantResponse,
-    default: { validateAssistantResponse },
+    default: { validateAssistantResponseSchema, validateAssistantResponse },
   }));
 
   const executeAgentCommand = jest.fn(() => {
@@ -88,6 +90,7 @@ const setupPassExecutor = async () => {
     requestModelCompletion,
     extractResponseText,
     parseAssistantResponse,
+    validateAssistantResponseSchema,
     validateAssistantResponse,
     executeAgentCommand,
     summarizeContextUsage,
@@ -107,6 +110,7 @@ describe('executeAgentPass', () => {
       requestModelCompletion,
       extractResponseText,
       parseAssistantResponse,
+      validateAssistantResponseSchema,
       validateAssistantResponse,
       executeAgentCommand,
     } = await setupPassExecutor();
@@ -139,7 +143,73 @@ describe('executeAgentPass', () => {
     expect(requestModelCompletion).toHaveBeenCalledTimes(1);
     expect(extractResponseText).toHaveBeenCalledTimes(1);
     expect(parseAssistantResponse).toHaveBeenCalledTimes(1);
+    expect(validateAssistantResponseSchema).toHaveBeenCalledTimes(1);
     expect(validateAssistantResponse).toHaveBeenCalledTimes(1);
     expect(executeAgentCommand).not.toHaveBeenCalled();
   });
+
+  test('auto-responds when schema validation fails', async () => {
+    const {
+      executeAgentPass,
+      requestModelCompletion,
+      extractResponseText,
+      parseAssistantResponse,
+      validateAssistantResponseSchema,
+      validateAssistantResponse,
+    } = await setupPassExecutor();
+
+    const emitEvent = jest.fn();
+    const history = [];
+
+    validateAssistantResponseSchema.mockReturnValue({
+      valid: false,
+      errors: [{ path: 'response.command', message: 'Must be of type object.' }],
+    });
+
+    const result = await executeAgentPass({
+      openai: {},
+      model: 'gpt-5-codex',
+      history,
+      emitEvent,
+      runCommandFn: jest.fn(),
+      applyFilterFn: jest.fn(),
+      tailLinesFn: jest.fn(),
+      getNoHumanFlag: () => false,
+      setNoHumanFlag: () => {},
+      planReminderMessage: 'remember the plan',
+      startThinkingFn: jest.fn(),
+      stopThinkingFn: jest.fn(),
+      escState: {},
+      approvalManager: null,
+      historyCompactor: null,
+      planManager: null,
+      emitAutoApproveStatus: false,
+    });
+
+    expect(result).toBe(true);
+    expect(requestModelCompletion).toHaveBeenCalledTimes(1);
+    expect(extractResponseText).toHaveBeenCalledTimes(1);
+    expect(parseAssistantResponse).toHaveBeenCalledTimes(1);
+    expect(validateAssistantResponseSchema).toHaveBeenCalledTimes(1);
+    expect(validateAssistantResponse).not.toHaveBeenCalled();
+
+    expect(emitEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'schema_validation_failed',
+        errors: expect.arrayContaining([
+          expect.objectContaining({ path: 'response.command', message: 'Must be of type object.' }),
+        ]),
+      }),
+    );
+
+    expect(history).toHaveLength(2);
+    const observationEntry = history[history.length - 1];
+    expect(observationEntry.role).toBe('user');
+    const observation = JSON.parse(observationEntry.content);
+    expect(observation.observation_for_llm.schema_validation_error).toBe(true);
+    expect(observation.observation_for_llm.details).toEqual([
+      'response.command: Must be of type object.',
+    ]);
+  });
 });
+

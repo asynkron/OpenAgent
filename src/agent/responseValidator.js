@@ -1,8 +1,106 @@
+import Ajv from 'ajv';
+import { RESPONSE_PARAMETERS_SCHEMA } from './responseToolSchema.js';
+
 /**
  * Validates assistant JSON responses to ensure they follow the required protocol.
  * The validator returns a list of human-readable errors instead of throwing so the
  * caller can surface structured feedback back to the LLM.
  */
+
+const ajv = new Ajv({ allErrors: true, strict: false });
+const schemaValidator = ajv.compile(RESPONSE_PARAMETERS_SCHEMA);
+
+function decodePointerSegment(segment) {
+  return segment.replace(/~1/g, '/').replace(/~0/g, '~');
+}
+
+function formatInstancePath(instancePath) {
+  if (!instancePath) {
+    return 'response';
+  }
+
+  const segments = instancePath
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => decodePointerSegment(segment));
+
+  let pathLabel = 'response';
+  for (const segment of segments) {
+    if (/^\d+$/.test(segment)) {
+      pathLabel += `[${segment}]`;
+    } else if (/^[A-Za-z_$][\w$]*$/.test(segment)) {
+      pathLabel += `.${segment}`;
+    } else {
+      pathLabel += `['${segment}']`;
+    }
+  }
+
+  return pathLabel;
+}
+
+function buildSchemaErrorMessage(error) {
+  if (!error) {
+    return 'Schema validation failed.';
+  }
+
+  if (error.keyword === 'required' && typeof error.params?.missingProperty === 'string') {
+    return `Missing required property "${error.params.missingProperty}".`;
+  }
+
+  if (
+    error.keyword === 'additionalProperties' &&
+    typeof error.params?.additionalProperty === 'string'
+  ) {
+    return `Unexpected property "${error.params.additionalProperty}".`;
+  }
+
+  if (error.keyword === 'enum' && Array.isArray(error.params?.allowedValues)) {
+    return `Must be one of: ${error.params.allowedValues.join(', ')}.`;
+  }
+
+  if (error.keyword === 'type' && typeof error.params?.type === 'string') {
+    return `Must be of type ${error.params.type}.`;
+  }
+
+  const message = typeof error.message === 'string' ? error.message : 'failed validation.';
+  return message.trim();
+}
+
+function describeSchemaError(error) {
+  const pathLabel = formatInstancePath(error?.instancePath ?? '');
+  return {
+    path: pathLabel,
+    message: buildSchemaErrorMessage(error),
+    keyword: error?.keyword ?? 'unknown',
+    instancePath: error?.instancePath ?? '',
+    params: error?.params ?? {},
+  };
+}
+
+export function validateAssistantResponseSchema(payload) {
+  const valid = schemaValidator(payload);
+
+  if (valid) {
+    return { valid: true, errors: [] };
+  }
+
+  const errors = Array.isArray(schemaValidator.errors)
+    ? schemaValidator.errors.map((error) => describeSchemaError(error))
+    : [
+        {
+          path: 'response',
+          message: 'Schema validation failed for assistant response.',
+          keyword: 'unknown',
+          instancePath: '',
+          params: {},
+        },
+      ];
+
+  return {
+    valid: false,
+    errors,
+  };
+}
 
 const ALLOWED_STATUSES = new Set(['pending', 'running', 'completed']);
 const PLAN_CHILD_KEYS = ['substeps'];
@@ -140,5 +238,6 @@ export function validateAssistantResponse(payload) {
 }
 
 export default {
+  validateAssistantResponseSchema,
   validateAssistantResponse,
 };
