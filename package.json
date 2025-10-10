@@ -4,6 +4,10 @@
   "description": "Simple Node.JS based AI agent",
   "type": "module",
   "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/asynkron/OpenAgent"
+  },
   "exports": {
     ".": {
       "import": "./index.js",
