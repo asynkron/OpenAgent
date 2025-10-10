@@ -1006,14 +1006,16 @@ export function InkTextArea({
       },
       ...commandMatches.map((match, index) => {
         const isSelected = index === resolvedCommandHighlightIndex;
+        const labelContent = isSelected
+          ? `${ANSI_INVERSE_ON}${match.item.label}${ANSI_INVERSE_OFF}`
+          : match.item.label;
         const segments = [
           h(
             Text,
             {
               key: 'label',
-              inverse: isSelected,
             },
-            match.item.label,
+            labelContent,
           ),
         ];
 
@@ -1184,3 +1186,5 @@ export function InkTextArea({
 }
 
 export default InkTextArea;
+const ANSI_INVERSE_ON = '\u001B[7m';
+const ANSI_INVERSE_OFF = '\u001B[27m';
