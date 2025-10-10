@@ -39,12 +39,9 @@ export class ApprovalManager {
 
     this.isPreapprovedCommand =
       typeof isPreapprovedCommand === 'function' ? isPreapprovedCommand : null;
-    this.isSessionApproved =
-      typeof isSessionApproved === 'function' ? isSessionApproved : null;
-    this.approveForSession =
-      typeof approveForSession === 'function' ? approveForSession : null;
-    this.getAutoApproveFlag =
-      typeof getAutoApproveFlag === 'function' ? getAutoApproveFlag : null;
+    this.isSessionApproved = typeof isSessionApproved === 'function' ? isSessionApproved : null;
+    this.approveForSession = typeof approveForSession === 'function' ? approveForSession : null;
+    this.getAutoApproveFlag = typeof getAutoApproveFlag === 'function' ? getAutoApproveFlag : null;
     this.askHuman = typeof askHuman === 'function' ? askHuman : null;
     this.preapprovedCfg = preapprovedCfg;
     this.logInfo = typeof logInfo === 'function' ? logInfo : noop;

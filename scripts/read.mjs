@@ -92,7 +92,9 @@ async function readSegment(relativePath, spec) {
   try {
     content = await fs.readFile(absolutePath, { encoding });
   } catch (error) {
-    throw new Error(`Failed to read ${relativePath}: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(
+      `Failed to read ${relativePath}: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
   const limited = limitContent(content, spec);

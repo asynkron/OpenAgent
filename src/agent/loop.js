@@ -228,7 +228,7 @@ export function createAgentRuntime({
               emitEvent: emit,
               onDebug: emitDebug,
               runCommandFn,
-                        applyFilterFn,
+              applyFilterFn,
               tailLinesFn,
               getNoHumanFlag,
               setNoHumanFlag,

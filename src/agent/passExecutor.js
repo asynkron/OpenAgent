@@ -251,7 +251,9 @@ export async function executeAgentPass({
       raw: responseContent,
     });
 
-    const schemaMessages = schemaValidation.errors.map((error) => `${error.path}: ${error.message}`);
+    const schemaMessages = schemaValidation.errors.map(
+      (error) => `${error.path}: ${error.message}`,
+    );
     let summaryMessage;
     if (schemaMessages.length === 1) {
       summaryMessage = `Schema validation failed: ${schemaMessages[0]}`;
