@@ -1,6 +1,6 @@
 {
   "name": "@asynkron/openagent",
-  "version": "2.13.8",
+  "version": "2.13.9",
   "description": "Simple Node.JS based AI agent",
   "type": "module",
   "main": "index.js",
