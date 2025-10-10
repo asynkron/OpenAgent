@@ -31,30 +31,9 @@ export const RESPONSE_PARAMETERS_SCHEMA = {
         'You MUST provide a plan when have a set goal, NEVER drop/reset a plan without discussion, the plan stays on utill otherwise agreed upon, Progress tracker for multi-step work; use [] when resetting to a new plan.',
     },
     command: {
-      $ref: '#/$defs/runCommand',
-      description:
-        'Next tool invocation to execute when a plan contains non-complete steps. may NOT be raw string, e.g command: "ls"',
-    },
-  },
-  $defs: {
-    planStep: {
-      type: 'object',
-      required: ['step', 'title', 'status'],
-      additionalProperties: false,
-      properties: {
-        step: { type: 'string' },
-        title: { type: 'string' },
-        status: { type: 'string', enum: ['pending', 'running', 'completed'] },
-        substeps: {
-          type: 'array',
-          items: { $ref: '#/$defs/planStep' },
-        },
-      },
-    },
-    runCommand: {
       type: 'object',
       description:
-        'MUST follow this format: {"shell":"/bin/bash","run":"ls -la","cwd":"/home/user","timeout_sec":30,"filter_regex":".*\\.txt$","tail_lines":10}',
+        'Next tool invocation to execute when a plan contains non-complete steps. may NOT be raw string, e.g command: "ls". MUST follow this format: {"shell":"/bin/bash","run":"ls -la","cwd":"/home/user","timeout_sec":30,"filter_regex":".*\\.txt$","tail_lines":10}',
       required: ['run'],
       additionalProperties: false,
       properties: {
@@ -83,6 +62,22 @@ export const RESPONSE_PARAMETERS_SCHEMA = {
           type: 'integer',
           minimum: 1,
           description: 'Optional number of trailing lines to return from output.',
+        },
+      },
+    },
+  },
+  $defs: {
+    planStep: {
+      type: 'object',
+      required: ['step', 'title', 'status'],
+      additionalProperties: false,
+      properties: {
+        step: { type: 'string' },
+        title: { type: 'string' },
+        status: { type: 'string', enum: ['pending', 'running', 'completed'] },
+        substeps: {
+          type: 'array',
+          items: { $ref: '#/$defs/planStep' },
         },
       },
     },
