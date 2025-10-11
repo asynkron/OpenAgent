@@ -8,6 +8,11 @@ import { executeAgentCommand } from './commandExecution.js';
 import { summarizeContextUsage } from '../utils/contextUsage.js';
 import { extractOpenAgentToolCall } from '../openai/responseUtils.js';
 import { validateAssistantResponseSchema, validateAssistantResponse } from './responseValidator.js';
+import {
+  createObservationHistoryEntry,
+  createPlanReminderEntry,
+  createRefusalAutoResponseEntry,
+} from './historyMessageBuilder.js';
 
 const REFUSAL_AUTO_RESPONSE = 'continue';
 const REFUSAL_STATUS_MESSAGE =
@@ -215,7 +220,7 @@ export async function executeAgentPass({
       },
     };
 
-    history.push({ role: 'user', content: JSON.stringify(observation) });
+    history.push(createObservationHistoryEntry({ observation }));
     return true;
   }
 
@@ -299,7 +304,7 @@ export async function executeAgentPass({
       },
     };
 
-    history.push({ role: 'user', content: JSON.stringify(observation) });
+    history.push(createObservationHistoryEntry({ observation }));
     return true;
   }
 
@@ -330,7 +335,7 @@ export async function executeAgentPass({
       },
     };
 
-    history.push({ role: 'user', content: JSON.stringify(observation) });
+    history.push(createObservationHistoryEntry({ observation }));
     return true;
   }
 
@@ -407,7 +412,7 @@ export async function executeAgentPass({
     if (activePlanEmpty && incomingPlanEmpty && isLikelyRefusalMessage(normalizedMessage)) {
       // When the assistant refuses without offering a plan or command, nudge it forward automatically.
       emitEvent({ type: 'status', level: 'info', message: REFUSAL_STATUS_MESSAGE });
-      history.push({ role: 'user', content: REFUSAL_AUTO_RESPONSE });
+      history.push(createRefusalAutoResponseEntry(REFUSAL_AUTO_RESPONSE));
       resetPlanReminder();
       return true;
     }
@@ -421,7 +426,7 @@ export async function executeAgentPass({
           level: 'warn',
           message: planReminderMessage,
         });
-        history.push({ role: 'user', content: planReminderMessage });
+        history.push(createPlanReminderEntry(planReminderMessage));
         return true;
       }
 
@@ -458,7 +463,7 @@ export async function executeAgentPass({
           },
         };
 
-        history.push({ role: 'user', content: JSON.stringify(observation) });
+        history.push(createObservationHistoryEntry({ observation }));
         return true;
       }
 
@@ -530,10 +535,7 @@ export async function executeAgentPass({
     execution: executionDetails,
   });
 
-  history.push({
-    role: 'user',
-    content: JSON.stringify(observation),
-  });
+  history.push(createObservationHistoryEntry({ observation, command: parsed.command }));
 
   return true;
 }

@@ -69,20 +69,13 @@ The runtime expects the assistant to return JSON that matches `RESPONSE_PARAMETE
 - `plan` is optional but, when present, must keep prior steps unless the user agrees to reset.
 - `command` stays absent when no tool invocation is needed; when supplied, it must include the `shell`/`run` pair plus any optional execution hints (`cwd`, `timeout_sec`, filters).
 
-If schema validation fails, the runtime pushes a corrective observation back to the model so it can retry with compliant JSON. The observation payload mirrors what `passExecutor` constructs:
+If schema validation fails, the runtime pushes a corrective observation back to the model so it can retry with compliant JSON. The observation payload now arrives as natural assistant prose that still embeds the structured data:
 
-```jsonc
+```text
 {
-  "observation_for_llm": {
-    "schema_validation_error": true,
-    "message": "Schema validation failed: /command.shell: is required",
-    "details": ["/command.shell: is required"],
-    "response_snippet": "{ \"message\": \"Missing shell\" }",
-  },
-  "observation_metadata": {
-    "timestamp": "2024-05-13T17:45:00.000Z",
-  },
+  "role": "assistant",
+  "content": "The previous assistant response failed schema validation.\n\nMessage: Schema validation failed: /command.shell: is required\n\nStructured payload:\n{\n  \"schema_validation_error\": true,\n  \"message\": \"Schema validation failed: /command.shell: is required\",\n  \"details\": [\n    \"/command.shell: is required\"\n  ],\n  \"response_snippet\": \"{ \\\"message\\\": \\\"Missing shell\\\" }\"\n}\n\nMetadata:\n{\n  \"timestamp\": \"2024-05-13T17:45:00.000Z\"\n}"
 }
 ```
 
-The `message` summarizes the first schema error, while `details` enumerates each Ajv error string and `response_snippet` echoes part of the offending payload to provide debugging context.
+The leading sentence explains the failure, while `Structured payload` and `Metadata` blocks preserve the machine-readable values that the model should continue to honor.

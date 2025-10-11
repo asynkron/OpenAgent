@@ -174,19 +174,10 @@ To exit, type `exit` or `quit` at any prompt.
 
 **Agent → LLM** observations:
 
-```json
+```text
 {
-  "observation_for_llm": {
-    "stdout": "output",
-    "stderr": "",
-    "exit_code": 0,
-    "truncated": false
-  },
-  "observation_metadata": {
-    "runtime_ms": 120,
-    "killed": false,
-    "timestamp": "2025-02-01T12:00:00Z"
-  }
+  "role": "assistant",
+  "content": "I ran the command: ls -a. It finished with exit code 0.\n\nStructured payload:\n{\n  \"stdout\": \"output\",\n  \"stderr\": \"\",\n  \"exit_code\": 0,\n  \"truncated\": false\n}\n\nMetadata:\n{\n  \"runtime_ms\": 120,\n  \"killed\": false,\n  \"timestamp\": \"2025-02-01T12:00:00Z\"\n}"
 }
 ```
 
