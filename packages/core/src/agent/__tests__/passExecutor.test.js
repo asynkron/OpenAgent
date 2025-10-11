@@ -21,7 +21,7 @@ const setupPassExecutor = async (options = {}) => {
     name: 'open-agent',
     call_id: 'call_mock_1',
     arguments:
-      '{"message":"  ","plan":[{"step":"1","title":"Mock","status":"running","command":{"run":"   ","shell":"   "}}]}',
+      '{"message":"  ","plan":[{"id":"mock-1","title":"Mock","status":"running","priority":0,"waitingForId":[],"command":{"run":"   ","shell":"   "}}]}',
   });
   const extractResponseText = jest.fn();
   jest.unstable_mockModule('../../openai/responseUtils.js', () => ({
@@ -36,9 +36,11 @@ const setupPassExecutor = async (options = {}) => {
       message: '  ',
       plan: [
         {
-          step: '1',
+          id: 'mock-1',
           title: 'Mock',
           status: 'running',
+          priority: 0,
+          waitingForId: [],
           command: { run: '   ', shell: '   ' },
         },
       ],
@@ -71,11 +73,11 @@ const setupPassExecutor = async (options = {}) => {
   }));
 
   const planHasOpenSteps = jest.fn(() => false);
-  const planStepHasIncompleteChildren = jest.fn(() => false);
+  const planStepHasIncompleteDependencies = jest.fn(() => false);
   jest.unstable_mockModule('../../utils/plan.js', () => ({
     planHasOpenSteps,
-    planStepHasIncompleteChildren,
-    default: { planHasOpenSteps, planStepHasIncompleteChildren },
+    planStepHasIncompleteDependencies,
+    default: { planHasOpenSteps, planStepHasIncompleteDependencies },
   }));
 
   const incrementCommandCount = jest.fn();
@@ -198,9 +200,11 @@ describe('executeAgentPass', () => {
         message: 'Executing plan',
         plan: [
           {
-            step: '1',
+            id: 'step-1',
             title: 'Do the work',
             status: 'pending',
+            priority: 1,
+            waitingForId: [],
             command: { run: 'echo hello' },
           },
         ],
@@ -272,9 +276,11 @@ describe('executeAgentPass', () => {
         message: 'Executing plan',
         plan: [
           {
-            step: '1',
+            id: 'step-1',
             title: 'Failing step',
             status: 'pending',
+            priority: 1,
+            waitingForId: [],
             command: { run: 'exit 2' },
           },
         ],
@@ -342,9 +348,11 @@ describe('executeAgentPass', () => {
         message: 'Executing plan',
         plan: [
           {
-            step: '1',
+            id: 'step-1',
             title: 'Do the work',
             status: 'pending',
+            priority: 1,
+            waitingForId: [],
             command: { run: 'echo hello' },
           },
         ],
@@ -430,15 +438,19 @@ describe('executeAgentPass', () => {
         message: 'Executing plan',
         plan: [
           {
-            step: '1',
+            id: 'step-1',
             title: 'First task',
             status: 'pending',
+            priority: 1,
+            waitingForId: [],
             command: { run: 'echo one' },
           },
           {
-            step: '2',
+            id: 'step-2',
             title: 'Second task',
             status: 'pending',
+            priority: 2,
+            waitingForId: [],
             command: { run: 'echo two' },
           },
         ],
@@ -505,9 +517,11 @@ describe('executeAgentPass', () => {
         message: 'Executing plan',
         plan: [
           {
-            step: '1',
+            id: 'step-1',
             title: 'Do the work',
             status: 'pending',
+            priority: 1,
+            waitingForId: [],
             command: { run: 'echo hello' },
           },
         ],
@@ -675,9 +689,11 @@ describe('executeAgentPass', () => {
         message: 'Plan finished',
         plan: [
           {
-            step: '1',
+            id: 'final-step',
             title: 'Wrap up',
             status: 'completed',
+            priority: 1,
+            waitingForId: [],
           },
         ],
       },
@@ -689,7 +705,9 @@ describe('executeAgentPass', () => {
     const reset = jest.fn().mockResolvedValue([]);
     const update = jest
       .fn()
-      .mockResolvedValue([{ step: '1', title: 'Wrap up', status: 'completed' }]);
+      .mockResolvedValue([
+        { id: 'final-step', title: 'Wrap up', status: 'completed', priority: 1, waitingForId: [] },
+      ]);
 
     const planManager = {
       isMergingEnabled: jest.fn().mockReturnValue(true),
@@ -757,9 +775,11 @@ describe('executeAgentPass', () => {
         message: 'Still reviewing the open plan steps.',
         plan: [
           {
-            step: 'Investigate',
+            id: 'investigate',
             title: 'Investigate',
             status: 'running',
+            priority: 1,
+            waitingForId: [],
             command: { run: '   ', shell: '   ' },
           },
         ],

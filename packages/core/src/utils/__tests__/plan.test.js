@@ -1,163 +1,122 @@
 /* eslint-env jest */
 import { describe, expect, test } from '@jest/globals';
 
-import { mergePlanTrees, planHasOpenSteps, planToMarkdown, computePlanProgress } from '../plan.js';
+import {
+  mergePlanTrees,
+  planHasOpenSteps,
+  planToMarkdown,
+  computePlanProgress,
+  planStepHasIncompleteDependencies,
+} from '../plan.js';
 
 describe('plan utilities', () => {
-  test('mergePlanTrees preserves hidden steps while merging new substeps', () => {
-    const existingPlan = [
-      { step: '1', title: 'do stuff', status: 'running' },
-      { step: '2', title: 'do other stuff', status: 'pending' },
-    ];
-
-    const incomingPlan = [
-      {
-        step: '1',
-        title: 'do stuff',
-        status: 'running',
-        substeps: [
-          { step: '1.1', title: 'blabla', status: 'pending' },
-          { step: '1.2', title: 'more blabla', status: 'pending' },
-        ],
-      },
-    ];
-
-    const merged = mergePlanTrees(existingPlan, incomingPlan);
-
-    // Step 2 should remain even though the update omitted it entirely.
-    expect(merged).toHaveLength(2);
-    expect(merged[0]).toBe(existingPlan[0]);
-    expect(merged[0].substeps).toHaveLength(2);
-    expect(merged[0].substeps).toBe(existingPlan[0].substeps);
-    expect(merged[1]).toBe(existingPlan[1]);
-  });
-
-  test('mergePlanTrees keeps existing substeps when incoming item omits them', () => {
+  test('mergePlanTrees merges updates without dropping existing entries', () => {
     const existingPlan = [
       {
-        step: '1',
-        title: 'do stuff',
+        id: 'plan-1',
+        title: 'Review docs',
         status: 'running',
-        substeps: [{ step: '1.1', title: 'preserve me', status: 'pending' }],
+        priority: 1,
+        waitingForId: [],
       },
-    ];
-
-    const incomingPlan = [
       {
-        step: '1',
-        title: 'do stuff',
-        status: 'running',
-      },
-    ];
-
-    const merged = mergePlanTrees(existingPlan, incomingPlan);
-
-    expect(merged[0]).toBe(existingPlan[0]);
-    expect(merged[0].substeps).toHaveLength(1);
-    expect(merged[0].substeps[0].title).toBe('preserve me');
-  });
-
-  test('mergePlanTrees removes items marked as abandoned', () => {
-    const existingPlan = [
-      { step: '1', title: 'keep me', status: 'running' },
-      {
-        step: '2',
-        title: 'drop me',
+        id: 'plan-2',
+        title: 'Implement feature',
         status: 'pending',
-        substeps: [{ step: '2.1', title: 'child', status: 'pending' }],
+        priority: 2,
+        waitingForId: ['plan-1'],
       },
     ];
 
     const incomingPlan = [
-      { step: '2', title: 'drop me', status: 'abandoned' },
+      {
+        id: 'plan-1',
+        title: 'Review docs (updated)',
+        status: 'completed',
+        priority: 1,
+        waitingForId: [],
+      },
+      {
+        id: 'plan-3',
+        title: 'Write tests',
+        status: 'pending',
+        priority: 1,
+        waitingForId: ['plan-2'],
+      },
+    ];
+
+    const merged = mergePlanTrees(existingPlan, incomingPlan);
+
+    expect(merged).toHaveLength(3);
+    expect(merged.find((step) => step.id === 'plan-1')?.title).toBe('Review docs (updated)');
+    expect(merged.find((step) => step.id === 'plan-2')).toBe(existingPlan[1]);
+    expect(merged.find((step) => step.id === 'plan-3')?.waitingForId).toEqual(['plan-2']);
+  });
+
+  test('mergePlanTrees removes abandoned steps', () => {
+    const existingPlan = [
+      { id: 'plan-1', title: 'Keep', status: 'running', priority: 1, waitingForId: [] },
+      { id: 'plan-2', title: 'Drop', status: 'pending', priority: 2, waitingForId: [] },
+    ];
+
+    const incomingPlan = [
+      { id: 'plan-2', title: 'Drop', status: 'abandoned', priority: 2, waitingForId: [] },
     ];
 
     const merged = mergePlanTrees(existingPlan, incomingPlan);
 
     expect(merged).toHaveLength(1);
-    expect(merged[0]).toBe(existingPlan[0]);
-    expect(merged[0].step).toBe('1');
+    expect(merged[0].id).toBe('plan-1');
   });
 
-  test('mergePlanTrees clears plan when incoming plan is empty', () => {
-    const existingPlan = [{ step: '1', title: 'done work', status: 'completed' }];
+  test('planHasOpenSteps detects unfinished work', () => {
+    expect(planHasOpenSteps([])).toBe(false);
+    expect(
+      planHasOpenSteps([
+        { id: 'plan-1', title: 'Done', status: 'completed', priority: 1, waitingForId: [] },
+      ]),
+    ).toBe(false);
 
-    const merged = mergePlanTrees(existingPlan, []);
-    expect(merged).toEqual([]);
+    expect(
+      planHasOpenSteps([
+        { id: 'plan-2', title: 'In progress', status: 'running', priority: 1, waitingForId: [] },
+      ]),
+    ).toBe(true);
   });
 
-  test('planToMarkdown renders a readable outline', () => {
+  test('planStepHasIncompleteDependencies returns true when dependency unfinished', () => {
     const plan = [
-      {
-        step: '1',
-        title: 'Root task',
-        status: 'in_progress',
-        substeps: [{ step: '1.1', title: 'Nested task', status: 'completed' }],
-      },
-      { step: '2', title: 'Final task', status: 'pending' },
+      { id: 'root', title: 'Root', status: 'running', priority: 1, waitingForId: [] },
+      { id: 'child', title: 'Child', status: 'pending', priority: 2, waitingForId: ['root'] },
     ];
 
-    const markdown = planToMarkdown(plan);
+    expect(planStepHasIncompleteDependencies(plan, plan[1])).toBe(true);
 
-    expect(markdown.startsWith('# Active Plan\n\n')).toBe(true);
-    expect(markdown).toContain('Step 1 - Root task [in_progress]');
-    expect(markdown).toContain('  Step 1.1 - Nested task [completed]');
-    expect(markdown).toContain('Step 2 - Final task [pending]');
+    plan[0].status = 'completed';
+    expect(planStepHasIncompleteDependencies(plan, plan[1])).toBe(false);
   });
 
-  test('planHasOpenSteps detects unfinished nested work', () => {
-    const plan = [
-      {
-        step: '1',
-        title: 'Parent',
-        status: 'completed',
-        substeps: [
-          { step: '1.1', title: 'Child 1', status: 'completed' },
-          { step: '1.2', title: 'Child 2', status: 'running' },
-        ],
-      },
-    ];
+  test('computePlanProgress counts completed tasks only', () => {
+    const progress = computePlanProgress([
+      { id: 'a', title: 'Done', status: 'completed', priority: 1, waitingForId: [] },
+      { id: 'b', title: 'Pending', status: 'pending', priority: 2, waitingForId: [] },
+      { id: 'c', title: 'Failed', status: 'failed', priority: 3, waitingForId: [] },
+    ]);
 
-    expect(planHasOpenSteps(plan)).toBe(true);
-
-    plan[0].substeps[1].status = 'completed';
-    expect(planHasOpenSteps(plan)).toBe(false);
-  });
-
-  test('computePlanProgress returns completed vs total leaf tasks', () => {
-    const plan = [
-      { title: 'Task A', status: 'completed' },
-      { title: 'Task B', status: 'pending' },
-      { title: 'Task C', status: 'done' },
-    ];
-
-    const progress = computePlanProgress(plan);
-
-    expect(progress.completedSteps).toBe(2);
+    expect(progress.completedSteps).toBe(1);
     expect(progress.totalSteps).toBe(3);
-    expect(progress.remainingSteps).toBe(1);
-    expect(progress.ratio).toBeCloseTo(2 / 3, 5);
+    expect(progress.remainingSteps).toBe(2);
+    expect(progress.ratio).toBeCloseTo(1 / 3, 5);
   });
 
-  test('computePlanProgress aggregates nested subtasks recursively', () => {
-    const plan = [
-      {
-        step: '1',
-        title: 'Parent work',
-        status: 'running',
-        substeps: [
-          { step: '1.1', title: 'Child 1', status: 'completed' },
-          { step: '1.2', title: 'Child 2', status: 'completed' },
-          { step: '1.3', title: 'Child 3', status: 'blocked' },
-        ],
-      },
-      { step: '2', title: 'Follow-up', status: 'pending' },
-    ];
+  test('planToMarkdown renders flat list with priorities', () => {
+    const markdown = planToMarkdown([
+      { id: 'task-1', title: 'Plan work', status: 'running', priority: 1, waitingForId: [] },
+      { id: 'task-2', title: 'Execute', status: 'pending', priority: 2, waitingForId: ['task-1'] },
+    ]);
 
-    const progress = computePlanProgress(plan);
-
-    expect(progress.completedSteps).toBe(2);
-    expect(progress.totalSteps).toBe(4);
-    expect(progress.ratio).toBeCloseTo(0.5, 5);
+    expect(markdown).toContain('# Active Plan');
+    expect(markdown).toContain('#task-1 - Plan work [running] (priority 1)');
+    expect(markdown).toContain('#task-2 - Execute [pending] (priority 2)');
   });
 });

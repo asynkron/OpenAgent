@@ -12,8 +12,8 @@
 - `fetch.js` — thin wrapper around `undici`/`node-fetch` semantics with timeout & error normalization.
 - `jsonAssetValidator.js` — validates JSON files against provided schemas; leveraged by scripts/tests.
 - `output.js` — formatting helpers for CLI output and logs.
-- `plan.js` — plan tree merge/progress utilities used by agent runtime & UI.
-  - Incoming items with `status: 'abandoned'` now remove the matching plan branch during merge.
+- `plan.js` — plan merge/progress utilities used by agent runtime & UI.
+  - Plans now consist of flat steps with `waitingForId` dependency lists. Helpers expose dependency checks (`planStepHasIncompleteDependencies`) and still support merging, markdown output, and progress stats.
 - `text.js` — string helpers (filters, tailing, shell splitting).
 
 ## Positive Signals

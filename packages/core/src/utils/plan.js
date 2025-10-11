@@ -32,7 +32,7 @@ function isTerminalStatus(status) {
     return false;
   }
 
-  if (normalized === 'failed') {
+  if (normalized === 'failed' || normalized === 'abandoned') {
     return true;
   }
 
@@ -47,27 +47,14 @@ function isAbandonedStatus(status) {
   return status.trim().toLowerCase() === 'abandoned';
 }
 
-function normalizeStepLabel(stepValue) {
-  if (stepValue === null || stepValue === undefined) {
-    return '';
-  }
-
-  const raw = String(stepValue).trim();
-  if (!raw) {
-    return '';
-  }
-
-  return raw.replace(/\.+$/, '');
-}
-
 function createPlanKey(item, fallbackIndex) {
   if (!item || typeof item !== 'object') {
     return `index:${fallbackIndex}`;
   }
 
-  const label = normalizeStepLabel(item.step);
-  if (label) {
-    return `step:${label.toLowerCase()}`;
+  const id = typeof item.id === 'string' ? item.id.trim() : '';
+  if (id) {
+    return `id:${id.toLowerCase()}`;
   }
 
   if (typeof item.title === 'string' && item.title.trim().length > 0) {
@@ -86,36 +73,34 @@ function clonePlanItem(item) {
 
   delete cloned.children;
   delete cloned.steps;
-
-  if (Array.isArray(item[CHILD_KEY])) {
-    cloned[CHILD_KEY] = item[CHILD_KEY].map((child) => clonePlanItem(child));
-  } else if (CHILD_KEY in cloned && !Array.isArray(cloned[CHILD_KEY])) {
-    delete cloned[CHILD_KEY];
-  }
+  delete cloned[CHILD_KEY];
 
   return cloned;
 }
 
-function pruneLegacyChildKeys(item) {
-  if (!item || typeof item !== 'object') {
-    return;
-  }
-
-  if ('children' in item) {
-    delete item.children;
-  }
-  if ('steps' in item) {
-    delete item.steps;
-  }
-
-  if (Array.isArray(item[CHILD_KEY])) {
-    item[CHILD_KEY].forEach((child) => {
-      pruneLegacyChildKeys(child);
-    });
-  }
-}
-
 const VOLATILE_KEYS = new Set(['age']);
+
+function normalizeWaitingForIds(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const seen = new Set();
+  const normalized = [];
+  for (const entry of value) {
+    if (typeof entry !== 'string') {
+      continue;
+    }
+    const trimmed = entry.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      continue;
+    }
+    seen.add(trimmed);
+    normalized.push(trimmed);
+  }
+
+  return normalized;
+}
 
 function mergePlanItems(existingItem, incomingItem) {
   if (!existingItem || typeof existingItem !== 'object') {
@@ -139,24 +124,43 @@ function mergePlanItems(existingItem, incomingItem) {
       continue;
     }
 
+    if (key === 'waitingForId') {
+      existingItem.waitingForId = normalizeWaitingForIds(value);
+      continue;
+    }
+
+    if (key === 'priority') {
+      const numeric = Number.parseInt(value, 10);
+      existingItem.priority = Number.isFinite(numeric) ? numeric : 0;
+      continue;
+    }
+
+    if (key === 'id' && typeof value === 'string') {
+      existingItem.id = value.trim();
+      continue;
+    }
+
     existingItem[key] = value;
   }
 
   delete existingItem.children;
   delete existingItem.steps;
 
-  if (Object.prototype.hasOwnProperty.call(incomingItem, CHILD_KEY)) {
-    const existingChildren = Array.isArray(existingItem[CHILD_KEY]) ? existingItem[CHILD_KEY] : [];
-    const incomingChildren = Array.isArray(incomingItem[CHILD_KEY]) ? incomingItem[CHILD_KEY] : [];
-    const mergedChildren = mergePlanTrees(existingChildren, incomingChildren);
-    if (mergedChildren.length > 0) {
-      existingItem[CHILD_KEY] = mergedChildren;
-    } else {
-      delete existingItem[CHILD_KEY];
-    }
+  if (Object.prototype.hasOwnProperty.call(incomingItem, 'waitingForId')) {
+    existingItem.waitingForId = normalizeWaitingForIds(incomingItem.waitingForId);
   }
 
-  pruneLegacyChildKeys(existingItem);
+  if (Object.prototype.hasOwnProperty.call(incomingItem, 'priority')) {
+    const numeric = Number.parseInt(incomingItem.priority, 10);
+    existingItem.priority = Number.isFinite(numeric) ? numeric : 0;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(incomingItem, 'id')) {
+    const text = typeof incomingItem.id === 'string' ? incomingItem.id.trim() : '';
+    if (text) {
+      existingItem.id = text;
+    }
+  }
 
   return existingItem;
 }
@@ -188,7 +192,14 @@ export function mergePlanTrees(existingPlan = [], incomingPlan = []) {
         result.push(mergedItem);
       }
     } else if (!isAbandonedStatus(item?.status)) {
-      result.push(clonePlanItem(item));
+      const cloned = clonePlanItem(item);
+      cloned.waitingForId = normalizeWaitingForIds(item?.waitingForId);
+      const numeric = Number.parseInt(item?.priority, 10);
+      cloned.priority = Number.isFinite(numeric) ? numeric : 0;
+      if (typeof cloned.id === 'string') {
+        cloned.id = cloned.id.trim();
+      }
+      result.push(cloned);
     }
   });
 
@@ -203,59 +214,88 @@ export function mergePlanTrees(existingPlan = [], incomingPlan = []) {
 }
 
 export function planHasOpenSteps(plan) {
-  const hasOpen = (items) => {
-    if (!Array.isArray(items)) {
+  if (!Array.isArray(plan) || plan.length === 0) {
+    return false;
+  }
+
+  return plan.some((item) => {
+    if (!item || typeof item !== 'object') {
       return false;
     }
 
-    for (const item of items) {
-      if (!item || typeof item !== 'object') {
-        continue;
-      }
-
-      const statusValue = typeof item.status === 'string' ? item.status : '';
-
-      const children = Array.isArray(item[CHILD_KEY]) ? item[CHILD_KEY] : null;
-      if (children && hasOpen(children)) {
-        return true;
-      }
-
-      if (!isTerminalStatus(statusValue)) {
-        return true;
-      }
-    }
-
-    return false;
-  };
-
-  return hasOpen(plan);
+    const statusValue = typeof item.status === 'string' ? item.status : '';
+    return !isTerminalStatus(statusValue);
+  });
 }
 
-export function planStepHasIncompleteChildren(step) {
+function buildPlanLookup(plan) {
+  const lookup = new Map();
+  if (!Array.isArray(plan)) {
+    return lookup;
+  }
+
+  plan.forEach((item) => {
+    if (!item || typeof item !== 'object') {
+      return;
+    }
+
+    const id = typeof item.id === 'string' ? item.id.trim() : '';
+    if (id && !lookup.has(id)) {
+      lookup.set(id, item);
+    }
+  });
+
+  return lookup;
+}
+
+function isDependencyComplete(dependency, lookup, visiting) {
+  if (!dependency || typeof dependency !== 'string') {
+    return false;
+  }
+
+  const id = dependency.trim();
+  if (!id) {
+    return false;
+  }
+
+  if (visiting.has(id)) {
+    return false;
+  }
+
+  const match = lookup.get(id);
+  if (!match || typeof match !== 'object') {
+    return false;
+  }
+
+  const statusValue = typeof match.status === 'string' ? match.status : '';
+  if (isCompletedStatus(statusValue)) {
+    return true;
+  }
+
+  if (!Array.isArray(match.waitingForId) || match.waitingForId.length === 0) {
+    return false;
+  }
+
+  visiting.add(id);
+  const allComplete = match.waitingForId.every((idRef) => isDependencyComplete(idRef, lookup, visiting));
+  visiting.delete(id);
+
+  return allComplete;
+}
+
+export function planStepHasIncompleteDependencies(plan, step) {
   if (!step || typeof step !== 'object') {
     return false;
   }
 
-  const children = Array.isArray(step[CHILD_KEY]) ? step[CHILD_KEY] : null;
-  if (!children || children.length === 0) {
+  if (!Array.isArray(step.waitingForId) || step.waitingForId.length === 0) {
     return false;
   }
 
-  for (const child of children) {
-    if (!child || typeof child !== 'object') {
-      return true;
-    }
+  const lookup = buildPlanLookup(plan);
+  const visiting = new Set();
 
-    if (!isCompletedStatus(child.status)) {
-      return true;
-    }
-
-    if (planStepHasIncompleteChildren(child)) {
-      return true;
-    }
-  }
-
-  return false;
+  return step.waitingForId.some((dependency) => !isDependencyComplete(dependency, lookup, visiting));
 }
 
 function aggregateProgress(items) {
@@ -271,19 +311,8 @@ function aggregateProgress(items) {
       continue;
     }
 
-    const children = Array.isArray(item[CHILD_KEY]) ? item[CHILD_KEY] : null;
-
-    if (children && children.length > 0) {
-      const childProgress = aggregateProgress(children);
-      if (childProgress.total > 0) {
-        completed += childProgress.completed;
-        total += childProgress.total;
-        continue;
-      }
-    }
-
     total += 1;
-    if (isTerminalStatus(item.status)) {
+    if (isCompletedStatus(item.status)) {
       completed += 1;
     }
   }
@@ -304,56 +333,33 @@ export function computePlanProgress(plan) {
   };
 }
 
-function formatPlanLine(item, index, ancestors, depth, lines) {
+function formatPlanLine(item, lines) {
   if (!item || typeof item !== 'object') {
     return;
   }
 
-  const sanitizedStep = normalizeStepLabel(item.step);
-  const hasExplicitStep = sanitizedStep.length > 0;
-  const labelParts = hasExplicitStep
-    ? sanitizedStep.split('.').filter((part) => part.length > 0)
-    : [...ancestors, String(index + 1)];
-
-  const stepLabel = labelParts.join('.');
-  const indent = '  '.repeat(depth);
+  const id = typeof item.id === 'string' ? item.id.trim() : '';
   const title =
     typeof item.title === 'string' && item.title.trim().length > 0 ? item.title.trim() : '';
   const status =
     typeof item.status === 'string' && item.status.trim().length > 0 ? item.status.trim() : '';
+  const priority = Number.isFinite(item.priority) ? item.priority : 0;
 
   const lineParts = [];
-  if (stepLabel) {
-    lineParts.push(`Step ${stepLabel}`);
-  }
+  lineParts.push(id ? `#${id}` : 'Step');
   if (title) {
     lineParts.push(`- ${title}`);
   }
   if (status) {
     lineParts.push(`[${status}]`);
   }
+  lineParts.push(`(priority ${priority})`);
 
   if (lineParts.length === 0) {
     return;
   }
 
-  lines.push(`${indent}${lineParts.join(' ')}`.trimEnd());
-
-  const children = Array.isArray(item[CHILD_KEY]) ? item[CHILD_KEY] : null;
-  if (children) {
-    const nextAncestors = hasExplicitStep ? labelParts : [...ancestors, String(index + 1)];
-    formatPlanSection(children, nextAncestors, depth + 1, lines);
-  }
-}
-
-function formatPlanSection(items, ancestors, depth, lines) {
-  if (!Array.isArray(items) || items.length === 0) {
-    return;
-  }
-
-  items.forEach((item, index) => {
-    formatPlanLine(item, index, ancestors, depth, lines);
-  });
+  lines.push(lineParts.join(' ').trimEnd());
 }
 
 export function planToMarkdown(plan) {
@@ -364,7 +370,9 @@ export function planToMarkdown(plan) {
   }
 
   const lines = [];
-  formatPlanSection(plan, [], 0, lines);
+  plan.forEach((item) => {
+    formatPlanLine(item, lines);
+  });
 
   if (lines.length === 0) {
     return `${header}_No active plan._\n`;

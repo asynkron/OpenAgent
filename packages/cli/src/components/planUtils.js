@@ -3,10 +3,9 @@
  * the Ink components and the legacy console helpers.
  */
 
-const CHILD_KEYS = ['substeps', 'children', 'steps'];
-
 const MAX_COMMAND_PREVIEW_LENGTH = 80;
 const COMPLETED_STATUSES = new Set(['completed', 'done']);
+const TERMINAL_STATUSES = new Set(['completed', 'done', 'failed', 'abandoned']);
 
 // Ensure age is always a non-negative integer so the UI can display it consistently.
 function coerceAge(value) {
@@ -49,100 +48,193 @@ function isCompletedStatus(status) {
   return COMPLETED_STATUSES.has(normalizeStatus(status));
 }
 
-function resolveStatusDetails(status) {
+function resolveStatusDetails(status, { canExecute, hasMissingDependencies }) {
   const normalized = normalizeStatus(status);
 
   if (normalized === 'completed' || normalized === 'done') {
     return { symbol: '✔', color: 'green' };
   }
 
+  if (normalized === 'failed' || normalized === 'error' || normalized === 'abandoned') {
+    return { symbol: '✖', color: 'red' };
+  }
+
   if (normalized === 'running' || normalized === 'in_progress' || normalized === 'in-progress') {
     return { symbol: '▶', color: 'yellow' };
   }
 
-  if (normalized === 'blocked' || normalized === 'failed' || normalized === 'error') {
-    return { symbol: '✖', color: 'red' };
+  if (!canExecute) {
+    return { symbol: hasMissingDependencies ? '!' : '⏳', color: 'gray' };
   }
 
-  return { symbol: '•', color: 'gray' };
+  return { symbol: '•', color: 'cyan' };
 }
 
-function sanitizeStepValue(value) {
-  if (value === null || value === undefined) {
-    return '';
+function normalizeWaitingList(value) {
+  if (!Array.isArray(value)) {
+    return [];
   }
-  return String(value).trim().replace(/\.+$/, '');
+
+  const seen = new Set();
+  const normalized = [];
+
+  value.forEach((entry) => {
+    if (typeof entry !== 'string') {
+      return;
+    }
+    const trimmed = entry.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      return;
+    }
+    seen.add(trimmed);
+    normalized.push(trimmed);
+  });
+
+  return normalized;
 }
 
-function buildLabelParts(rawStep, index, ancestors) {
-  const sanitized = sanitizeStepValue(rawStep);
-  const hasExplicitStep = sanitized.length > 0;
-  const baseStep = hasExplicitStep ? sanitized : String(index + 1);
-  const usesAbsolutePath = hasExplicitStep && sanitized.includes('.');
-  const labelParts = usesAbsolutePath
-    ? sanitized
-        .split('.')
-        .map((part) => part.trim())
-        .filter((part) => part.length > 0)
-    : [...ancestors, baseStep];
-
-  return { label: labelParts.join('.'), labelParts };
-}
-
-function traversePlan(items, ancestors = [], depth = 0, collection = []) {
-  if (!Array.isArray(items) || items.length === 0) {
-    return collection;
+function buildPlanLookup(plan) {
+  const lookup = new Map();
+  if (!Array.isArray(plan)) {
+    return lookup;
   }
+
+  plan.forEach((item) => {
+    if (!item || typeof item !== 'object') {
+      return;
+    }
+    const id = typeof item.id === 'string' ? item.id.trim() : '';
+    if (id && !lookup.has(id)) {
+      lookup.set(id, item);
+    }
+  });
+
+  return lookup;
+}
+
+function evaluateDependencies(waitingForIds, lookup) {
+  if (!waitingForIds || waitingForIds.length === 0) {
+    return { complete: true, missing: false };
+  }
+
+  let complete = true;
+  let missing = false;
+
+  waitingForIds.forEach((dependency) => {
+    const match = lookup.get(dependency);
+    if (!match) {
+      complete = false;
+      missing = true;
+      return;
+    }
+
+    if (!COMPLETED_STATUSES.has(normalizeStatus(match.status))) {
+      complete = false;
+    }
+  });
+
+  return { complete, missing };
+}
+
+function coercePriority(value) {
+  const numeric = Number.parseInt(value, 10);
+  if (Number.isFinite(numeric)) {
+    return numeric;
+  }
+  return Number.MAX_SAFE_INTEGER;
+}
+
+export function createPlanNodes(plan) {
+  const items = Array.isArray(plan) ? plan : [];
+  const lookup = buildPlanLookup(items);
+  const nodes = [];
 
   items.forEach((item, index) => {
     if (!item || typeof item !== 'object') {
       return;
     }
 
-    const { label, labelParts } = buildLabelParts(item.step, index, ancestors);
-    const status = item.status;
-    if (isCompletedStatus(status)) {
-      return;
-    }
-
-    const { symbol, color } = resolveStatusDetails(status);
+    const id = typeof item.id === 'string' ? item.id.trim() : '';
+    const stableId = id || `task-${index}`;
     const title = item.title !== undefined && item.title !== null ? String(item.title) : '';
-    const id = `${label || depth}-${index}-${depth}`;
-    const age = coerceAge(item.age);
-    const commandPreview = buildCommandPreview(item.command);
-
-    collection.push({
-      id,
-      label,
-      depth,
-      symbol,
-      color,
-      title,
-      age,
-      commandPreview,
+    const status = typeof item.status === 'string' ? item.status : '';
+    const normalizedStatus = normalizeStatus(status);
+    const priority = coercePriority(item.priority);
+    const waitingForId = normalizeWaitingList(item.waitingForId);
+    const dependencyState = evaluateDependencies(waitingForId, lookup);
+    const canExecute =
+      dependencyState.complete &&
+      !dependencyState.missing &&
+      !TERMINAL_STATUSES.has(normalizedStatus);
+    const { symbol, color } = resolveStatusDetails(status, {
+      canExecute,
+      hasMissingDependencies: dependencyState.missing,
     });
 
-    const childKey = CHILD_KEYS.find((key) => Array.isArray(item[key]));
-    if (childKey) {
-      traversePlan(item[childKey], labelParts, depth + 1, collection);
-    }
+    nodes.push({
+      id: stableId,
+      title,
+      status,
+      normalizedStatus,
+      priority,
+      waitingForId,
+      waitingLabel: waitingForId.join(', '),
+      hasMissingDependencies: dependencyState.missing,
+      canExecute,
+      symbol,
+      color,
+      age: coerceAge(item.age),
+      commandPreview: buildCommandPreview(item.command),
+    });
   });
 
-  return collection;
-}
+  nodes.sort((a, b) => {
+    if (a.canExecute !== b.canExecute) {
+      return a.canExecute ? -1 : 1;
+    }
 
-export function createPlanNodes(plan) {
-  return traversePlan(Array.isArray(plan) ? plan : []);
+    if (a.priority !== b.priority) {
+      return a.priority - b.priority;
+    }
+
+    const titleCompare = a.title.localeCompare(b.title);
+    if (titleCompare !== 0) {
+      return titleCompare;
+    }
+
+    return a.id.localeCompare(b.id);
+  });
+
+  return nodes;
 }
 
 export function buildPlanLines(plan) {
   const nodes = createPlanNodes(plan);
   return nodes.map((node) => {
-    const indent = '  '.repeat(node.depth);
-    const titlePart = node.title ? ` ${node.title}` : '';
-    const agePart = ` (age ${node.age ?? 0})`;
+    const titlePart = node.title ? node.title : '(untitled task)';
+    const statusPart = node.status ? `[${node.status}]` : '[pending]';
+    const priorityPart = Number.isFinite(node.priority) ? `priority ${node.priority}` : 'priority ∞';
+    const idPart = node.id ? `id ${node.id}` : '';
+    const agePart = `age ${node.age ?? 0}`;
+    const waitingPart =
+      node.waitingForId.length > 0
+        ? node.hasMissingDependencies
+          ? `waiting on ${node.waitingLabel ? `${node.waitingLabel} (missing)` : 'missing tasks'}`
+          : `waiting on ${node.waitingLabel}`
+        : node.canExecute
+        ? 'ready to run'
+        : '';
     const commandPart = node.commandPreview ? ` — ${node.commandPreview}` : '';
-    return `${indent}${node.symbol} ${node.label}.${titlePart}${agePart}${commandPart}`.trimEnd();
+
+    const metaParts = [statusPart, priorityPart, agePart];
+    if (idPart) {
+      metaParts.push(idPart);
+    }
+    if (waitingPart) {
+      metaParts.push(waitingPart);
+    }
+
+    return `${node.symbol} ${titlePart} (${metaParts.filter(Boolean).join(', ')})${commandPart}`.trimEnd();
   });
 }
 

@@ -79,70 +79,62 @@ Meaning this should be a parent task of the previous step, and thus execute only
 
 ## Planning
 
-This is a hierarchical TODO-list. be as finegrained as you can.
-Higher level items depend on lower level items.
-Plan ahead. create the bigger picture plan and add TODO steps accordingly.
-the plan stays on until otherwise agreed upon, Progress tracker for multi-step work; use [] when resetting to a new plan.
+The plan is now a flat TODO list. Each entry represents a single task and must include:
 
-A correct TODO structure:
+- `id`: unique identifier you assign. Reuse the same ID when updating an existing step.
+- `title`: human-readable summary of the task.
+- `status`: one of `pending`, `running`, `completed`, `failed`, or `abandoned`.
+- `priority`: integer where lower values run first.
+- `waitingForId`: array of task IDs that must complete before this task can execute. Use an empty array when the task is ready to run.
+
+Keep the list fine-grained. Tasks without dependencies can execute immediately. Tasks that depend on other work should reference those IDs in `waitingForId` (similar to `Task.WaitAll`). Do not nest subtasks.
+
+The plan stays active until the human agrees to reset it. Provide `[]` when starting fresh. Example structure:
+
 ```
- "plan": [
-    {
-      "step": "1",
-      "title": "Validate results with tests",
-      "status": "pending",
-      "age": 0,
-      "command": {
-        "reason": "Final verification once implementation work is completed.",
-        "shell": "/bin/bash",
-        "run": "npm test",
-        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
-        "timeout_sec": 600
-      },
-      "substeps": [
-        {
-          "step": "1.1",
-          "title": "Implement the feature",
-          "status": "pending",
-          "age": 0,
-          "command": {
-            "reason": "Implementation commands will be issued after research clarifies the required changes.",
-            "shell": "/bin/bash",
-            "run": "echo \"Implementation command pending detailed design\"",
-            "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
-            "timeout_sec": 5
-          },
-          "substeps": [
-            {
-              "step": "1.1.1",
-              "title": "Explore the repository",
-              "status": "running",
-              "age": 0,
-              "command": {
-                "reason": "Inspect repository structure to locate relevant modules for the feature work.",
-                "shell": "/bin/bash",
-                "run": "ls",
-                "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
-                "timeout_sec": 30
-              }
-            },
-            {
-              "step": "1.1.2",
-              "title": "Gather knowledge",
-              "status": "pending",
-              "age": 0,
-              "command": {
-                "reason": "Review core package context to understand existing behavior before implementing changes.",
-                "shell": "/bin/bash",
-                "run": "cat packages/core/context.md",
-                "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
-                "timeout_sec": 30
-              }
-            }
-          ]
-        }
-      ]
+"plan": [
+  {
+    "id": "plan-research",
+    "title": "Review existing behaviour",
+    "status": "running",
+    "priority": 1,
+    "waitingForId": [],
+    "command": {
+      "reason": "Open the relevant context docs before writing code.",
+      "shell": "/bin/bash",
+      "run": "cat packages/core/context.md",
+      "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+      "timeout_sec": 30
     }
-  ]
+  },
+  {
+    "id": "plan-implement",
+    "title": "Implement the feature",
+    "status": "pending",
+    "priority": 2,
+    "waitingForId": ["plan-research"],
+    "command": {
+      "reason": "Apply the code changes once research completes.",
+      "shell": "/bin/bash",
+      "run": "npm run apply-changes",
+      "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+      "timeout_sec": 120
+    }
+  },
+  {
+    "id": "plan-verify",
+    "title": "Run tests",
+    "status": "pending",
+    "priority": 3,
+    "waitingForId": ["plan-implement"],
+    "command": {
+      "reason": "Confirm the implementation works before handing control back to the human.",
+      "shell": "/bin/bash",
+      "run": "npm test",
+      "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+      "timeout_sec": 600
+    }
+  }
+]
 ```
       

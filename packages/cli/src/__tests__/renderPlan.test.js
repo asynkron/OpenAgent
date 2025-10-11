@@ -18,46 +18,37 @@ afterEach(() => {
 });
 
 describe('renderPlan', () => {
-  test('renders hierarchical plans with nested steps', async () => {
+  test('renders flat plans sorted by readiness and priority', async () => {
     const mod = await loadModule();
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
     try {
       mod.renderPlan([
         {
-          step: '1',
-          title: 'Root task',
-          status: 'completed',
+          id: 'task-ready',
+          title: 'Run tests',
+          status: 'running',
           age: 1,
-          substeps: [
-            {
-              step: '1.1',
-              title: 'Nested work',
-              status: 'running',
-              age: 3,
-              command: {
-                run: 'npm test --watch',
-              },
-              substeps: [
-                {
-                  title: 'Leaf step',
-                  status: 'pending',
-                  age: 0,
-                },
-              ],
-            },
-            {
-              step: 'a',
-              title: 'Blocked child',
-              status: 'blocked',
-              age: 2,
-            },
-          ],
+          priority: 1,
+          waitingForId: [],
+          command: { run: 'npm test' },
         },
         {
-          title: 'Follow-up',
+          id: 'task-ship',
+          title: 'Ship release',
           status: 'pending',
           age: 0,
+          priority: 2,
+          waitingForId: ['task-ready'],
+          command: { run: 'echo deploy' },
+        },
+        {
+          id: 'task-blocked',
+          title: 'Blocked work',
+          status: 'pending',
+          age: 0,
+          priority: 3,
+          waitingForId: ['missing-task'],
         },
       ]);
 
@@ -67,11 +58,9 @@ describe('renderPlan', () => {
 
       const lines = outputs[0].split('\n');
       expect(lines).toEqual([
-        '✔ 1. Root task (age 1)',
-        '  ▶ 1.1. Nested work (age 3) — run: npm test --watch',
-        '    • 1.1.1. Leaf step (age 0)',
-        '  ✖ 1.a. Blocked child (age 2)',
-        '• 2. Follow-up (age 0)',
+        '▶ Run tests ([running], priority 1, age 1, id task-ready, ready to run) — run: npm test',
+        '⏳ Ship release ([pending], priority 2, age 0, id task-ship, waiting on task-ready) — run: echo deploy',
+        '! Blocked work ([pending], priority 3, age 0, id task-blocked, waiting on missing-task (missing))',
       ]);
     } finally {
       logSpy.mockRestore();

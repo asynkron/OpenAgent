@@ -67,20 +67,20 @@
             },
             "plan": {
               "type": "array",
-              "maxItems": 3,
+              "maxItems": 5,
               "items": {
                 "$ref": "#/$defs/planStep"
               },
-              "description": "You MUST provide a plan when have a set goal, NEVER drop/reset a plan without discussion, the plan stays on utill otherwise agreed upon, Progress tracker for multi-step work; use [] when resetting to a new plan."
+              "description": "You MUST provide a plan when have a set goal, NEVER drop/reset a plan without discussion, the plan stays on until otherwise agreed upon. Use [] when resetting to a new plan."
             }
           },
           "$defs": {
             "planStep": {
               "type": "object",
-              "required": ["step", "title", "status"],
+              "required": ["id", "title", "status", "priority", "waitingForId"],
               "additionalProperties": false,
               "properties": {
-                "step": {
+                "id": {
                   "type": "string"
                 },
                 "title": {
@@ -88,13 +88,19 @@
                 },
                 "status": {
                   "type": "string",
-                  "enum": ["pending", "running", "completed", "failed"]
+                  "enum": ["pending", "running", "completed", "failed", "abandoned"]
                 },
-                "substeps": {
+                "priority": {
+                  "type": "integer"
+                },
+                "waitingForId": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/$defs/planStep"
+                    "type": "string"
                   }
+                },
+                "age": {
+                  "type": "integer"
                 },
                 "command": {
                   "$ref": "#/$defs/command"

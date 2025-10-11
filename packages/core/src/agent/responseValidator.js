@@ -102,9 +102,8 @@ export function validateAssistantResponseSchema(payload) {
   };
 }
 
-const ALLOWED_STATUSES = new Set(['pending', 'running', 'completed', 'failed']);
-const TERMINAL_STATUSES = new Set(['completed', 'failed']);
-const PLAN_CHILD_KEYS = ['substeps'];
+const ALLOWED_STATUSES = new Set(['pending', 'running', 'completed', 'failed', 'abandoned']);
+const TERMINAL_STATUSES = new Set(['completed', 'failed', 'abandoned']);
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -135,10 +134,13 @@ function validatePlanItem(item, path, state, errors) {
     return;
   }
 
-  const stepLabel =
-    typeof item.step === 'string' ? item.step.trim() : String(item.step ?? '').trim();
-  if (!stepLabel) {
-    errors.push(`${path} is missing a non-empty "step" label.`);
+  const id = typeof item.id === 'string' ? item.id.trim() : '';
+  if (!id) {
+    errors.push(`${path} is missing a non-empty "id".`);
+  } else if (state.ids.has(id)) {
+    errors.push(`${path} reuses id "${id}" which already exists in the plan.`);
+  } else {
+    state.ids.set(id, { path, item });
   }
 
   if (typeof item.title !== 'string' || !item.title.trim()) {
@@ -156,10 +158,6 @@ function validatePlanItem(item, path, state, errors) {
     state.runningCount += 1;
   }
 
-  if (!state.firstOpenStatus && normalizedStatus !== 'completed') {
-    state.firstOpenStatus = normalizedStatus;
-  }
-
   const command = item.command;
 
   if (typeof command !== 'undefined' && command !== null && !isPlainObject(command)) {
@@ -170,9 +168,6 @@ function validatePlanItem(item, path, state, errors) {
 
   if (!TERMINAL_STATUSES.has(normalizedStatus)) {
     state.hasOpenSteps = true;
-    if (!state.firstOpenStatus) {
-      state.firstOpenStatus = normalizedStatus;
-    }
     if (!commandHasPayload) {
       errors.push(
         `${path} requires a non-empty command while the step is ${normalizedStatus || 'active'}.`,
@@ -182,21 +177,51 @@ function validatePlanItem(item, path, state, errors) {
     errors.push(`${path}.command must include execution details when provided.`);
   }
 
-  for (const key of PLAN_CHILD_KEYS) {
-    const children = item[key];
-    if (typeof children === 'undefined') {
-      continue;
-    }
+  const waitingFor = Array.isArray(item.waitingForId) ? item.waitingForId : null;
+  if (waitingFor === null) {
+    errors.push(`${path}.waitingForId must be an array.`);
+  }
 
-    if (!Array.isArray(children)) {
-      errors.push(`${path}.${key} must be an array when present.`);
-      continue;
-    }
+  const normalizedDependencies = [];
+  if (Array.isArray(waitingFor)) {
+    const seen = new Set();
+    waitingFor.forEach((dependency, index) => {
+      if (typeof dependency !== 'string') {
+        errors.push(`${path}.waitingForId[${index}] must be a string.`);
+        return;
+      }
 
-    children.forEach((child, index) => {
-      validatePlanItem(child, `${path}.${key}[${index}]`, state, errors);
+      const trimmed = dependency.trim();
+      if (!trimmed) {
+        errors.push(`${path}.waitingForId[${index}] must not be empty.`);
+        return;
+      }
+
+      if (trimmed === id) {
+        errors.push(`${path}.waitingForId[${index}] cannot reference the task itself.`);
+        return;
+      }
+
+      if (seen.has(trimmed)) {
+        return;
+      }
+
+      seen.add(trimmed);
+      normalizedDependencies.push(trimmed);
     });
   }
+
+  const priorityValue = Number.parseInt(item.priority, 10);
+  if (!Number.isFinite(priorityValue)) {
+    errors.push(`${path}.priority must be an integer.`);
+  }
+
+  state.steps.push({
+    id,
+    status: normalizedStatus,
+    waitingForId: normalizedDependencies,
+    path,
+  });
 }
 
 export function validateAssistantResponse(payload) {
@@ -223,27 +248,59 @@ export function validateAssistantResponse(payload) {
   }
 
   if (Array.isArray(plan)) {
-    if (plan.length > 3) {
-      errors.push('Plan must not contain more than 3 top-level steps.');
+    if (plan.length > 5) {
+      errors.push('Plan must not contain more than 5 steps.');
     }
 
     const state = {
-      runningCount: 0,
-      firstOpenStatus: '',
       hasOpenSteps: false,
+      ids: new Map(),
+      steps: [],
     };
 
     plan.forEach((item, index) => {
       validatePlanItem(item, `plan[${index}]`, state, errors);
     });
 
-    if (state.hasOpenSteps) {
-      if (state.firstOpenStatus !== 'running') {
-        errors.push('The next pending plan step must be marked as "running".');
+    const readySteps = [];
+
+    state.steps.forEach((step) => {
+      if (!step.id) {
+        return;
       }
 
-      if (state.runningCount === 0) {
-        errors.push('At least one plan step must have status "running" when a plan is active.');
+      const dependencies = step.waitingForId ?? [];
+      let dependenciesComplete = true;
+
+      dependencies.forEach((dependency) => {
+        const dependencyRecord = state.ids.get(dependency);
+        if (!dependencyRecord) {
+          errors.push(
+            `${step.path}.waitingForId references unknown id "${dependency}".`,
+          );
+          dependenciesComplete = false;
+          return;
+        }
+
+        const dependencyStatus = normalizeStatus(dependencyRecord.item.status);
+        if (!TERMINAL_STATUSES.has(dependencyStatus)) {
+          dependenciesComplete = false;
+        }
+      });
+
+      if (!dependenciesComplete && step.status === 'running') {
+        errors.push(`${step.path} cannot be running while dependencies remain incomplete.`);
+      }
+
+      if (dependenciesComplete && !TERMINAL_STATUSES.has(step.status)) {
+        readySteps.push(step);
+      }
+    });
+
+    if (state.hasOpenSteps && readySteps.length > 0) {
+      const readyRunning = readySteps.some((step) => step.status === 'running');
+      if (!readyRunning) {
+        errors.push('At least one runnable plan step must be marked as "running".');
       }
     }
   }
