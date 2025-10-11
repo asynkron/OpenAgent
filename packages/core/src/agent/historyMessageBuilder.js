@@ -1,3 +1,5 @@
+import { createChatMessageEntry } from './historyEntry.js';
+
 const JSON_INDENT = 2;
 
 const stringify = (value) => JSON.stringify(value, null, JSON_INDENT);
@@ -103,12 +105,13 @@ const buildObservationContent = ({ observation, command }) => {
 export const formatObservationMessage = ({ observation, command = null }) =>
   buildObservationContent({ observation, command });
 
-export const createObservationHistoryEntry = ({ observation, command = null, pass }) => ({
-  eventType: 'chat-message',
-  role: 'assistant',
-  pass,
-  content: stringify(buildObservationContent({ observation, command })),
-});
+export const createObservationHistoryEntry = ({ observation, command = null, pass }) =>
+  createChatMessageEntry({
+    eventType: 'chat-message',
+    role: 'assistant',
+    pass,
+    content: stringify(buildObservationContent({ observation, command })),
+  });
 
 export const createPlanReminderEntry = ({ planReminderMessage, pass }) => {
   const content = {
@@ -121,7 +124,12 @@ export const createPlanReminderEntry = ({ planReminderMessage, pass }) => {
     content.auto_response = planReminderMessage.trim();
   }
 
-  return { eventType: 'chat-message', role: 'assistant', pass, content: stringify(content) };
+  return createChatMessageEntry({
+    eventType: 'chat-message',
+    role: 'assistant',
+    pass,
+    content: stringify(content),
+  });
 };
 
 export const createRefusalAutoResponseEntry = ({ autoResponseMessage, pass }) => {
@@ -134,7 +142,12 @@ export const createRefusalAutoResponseEntry = ({ autoResponseMessage, pass }) =>
     content.auto_response = autoResponseMessage.trim();
   }
 
-  return { eventType: 'chat-message', role: 'assistant', pass, content: stringify(content) };
+  return createChatMessageEntry({
+    eventType: 'chat-message',
+    role: 'assistant',
+    pass,
+    content: stringify(content),
+  });
 };
 
 export default {

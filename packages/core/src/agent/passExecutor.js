@@ -8,6 +8,7 @@ import { executeAgentCommand } from './commandExecution.js';
 import { summarizeContextUsage } from '../utils/contextUsage.js';
 import { extractOpenAgentToolCall } from '../openai/responseUtils.js';
 import { validateAssistantResponseSchema, validateAssistantResponse } from './responseValidator.js';
+import { createChatMessageEntry } from './historyEntry.js';
 import {
   createObservationHistoryEntry,
   createPlanReminderEntry,
@@ -246,12 +247,14 @@ export async function executeAgentPass({
     return false;
   }
 
-  history.push({
-    eventType: 'chat-message',
-    role: 'assistant',
-    pass: activePass,
-    content: responseContent,
-  });
+  history.push(
+    createChatMessageEntry({
+      eventType: 'chat-message',
+      role: 'assistant',
+      pass: activePass,
+      content: responseContent,
+    }),
+  );
 
   const parseResult = parseAssistantResponse(responseContent);
 

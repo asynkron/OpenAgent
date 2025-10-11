@@ -23,6 +23,7 @@ import { cancel as cancelActive } from '../utils/cancellation.js';
 import { PromptCoordinator } from './promptCoordinator.js';
 import { createPlanManager } from './planManager.js';
 import { AmnesiaManager, applyDementiaPolicy } from './amnesiaManager.js';
+import { createChatMessageEntry } from './historyEntry.js';
 
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 const PLAN_PENDING_REMINDER =
@@ -125,12 +126,12 @@ export function createAgentRuntime({
   const combinedSystemPrompt = augmentation ? `${systemPrompt}\n\n${augmentation}` : systemPrompt;
 
   const history = [
-    {
+    createChatMessageEntry({
       eventType: 'chat-message',
       role: 'system',
       content: combinedSystemPrompt,
       pass: 0,
-    },
+    }),
   ];
 
   const normalizedAmnesiaLimit =
@@ -316,12 +317,14 @@ export function createAgentRuntime({
 
         const activePass = nextPass();
 
-        history.push({
-          eventType: 'chat-message',
-          role: 'user',
-          content: userInput,
-          pass: activePass,
-        });
+        history.push(
+          createChatMessageEntry({
+            eventType: 'chat-message',
+            role: 'user',
+            content: userInput,
+            pass: activePass,
+          }),
+        );
 
         enforceMemoryPolicies(activePass);
 

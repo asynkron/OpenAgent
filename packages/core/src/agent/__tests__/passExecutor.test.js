@@ -239,8 +239,16 @@ describe('executeAgentPass', () => {
       role: 'assistant',
       pass: PASS_INDEX,
     });
+    expect(observationEntry.payload).toEqual({
+      role: 'assistant',
+      content: observationEntry.content,
+    });
     const assistantEntry = history[0];
     expect(assistantEntry).toMatchObject({ pass: PASS_INDEX });
+    expect(assistantEntry.payload).toEqual({
+      role: 'assistant',
+      content: assistantEntry.content,
+    });
     const parsedObservation = JSON.parse(observationEntry.content);
     expect(parsedObservation).toMatchObject({
       type: 'observation',
@@ -354,6 +362,10 @@ describe('executeAgentPass', () => {
         role: 'assistant',
         pass,
       });
+      expect(autoResponseEntry.payload).toEqual({
+        role: 'assistant',
+        content: autoResponseEntry.content,
+      });
       const parsedReminder = JSON.parse(autoResponseEntry.content);
       expect(parsedReminder).toMatchObject({ type: 'plan-reminder' });
       expect(parsedReminder.auto_response).toBe(planReminderMessage);
@@ -361,6 +373,10 @@ describe('executeAgentPass', () => {
 
       const assistantEntry = history[history.length - 2];
       expect(assistantEntry).toMatchObject({ pass });
+      expect(assistantEntry.payload).toEqual({
+        role: 'assistant',
+        content: assistantEntry.content,
+      });
     }
 
     emitEvent.mockClear();
@@ -373,9 +389,14 @@ describe('executeAgentPass', () => {
       expect.objectContaining({ type: 'status', message: planReminderMessage }),
     );
     expect(history).toHaveLength(previousHistoryLength + 1);
-    expect(history[history.length - 1]).toEqual(
+    const suppressedEntry = history[history.length - 1];
+    expect(suppressedEntry).toEqual(
       expect.objectContaining({ eventType: 'chat-message', role: 'assistant', pass: suppressedPass }),
     );
+    expect(suppressedEntry.payload).toEqual({
+      role: 'assistant',
+      content: suppressedEntry.content,
+    });
     expect(tracker.getCount()).toBe(4);
   });
 });

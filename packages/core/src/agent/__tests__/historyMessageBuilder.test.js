@@ -27,6 +27,7 @@ describe('historyMessageBuilder', () => {
     });
 
     expect(entry).toMatchObject({ eventType: 'chat-message', role: 'assistant', pass: 5 });
+    expect(entry.payload).toEqual({ role: 'assistant', content: entry.content });
 
     const parsed = JSON.parse(entry.content);
     expect(parsed).toMatchObject({
@@ -72,6 +73,7 @@ describe('historyMessageBuilder', () => {
 
     const entry = createObservationHistoryEntry({ observation, pass: 9 });
     expect(entry).toMatchObject({ eventType: 'chat-message', role: 'assistant', pass: 9 });
+    expect(entry.payload).toEqual({ role: 'assistant', content: entry.content });
     const parsed = JSON.parse(entry.content);
     expect(parsed).toMatchObject({ type: 'plan-update' });
     expect(parsed.plan).toEqual([{ step: '1', title: 'Do the thing', status: 'running' }]);
@@ -83,6 +85,7 @@ describe('historyMessageBuilder', () => {
     const entry = createPlanReminderEntry({ planReminderMessage, pass: 4 });
 
     expect(entry).toMatchObject({ eventType: 'chat-message', role: 'assistant', pass: 4 });
+    expect(entry.payload).toEqual({ role: 'assistant', content: entry.content });
     const parsed = JSON.parse(entry.content);
     expect(parsed).toMatchObject({ type: 'plan-reminder' });
     expect(parsed.message).toContain('unfinished steps in the active plan');
@@ -93,6 +96,7 @@ describe('historyMessageBuilder', () => {
     const entry = createRefusalAutoResponseEntry({ autoResponseMessage: 'continue', pass: 12 });
 
     expect(entry).toMatchObject({ eventType: 'chat-message', role: 'assistant', pass: 12 });
+    expect(entry.payload).toEqual({ role: 'assistant', content: entry.content });
     const parsed = JSON.parse(entry.content);
     expect(parsed).toMatchObject({ type: 'refusal-reminder' });
     expect(parsed.message).toContain('appeared to be a refusal');
