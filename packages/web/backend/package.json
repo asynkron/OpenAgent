@@ -1,0 +1,16 @@
+{
+  "name": "chat-agent-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Chat agent websocket backend",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node ./src/index.js",
+    "dev": "NODE_ENV=development node ./src/index.js"
+  },
+  "dependencies": {
+    "@asynkron/openagent": "^2.13.11",
+    "ws": "^8.15.1"
+  }
+}
