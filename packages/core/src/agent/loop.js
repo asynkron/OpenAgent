@@ -116,6 +116,7 @@ export function createAgentRuntime({
 
   const history = [
     {
+      type: 'chat-message',
       role: 'system',
       content: combinedSystemPrompt,
     },
@@ -233,6 +234,7 @@ export function createAgentRuntime({
         }
 
         history.push({
+          type: 'chat-message',
           role: 'user',
           content: userInput,
         });

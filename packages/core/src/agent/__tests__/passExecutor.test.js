@@ -225,11 +225,16 @@ describe('executeAgentPass', () => {
 
     expect(history).toHaveLength(2);
     const observationEntry = history[history.length - 1];
-    expect(observationEntry.role).toBe('assistant');
-    expect(observationEntry.content).toContain('failed schema validation');
-    expect(observationEntry.content).toContain('"schema_validation_error": true');
-    expect(observationEntry.content).toContain(
-      '"response.plan[0].command: Must be of type object."',
+    expect(observationEntry).toMatchObject({ type: 'chat-message', role: 'assistant' });
+    const parsedObservation = JSON.parse(observationEntry.content);
+    expect(parsedObservation).toMatchObject({
+      type: 'observation',
+      summary: 'The previous assistant response failed schema validation.',
+    });
+    expect(parsedObservation.details).toContain('Schema validation failed');
+    expect(parsedObservation.payload).toMatchObject({ schema_validation_error: true });
+    expect(parsedObservation.payload.details).toContain(
+      'response.plan[0].command: Must be of type object.',
     );
   });
 
@@ -321,9 +326,10 @@ describe('executeAgentPass', () => {
       );
       expect(history).toHaveLength(previousHistoryLength + 2);
       const autoResponseEntry = history[history.length - 1];
-      expect(autoResponseEntry.role).toBe('assistant');
-      expect(autoResponseEntry.content).toContain('Auto-response content:');
-      expect(autoResponseEntry.content).toContain(planReminderMessage);
+      expect(autoResponseEntry).toMatchObject({ type: 'chat-message', role: 'assistant' });
+      const parsedReminder = JSON.parse(autoResponseEntry.content);
+      expect(parsedReminder).toMatchObject({ type: 'plan-reminder' });
+      expect(parsedReminder.auto_response).toBe(planReminderMessage);
       expect(tracker.getCount()).toBe(attempt);
     }
 
@@ -337,7 +343,9 @@ describe('executeAgentPass', () => {
       expect.objectContaining({ type: 'status', message: planReminderMessage }),
     );
     expect(history).toHaveLength(previousHistoryLength + 1);
-    expect(history[history.length - 1]).toEqual(expect.objectContaining({ role: 'assistant' }));
+    expect(history[history.length - 1]).toEqual(
+      expect.objectContaining({ type: 'chat-message', role: 'assistant' }),
+    );
     expect(tracker.getCount()).toBe(4);
   });
 });

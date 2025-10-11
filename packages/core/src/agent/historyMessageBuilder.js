@@ -26,10 +26,26 @@ const describeCommand = (command) => {
 
 const hasKeys = (value) => value && typeof value === 'object' && Object.keys(value).length > 0;
 
-export const formatObservationMessage = ({ observation, command = null }) => {
+const PLAN_UPDATE_MESSAGE = 'Here is the updated plan with the latest command observations.';
+
+const buildObservationContent = ({ observation, command }) => {
   const payload = observation?.observation_for_llm ?? {};
   const metadata = observation?.observation_metadata ?? {};
-  const sections = [];
+
+  if (Array.isArray(payload.plan)) {
+    const planContent = {
+      type: 'plan-update',
+      message: PLAN_UPDATE_MESSAGE,
+      plan: payload.plan,
+    };
+
+    if (hasKeys(metadata)) {
+      planContent.metadata = metadata;
+    }
+
+    return planContent;
+  }
+
   const summaryParts = [];
 
   if (payload.json_parse_error) {
@@ -42,8 +58,6 @@ export const formatObservationMessage = ({ observation, command = null }) => {
     summaryParts.push('A human reviewer declined the proposed command.');
   } else if (payload.operation_canceled) {
     summaryParts.push('The operation was canceled before completion.');
-  } else if (Array.isArray(payload.plan)) {
-    summaryParts.push('Here is the updated plan with the latest command observations.');
   } else {
     const commandDescription = describeCommand(command);
     if (commandDescription) {
@@ -61,8 +75,13 @@ export const formatObservationMessage = ({ observation, command = null }) => {
     }
   }
 
+  const content = {
+    type: 'observation',
+    payload,
+  };
+
   if (summaryParts.length > 0) {
-    sections.push(summaryParts.join(' '));
+    content.summary = summaryParts.join(' ');
   }
 
   if (payload.message &&
@@ -71,45 +90,50 @@ export const formatObservationMessage = ({ observation, command = null }) => {
       payload.response_validation_error ||
       payload.canceled_by_human ||
       payload.operation_canceled)) {
-    sections.push(`Message: ${payload.message}`);
+    content.details = payload.message;
   }
-
-  sections.push(`Structured payload:\n${stringify(payload)}`);
 
   if (hasKeys(metadata)) {
-    sections.push(`Metadata:\n${stringify(metadata)}`);
+    content.metadata = metadata;
   }
 
-  return sections.join('\n\n');
+  return content;
 };
 
+export const formatObservationMessage = ({ observation, command = null }) =>
+  buildObservationContent({ observation, command });
+
 export const createObservationHistoryEntry = ({ observation, command = null }) => ({
+  type: 'chat-message',
   role: 'assistant',
-  content: formatObservationMessage({ observation, command }),
+  content: stringify(buildObservationContent({ observation, command })),
 });
 
 export const createPlanReminderEntry = (planReminderMessage) => {
-  const lines = [
-    'I still have unfinished steps in the active plan. I am reminding myself to keep working on them.',
-  ];
+  const content = {
+    type: 'plan-reminder',
+    message:
+      'I still have unfinished steps in the active plan. I am reminding myself to keep working on them.',
+  };
 
   if (planReminderMessage && planReminderMessage.trim()) {
-    lines.push('', 'Auto-response content:', planReminderMessage.trim());
+    content.auto_response = planReminderMessage.trim();
   }
 
-  return { role: 'assistant', content: lines.join('\n') };
+  return { type: 'chat-message', role: 'assistant', content: stringify(content) };
 };
 
 export const createRefusalAutoResponseEntry = (autoResponseMessage) => {
-  const lines = [
-    'The previous response appeared to be a refusal, so I nudged myself to continue.',
-  ];
+  const content = {
+    type: 'refusal-reminder',
+    message: 'The previous response appeared to be a refusal, so I nudged myself to continue.',
+  };
 
   if (autoResponseMessage && autoResponseMessage.trim()) {
-    lines.push('', 'Auto-response content:', autoResponseMessage.trim());
+    content.auto_response = autoResponseMessage.trim();
   }
 
-  return { role: 'assistant', content: lines.join('\n') };
+  return { type: 'chat-message', role: 'assistant', content: stringify(content) };
 };
 
 export default {

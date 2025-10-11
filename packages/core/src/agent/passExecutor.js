@@ -240,6 +240,7 @@ export async function executeAgentPass({
   }
 
   history.push({
+    type: 'chat-message',
     role: 'assistant',
     content: responseContent,
   });
