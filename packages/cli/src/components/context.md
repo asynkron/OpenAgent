@@ -14,6 +14,8 @@
 - `DebugPanel.js`, `ThinkingIndicator.js` — optional diagnostics and spinner overlays; the debug panel renders payloads via the shared markdown renderer using `json` code fences so debug data is syntax-highlighted.
 - `InkTextArea.js`, `AskHuman.js` — capture human inputs and approval decisions. The text area memoizes its `useInput` handler so keystrokes always update correctly, tracks terminal resizes to rebuild width-aware rows (with newline handling) via `transformToRows`, expands to the available terminal width, respects horizontal padding when computing wrap width, filters slash menu matches by enforcing that every query token appears in a label/keyword/insertValue (preventing parenthetical examples from matching too broadly), handles Shift+Enter (including escape-based sequences) as a newline insertion rather than a submit, normalizes carriage-return/CRLF breaks when mapping strings to rows, emits explicit ANSI inverse markers for the currently highlighted slash command so the selection remains visible even when chalk-style color detection is disabled, and includes an inline debug readout (caret position, last key, modifier state, effective width from props/stdout). AskHuman seeds default slash-menu shortcuts (model changes, reasoning effort, help) through `HUMAN_SLASH_COMMANDS` so humans get guided completions when typing `/`.
 
+- `CliApp.js` retains the active input request after local slash commands are handled so that the next human prompt continues to flow to the runtime/OpenAI instead of being intercepted as another slash command.
+
 ## Positive Signals
 
 - Components are decomposed by concern, enabling targeted tests and easier adjustments to CLI layout.
