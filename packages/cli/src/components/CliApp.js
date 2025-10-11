@@ -13,7 +13,7 @@ import Plan from './Plan.js';
 import DebugPanel from './DebugPanel.js';
 import StatusMessage from './StatusMessage.js';
 
-const MAX_TIMELINE_ENTRIES = 100;
+const MAX_TIMELINE_ENTRIES = 20;
 const MAX_DEBUG_ENTRIES = 20;
 const MAX_COMMAND_LOG_ENTRIES = 50;
 
@@ -472,9 +472,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
         if (planCompleted) {
           // Once every leaf step is marked complete, clear the rendered plan so the
           // next human turn starts with a fresh slate.
-          setPlan((prevPlan) =>
-            Array.isArray(prevPlan) && prevPlan.length === 0 ? prevPlan : [],
-          );
+          setPlan((prevPlan) => (Array.isArray(prevPlan) && prevPlan.length === 0 ? prevPlan : []));
           setPlanProgress((prev) => {
             if (!prev?.seen && (prev?.value === null || typeof prev?.value === 'undefined')) {
               return prev;
@@ -650,14 +648,6 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
   const commandInspectorKey = commandInspector?.token ?? 'command-inspector';
   const children = [];
 
-  children.push(
-    h(MemoPlan, {
-      plan,
-      progress: planProgress.value,
-      key: 'plan',
-    }),
-  );
-
   children.push(h(Timeline, { entries, key: `timeline-${timelineKey}` }));
 
   if (hasDebugEvents) {
@@ -681,6 +671,14 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
       thinking,
       contextUsage,
       key: 'ask-human',
+    }),
+  );
+
+  children.push(
+    h(MemoPlan, {
+      plan,
+      progress: planProgress.value,
+      key: 'plan',
     }),
   );
 

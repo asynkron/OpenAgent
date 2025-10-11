@@ -6,6 +6,7 @@
 const CHILD_KEYS = ['substeps', 'children', 'steps'];
 
 const MAX_COMMAND_PREVIEW_LENGTH = 80;
+const COMPLETED_STATUSES = new Set(['completed', 'done']);
 
 // Ensure age is always a non-negative integer so the UI can display it consistently.
 function coerceAge(value) {
@@ -40,8 +41,16 @@ function buildCommandPreview(command) {
   return `run: ${truncated}…`;
 }
 
+function normalizeStatus(status) {
+  return typeof status === 'string' ? status.toLowerCase() : '';
+}
+
+function isCompletedStatus(status) {
+  return COMPLETED_STATUSES.has(normalizeStatus(status));
+}
+
 function resolveStatusDetails(status) {
-  const normalized = typeof status === 'string' ? status.toLowerCase() : '';
+  const normalized = normalizeStatus(status);
 
   if (normalized === 'completed' || normalized === 'done') {
     return { symbol: '✔', color: 'green' };
@@ -91,7 +100,12 @@ function traversePlan(items, ancestors = [], depth = 0, collection = []) {
     }
 
     const { label, labelParts } = buildLabelParts(item.step, index, ancestors);
-    const { symbol, color } = resolveStatusDetails(item.status);
+    const status = item.status;
+    if (isCompletedStatus(status)) {
+      return;
+    }
+
+    const { symbol, color } = resolveStatusDetails(status);
     const title = item.title !== undefined && item.title !== null ? String(item.title) : '';
     const id = `${label || depth}-${index}-${depth}`;
     const age = coerceAge(item.age);

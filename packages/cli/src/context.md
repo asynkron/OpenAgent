@@ -20,6 +20,7 @@
 - Co-located `__tests__/` folders (e.g., under `components/`, `bootProbes/`, and `src/__tests__/`) keep CLI regression suites nex
   to the code they exercise.
 - Boot probes provide immediate environment diagnostics before the agent runs commands.
+- Timeline view keeps the latest 20 events and the plan now renders beneath the AskHuman prompt, hiding completed steps to highlight remaining work.
 
 ## Risks / Gaps
 
