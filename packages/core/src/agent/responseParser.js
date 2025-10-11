@@ -214,6 +214,10 @@ function normalizePlanStep(step) {
     normalizedStep.command = normalizeCommandPayload(normalizedStep.command);
   }
 
+  if (!Number.isInteger(normalizedStep.age) || normalizedStep.age < 0) {
+    normalizedStep.age = 0;
+  }
+
   for (const key of PLAN_CHILD_KEYS) {
     if (Array.isArray(normalizedStep[key])) {
       normalizedStep[key] = normalizedStep[key].map((child) => normalizePlanStep(child));

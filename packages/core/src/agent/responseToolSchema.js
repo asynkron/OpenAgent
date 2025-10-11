@@ -25,7 +25,7 @@ export const RESPONSE_PARAMETERS_SCHEMA = {
     },
     plan: {
       type: 'array',
-      maxItems: 3,
+      maxItems: 5,
       items: { $ref: '#/$defs/planStep' },
       description:
         'You MUST provide a plan when have a set goal, NEVER drop/reset a plan without discussion, the plan stays on utill otherwise agreed upon, Progress tracker for multi-step work; use [] when resetting to a new plan.',
@@ -47,6 +47,13 @@ export const RESPONSE_PARAMETERS_SCHEMA = {
           enum: ['pending', 'running', 'completed', 'failed'],
           description:
             'once a command result has been received, decide if the task is complete or failed. a task that has a command result can never be pending or running',
+        },
+        age: {
+          type: 'integer',
+          minimum: 0,
+          default: 0,
+          description:
+            'Number of assistant responses observed while this step has been running; increments once per response when status remains running.',
         },
         substeps: {
           type: 'array',

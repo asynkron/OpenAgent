@@ -23,6 +23,62 @@ const PLAN_REMINDER_AUTO_RESPONSE_LIMIT = 3;
 const TERMINAL_PLAN_STATUSES = new Set(['completed', 'failed']);
 const PLAN_CHILD_KEYS = ['substeps', 'children', 'steps'];
 
+const ensurePlanStepAge = (node) => {
+  if (!node) {
+    return;
+  }
+
+  if (Array.isArray(node)) {
+    node.forEach(ensurePlanStepAge);
+    return;
+  }
+
+  if (typeof node !== 'object') {
+    return;
+  }
+
+  if (!Number.isInteger(node.age) || node.age < 0) {
+    node.age = 0;
+  }
+
+  for (const key of PLAN_CHILD_KEYS) {
+    if (Array.isArray(node[key])) {
+      node[key].forEach(ensurePlanStepAge);
+    }
+  }
+};
+
+const incrementRunningPlanStepAges = (plan) => {
+  if (!Array.isArray(plan)) {
+    return;
+  }
+
+  const stack = [...plan];
+
+  while (stack.length > 0) {
+    const step = stack.pop();
+    if (!step || typeof step !== 'object') {
+      continue;
+    }
+
+    const status = typeof step.status === 'string' ? step.status.trim().toLowerCase() : '';
+    if (status === 'running') {
+      if (!Number.isInteger(step.age) || step.age < 0) {
+        step.age = 0;
+      }
+      step.age += 1;
+    }
+
+    for (const key of PLAN_CHILD_KEYS) {
+      if (Array.isArray(step[key])) {
+        for (const child of step[key]) {
+          stack.push(child);
+        }
+      }
+    }
+  }
+};
+
 const REFUSAL_NEGATION_PATTERNS = [
   /\bcan['’]?t\b/i,
   /\bcannot\b/i,
@@ -453,6 +509,9 @@ export async function executeAgentPass({
   if (!Array.isArray(activePlan)) {
     activePlan = incomingPlan ?? [];
   }
+
+  ensurePlanStepAge(activePlan);
+  incrementRunningPlanStepAges(activePlan);
 
   emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
 
