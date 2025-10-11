@@ -1,8 +1,8 @@
 // Renders the agent plan timeline and its progress summary inside the chat panel.
-const CHILD_KEY = 'substeps';
 const COMPLETED_STATUSES = new Set(['completed', 'complete', 'done', 'finished']);
 const ACTIVE_KEYWORDS = ['progress', 'working', 'running', 'executing', 'active', 'doing'];
 const BLOCKED_KEYWORDS = ['blocked', 'failed', 'error', 'stuck'];
+const TERMINAL_STATUSES = new Set(['completed', 'complete', 'done', 'finished', 'failed']);
 
 function normaliseText(value) {
   if (typeof value !== 'string') {
@@ -11,32 +11,14 @@ function normaliseText(value) {
   return value.trim();
 }
 
-function normaliseStep(step) {
-  const text = normaliseText(step);
-  if (!text) {
-    return '';
-  }
-  return text.replace(/\.+$/, '');
-}
-
-function selectChildKey(item) {
-  if (!item || typeof item !== 'object') {
-    return null;
-  }
-  return Array.isArray(item[CHILD_KEY]) && item[CHILD_KEY].length > 0 ? CHILD_KEY : null;
-}
-
-function determineStepLabel(item, index, ancestors) {
-  const explicit = normaliseStep(item?.step);
-  if (explicit) {
-    return explicit;
-  }
-  const parts = [...ancestors, String(index + 1)];
-  return parts.join('.');
-}
-
-function computeStatusState(status) {
+function computeStatusState(status, blocked) {
   const text = normaliseText(status);
+
+  if (blocked) {
+    const label = text || 'Waiting on dependencies';
+    return { label, state: 'blocked' };
+  }
+
   if (!text) {
     return { label: 'Pending', state: 'pending' };
   }
@@ -65,6 +47,123 @@ function computeStatusState(status) {
   return { label: text, state: 'active' };
 }
 
+function normalizeId(value) {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  return trimmed;
+}
+
+function dependenciesFor(step) {
+  if (!step || typeof step !== 'object' || !Array.isArray(step.waitingForId)) {
+    return [];
+  }
+
+  return step.waitingForId
+    .map((value) => normalizeId(value))
+    .filter((value) => value.length > 0);
+}
+
+function buildPlanLookup(plan) {
+  const lookup = new Map();
+
+  if (!Array.isArray(plan)) {
+    return lookup;
+  }
+
+  plan.forEach((item, index) => {
+    if (!item || typeof item !== 'object') {
+      return;
+    }
+
+    const id = normalizeId(item.id) || `index:${index}`;
+    if (!lookup.has(id)) {
+      lookup.set(id, item);
+    }
+  });
+
+  return lookup;
+}
+
+function isTerminalStatus(status) {
+  if (typeof status !== 'string') {
+    return false;
+  }
+
+  const normalized = status.trim().toLowerCase();
+  return TERMINAL_STATUSES.has(normalized) || normalized.startsWith('complete');
+}
+
+function isStepBlocked(step, lookup) {
+  const dependencies = dependenciesFor(step);
+  if (dependencies.length === 0) {
+    return false;
+  }
+
+  if (!lookup || lookup.size === 0) {
+    return true;
+  }
+
+  for (const dependencyId of dependencies) {
+    const dependency = lookup.get(dependencyId);
+    if (!dependency || !isTerminalStatus(dependency.status)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function parsePriority(value) {
+  const numeric = Number.parseInt(value, 10);
+  return Number.isFinite(numeric) ? numeric : Number.POSITIVE_INFINITY;
+}
+
+function decoratePlan(plan) {
+  if (!Array.isArray(plan)) {
+    return [];
+  }
+
+  const lookup = buildPlanLookup(plan);
+
+  return plan
+    .map((item, index) => {
+      if (!item || typeof item !== 'object') {
+        return null;
+      }
+
+      const waitingFor = dependenciesFor(item);
+      const blocked = isStepBlocked(item, lookup);
+      const priority = parsePriority(item.priority);
+
+      return {
+        item,
+        waitingFor,
+        blocked,
+        priority,
+        index,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      if (a.blocked !== b.blocked) {
+        return a.blocked ? 1 : -1;
+      }
+
+      if (a.priority !== b.priority) {
+        return a.priority - b.priority;
+      }
+
+      return a.index - b.index;
+    });
+}
+
 function aggregateProgress(items) {
   let completed = 0;
   let total = 0;
@@ -77,15 +176,7 @@ function aggregateProgress(items) {
     if (!item || typeof item !== 'object') {
       return;
     }
-    const childKey = selectChildKey(item);
-    if (childKey) {
-      const child = aggregateProgress(item[childKey]);
-      completed += child.completed;
-      total += child.total;
-      if (child.total > 0) {
-        return;
-      }
-    }
+
     total += 1;
     const statusText = normaliseText(item.status);
     const normalized = statusText.toLowerCase();
@@ -109,25 +200,22 @@ function computePlanProgress(plan) {
   };
 }
 
-function buildSteps(plan, ancestors = []) {
-  if (!Array.isArray(plan) || plan.length === 0) {
+function buildSteps(plan) {
+  const decorated = decoratePlan(plan);
+  if (decorated.length === 0) {
     return null;
   }
 
   const list = document.createElement('ol');
   list.className = 'agent-plan-steps';
 
-  plan.forEach((item, index) => {
+  decorated.forEach((entry, order) => {
+    const { item, blocked, waitingFor, priority } = entry;
     const step = document.createElement('li');
     step.className = 'agent-plan-step';
 
-    if (!item || typeof item !== 'object') {
-      return;
-    }
-
-    const label = determineStepLabel(item, index, ancestors);
     const title = normaliseText(item.title);
-    const statusInfo = computeStatusState(item.status);
+    const statusInfo = computeStatusState(item.status, blocked);
     step.classList.add(`agent-plan-step--${statusInfo.state}`);
 
     const mainRow = document.createElement('div');
@@ -140,7 +228,7 @@ function buildSteps(plan, ancestors = []) {
 
     const labelEl = document.createElement('span');
     labelEl.className = 'agent-plan-step-label';
-    labelEl.textContent = label;
+    labelEl.textContent = String(order + 1);
     mainRow.appendChild(labelEl);
 
     if (title) {
@@ -159,12 +247,19 @@ function buildSteps(plan, ancestors = []) {
       step.appendChild(statusEl);
     }
 
-    const childKey = selectChildKey(item);
-    if (childKey) {
-      const childList = buildSteps(item[childKey], label.split('.'));
-      if (childList) {
-        step.appendChild(childList);
-      }
+    const metaParts = [];
+    if (Number.isFinite(priority)) {
+      metaParts.push(`Priority ${priority}`);
+    }
+    if (waitingFor.length > 0) {
+      metaParts.push(`Waiting for ${waitingFor.join(', ')}`);
+    }
+
+    if (metaParts.length > 0) {
+      const metaEl = document.createElement('div');
+      metaEl.className = 'agent-plan-step-meta';
+      metaEl.textContent = metaParts.join(' • ');
+      step.appendChild(metaEl);
     }
 
     list.appendChild(step);

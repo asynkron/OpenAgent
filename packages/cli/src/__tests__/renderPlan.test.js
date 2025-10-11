@@ -18,46 +18,36 @@ afterEach(() => {
 });
 
 describe('renderPlan', () => {
-  test('renders hierarchical plans with nested steps', async () => {
+  test('renders flat plans sorted by readiness and priority', async () => {
     const mod = await loadModule();
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
     try {
       mod.renderPlan([
         {
-          step: '1',
-          title: 'Root task',
+          id: 'build',
+          title: 'Compile project',
           status: 'completed',
-          age: 1,
-          substeps: [
-            {
-              step: '1.1',
-              title: 'Nested work',
-              status: 'running',
-              age: 3,
-              command: {
-                run: 'npm test --watch',
-              },
-              substeps: [
-                {
-                  title: 'Leaf step',
-                  status: 'pending',
-                  age: 0,
-                },
-              ],
-            },
-            {
-              step: 'a',
-              title: 'Blocked child',
-              status: 'blocked',
-              age: 2,
-            },
-          ],
+          age: 4,
+          priority: 1,
         },
         {
-          title: 'Follow-up',
+          id: 'docs',
+          title: 'Update docs',
+          status: 'running',
+          age: 2,
+          priority: 2,
+          command: {
+            run: 'npm test --watch',
+          },
+        },
+        {
+          id: 'release',
+          title: 'Release build',
           status: 'pending',
           age: 0,
+          priority: 3,
+          waitingForId: ['docs'],
         },
       ]);
 
@@ -67,11 +57,9 @@ describe('renderPlan', () => {
 
       const lines = outputs[0].split('\n');
       expect(lines).toEqual([
-        '✔ 1. Root task (age 1)',
-        '  ▶ 1.1. Nested work (age 3) — run: npm test --watch',
-        '    • 1.1.1. Leaf step (age 0)',
-        '  ✖ 1.a. Blocked child (age 2)',
-        '• 2. Follow-up (age 0)',
+        '✔ 1. Compile project [completed] (priority 1, age 4)',
+        '▶ 2. Update docs [running] (priority 2, age 2) — run: npm test --watch',
+        '⏳ 3. Release build [pending] (priority 3, waiting for docs, age 0)',
       ]);
     } finally {
       logSpy.mockRestore();

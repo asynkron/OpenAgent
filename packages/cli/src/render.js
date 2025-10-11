@@ -61,9 +61,18 @@ export function renderPlan(plan) {
     const label = chalk.cyan(node.label);
     const dot = chalk.dim('.');
     const title = node.title ? ` ${chalk.white(node.title)}` : '';
-    const agePart = chalk.dim(` (age ${node.age ?? 0})`);
+    const statusPart = node.status ? ` ${chalk.dim(`[${node.status}]`)}` : '';
+    const metaDetails = [];
+    if (Number.isFinite(node.priority)) {
+      metaDetails.push(`priority ${node.priority}`);
+    }
+    if (node.blocked && Array.isArray(node.waitingFor) && node.waitingFor.length > 0) {
+      metaDetails.push(`waiting for ${node.waitingFor.join(', ')}`);
+    }
+    metaDetails.push(`age ${node.age ?? 0}`);
+    const metaPart = metaDetails.length > 0 ? ` ${chalk.dim(`(${metaDetails.join(', ')})`)}` : '';
     const commandPart = node.commandPreview ? ` ${chalk.gray('—')} ${chalk.white(node.commandPreview)}` : '';
-    return `${indent}${symbol} ${label}${dot}${title}${agePart}${commandPart}`.trimEnd();
+    return `${indent}${symbol} ${label}${dot}${title}${statusPart}${metaPart}${commandPart}`.trimEnd();
   });
 
   display('Plan', lines, 'cyan');

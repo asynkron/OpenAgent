@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { planHasOpenSteps, planStepHasIncompleteChildren } from '../plan.js';
+import { buildPlanLookup, planHasOpenSteps, planStepIsBlocked } from '../plan.js';
 
 describe('plan utilities', () => {
   test('returns false for empty or non-array plans', () => {
@@ -18,68 +18,46 @@ describe('plan utilities', () => {
     expect(planHasOpenSteps(plan)).toBe(true);
   });
 
-  test('detects pending nested substeps', () => {
+  test('returns false when every step is terminal', () => {
     const plan = [
-      {
-        step: '1',
-        title: 'Parent',
-        status: 'completed',
-        substeps: [{ step: '1.1', title: 'Child', status: 'running' }],
-      },
-    ];
-
-    expect(planHasOpenSteps(plan)).toBe(true);
-  });
-
-  test('returns false when all steps and substeps completed', () => {
-    const plan = [
-      {
-        step: '1',
-        title: 'Parent',
-        status: 'completed',
-        substeps: [{ step: '1.1', title: 'Child', status: 'completed' }],
-      },
+      { id: 'a', title: 'Parent', status: 'completed' },
+      { id: 'b', title: 'Child', status: 'failed' },
     ];
 
     expect(planHasOpenSteps(plan)).toBe(false);
   });
 });
 
-describe('planStepHasIncompleteChildren', () => {
-  test('detects direct child with non-completed status', () => {
-    const step = {
-      step: '1',
-      title: 'Parent',
-      substeps: [{ step: '1.1', title: 'Child', status: 'running' }],
-    };
+describe('planStepIsBlocked', () => {
+  test('returns false when step has no dependencies', () => {
+    const step = { id: 'b', title: 'Task', status: 'pending' };
 
-    expect(planStepHasIncompleteChildren(step)).toBe(true);
+    expect(planStepIsBlocked(step, [])).toBe(false);
   });
 
-  test('returns false when all children completed', () => {
-    const step = {
-      step: '1',
-      title: 'Parent',
-      substeps: [{ step: '1.1', title: 'Child', status: 'completed' }],
-    };
+  test('returns true when waiting for unfinished dependency', () => {
+    const plan = [
+      { id: 'a', title: 'Prepare', status: 'running' },
+      { id: 'b', title: 'Execute', status: 'pending', waitingForId: ['a'] },
+    ];
+    const lookup = buildPlanLookup(plan);
 
-    expect(planStepHasIncompleteChildren(step)).toBe(false);
+    expect(planStepIsBlocked(plan[1], lookup)).toBe(true);
   });
 
-  test('detects incomplete nested grandchildren despite completed child status', () => {
-    const step = {
-      step: '1',
-      title: 'Parent',
-      substeps: [
-        {
-          step: '1.1',
-          title: 'Child',
-          status: 'completed',
-          substeps: [{ step: '1.1.1', title: 'Grandchild', status: 'pending' }],
-        },
-      ],
-    };
+  test('returns false when dependencies completed', () => {
+    const plan = [
+      { id: 'a', title: 'Prepare', status: 'completed' },
+      { id: 'b', title: 'Execute', status: 'pending', waitingForId: ['a'] },
+    ];
+    const lookup = buildPlanLookup(plan);
 
-    expect(planStepHasIncompleteChildren(step)).toBe(true);
+    expect(planStepIsBlocked(plan[1], lookup)).toBe(false);
+  });
+
+  test('treats missing dependency as blocked', () => {
+    const step = { id: 'b', title: 'Execute', status: 'pending', waitingForId: ['missing'] };
+
+    expect(planStepIsBlocked(step, [])).toBe(true);
   });
 });

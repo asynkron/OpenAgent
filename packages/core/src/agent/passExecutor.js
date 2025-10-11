@@ -1,4 +1,4 @@
-import { planHasOpenSteps, planStepHasIncompleteChildren } from '../utils/plan.js';
+import { buildPlanLookup, planHasOpenSteps, planStepIsBlocked } from '../utils/plan.js';
 import { incrementCommandCount } from '../services/commandStatsService.js';
 import { combineStdStreams, buildPreview } from '../utils/output.js';
 import ObservationBuilder from './observationBuilder.js';
@@ -21,8 +21,6 @@ const REFUSAL_STATUS_MESSAGE =
 const REFUSAL_MESSAGE_MAX_LENGTH = 160;
 const PLAN_REMINDER_AUTO_RESPONSE_LIMIT = 3;
 const TERMINAL_PLAN_STATUSES = new Set(['completed', 'failed']);
-const CHILD_KEY = 'substeps';
-
 const ensurePlanStepAge = (node) => {
   if (!node) {
     return;
@@ -40,10 +38,6 @@ const ensurePlanStepAge = (node) => {
   if (!Number.isInteger(node.age) || node.age < 0) {
     node.age = 0;
   }
-
-  if (Array.isArray(node[CHILD_KEY])) {
-    node[CHILD_KEY].forEach(ensurePlanStepAge);
-  }
 };
 
 const incrementRunningPlanStepAges = (plan) => {
@@ -51,12 +45,9 @@ const incrementRunningPlanStepAges = (plan) => {
     return;
   }
 
-  const stack = [...plan];
-
-  while (stack.length > 0) {
-    const step = stack.pop();
+  plan.forEach((step) => {
     if (!step || typeof step !== 'object') {
-      continue;
+      return;
     }
 
     const status = typeof step.status === 'string' ? step.status.trim().toLowerCase() : '';
@@ -66,13 +57,7 @@ const incrementRunningPlanStepAges = (plan) => {
       }
       step.age += 1;
     }
-
-    if (Array.isArray(step[CHILD_KEY])) {
-      for (const child of step[CHILD_KEY]) {
-        stack.push(child);
-      }
-    }
-  }
+  });
 };
 
 const REFUSAL_NEGATION_PATTERNS = [
@@ -108,34 +93,24 @@ const hasCommandPayload = (command) => {
 const collectExecutablePlanSteps = (plan) => {
   const executable = [];
 
-  const traverse = (items) => {
-    if (!Array.isArray(items)) {
+  if (!Array.isArray(plan)) {
+    return executable;
+  }
+
+  const lookup = buildPlanLookup(plan);
+
+  plan.forEach((item) => {
+    if (!item || typeof item !== 'object') {
       return;
     }
 
-    for (const item of items) {
-      if (!item || typeof item !== 'object') {
-        continue;
-      }
+    const status = typeof item.status === 'string' ? item.status.trim().toLowerCase() : '';
+    const blocked = planStepIsBlocked(item, lookup);
 
-      const status = typeof item.status === 'string' ? item.status.trim().toLowerCase() : '';
-      const hasIncompleteChildren = planStepHasIncompleteChildren(item);
-
-      if (
-        !hasIncompleteChildren &&
-        !TERMINAL_PLAN_STATUSES.has(status) &&
-        hasCommandPayload(item.command)
-      ) {
-        executable.push({ step: item, command: item.command });
-      }
-
-      if (Array.isArray(item[CHILD_KEY])) {
-        traverse(item[CHILD_KEY]);
-      }
+    if (!blocked && !TERMINAL_PLAN_STATUSES.has(status) && hasCommandPayload(item.command)) {
+      executable.push({ step: item, command: item.command });
     }
-  };
-
-  traverse(plan);
+  });
 
   return executable;
 };
@@ -145,14 +120,9 @@ const buildExecutableStepKey = (step, fallbackIndex = 0) => {
     return `index:${fallbackIndex}`;
   }
 
-  const rawStep =
-    typeof step.step === 'string'
-      ? step.step.trim()
-      : step.step === null || typeof step.step === 'undefined'
-        ? ''
-        : String(step.step).trim();
-  if (rawStep) {
-    return `step:${rawStep.toLowerCase()}`;
+  const id = typeof step.id === 'string' ? step.id.trim() : '';
+  if (id) {
+    return `id:${id.toLowerCase()}`;
   }
 
   if (typeof step.title === 'string' && step.title.trim()) {
