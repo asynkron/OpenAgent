@@ -14,6 +14,17 @@ import OpenAI from 'openai';
 
 const LEGACY_CHAT_COMPLETION_MODELS = [/^gpt-3\.5-turbo/, /^text-davinci/i];
 
+const MISSING_OPENAI_API_KEY_SUMMARY =
+  'OPENAI_API_KEY is missing. Action required: copy .env.example to packages/cli/.env and set OPENAI_API_KEY=<your key> before re-running OpenAgent.';
+
+const MISSING_OPENAI_API_KEY_GUIDANCE = [
+  'How to fix it:',
+  '1. Copy the template env file: cp packages/cli/.env.example packages/cli/.env',
+  '2. Open packages/cli/.env and set OPENAI_API_KEY=<your OpenAI API key>.',
+  '3. Save the file and restart OpenAgent (`npm start` or `npx openagent`).',
+  'Need help finding your key? https://platform.openai.com/api-keys',
+].join('\n');
+
 let memoizedClient = null;
 let resolvedConfig = resolveConfiguration();
 
@@ -24,10 +35,7 @@ export function getOpenAIClient() {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       throw new Error(
-        [
-          'OPENAI_API_KEY is missing.',
-          'Action required: copy .env.example to packages/cli/.env and set OPENAI_API_KEY=<your key> before re-running OpenAgent.',
-        ].join(' '),
+        [MISSING_OPENAI_API_KEY_SUMMARY, '', MISSING_OPENAI_API_KEY_GUIDANCE].join('\n'),
       );
     }
 

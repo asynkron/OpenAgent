@@ -6,6 +6,16 @@ import { jest } from '@jest/globals';
 
 const defaultEnv = { ...process.env };
 
+const MISSING_OPENAI_API_KEY_MESSAGE = [
+  'OPENAI_API_KEY is missing. Action required: copy .env.example to packages/cli/.env and set OPENAI_API_KEY=<your key> before re-running OpenAgent.',
+  '',
+  'How to fix it:',
+  '1. Copy the template env file: cp packages/cli/.env.example packages/cli/.env',
+  '2. Open packages/cli/.env and set OPENAI_API_KEY=<your OpenAI API key>.',
+  '3. Save the file and restart OpenAgent (`npm start` or `npx openagent`).',
+  'Need help finding your key? https://platform.openai.com/api-keys',
+].join('\n');
+
 async function loadModule(
   envOverrides = {},
   { commandStatsMock, runCommandMock, httpModuleFactory } = {},
@@ -72,9 +82,7 @@ afterEach(() => {
 describe('getOpenAIClient', () => {
   test('throws when OPENAI_API_KEY is missing', async () => {
     const { mod } = await loadModule({ OPENAI_API_KEY: null });
-    expect(() => mod.getOpenAIClient()).toThrow(
-      'OPENAI_API_KEY is missing. Action required: copy .env.example to packages/cli/.env and set OPENAI_API_KEY=<your key> before re-running OpenAgent.',
-    );
+    expect(() => mod.getOpenAIClient()).toThrow(MISSING_OPENAI_API_KEY_MESSAGE);
   });
 
   test('returns memoized OpenAI client when key is set', async () => {
