@@ -30,47 +30,6 @@ export const RESPONSE_PARAMETERS_SCHEMA = {
       description:
         'You MUST provide a plan when have a set goal, NEVER drop/reset a plan without discussion, the plan stays on utill otherwise agreed upon, Progress tracker for multi-step work; use [] when resetting to a new plan.',
     },
-    command: {
-      type: 'object',
-      description:
-        'Next tool invocation to execute when a plan contains non-complete steps. may NOT be raw string, e.g command: "ls". MUST follow this format: {"shell":"/bin/bash","run":"ls -la","cwd":"/home/user","timeout_sec":30,"filter_regex":".*\\.txt$","tail_lines":10}',
-      additionalProperties: false,
-      properties: {
-        reason: {
-          type: 'string',
-          description:
-            'explain the human friendly reason why you want to run this command in this shell, if only shell or run has values, not both, explain why',
-        },
-        shell: {
-          type: 'string',
-          description:
-            'Shell executable to launch when running commands, may only contain value if "run" contains an actual command to run',
-        },
-        run: {
-          type: 'string',
-          description:
-            'Command string to execute in the provided shell. must be set if "shell" has a value, may NOT be set if "shell" has no value',
-        },
-        cwd: {
-          type: 'string',
-          description: 'Working directory for shell execution.',
-        },
-        timeout_sec: {
-          type: 'integer',
-          minimum: 1,
-          description: 'Optional timeout guard for long-running commands.',
-        },
-        filter_regex: {
-          type: 'string',
-          description: 'Optional regex used to filter command output.',
-        },
-        tail_lines: {
-          type: 'integer',
-          minimum: 1,
-          description: 'Optional number of trailing lines to return from output.',
-        },
-      },
-    },
   },
   $defs: {
     planStep: {
@@ -80,10 +39,59 @@ export const RESPONSE_PARAMETERS_SCHEMA = {
       properties: {
         step: { type: 'string' },
         title: { type: 'string' },
-        status: { type: 'string', enum: ['pending', 'running', 'completed'] },
+        status: {
+          type: 'string',
+          enum: ['pending', 'running', 'completed', 'failed'],
+        },
         substeps: {
           type: 'array',
           items: { $ref: '#/$defs/planStep' },
+        },
+        command: {
+          type: 'object',
+          description:
+            'Next tool invocation to execute for this plan step. may NOT be raw string, e.g command: "ls". MUST follow this format: {"shell":"/bin/bash","run":"ls -la","cwd":"/home/user","timeout_sec":30,"filter_regex":".*\\.txt$","tail_lines":10}',
+          additionalProperties: false,
+          properties: {
+            reason: {
+              type: 'string',
+              description:
+                'Explain why this shell command is required for the plan step. If only shell or run is provided, justify the omission.',
+            },
+            shell: {
+              type: 'string',
+              description:
+                'Shell executable to launch when running commands, may only contain value if "run" contains an actual command to run',
+            },
+            run: {
+              type: 'string',
+              description:
+                'Command string to execute in the provided shell. must be set if "shell" has a value, may NOT be set if "shell" has no value',
+            },
+            cwd: {
+              type: 'string',
+              description: 'Working directory for shell execution.',
+            },
+            timeout_sec: {
+              type: 'integer',
+              minimum: 1,
+              description: 'Optional timeout guard for long-running commands.',
+            },
+            filter_regex: {
+              type: 'string',
+              description: 'Optional regex used to filter command output.',
+            },
+            tail_lines: {
+              type: 'integer',
+              minimum: 1,
+              description: 'Optional number of trailing lines to return from output.',
+            },
+          },
+        },
+        observation: {
+          type: 'object',
+          description:
+            'Latest command observation for this step, including stdout/stderr and metadata so the LLM can evaluate progress.',
         },
       },
     },

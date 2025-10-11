@@ -42,6 +42,8 @@ export const formatObservationMessage = ({ observation, command = null }) => {
     summaryParts.push('A human reviewer declined the proposed command.');
   } else if (payload.operation_canceled) {
     summaryParts.push('The operation was canceled before completion.');
+  } else if (Array.isArray(payload.plan)) {
+    summaryParts.push('Here is the updated plan with the latest command observations.');
   } else {
     const commandDescription = describeCommand(command);
     if (commandDescription) {

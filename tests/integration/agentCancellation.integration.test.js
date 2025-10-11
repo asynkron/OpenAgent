@@ -13,18 +13,23 @@ const PLAN_STEP_TITLES = {
   execute: 'Run long command',
 };
 
-function buildPlan(statusGather, statusExecute) {
-  return [
+function buildPlan(statusGather, statusExecute, command = null) {
+  const plan = [
     { step: '1', title: PLAN_STEP_TITLES.gather, status: statusGather },
     { step: '2', title: PLAN_STEP_TITLES.execute, status: statusExecute },
   ];
+
+  if (command) {
+    plan[1].command = command;
+  }
+
+  return plan;
 }
 
 function enqueueHandshakeResponse() {
   queueModelResponse({
     message: 'Handshake ready',
     plan: buildPlan('running', 'pending'),
-    command: null,
   });
 }
 
@@ -32,7 +37,6 @@ function enqueueFollowUp(message, statusExecute) {
   queueModelResponse({
     message,
     plan: buildPlan('completed', statusExecute),
-    command: null,
   });
 }
 
@@ -56,13 +60,12 @@ test('ESC cancellation aborts an in-flight command and surfaces UI feedback', as
 
   queueModelResponse({
     message: 'Preparing to run command',
-    plan: buildPlan('completed', 'running'),
-    command: {
+    plan: buildPlan('completed', 'running', {
       shell: 'bash',
       run: 'sleep 30',
       cwd: '.',
       timeout_sec: 30,
-    },
+    }),
   });
 
   enqueueFollowUp('Command canceled acknowledgement', 'completed');

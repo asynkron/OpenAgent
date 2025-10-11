@@ -19,6 +19,8 @@ const REFUSAL_STATUS_MESSAGE =
   'Assistant declined to help; auto-responding with "continue" to prompt another attempt.';
 const REFUSAL_MESSAGE_MAX_LENGTH = 160;
 const PLAN_REMINDER_AUTO_RESPONSE_LIMIT = 3;
+const TERMINAL_PLAN_STATUSES = new Set(['completed', 'failed']);
+const PLAN_CHILD_KEYS = ['substeps', 'children', 'steps'];
 
 const REFUSAL_NEGATION_PATTERNS = [
   /\bcan['’]?t\b/i,
@@ -38,6 +40,57 @@ const REFUSAL_SORRY_PATTERN = /\bsorry\b/i;
 
 const normalizeAssistantMessage = (value) =>
   typeof value === 'string' ? value.replace(/[\u2018\u2019]/g, "'") : value;
+
+const hasCommandPayload = (command) => {
+  if (!command || typeof command !== 'object') {
+    return false;
+  }
+
+  const run = typeof command.run === 'string' ? command.run.trim() : '';
+  const shell = typeof command.shell === 'string' ? command.shell.trim() : '';
+
+  return Boolean(run || shell);
+};
+
+const collectExecutablePlanSteps = (plan) => {
+  const executable = [];
+
+  const traverse = (items) => {
+    if (!Array.isArray(items)) {
+      return;
+    }
+
+    for (const item of items) {
+      if (!item || typeof item !== 'object') {
+        continue;
+      }
+
+      const status =
+        typeof item.status === 'string' ? item.status.trim().toLowerCase() : '';
+
+      if (!TERMINAL_PLAN_STATUSES.has(status) && hasCommandPayload(item.command)) {
+        executable.push({ step: item, command: item.command });
+      }
+
+      const childKey = PLAN_CHILD_KEYS.find((key) => Array.isArray(item[key]));
+      if (childKey) {
+        traverse(item[childKey]);
+      }
+    }
+  };
+
+  traverse(plan);
+
+  return executable;
+};
+
+const clonePlanForExecution = (plan) => {
+  if (!Array.isArray(plan)) {
+    return [];
+  }
+
+  return JSON.parse(JSON.stringify(plan));
+};
 
 // Quick heuristic to detect short apology-style refusals so we can auto-nudge the model.
 const isLikelyRefusalMessage = (message) => {
@@ -384,13 +437,10 @@ export async function executeAgentPass({
 
   emitEvent({ type: 'plan', plan: activePlan });
 
-  const normalizedCommandRun =
-    typeof parsed.command?.run === 'string' ? parsed.command.run.trim() : '';
-  const normalizedCommandShell =
-    typeof parsed.command?.shell === 'string' ? parsed.command.shell.trim() : '';
+  const planForExecution = clonePlanForExecution(activePlan);
+  const executableSteps = collectExecutablePlanSteps(planForExecution);
 
-  // Commands that only contain blank run/shell values mean there's nothing to execute.
-  if (!parsed.command || (!normalizedCommandRun && !normalizedCommandShell)) {
+  if (executableSteps.length === 0) {
     if (
       typeof getNoHumanFlag === 'function' &&
       typeof setNoHumanFlag === 'function' &&
@@ -439,103 +489,133 @@ export async function executeAgentPass({
 
   resetPlanReminder();
 
-  if (approvalManager) {
-    const autoApproval = approvalManager.shouldAutoApprove(parsed.command);
+  for (const { step, command } of executableSteps) {
+    const normalizedRun = typeof command.run === 'string' ? command.run.trim() : '';
+    if (normalizedRun && command.run !== normalizedRun) {
+      command.run = normalizedRun;
+    }
 
-    if (!autoApproval.approved) {
-      const outcome = await approvalManager.requestHumanDecision({ command: parsed.command });
+    if (approvalManager) {
+      const autoApproval = approvalManager.shouldAutoApprove(command);
 
-      if (outcome.decision === 'reject') {
-        emitEvent({
-          type: 'status',
-          level: 'warn',
-          message: 'Command execution canceled by human request.',
-        });
+      if (!autoApproval.approved) {
+        const outcome = await approvalManager.requestHumanDecision({ command });
 
-        const observation = {
-          observation_for_llm: {
-            canceled_by_human: true,
-            message:
-              'Human declined to execute the proposed command and asked the AI to propose an alternative approach without executing a command.',
-          },
-          observation_metadata: {
-            timestamp: new Date().toISOString(),
-          },
-        };
+        if (outcome.decision === 'reject') {
+          emitEvent({
+            type: 'status',
+            level: 'warn',
+            message: 'Command execution canceled by human request.',
+          });
 
-        history.push(createObservationHistoryEntry({ observation }));
-        return true;
-      }
+          const observation = {
+            observation_for_llm: {
+              canceled_by_human: true,
+              message:
+                'Human declined to execute the proposed command and asked the AI to propose an alternative approach without executing a command.',
+            },
+            observation_metadata: {
+              timestamp: new Date().toISOString(),
+            },
+          };
 
-      if (outcome.decision === 'approve_session') {
+          step.observation = observation;
+
+          const planObservation = {
+            observation_for_llm: {
+              plan: planForExecution,
+            },
+            observation_metadata: {
+              timestamp: new Date().toISOString(),
+            },
+          };
+
+          history.push(createObservationHistoryEntry({ observation: planObservation }));
+          return true;
+        }
+
+        if (outcome.decision === 'approve_session') {
+          emitEvent({
+            type: 'status',
+            level: 'info',
+            message: 'Command approved for the remainder of the session.',
+          });
+        } else {
+          emitEvent({
+            type: 'status',
+            level: 'info',
+            message: 'Command approved for single execution.',
+          });
+        }
+      } else if (autoApproval.source === 'flag' && emitAutoApproveStatus) {
         emitEvent({
           type: 'status',
           level: 'info',
-          message: 'Command approved for the remainder of the session.',
-        });
-      } else {
-        emitEvent({
-          type: 'status',
-          level: 'info',
-          message: 'Command approved for single execution.',
+          message: 'Command auto-approved via flag.',
         });
       }
-    } else if (autoApproval.source === 'flag' && emitAutoApproveStatus) {
+    }
+
+    const { result, executionDetails } = await executeAgentCommand({
+      command,
+      runCommandFn,
+    });
+
+    let key = typeof command.key === 'string' && command.key.trim() ? command.key.trim() : '';
+    if (!key) {
+      key = normalizedRun ? normalizedRun.split(/\s+/)[0] || 'unknown' : 'unknown';
+    }
+
+    try {
+      await incrementCommandCount(key);
+    } catch (error) {
       emitEvent({
         type: 'status',
-        level: 'info',
-        message: 'Command auto-approved via flag.',
+        level: 'warn',
+        message: 'Failed to record command usage statistics.',
+        details: error instanceof Error ? error.message : String(error),
       });
     }
-  }
 
-  const { result, executionDetails } = await executeAgentCommand({
-    command: parsed.command,
-    runCommandFn,
-  });
+    const { renderPayload, observation } = observationBuilder.build({
+      command,
+      result,
+    });
 
-  let key = parsed?.command?.key;
-  if (!key) {
-    if (typeof parsed?.command?.run === 'string') {
-      key = parsed.command.run.trim().split(/\s+/)[0] || 'unknown';
-    } else {
-      key = 'unknown';
-    }
-  }
+    step.observation = observation;
 
-  try {
-    await incrementCommandCount(key);
-  } catch (error) {
+    emitDebug(() => ({
+      stage: 'command-execution',
+      command,
+      result,
+      execution: executionDetails,
+      observation,
+    }));
+
     emitEvent({
-      type: 'status',
-      level: 'warn',
-      message: 'Failed to record command usage statistics.',
-      details: error instanceof Error ? error.message : String(error),
+      type: 'command-result',
+      command,
+      result,
+      preview: renderPayload,
+      execution: executionDetails,
     });
   }
 
-  const { renderPayload, observation } = observationBuilder.build({
-    command: parsed.command,
-    result,
-  });
+  const planObservation = {
+    observation_for_llm: {
+      plan: planForExecution,
+    },
+    observation_metadata: {
+      timestamp: new Date().toISOString(),
+    },
+  };
 
   emitDebug(() => ({
-    stage: 'command-execution',
-    command: parsed.command,
-    result,
-    execution: executionDetails,
-    observation,
+    stage: 'plan-observation',
+    plan: planForExecution,
   }));
 
-  emitEvent({
-    type: 'command-result',
-    command: parsed.command,
-    result,
-    preview: renderPayload,
-    execution: executionDetails,
-  });
-
-  history.push(createObservationHistoryEntry({ observation, command: parsed.command }));
+  history.push(createObservationHistoryEntry({ observation: planObservation }));
 
   return true;
 }

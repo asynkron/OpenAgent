@@ -10,8 +10,14 @@ describe('validateAssistantResponseSchema', () => {
   test('accepts payload matching schema', () => {
     const result = validateAssistantResponseSchema({
       message: 'Ready',
-      plan: [],
-      command: { run: 'echo "hi"' },
+      plan: [
+        {
+          step: '1',
+          title: 'Do the thing',
+          status: 'running',
+          command: { run: 'echo "hi"' },
+        },
+      ],
     });
 
     expect(result).toEqual({ valid: true, errors: [] });
@@ -20,7 +26,6 @@ describe('validateAssistantResponseSchema', () => {
   test('flags missing required message property', () => {
     const result = validateAssistantResponseSchema({
       plan: [],
-      command: null,
     });
 
     expect(result.valid).toBe(false);
@@ -40,7 +45,6 @@ describe('validateAssistantResponse', () => {
     const result = validateAssistantResponse({
       message: 'Ready',
       plan: [],
-      command: null,
     });
 
     expect(result).toEqual({ valid: true, errors: [] });
@@ -50,7 +54,6 @@ describe('validateAssistantResponse', () => {
     const result = validateAssistantResponse({
       message: null,
       plan: [],
-      command: null,
     });
 
     expect(result).toEqual({ valid: true, errors: [] });
@@ -64,17 +67,18 @@ describe('validateAssistantResponse', () => {
           step: '1',
           title: 'Do the thing',
           status: 'running',
+          command: {
+            shell: 'bash',
+            run: 'echo "hello"',
+          },
         },
         {
           step: '2',
           title: 'Follow up',
           status: 'pending',
+          command: { run: 'ls' },
         },
       ],
-      command: {
-        shell: 'bash',
-        run: 'echo "hello"',
-      },
     });
 
     expect(result.valid).toBe(true);
@@ -85,7 +89,6 @@ describe('validateAssistantResponse', () => {
     const result = validateAssistantResponse({
       message: 'Oops',
       plan: 'not-an-array',
-      command: null,
     });
 
     expect(result.valid).toBe(false);
@@ -95,17 +98,15 @@ describe('validateAssistantResponse', () => {
   test('requires command when plan has open steps', () => {
     const result = validateAssistantResponse({
       plan: [{ step: '1', title: 'Only step', status: 'running' }],
-      command: null,
     });
 
     expect(result.valid).toBe(false);
-    expect(result.errors).toContain('Active plans require a "command" to execute next.');
+    expect(result.errors).toContain('plan[0] requires a non-empty command while the step is running.');
   });
 
-  test('allows command when no plan is active', () => {
+  test('allows completed plan step without command', () => {
     const result = validateAssistantResponse({
-      plan: [],
-      command: { run: 'echo "hi"' },
+      plan: [{ step: '1', title: 'Done', status: 'completed' }],
     });
 
     expect(result.valid).toBe(true);
@@ -120,7 +121,6 @@ describe('validateAssistantResponse', () => {
         { step: '3', title: 'C', status: 'completed' },
         { step: '4', title: 'D', status: 'completed' },
       ],
-      command: null,
     });
 
     expect(result.valid).toBe(false);
@@ -130,10 +130,9 @@ describe('validateAssistantResponse', () => {
   test('ensures the first open step is marked running', () => {
     const result = validateAssistantResponse({
       plan: [
-        { step: '1', title: 'A', status: 'pending' },
-        { step: '2', title: 'B', status: 'running' },
+        { step: '1', title: 'A', status: 'pending', command: { run: 'echo one' } },
+        { step: '2', title: 'B', status: 'running', command: { run: 'echo two' } },
       ],
-      command: { run: 'echo "hi"' },
     });
 
     expect(result.valid).toBe(false);
