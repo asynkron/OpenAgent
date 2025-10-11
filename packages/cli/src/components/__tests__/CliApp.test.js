@@ -115,3 +115,42 @@ describe('CliApp slash command handling', () => {
     }
   });
 });
+
+describe('CliApp debug event handling', () => {
+  test('surfaces auto-response debug summaries in the timeline', async () => {
+    const runtime = createRuntimeHarness();
+    const { lastFrame, unmount } = render(React.createElement(CliApp, { runtime }));
+
+    try {
+      runtime.emit({
+        type: 'debug',
+        payload: {
+          stage: 'assistant-response-schema-validation-error',
+          message: 'Assistant response failed schema validation.',
+        },
+      });
+
+      await flush();
+
+      expect(lastFrame()).toContain(
+        'Auto-response triggered: Assistant response failed schema validation.',
+      );
+
+      runtime.emit({
+        type: 'debug',
+        payload: {
+          stage: 'assistant-response-validation-error',
+          message: 'Assistant response failed protocol validation.',
+        },
+      });
+
+      await flush();
+
+      const frame = lastFrame();
+      expect(frame).toContain('Auto-response triggered: Assistant response failed protocol validation.');
+    } finally {
+      unmount();
+      runtime.close();
+    }
+  });
+});

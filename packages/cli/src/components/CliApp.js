@@ -161,6 +161,35 @@ function formatDebugPayload(payload) {
   }
 }
 
+function summarizeAutoResponseDebug(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+
+  const stage = typeof payload.stage === 'string' ? payload.stage : '';
+  if (!stage) {
+    return null;
+  }
+
+  if (stage === 'assistant-response-schema-validation-error') {
+    const message =
+      typeof payload.message === 'string' && payload.message.trim().length > 0
+        ? payload.message.trim()
+        : 'Assistant response failed schema validation.';
+    return `Auto-response triggered: ${message}`;
+  }
+
+  if (stage === 'assistant-response-validation-error') {
+    const message =
+      typeof payload.message === 'string' && payload.message.trim().length > 0
+        ? payload.message.trim()
+        : 'Assistant response failed protocol validation.';
+    return `Auto-response triggered: ${message}`;
+  }
+
+  return null;
+}
+
 function normalizeStatus(event) {
   const message = event.message ?? '';
   if (!message) {
@@ -318,29 +347,36 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
     [appendEntry],
   );
 
-  const handleDebugEvent = useCallback((event) => {
-    setDebugEvents((prev) => {
-      const formatted = formatDebugPayload(event.payload);
-      if (!formatted) {
-        return prev;
-      }
+  const handleDebugEvent = useCallback(
+    (event) => {
+      setDebugEvents((prev) => {
+        const formatted = formatDebugPayload(event.payload);
+        if (!formatted) {
+          return prev;
+        }
 
-      debugEventIdRef.current += 1;
-      const entry = {
-        id:
-          typeof event.id === 'string' || typeof event.id === 'number'
-            ? event.id
-            : debugEventIdRef.current,
-        content: formatted,
-      };
+        debugEventIdRef.current += 1;
+        const entry = {
+          id:
+            typeof event.id === 'string' || typeof event.id === 'number'
+              ? event.id
+              : debugEventIdRef.current,
+          content: formatted,
+        };
 
-      const next = [...prev, entry];
-      if (next.length > MAX_DEBUG_ENTRIES) {
-        return next.slice(next.length - MAX_DEBUG_ENTRIES);
+        const next = [...prev, entry];
+        if (next.length > MAX_DEBUG_ENTRIES) {
+          return next.slice(next.length - MAX_DEBUG_ENTRIES);
+        }
+        return next;
+      });
+      const summary = summarizeAutoResponseDebug(event.payload);
+      if (summary) {
+        appendEntry('status', { level: 'warn', message: summary });
       }
-      return next;
-    });
-  }, []);
+    },
+    [appendEntry],
+  );
 
   const handleSlashCommand = useCallback(
     async (submission) => {
