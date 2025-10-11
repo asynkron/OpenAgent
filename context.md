@@ -40,3 +40,15 @@
 - Tooling & ops: [`scripts/context.md`](scripts/context.md) and [`.github/context.md`](.github/context.md).
 - Runtime state: [`.openagent/context.md`](.openagent/context.md).
 - IDE/project metadata: [`.vscode/context.md`](.vscode/context.md). JetBrains `.idea/` settings are local-only.
+
+## CLI Runner Investigation (2025-10-11)
+
+- Investigated out-of-memory crashes triggered by `packages/cli/src/__tests__/runner.test.js`.
+- Confirmed the suite passes when the test body is fully commented, and remains stable with only console spies and Ink mock active.
+- Reintroducing the `runCli()` import/invocation alone recreates the OOM after ~21 seconds, even with assertions disabled.
+- Indicates the heavy allocation occurs within `runCli()` or its dependencies during CLI boot.
+
+### How to Continue
+- Inspect `packages/cli/src/runner.js` to identify which imports or async flows are allocating large amounts of memory.
+- Consider mocking/stubbing heavy modules when testing, or instrument `runCli()` with logging/profiling to isolate the hotspot.
+- Profile a live CLI session (e.g., `node --inspect` with heap snapshots) while letting auto events fire to catch leaks or slow React reconciliation.
