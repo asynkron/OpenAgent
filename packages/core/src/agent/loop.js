@@ -126,7 +126,7 @@ export function createAgentRuntime({
 
   const history = [
     {
-      type: 'chat-message',
+      eventType: 'chat-message',
       role: 'system',
       content: combinedSystemPrompt,
       pass: 0,
@@ -317,7 +317,7 @@ export function createAgentRuntime({
         const activePass = nextPass();
 
         history.push({
-          type: 'chat-message',
+          eventType: 'chat-message',
           role: 'user',
           content: userInput,
           pass: activePass,

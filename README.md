@@ -176,7 +176,7 @@ To exit, type `exit` or `quit` at any prompt.
 
 ```json
 {
-  "type": "chat-message",
+  "eventType": "chat-message",
   "role": "assistant",
   "pass": 18,
   "content": "{\"type\":\"observation\",\"summary\":\"I ran the command: ls -a. It finished with exit code 0.\",\"payload\":{\"stdout\":\"output\",\"stderr\":\"\",\"exit_code\":0,\"truncated\":false},\"metadata\":{\"runtime_ms\":120,\"killed\":false,\"timestamp\":\"2025-02-01T12:00:00Z\"}}"

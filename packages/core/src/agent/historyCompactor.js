@@ -45,13 +45,13 @@ function buildSummarizationInput(entries) {
 
   return [
     {
-      type: 'chat-message',
+      eventType: 'chat-message',
       role: 'system',
       content:
         'You summarize prior conversation history into a concise long-term memory for an autonomous agent. Capture key facts, decisions, obligations, and user preferences. Respond with plain text only.',
     },
     {
-      type: 'chat-message',
+      eventType: 'chat-message',
       role: 'user',
       content: `Summarize the following ${entries.length} conversation entries for long-term memory. Preserve critical details while remaining concise.\n\n${formattedEntries}`,
     },
@@ -130,7 +130,7 @@ export class HistoryCompactor {
     }, 0);
 
     const compactedEntry = {
-      type: 'chat-message',
+      eventType: 'chat-message',
       role: 'system',
       content: `${DEFAULT_SUMMARY_PREFIX}\n${summarizedText}`.trim(),
       pass: compactedPass,

@@ -50,10 +50,10 @@ describe('estimateTokensForHistory', () => {
 
   test('estimates tokens using character length heuristic', () => {
     const history = [
-      { type: 'chat-message', role: 'system', content: 'You are a helpful assistant.', pass: 0 },
-      { type: 'chat-message', role: 'user', content: 'Explain recursion.', pass: 1 },
+      { eventType: 'chat-message', role: 'system', content: 'You are a helpful assistant.', pass: 0 },
+      { eventType: 'chat-message', role: 'user', content: 'Explain recursion.', pass: 1 },
       {
-        type: 'chat-message',
+        eventType: 'chat-message',
         role: 'assistant',
         content: 'Recursion is a process where a function calls itself.',
         pass: 1,
@@ -65,7 +65,7 @@ describe('estimateTokensForHistory', () => {
 
     const larger = estimateTokensForHistory([
       ...history,
-      { type: 'chat-message', role: 'user', content: 'x'.repeat(200), pass: 2 },
+      { eventType: 'chat-message', role: 'user', content: 'x'.repeat(200), pass: 2 },
     ]);
     expect(larger).toBeGreaterThan(estimate);
   });
@@ -73,7 +73,7 @@ describe('estimateTokensForHistory', () => {
   test('handles structured content gracefully', () => {
     const history = [
       {
-        type: 'chat-message',
+        eventType: 'chat-message',
         role: 'assistant',
         content: [{ type: 'text', text: 'Hello' }, { value: 'world' }],
         pass: 3,
@@ -99,8 +99,8 @@ describe('summarizeContextUsage', () => {
 
   test('computes remaining context statistics', () => {
     const history = [
-      { type: 'chat-message', role: 'system', content: 'Sys', pass: 0 },
-      { type: 'chat-message', role: 'user', content: 'Explain binary search in detail.', pass: 1 },
+      { eventType: 'chat-message', role: 'system', content: 'Sys', pass: 0 },
+      { eventType: 'chat-message', role: 'user', content: 'Explain binary search in detail.', pass: 1 },
     ];
 
     const summary = summarizeContextUsage({ history, model: 'gpt-4o-mini' });
