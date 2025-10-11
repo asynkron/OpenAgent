@@ -517,7 +517,7 @@ export async function executeAgentPass({
 
   const persistPlanState = async (planSnapshot) => {
     if (!planSnapshot || !Array.isArray(planSnapshot) || !invokePlanManager) {
-      return;
+      return false;
     }
 
     try {
@@ -530,6 +530,7 @@ export async function executeAgentPass({
 
       if (Array.isArray(persisted)) {
         activePlan = persisted;
+        return true;
       }
     } catch (error) {
       emitEvent({
@@ -539,11 +540,14 @@ export async function executeAgentPass({
         details: error instanceof Error ? error.message : String(error),
       });
     }
+
+    return false;
   };
 
   const planForExecution = clonePlanForExecution(activePlan);
   const executableSteps = collectExecutablePlanSteps(planForExecution);
   let activePlanExecutableSteps = collectExecutablePlanSteps(activePlan);
+  let planMutatedDuringExecution = false;
 
   if (executableSteps.length === 0) {
     if (
@@ -705,6 +709,7 @@ export async function executeAgentPass({
     if (activePlanStep && typeof activePlanStep === 'object') {
       // Surface that execution has started even if the model forgot to update the status.
       activePlanStep.status = 'running';
+      planMutatedDuringExecution = true;
     }
 
     if (step && typeof step === 'object') {
@@ -715,7 +720,8 @@ export async function executeAgentPass({
       emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
     }
 
-    await persistPlanState(activePlan);
+    const persistedBeforeExecution = await persistPlanState(activePlan);
+    planMutatedDuringExecution ||= persistedBeforeExecution;
 
     if (Array.isArray(activePlan)) {
       activePlanExecutableSteps = collectExecutablePlanSteps(activePlan);
@@ -753,6 +759,7 @@ export async function executeAgentPass({
     step.observation = observation;
     if (activePlanStep && typeof activePlanStep === 'object') {
       activePlanStep.observation = observation;
+      planMutatedDuringExecution = true;
     }
 
     const exitCode =
@@ -764,6 +771,7 @@ export async function executeAgentPass({
     if (exitCode === 0) {
       if (activePlanStep && typeof activePlanStep === 'object') {
         activePlanStep.status = 'completed';
+        planMutatedDuringExecution = true;
       }
       if (step && typeof step === 'object') {
         step.status = 'completed';
@@ -790,11 +798,16 @@ export async function executeAgentPass({
       emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
     }
 
-    await persistPlanState(activePlan);
+    const persistedAfterExecution = await persistPlanState(activePlan);
+    planMutatedDuringExecution ||= persistedAfterExecution;
 
     if (Array.isArray(activePlan)) {
       activePlanExecutableSteps = collectExecutablePlanSteps(activePlan);
     }
+  }
+
+  if (planMutatedDuringExecution && Array.isArray(activePlan)) {
+    emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
   }
 
   const planObservation = {
