@@ -1,7 +1,7 @@
 {
   "name": "openagent-monorepo",
   "private": true,
-  "version": "2.13.14",
+  "version": "2.13.15",
   "description": "Monorepo for the OpenAgent CLI and core runtime",
   "type": "module",
   "workspaces": [
