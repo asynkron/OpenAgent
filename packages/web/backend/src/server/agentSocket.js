@@ -1,4 +1,4 @@
-import { createWebSocketBinding } from '@asynkron/openagent';
+import { createWebSocketBinding } from '@asynkron/openagent-core';
 import { describeAgentError, formatAgentEvent, isWebSocketOpen, normaliseAgentText } from './utils.js';
 
 export class AgentSocketManager {
