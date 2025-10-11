@@ -34,6 +34,8 @@ export const RESPONSE_PARAMETERS_SCHEMA = {
   $defs: {
     planStep: {
       type: 'object',
+      description:
+        'represents a step in a plan.. if this step need to wait for other steps to complete, those steps should be child steps, e.g, taks 1. will wait for task 1.1 and task 1.2 to complete before running. the same applies to child steps',
       required: ['step', 'title', 'status'],
       additionalProperties: false,
       properties: {

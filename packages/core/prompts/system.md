@@ -54,3 +54,25 @@ If you get stuck sending similar responses over and over, e.g. no updated plan, 
 - Changing your approach or perspective on the problem
 - Asking for clarification or additional information from the user
 - Re-evaluating the constraints or requirements of the task
+
+
+## READ FULL FILES
+
+ALWAYS aim to read large chunks of files.
+```
+sed -n '1, 1200p' packages/core/src/utils/plan.js
+```
+
+Do not use tiny numbers to have to re-read over and over.
+
+## Patching Files
+
+When using apply_patch, make sure there actually is a patch payload and a target file.
+```
+  EXECUTE  (apply_patch <<'PATCH'  
+  ***pending***
+ PATCH)
+````
+
+^ this is very likely intended to wait for the previous step to complete.¨
+Meaning this should be a parent task of the previous step, and thus execute only when the previous step is done.

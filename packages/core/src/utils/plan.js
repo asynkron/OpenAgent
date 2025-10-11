@@ -105,47 +105,41 @@ function selectChildKey(existingItem, incomingItem) {
 
 const VOLATILE_KEYS = new Set(['age']);
 
-function stripVolatileKeys(item) {
-  if (!item || typeof item !== 'object') {
-    return item;
-  }
-
-  const cleaned = { ...item };
-  for (const key of VOLATILE_KEYS) {
-    if (key in cleaned) {
-      delete cleaned[key];
-    }
-  }
-  return cleaned;
-}
-
 function mergePlanItems(existingItem, incomingItem) {
-  if (!incomingItem || typeof incomingItem !== 'object') {
-    return clonePlanItem(existingItem);
-  }
-
   if (!existingItem || typeof existingItem !== 'object') {
     return clonePlanItem(incomingItem);
   }
 
-  const base = clonePlanItem(stripVolatileKeys(existingItem));
-  const incoming = clonePlanItem(stripVolatileKeys(incomingItem));
-  const merged = { ...base, ...incoming };
+  if (!incomingItem || typeof incomingItem !== 'object') {
+    return existingItem;
+  }
+
+  for (const [key, value] of Object.entries(incomingItem)) {
+    if (VOLATILE_KEYS.has(key)) {
+      continue;
+    }
+
+    if (PLAN_CHILD_KEYS.includes(key)) {
+      continue;
+    }
+
+    existingItem[key] = value;
+  }
 
   const childKey = selectChildKey(existingItem, incomingItem);
   if (childKey) {
     const existingChildren = Array.isArray(existingItem[childKey]) ? existingItem[childKey] : [];
     const incomingChildren = Array.isArray(incomingItem[childKey]) ? incomingItem[childKey] : [];
-    merged[childKey] = mergePlanTrees(existingChildren, incomingChildren);
+    existingItem[childKey] = mergePlanTrees(existingChildren, incomingChildren);
 
     for (const key of PLAN_CHILD_KEYS) {
-      if (key !== childKey && key in merged) {
-        delete merged[key];
+      if (key !== childKey && key in existingItem) {
+        delete existingItem[key];
       }
     }
   }
 
-  return merged;
+  return existingItem;
 }
 
 export function mergePlanTrees(existingPlan = [], incomingPlan = []) {
@@ -179,7 +173,7 @@ export function mergePlanTrees(existingPlan = [], incomingPlan = []) {
   existing.forEach((item, index) => {
     const key = createPlanKey(item, index);
     if (!usedKeys.has(key)) {
-      result.push(clonePlanItem(item));
+      result.push(item);
     }
   });
 
