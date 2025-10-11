@@ -2,7 +2,8 @@
 
 ## Purpose & Scope
 
-- Runtime scratch space persisted by the agent loop. Currently stores `plan.json`, the last known execution plan emitted by the LLM.
+- Runtime scratch space persisted by the agent loop. Historically stored transient `temp/` notes and `plan.json` snapshots; all
+  scratch data is now ignored by Git so the directory stays clean in commits.
 
 ## Key Artifacts
 

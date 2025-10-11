@@ -100,9 +100,9 @@ Auto-approved by allowlist (approved_commands.json)
    ```bash
    npm install
    ```
-3. Copy the environment template and add your OpenAI API key:
+3. Copy the environment template into the CLI workspace and add your OpenAI API key:
    ```bash
-   cp .env.example .env
+   cp .env.example packages/cli/.env
    ```
 
 ### Quality tooling
@@ -113,7 +113,7 @@ Auto-approved by allowlist (approved_commands.json)
 
 ## Configuration
 
-Edit `.env` to include the required secrets:
+Edit `packages/cli/.env` to include the required secrets (this is where the CLI loads configuration from by default):
 
 ```
 OPENAI_API_KEY=sk-...
@@ -130,6 +130,8 @@ OPENAI_API_KEY=sk-...
 # Optional: point at a custom Responses API endpoint (must be the API root, not a completions URL)
 # OPENAI_BASE_URL=https://api.openai.com/v1
 ```
+
+If this file is missing, the CLI will exit with a reminder to create `packages/cli/.env` (for example by copying `.env.example`) and set `OPENAI_API_KEY` before trying again.
 
 The client validates that the configured model supports the Responses API and that any custom base URL targets the API root, so misconfigurations fail fast.
 

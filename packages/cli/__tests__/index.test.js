@@ -72,7 +72,9 @@ afterEach(() => {
 describe('getOpenAIClient', () => {
   test('throws when OPENAI_API_KEY is missing', async () => {
     const { mod } = await loadModule({ OPENAI_API_KEY: null });
-    expect(() => mod.getOpenAIClient()).toThrow('OPENAI_API_KEY not found');
+    expect(() => mod.getOpenAIClient()).toThrow(
+      'OPENAI_API_KEY is missing. Action required: copy .env.example to packages/cli/.env and set OPENAI_API_KEY=<your key> before re-running OpenAgent.',
+    );
   });
 
   test('returns memoized OpenAI client when key is set', async () => {
