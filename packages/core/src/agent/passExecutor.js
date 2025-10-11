@@ -184,6 +184,12 @@ export async function executeAgentPass({
     buildPreview,
   });
 
+  const invokePlanManager =
+    planManager && typeof planManager === 'object'
+      ? (method, ...args) =>
+          typeof method === 'function' ? method.call(planManager, ...args) : undefined
+      : null;
+
   if (historyCompactor && typeof historyCompactor.compactIfNeeded === 'function') {
     try {
       await historyCompactor.compactIfNeeded({ history });
@@ -414,25 +420,22 @@ export async function executeAgentPass({
   let activePlan = incomingPlan ?? [];
 
   if (planManager) {
-    const invokePlanManager = (method, ...args) =>
-      typeof method === 'function' ? method.call(planManager, ...args) : undefined;
-
     try {
-      const mergePreference = await invokePlanManager(planManager.isMergingEnabled);
+      const mergePreference = await invokePlanManager?.(planManager.isMergingEnabled);
       const shouldMerge = mergePreference !== false;
 
       if (incomingPlan) {
-        const updated = await invokePlanManager(planManager.update, incomingPlan);
+        const updated = await invokePlanManager?.(planManager.update, incomingPlan);
         if (Array.isArray(updated)) {
           activePlan = updated;
         }
       } else if (shouldMerge) {
-        const snapshot = await invokePlanManager(planManager.get);
+        const snapshot = await invokePlanManager?.(planManager.get);
         if (Array.isArray(snapshot)) {
           activePlan = snapshot;
         }
       } else {
-        const cleared = await invokePlanManager(planManager.reset);
+        const cleared = await invokePlanManager?.(planManager.reset);
         if (Array.isArray(cleared)) {
           activePlan = cleared;
         }
@@ -451,10 +454,11 @@ export async function executeAgentPass({
     activePlan = incomingPlan ?? [];
   }
 
-  emitEvent({ type: 'plan', plan: activePlan });
+  emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
 
   const planForExecution = clonePlanForExecution(activePlan);
   const executableSteps = collectExecutablePlanSteps(planForExecution);
+  const activePlanExecutableSteps = collectExecutablePlanSteps(activePlan);
 
   if (executableSteps.length === 0) {
     if (
@@ -488,7 +492,9 @@ export async function executeAgentPass({
       return true;
     }
 
-    if (Array.isArray(activePlan) && planHasOpenSteps(activePlan)) {
+    const hasOpenSteps = Array.isArray(activePlan) && activePlan.length > 0 && planHasOpenSteps(activePlan);
+
+    if (hasOpenSteps) {
       const attempt = incrementPlanReminder();
 
       if (attempt <= PLAN_REMINDER_AUTO_RESPONSE_LIMIT) {
@@ -504,13 +510,45 @@ export async function executeAgentPass({
       return false;
     }
 
+    if (!activePlanEmpty && !hasOpenSteps) {
+      // The plan is finished; wipe the snapshot so follow-up prompts start cleanly.
+      if (invokePlanManager) {
+        try {
+          const cleared = await invokePlanManager(planManager.reset);
+          if (Array.isArray(cleared)) {
+            activePlan = cleared;
+          } else {
+            activePlan = [];
+          }
+        } catch (error) {
+          emitEvent({
+            type: 'status',
+            level: 'warn',
+            message: 'Failed to clear persistent plan state after completion.',
+            details: error instanceof Error ? error.message : String(error),
+          });
+          activePlan = [];
+        }
+      } else {
+        activePlan = [];
+      }
+
+      emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
+    }
+
     resetPlanReminder();
     return false;
   }
 
   resetPlanReminder();
 
-  for (const { step, command } of executableSteps) {
+  for (let index = 0; index < executableSteps.length; index += 1) {
+    const { step, command } = executableSteps[index];
+    const activePlanStep =
+      activePlanExecutableSteps && index < activePlanExecutableSteps.length
+        ? activePlanExecutableSteps[index]?.step
+        : null;
+
     const normalizedRun = typeof command.run === 'string' ? command.run.trim() : '';
     if (normalizedRun && command.run !== normalizedRun) {
       command.run = normalizedRun;
@@ -577,6 +615,19 @@ export async function executeAgentPass({
           message: 'Command auto-approved via flag.',
         });
       }
+    }
+
+    if (activePlanStep && typeof activePlanStep === 'object') {
+      // Surface that execution has started even if the model forgot to update the status.
+      activePlanStep.status = 'running';
+    }
+
+    if (step && typeof step === 'object') {
+      step.status = 'running';
+    }
+
+    if (Array.isArray(activePlan)) {
+      emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
     }
 
     const { result, executionDetails } = await executeAgentCommand({

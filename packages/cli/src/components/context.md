@@ -6,9 +6,9 @@
 
 ## Key Components
 
-- `CliApp.js` — top-level Ink tree that wires agent runtime events into UI sections.
+- `CliApp.js` — top-level Ink tree that wires agent runtime events into UI sections and clears completed plans from the timeline once the human submits a fresh prompt.
 - `AgentResponse.js`, `HumanMessage.js`, `StatusMessage.js` — render conversational messages with markdown support.
-- `Plan.js`, `PlanDetail.js`, `PlanProgress.js` — visualize plan trees and completion state (uses `planUtils.js`, `progressUtils.js`).
+- `Plan.js`, `PlanDetail.js` — visualize plan trees; `Plan.js` now focuses solely on hierarchical steps while the standalone `PlanProgress.js` helper can still render aggregated progress when a caller opts in.
 - `Command.js`, `renderCommand.js`, `commandUtils.js` — pretty-print shell commands with highlights and approval status. `Command.js` now extracts any `*** Begin Patch` / `*** End Patch` sections from `command.run`, renders them in `diff` code fences via the shared markdown renderer, and preserves surrounding text segments.
 - `ContextUsage.js` — displays token usage (remaining context window) tracked by `contextUsage` utilities.
 - `DebugPanel.js`, `ThinkingIndicator.js` — optional diagnostics and spinner overlays; the debug panel renders payloads via the shared markdown renderer using `json` code fences so debug data is syntax-highlighted.

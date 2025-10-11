@@ -14,7 +14,7 @@
 - `amnesiaManager.js` — applies pass-aware "amnesia" filters that redact or drop bulky JSON payloads once they age beyond ten passes and exposes a shared dementia policy helper that prunes entries older than the configured hard limit.
 - `openaiRequest.js` — builds structured responses requests with retries and timeout handling.
 - `promptCoordinator.js`, `escState.js` — route human prompts, handle ESC cancellations, and guard against idle ESC presses latching cancellations.
-- `passExecutor.js` — orchestrates multi-pass reasoning loops (execute/reflect cycles) when the model requests continuations, skips blank run/shell payloads so empty commands fall back to the message-only path, funnels plan manager calls through a single helper to keep optional method checks centralized, caps plan reminder auto-responses to three consecutive attempts so humans can step in before the loop stalls, and now executes commands directly from active plan steps while embedding their observations back into the plan before returning control to the model.
+- `passExecutor.js` — orchestrates multi-pass reasoning loops (execute/reflect cycles) when the model requests continuations, skips blank run/shell payloads so empty commands fall back to the message-only path, funnels plan manager calls through a single helper to keep optional method checks centralized, caps plan reminder auto-responses to three consecutive attempts so humans can step in before the loop stalls, executes commands directly from active plan steps while embedding their observations back into the plan before returning control to the model, marks any plan step that runs a command as `running`, and clears fully completed plans before the next user prompt.
 
 ## Positive Signals
 

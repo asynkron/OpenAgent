@@ -1,7 +1,12 @@
 /* eslint-env jest */
 import { jest } from '@jest/globals';
 
-const setupPassExecutor = async () => {
+const setupPassExecutor = async (options = {}) => {
+  const {
+    executeAgentCommandImpl = () => {
+      throw new Error('executeAgentCommand should not run for blank commands');
+    },
+  } = options;
   jest.resetModules();
 
   const requestModelCompletion = jest
@@ -53,9 +58,7 @@ const setupPassExecutor = async () => {
     default: { validateAssistantResponseSchema, validateAssistantResponse },
   }));
 
-  const executeAgentCommand = jest.fn(() => {
-    throw new Error('executeAgentCommand should not run for blank commands');
-  });
+  const executeAgentCommand = jest.fn(executeAgentCommandImpl);
   jest.unstable_mockModule('../commandExecution.js', () => ({
     executeAgentCommand,
     default: { executeAgentCommand },
@@ -173,6 +176,76 @@ describe('executeAgentPass', () => {
     );
   });
 
+  test('marks executing plan steps as running', async () => {
+    const {
+      executeAgentPass,
+      parseAssistantResponse,
+      executeAgentCommand,
+      planHasOpenSteps,
+    } = await setupPassExecutor({
+      executeAgentCommandImpl: () => ({
+        result: { stdout: 'ready', stderr: '', exitCode: 0 },
+        executionDetails: { code: 0 },
+      }),
+    });
+
+    planHasOpenSteps.mockReturnValue(true);
+
+    parseAssistantResponse.mockImplementation(() => ({
+      ok: true,
+      value: {
+        message: 'Executing plan',
+        plan: [
+          {
+            step: '1',
+            title: 'Do the work',
+            status: 'pending',
+            command: { run: 'echo hello' },
+          },
+        ],
+      },
+      recovery: { strategy: 'direct' },
+    }));
+
+    const emitEvent = jest.fn();
+    const history = [];
+
+    const PASS_INDEX = 5;
+    const result = await executeAgentPass({
+      openai: {},
+      model: 'gpt-5-codex',
+      history,
+      emitEvent,
+      runCommandFn: jest.fn(),
+      applyFilterFn: jest.fn(),
+      tailLinesFn: jest.fn(),
+      getNoHumanFlag: () => false,
+      setNoHumanFlag: () => {},
+      planReminderMessage: 'remember the plan',
+      startThinkingFn: jest.fn(),
+      stopThinkingFn: jest.fn(),
+      escState: {},
+      approvalManager: null,
+      historyCompactor: null,
+      planManager: null,
+      emitAutoApproveStatus: false,
+      passIndex: PASS_INDEX,
+    });
+
+    expect(result).toBe(true);
+    expect(executeAgentCommand).toHaveBeenCalledTimes(1);
+
+    const planEvents = emitEvent.mock.calls
+      .map(([event]) => event)
+      .filter((event) => event && event.type === 'plan');
+    expect(planEvents.length).toBeGreaterThanOrEqual(2);
+    expect(planEvents[0].plan[0].status).toBe('pending');
+    const updatedPlanEvent = planEvents.find(
+      (event) => Array.isArray(event.plan) && event.plan[0]?.status === 'running',
+    );
+    expect(updatedPlanEvent).toBeDefined();
+  });
+
   test('auto-responds when schema validation fails', async () => {
     const {
       executeAgentPass,
@@ -259,6 +332,81 @@ describe('executeAgentPass', () => {
     expect(parsedObservation.payload.details).toContain(
       'response.plan[0].command: Must be of type object.',
     );
+  });
+
+  test('clears completed plans when no steps remain open', async () => {
+    const {
+      executeAgentPass,
+      parseAssistantResponse,
+      planHasOpenSteps,
+      executeAgentCommand,
+    } = await setupPassExecutor();
+
+    planHasOpenSteps.mockReturnValue(false);
+
+    parseAssistantResponse.mockImplementation(() => ({
+      ok: true,
+      value: {
+        message: 'Plan finished',
+        plan: [
+          {
+            step: '1',
+            title: 'Wrap up',
+            status: 'completed',
+          },
+        ],
+      },
+      recovery: { strategy: 'direct' },
+    }));
+
+    const emitEvent = jest.fn();
+    const history = [];
+    const reset = jest.fn().mockResolvedValue([]);
+    const update = jest
+      .fn()
+      .mockResolvedValue([{ step: '1', title: 'Wrap up', status: 'completed' }]);
+
+    const planManager = {
+      isMergingEnabled: jest.fn().mockReturnValue(true),
+      update,
+      get: jest.fn(),
+      reset,
+    };
+
+    const PASS_INDEX = 9;
+    const result = await executeAgentPass({
+      openai: {},
+      model: 'gpt-5-codex',
+      history,
+      emitEvent,
+      runCommandFn: jest.fn(),
+      applyFilterFn: jest.fn(),
+      tailLinesFn: jest.fn(),
+      getNoHumanFlag: () => false,
+      setNoHumanFlag: () => {},
+      planReminderMessage: 'remember the plan',
+      startThinkingFn: jest.fn(),
+      stopThinkingFn: jest.fn(),
+      escState: {},
+      approvalManager: null,
+      historyCompactor: null,
+      planManager,
+      emitAutoApproveStatus: false,
+      passIndex: PASS_INDEX,
+    });
+
+    expect(result).toBe(false);
+    expect(executeAgentCommand).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(reset).toHaveBeenCalledTimes(1);
+
+    const planEvents = emitEvent.mock.calls
+      .map(([event]) => event)
+      .filter((event) => event && event.type === 'plan');
+    expect(planEvents.length).toBeGreaterThanOrEqual(2);
+    const clearedEvent = planEvents[planEvents.length - 1];
+    expect(Array.isArray(clearedEvent.plan)).toBe(true);
+    expect(clearedEvent.plan).toHaveLength(0);
   });
 
   test('caps plan reminder auto-response after three consecutive attempts', async () => {

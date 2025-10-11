@@ -460,6 +460,29 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
       }
 
       if (!handledLocally) {
+        const progressValue = planProgress?.value ?? null;
+        const planCompleted =
+          planProgress?.seen === true &&
+          progressValue &&
+          Number.isFinite(progressValue.totalSteps) &&
+          progressValue.totalSteps > 0 &&
+          Number.isFinite(progressValue.completedSteps) &&
+          progressValue.completedSteps >= progressValue.totalSteps;
+
+        if (planCompleted) {
+          // Once every leaf step is marked complete, clear the rendered plan so the
+          // next human turn starts with a fresh slate.
+          setPlan((prevPlan) =>
+            Array.isArray(prevPlan) && prevPlan.length === 0 ? prevPlan : [],
+          );
+          setPlanProgress((prev) => {
+            if (!prev?.seen && (prev?.value === null || typeof prev?.value === 'undefined')) {
+              return prev;
+            }
+            return { seen: false, value: null };
+          });
+        }
+
         try {
           runtimeRef.current?.submitPrompt?.(submission);
         } catch (error) {
@@ -473,7 +496,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
       // input. Keep the current request active so the next human prompt is routed
       // to OpenAI instead of being treated as another local command.
     },
-    [appendEntry, handleSlashCommand, handleStatusEvent],
+    [appendEntry, handleSlashCommand, handleStatusEvent, planProgress],
   );
 
   const handleEvent = useCallback(
