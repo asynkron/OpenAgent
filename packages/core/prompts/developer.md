@@ -116,3 +116,9 @@ Sky Blue: #2C82D2
 Orange-Red: #D22C3D
 Cyan: #2CB8D2
 Purple: #5B2CD2
+
+
+## Memory leaks
+
+read and follow the instructions in `packages/core/prompts/memoryleaks.md` when investigating memory leaks.
+
