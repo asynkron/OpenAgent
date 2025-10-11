@@ -20,8 +20,8 @@ describe('runCli', () => {
 
     delete process.env.OPENAI_API_KEY;
 
-    await jest.unstable_mockModule('ink', () => {
-      const actual = jest.requireActual('ink');
+    await jest.unstable_mockModule('ink', async () => {
+      const actual = await import('ink');
       return {
         ...actual,
         isRawModeSupported: () => false,
