@@ -50,11 +50,7 @@ export function createPlanManager({
     }
 
     if (signature === null) {
-      if (lastProgressSignature === null) {
-        return progress;
-      }
       lastProgressSignature = null;
-      emit({ type: 'plan-progress', progress });
       return progress;
     }
 
