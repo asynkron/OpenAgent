@@ -22,6 +22,7 @@ import { AsyncQueue, QUEUE_DONE } from '../utils/asyncQueue.js';
 import { cancel as cancelActive } from '../utils/cancellation.js';
 import { PromptCoordinator } from './promptCoordinator.js';
 import { createPlanManager } from './planManager.js';
+import { AmnesiaManager, applyDementiaPolicy } from './amnesiaManager.js';
 
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 const PLAN_PENDING_REMINDER =
@@ -47,6 +48,9 @@ export function createAgentRuntime({
   emitAutoApproveStatus = false,
   createHistoryCompactorFn = ({ openai: client, currentModel }) =>
     new HistoryCompactor({ openai: client, model: currentModel, logger: console }),
+  dementiaLimit = 30,
+  amnesiaLimit = 10,
+  createAmnesiaManagerFn = (config) => new AmnesiaManager(config),
 } = {}) {
   const outputs = new AsyncQueue();
   const inputs = new AsyncQueue();
@@ -129,6 +133,30 @@ export function createAgentRuntime({
     },
   ];
 
+  const normalizedAmnesiaLimit =
+    typeof amnesiaLimit === 'number' && Number.isFinite(amnesiaLimit) && amnesiaLimit > 0
+      ? Math.floor(amnesiaLimit)
+      : 0;
+
+  let amnesiaManager = null;
+  if (normalizedAmnesiaLimit > 0 && typeof createAmnesiaManagerFn === 'function') {
+    try {
+      amnesiaManager = createAmnesiaManagerFn({ threshold: normalizedAmnesiaLimit });
+    } catch (error) {
+      emit({
+        type: 'status',
+        level: 'warn',
+        message: '[memory] Failed to initialize amnesia manager.',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  const normalizedDementiaLimit =
+    typeof dementiaLimit === 'number' && Number.isFinite(dementiaLimit) && dementiaLimit > 0
+      ? Math.floor(dementiaLimit)
+      : 0;
+
   const historyCompactor =
     typeof createHistoryCompactorFn === 'function'
       ? createHistoryCompactorFn({ openai, currentModel: model })
@@ -190,6 +218,52 @@ export function createAgentRuntime({
     emit({ type: 'debug', payload });
   };
 
+  const enforceMemoryPolicies = (currentPass) => {
+    if (!Number.isFinite(currentPass) || currentPass <= 0) {
+      return;
+    }
+
+    let mutated = false;
+
+    if (amnesiaManager && typeof amnesiaManager.apply === 'function') {
+      try {
+        mutated = amnesiaManager.apply({ history, currentPass }) || mutated;
+      } catch (error) {
+        emit({
+          type: 'status',
+          level: 'warn',
+          message: '[memory] Failed to apply amnesia filter.',
+          details: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    if (normalizedDementiaLimit > 0) {
+      try {
+        mutated =
+          applyDementiaPolicy({
+            history,
+            currentPass,
+            limit: normalizedDementiaLimit,
+          }) || mutated;
+      } catch (error) {
+        emit({
+          type: 'status',
+          level: 'warn',
+          message: '[memory] Failed to apply dementia pruning.',
+          details: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    if (mutated) {
+      emitDebug(() => ({
+        stage: 'memory-policy-applied',
+        historyLength: history.length,
+      }));
+    }
+  };
+
   async function start() {
     if (running) {
       throw new Error('Agent runtime already started.');
@@ -249,6 +323,8 @@ export function createAgentRuntime({
           pass: activePass,
         });
 
+        enforceMemoryPolicies(activePass);
+
         try {
           let continueLoop = true;
           let currentPass = activePass;
@@ -276,6 +352,8 @@ export function createAgentRuntime({
               emitAutoApproveStatus,
               passIndex: currentPass,
             });
+
+            enforceMemoryPolicies(currentPass);
 
             if (!shouldContinue) {
               continueLoop = false;
