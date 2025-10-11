@@ -17,7 +17,7 @@
 
 ## Positive Signals
 
-- Utilities are mostly pure and individually unit-tested, minimizing regressions when refactoring.
+- Utilities are mostly pure and individually unit-tested via the co-located `__tests__/` suites, minimizing regressions when refactoring.
 - Plan utilities implement tree-aware merging, enabling plan persistence features.
 
 ## Risks / Gaps
@@ -28,4 +28,4 @@
 ## Related Context
 
 - Consumers across runtime/UI: [`../agent/context.md`](../agent/context.md), [`../cli/context.md`](../cli/context.md).
-- Validation usage: [`../../scripts/context.md`](../../scripts/context.md), [`../../tests/unit/context.md`](../../tests/unit/context.md).
+- Validation usage: [`../../scripts/context.md`](../../scripts/context.md); tests live in [`__tests__/`](__tests__/).

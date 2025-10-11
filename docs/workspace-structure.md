@@ -34,3 +34,11 @@ The repository root acts as an npm workspace so each package owns its own `packa
 5. **Verify publishing**: run a dry-run publish (`npm publish --dry-run`) from each package to ensure manifests include the right files and the CLI continues to expose the `openagent` binary.
 
 This approach lets you evolve the runtime independently, keep existing users on the same CLI package, and only introduce new npm names when you decide to publish the extracted core.
+
+## Test Placement Guidance
+
+- **Package-scoped unit tests**: Prefer keeping spec files inside each package (for example `packages/core/src/__tests__/` or `packages/cli/src/__tests__/`). Co-locating them with the code under test keeps imports local, follows the default Jest resolution model, and matches the expectations of contributors familiar with single-package Node projects.
+- **Cross-package integration suites**: Use the repository-level `tests/` directory for scenarios that exercise multiple packages together (e.g., CLI bootstrapping that hits the runtime, shared schema validations, or mocked OpenAI conversations). Housing them at the workspace root avoids circular devDependencies between packages and keeps the integration harness easy to invoke from CI.
+- **Incremental migration**: While both packages still rely on the root-level suites, add new unit tests next to the implementation files you touch. Existing root tests can be migrated opportunistically by moving the spec, updating relative imports, and pointing Jest's `roots` configuration to the new locations when the per-package layout stabilises.
+- Jest now resolves tests from the workspace packages by setting `roots: ["<rootDir>/packages", "<rootDir>/tests"]` in
+  `jest.config.mjs`, keeping discovery scoped to per-package suites plus the shared integration harness.

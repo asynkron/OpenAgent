@@ -11,8 +11,9 @@
 
 ## Positive Signals
 
-- Approval service decouples policy from runtime UI, simplifying reuse in tests and potential non-CLI front-ends.
-- Unit tests cover allowlist parsing and approval flows.
+- Approval service decouples policy from runtime UI, simplifying reuse in tests and potential non-CLI front-ends (exercised via
+  `../agent/__tests__/approvalManager.test.js`).
+- Unit tests cover allowlist parsing and approval flows alongside the agent orchestration specs.
 
 ## Risks / Gaps
 
@@ -22,4 +23,4 @@
 ## Related Context
 
 - Runtime consumers: [`../agent/context.md`](../agent/context.md).
-- Tests covering services: [`../../tests/unit/context.md`](../../tests/unit/context.md).
+- Tests covering services: [`../agent/__tests__/approvalManager.test.js`](../agent/__tests__/approvalManager.test.js).
