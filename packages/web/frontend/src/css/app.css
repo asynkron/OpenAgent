@@ -326,6 +326,12 @@ body {
   margin-left: calc(10px + var(--space-10));
 }
 
+.agent-plan-step-meta {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  margin-left: calc(10px + var(--space-10));
+}
+
 .agent-plan-step > .agent-plan-steps {
   margin-top: var(--space-6);
   margin-left: calc(10px + var(--space-10) + 1.6ch);
