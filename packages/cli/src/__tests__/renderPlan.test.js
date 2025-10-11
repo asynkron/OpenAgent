@@ -28,15 +28,21 @@ describe('renderPlan', () => {
           step: '1',
           title: 'Root task',
           status: 'completed',
+          age: 1,
           substeps: [
             {
               step: '1.1',
               title: 'Nested work',
               status: 'running',
+              age: 3,
+              command: {
+                run: 'npm test --watch',
+              },
               substeps: [
                 {
                   title: 'Leaf step',
                   status: 'pending',
+                  age: 0,
                 },
               ],
             },
@@ -44,12 +50,14 @@ describe('renderPlan', () => {
               step: 'a',
               title: 'Blocked child',
               status: 'blocked',
+              age: 2,
             },
           ],
         },
         {
           title: 'Follow-up',
           status: 'pending',
+          age: 0,
         },
       ]);
 
@@ -59,11 +67,11 @@ describe('renderPlan', () => {
 
       const lines = outputs[0].split('\n');
       expect(lines).toEqual([
-        '✔ 1. Root task',
-        '  ▶ 1.1. Nested work',
-        '    • 1.1.1. Leaf step',
-        '  ✖ 1.a. Blocked child',
-        '• 2. Follow-up',
+        '✔ 1. Root task (age 1)',
+        '  ▶ 1.1. Nested work (age 3) — run: npm test --watch',
+        '    • 1.1.1. Leaf step (age 0)',
+        '  ✖ 1.a. Blocked child (age 2)',
+        '• 2. Follow-up (age 0)',
       ]);
     } finally {
       logSpy.mockRestore();

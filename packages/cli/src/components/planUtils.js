@@ -5,6 +5,41 @@
 
 const CHILD_KEYS = ['substeps', 'children', 'steps'];
 
+const MAX_COMMAND_PREVIEW_LENGTH = 80;
+
+// Ensure age is always a non-negative integer so the UI can display it consistently.
+function coerceAge(value) {
+  const numeric = Number.parseInt(value, 10);
+  if (Number.isFinite(numeric) && numeric >= 0) {
+    return numeric;
+  }
+  return 0;
+}
+
+// Produce a trimmed preview of the next shell command so humans can reason about the step.
+function buildCommandPreview(command) {
+  if (!command || typeof command !== 'object') {
+    return '';
+  }
+
+  const { run } = command;
+  if (typeof run !== 'string') {
+    return '';
+  }
+
+  const collapsed = run.trim().replace(/\s+/g, ' ');
+  if (collapsed.length === 0) {
+    return '';
+  }
+
+  if (collapsed.length <= MAX_COMMAND_PREVIEW_LENGTH) {
+    return `run: ${collapsed}`;
+  }
+
+  const truncated = collapsed.slice(0, MAX_COMMAND_PREVIEW_LENGTH - 1).trimEnd();
+  return `run: ${truncated}…`;
+}
+
 function resolveStatusDetails(status) {
   const normalized = typeof status === 'string' ? status.toLowerCase() : '';
 
@@ -59,6 +94,8 @@ function traversePlan(items, ancestors = [], depth = 0, collection = []) {
     const { symbol, color } = resolveStatusDetails(item.status);
     const title = item.title !== undefined && item.title !== null ? String(item.title) : '';
     const id = `${label || depth}-${index}-${depth}`;
+    const age = coerceAge(item.age);
+    const commandPreview = buildCommandPreview(item.command);
 
     collection.push({
       id,
@@ -67,6 +104,8 @@ function traversePlan(items, ancestors = [], depth = 0, collection = []) {
       symbol,
       color,
       title,
+      age,
+      commandPreview,
     });
 
     const childKey = CHILD_KEYS.find((key) => Array.isArray(item[key]));
@@ -87,7 +126,9 @@ export function buildPlanLines(plan) {
   return nodes.map((node) => {
     const indent = '  '.repeat(node.depth);
     const titlePart = node.title ? ` ${node.title}` : '';
-    return `${indent}${node.symbol} ${node.label}.${titlePart}`.trimEnd();
+    const agePart = ` (age ${node.age ?? 0})`;
+    const commandPart = node.commandPreview ? ` — ${node.commandPreview}` : '';
+    return `${indent}${node.symbol} ${node.label}.${titlePart}${agePart}${commandPart}`.trimEnd();
   });
 }
 
