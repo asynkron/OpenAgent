@@ -8,6 +8,7 @@
 
 - `replace-node.js` — jscodeshift transform for structural refactors that still lives at the repo root.
 - `install-git-hooks.js` — configures `core.hooksPath` so local Git uses the repo's `.githooks` directory automatically. The script runs during `npm install`, `npm prepare`, and the lifecycle `pre*` scripts for lint, format, and test tasks.
+- `start.js` — orchestrates `npm start` modes. Defaults to the CLI but adds a `web` target that builds the frontend bundle before launching the web backend.
 - `validate-json-assets.js` — validates prompt JSON against `schemas/prompts.schema.json`.
 - `verify-release-tag.js` — ensures release tags align with package metadata before publishing.
 - `README.md` & `patchexample.md` — documentation for the helper scripts (with updated paths pointing to `packages/core/scripts/`).

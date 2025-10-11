@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "scripts": {
-    "start": "npm run start --workspace @asynkron/openagent",
+    "start": "node ./scripts/start.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "lint": "eslint .",
     "format": "prettier --write .",

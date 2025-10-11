@@ -10,7 +10,7 @@
     "dev": "NODE_ENV=development node ./src/index.js"
   },
   "dependencies": {
-    "@asynkron/openagent": "^2.13.11",
+    "@asynkron/openagent-core": "file:../../core",
     "ws": "^8.15.1"
   }
 }
