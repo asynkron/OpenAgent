@@ -250,6 +250,76 @@ describe('executeAgentPass', () => {
     expect(completedEvent).toBeDefined();
   });
 
+  test('marks plan steps as failed when command exits non-zero', async () => {
+    const {
+      executeAgentPass,
+      parseAssistantResponse,
+      executeAgentCommand,
+      planHasOpenSteps,
+    } = await setupPassExecutor({
+      executeAgentCommandImpl: () => ({
+        result: { stdout: '', stderr: 'boom', exit_code: 2 },
+        executionDetails: { code: 2 },
+      }),
+    });
+
+    planHasOpenSteps.mockReturnValue(true);
+
+    parseAssistantResponse.mockImplementation(() => ({
+      ok: true,
+      value: {
+        message: 'Executing plan',
+        plan: [
+          {
+            step: '1',
+            title: 'Failing step',
+            status: 'pending',
+            command: { run: 'exit 2' },
+          },
+        ],
+      },
+      recovery: { strategy: 'direct' },
+    }));
+
+    const emitEvent = jest.fn();
+    const history = [];
+
+    const PASS_INDEX = 13;
+    const result = await executeAgentPass({
+      openai: {},
+      model: 'gpt-5-codex',
+      history,
+      emitEvent,
+      runCommandFn: jest.fn(),
+      applyFilterFn: jest.fn(),
+      tailLinesFn: jest.fn(),
+      getNoHumanFlag: () => false,
+      setNoHumanFlag: () => {},
+      planReminderMessage: 'remember the plan',
+      startThinkingFn: jest.fn(),
+      stopThinkingFn: jest.fn(),
+      escState: {},
+      approvalManager: null,
+      historyCompactor: null,
+      planManager: null,
+      emitAutoApproveStatus: false,
+      passIndex: PASS_INDEX,
+    });
+
+    expect(result).toBe(true);
+    expect(executeAgentCommand).toHaveBeenCalledTimes(1);
+
+    const planEvents = emitEvent.mock.calls
+      .map(([event]) => event)
+      .filter((event) => event && event.type === 'plan');
+
+    expect(planEvents.length).toBeGreaterThanOrEqual(3);
+    const failedEvent = planEvents.find(
+      (event) => Array.isArray(event.plan) && event.plan[0]?.status === 'failed',
+    );
+    expect(failedEvent).toBeDefined();
+  });
+
   test('persists merged plans and marks successful commands as completed', async () => {
     const {
       executeAgentPass,

@@ -771,6 +771,14 @@ export async function executeAgentPass({
       if (step && typeof step === 'object') {
         step.status = 'completed';
       }
+    } else if (exitCode !== null) {
+      if (activePlanStep && typeof activePlanStep === 'object') {
+        activePlanStep.status = 'failed';
+        planMutatedDuringExecution = true;
+      }
+      if (step && typeof step === 'object') {
+        step.status = 'failed';
+      }
     }
 
     emitDebug(() => ({
