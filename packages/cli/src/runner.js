@@ -11,6 +11,13 @@ import { formatBootProbeSummary, runBootProbes } from './bootProbes/index.js';
 import { agentLoop } from './runtime.js';
 import { loadCoreModule } from './loadCoreModule.js';
 
+function resolveIo(io) {
+  const target = io ?? {};
+  const stdout = typeof target.stdout === 'function' ? target.stdout : console.log;
+  const stderr = typeof target.stderr === 'function' ? target.stderr : console.error;
+  return { stdout, stderr };
+}
+
 const MISSING_OPENAI_API_KEY_SUMMARY =
   'OPENAI_API_KEY is missing. Action required: copy .env.example to packages/cli/.env and set OPENAI_API_KEY=<your key> before re-running OpenAgent.';
 
@@ -23,17 +30,18 @@ const MISSING_OPENAI_API_KEY_STEPS = [
 const MISSING_OPENAI_API_KEY_DOCS =
   'Need help finding your key? https://platform.openai.com/api-keys';
 
-export async function runCli(argv = process.argv) {
+export async function runCli(argv = process.argv, io) {
+  const { stdout, stderr } = resolveIo(io);
   if (!process.env.OPENAI_API_KEY) {
     const banner = ['-----', MISSING_OPENAI_API_KEY_SUMMARY, '-----'].join('\n');
-    console.error(chalk.red(banner));
-    console.log('');
-    console.log('How to fix it:');
+    stderr(chalk.red(banner));
+    stdout('');
+    stdout('How to fix it:');
     for (const step of MISSING_OPENAI_API_KEY_STEPS) {
-      console.log(step);
+      stdout(step);
     }
-    console.log('');
-    console.log(MISSING_OPENAI_API_KEY_DOCS);
+    stdout('');
+    stdout(MISSING_OPENAI_API_KEY_DOCS);
     return;
   }
 
@@ -56,14 +64,15 @@ export async function runCli(argv = process.argv) {
   }
 }
 
-export function maybeRunCli(metaUrl, argv = process.argv) {
+export function maybeRunCli(metaUrl, argv = process.argv, io) {
+  const resolvedIo = resolveIo(io);
   const currentFilePath = fileURLToPath(metaUrl);
   const invokedPath = argv[1] ? path.resolve(argv[1]) : '';
   if (invokedPath && currentFilePath === invokedPath) {
-    runCli(argv).catch((error) => {
+    runCli(argv, resolvedIo).catch((error) => {
       // Errors already update `process.exitCode`; echo the message to keep parity with the legacy runner.
       if (error && error.message) {
-        console.error(error.message);
+        resolvedIo.stderr(error.message);
       }
     });
     return true;

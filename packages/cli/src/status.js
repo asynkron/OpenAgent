@@ -14,15 +14,15 @@ function formatPercentage(value) {
   return value.toFixed(1);
 }
 
-export function renderRemainingContext(usage) {
+export function renderRemainingContext(usage, options = {}) {
   if (!usage || typeof usage !== 'object') {
-    return;
+    return undefined;
   }
 
   const { total, used, remaining, percentRemaining } = usage;
 
   if (!Number.isFinite(total) || total <= 0) {
-    return;
+    return undefined;
   }
 
   const safeRemaining = Number.isFinite(remaining) ? Math.max(remaining, 0) : null;
@@ -49,7 +49,13 @@ export function renderRemainingContext(usage) {
   }
 
   const line = chalk.dim(parts.join(' '));
-  console.log(line);
+
+  const { logger } = options;
+  if (typeof logger === 'function') {
+    logger(line);
+  }
+
+  return line;
 }
 
 export default {
