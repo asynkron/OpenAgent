@@ -39,6 +39,14 @@ function isTerminalStatus(status) {
   return isCompletedStatus(normalized);
 }
 
+function isAbandonedStatus(status) {
+  if (typeof status !== 'string') {
+    return false;
+  }
+
+  return status.trim().toLowerCase() === 'abandoned';
+}
+
 function normalizeStepLabel(stepValue) {
   if (stepValue === null || stepValue === undefined) {
     return '';
@@ -114,6 +122,10 @@ function mergePlanItems(existingItem, incomingItem) {
     return existingItem;
   }
 
+  if (isAbandonedStatus(incomingItem.status)) {
+    return null;
+  }
+
   for (const [key, value] of Object.entries(incomingItem)) {
     if (VOLATILE_KEYS.has(key)) {
       continue;
@@ -167,9 +179,12 @@ export function mergePlanTrees(existingPlan = [], incomingPlan = []) {
     const existingMatch = existingIndex.get(key);
 
     if (existingMatch) {
-      result.push(mergePlanItems(existingMatch.item, item));
+      const mergedItem = mergePlanItems(existingMatch.item, item);
       usedKeys.add(key);
-    } else {
+      if (mergedItem) {
+        result.push(mergedItem);
+      }
+    } else if (!isAbandonedStatus(item?.status)) {
       result.push(clonePlanItem(item));
     }
   });

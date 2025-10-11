@@ -46,9 +46,9 @@ export const RESPONSE_PARAMETERS_SCHEMA = {
         title: { type: 'string' },
         status: {
           type: 'string',
-          enum: ['pending', 'running', 'completed', 'failed'],
+          enum: ['pending', 'running', 'completed', 'failed', 'abandoned'],
           description:
-            'once a command result has been received, decide if the task is complete or failed. a task that has a command result can never be pending or running',
+            'once a command result has been received, decide if the task is complete or failed. a task that has a command result can never be pending or running, AI can also use "abandoned" to delete items, they will be cleared once received by the agent',
         },
         age: {
           type: 'integer',

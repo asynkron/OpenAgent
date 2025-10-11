@@ -13,6 +13,7 @@
 - `jsonAssetValidator.js` — validates JSON files against provided schemas; leveraged by scripts/tests.
 - `output.js` — formatting helpers for CLI output and logs.
 - `plan.js` — plan tree merge/progress utilities used by agent runtime & UI.
+  - Incoming items with `status: 'abandoned'` now remove the matching plan branch during merge.
 - `text.js` — string helpers (filters, tailing, shell splitting).
 
 ## Positive Signals

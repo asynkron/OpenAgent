@@ -57,6 +57,28 @@ describe('plan utilities', () => {
     expect(merged[0].substeps[0].title).toBe('preserve me');
   });
 
+  test('mergePlanTrees removes items marked as abandoned', () => {
+    const existingPlan = [
+      { step: '1', title: 'keep me', status: 'running' },
+      {
+        step: '2',
+        title: 'drop me',
+        status: 'pending',
+        substeps: [{ step: '2.1', title: 'child', status: 'pending' }],
+      },
+    ];
+
+    const incomingPlan = [
+      { step: '2', title: 'drop me', status: 'abandoned' },
+    ];
+
+    const merged = mergePlanTrees(existingPlan, incomingPlan);
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toBe(existingPlan[0]);
+    expect(merged[0].step).toBe('1');
+  });
+
   test('mergePlanTrees clears plan when incoming plan is empty', () => {
     const existingPlan = [{ step: '1', title: 'done work', status: 'completed' }];
 
