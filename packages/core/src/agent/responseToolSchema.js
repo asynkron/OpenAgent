@@ -13,6 +13,35 @@ function deepFreeze(value) {
 
 export const RESPONSE_PARAMETERS_SCHEMA = {
   type: 'object',
+  description: `Example payload:
+  {
+    message: "Executing the requested command.",
+    plan: [
+      //task
+      {
+        id: "unique-id",
+        description: "Run the user-requested shell command to print a greeting.",
+        status: "pending",
+        priority: 1,
+        //optional, AI can decide if this task must wait for other tasks to complete first
+        waitingForId: ["this-id-must-complete-first", "and-this-id-too"], 
+        command: {
+            reason: "Run the user-requested shell command to print a greeting.",
+            shell: "/bin/bash",
+            run: "echo hello",
+            cwd: "/Users/rogerjohansson/git/asynkron/OpenAgent",
+            timeout_sec: 30
+          }
+      },
+      {
+        id: "this-id-must-complete-first",
+        description: "Do something...",
+
+        ...
+      }
+    ],
+  }
+  `,
   additionalProperties: false,
   required: ['message', 'plan'],
   properties: {
