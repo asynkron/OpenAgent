@@ -43,12 +43,9 @@
 
 ## CLI Runner Investigation (2025-10-11)
 
-- Investigated out-of-memory crashes triggered by `packages/cli/src/__tests__/runner.test.js`.
-- Confirmed the suite passes when the test body is fully commented, and remains stable with only console spies and Ink mock active.
-- Reintroducing the `runCli()` import/invocation alone recreates the OOM after ~21 seconds, even with assertions disabled.
-- Indicates the heavy allocation occurs within `runCli()` or its dependencies during CLI boot.
+- Initial investigation reproduced out-of-memory crashes triggered by `packages/cli/src/__tests__/runner.test.js` whenever `runCli()` executed during the suite.
+- Minimal test scaffolding (console spies, Ink mock) stayed stable, pointing at boot flows in `runCli()` or its dependencies as the source of heavy allocations.
 
-### How to Continue
-- Inspect `packages/cli/src/runner.js` to identify which imports or async flows are allocating large amounts of memory.
-- Consider mocking/stubbing heavy modules when testing, or instrument `runCli()` with logging/profiling to isolate the hotspot.
-- Profile a live CLI session (e.g., `node --inspect` with heap snapshots) while letting auto events fire to catch leaks or slow React reconciliation.
+### Status Update (2025-10-11)
+- Re-ran `npm test -- packages/cli/src/__tests__/runner.test.js`; the suite now passes in ~0.22 s with no OOM behavior.
+- Keep profiling hooks handy (e.g., `node --inspect`, targeted logging) if the leak resurfaces during full CLI sessions outside the test harness.
