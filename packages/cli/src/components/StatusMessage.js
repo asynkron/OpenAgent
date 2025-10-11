@@ -28,9 +28,12 @@ export function StatusMessage({ status }) {
   const message = status.message ?? '';
   const details = status.details ? String(status.details) : '';
 
-  const children = [h(Text, { color }, message)];
+  const keySuffix = React.useMemo(() => Math.random().toString(36).slice(2, 10), []);
+
+  const children = [h(Text, { color, key: `message-${keySuffix}` }, message)];
+
   if (details) {
-    children.push(h(Text, { dimColor: true }, details));
+    children.push(h(Text, { dimColor: true, key: `details-${keySuffix}` }, details));
   }
 
   return h(Box, { flexDirection: 'column' }, children);
