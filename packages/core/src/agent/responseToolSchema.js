@@ -27,8 +27,9 @@ export const RESPONSE_PARAMETERS_SCHEMA = {
       type: 'array',
       maxItems: 5,
       items: { $ref: '#/$defs/planStep' },
-      description: `You MUST provide a plan when have a set goal, 
-NEVER drop/reset a plan without discussion, 
+      description: `This is a hierarchical TODO-list. be as finegrained as you can.
+Higher level items depend on lower level items.
+Plan ahead. create the bigger picture plan and add TODO steps accordingly.      
 the plan stays on utill otherwise agreed upon, Progress tracker for multi-step work; use [] when resetting to a new plan.
 
 A correct structure:

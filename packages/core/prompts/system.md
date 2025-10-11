@@ -79,15 +79,12 @@ Meaning this should be a parent task of the previous step, and thus execute only
 
 ## Planning
 
-Plans are chains of tasks, not lists.
-Think of top down task breakdowns, where each task can have sub-tasks that need to be completed before the parent task can be marked as complete.
+This is a hierarchical TODO-list. be as finegrained as you can.
+Higher level items depend on lower level items.
+Plan ahead. create the bigger picture plan and add TODO steps accordingly.
+the plan stays on until otherwise agreed upon, Progress tracker for multi-step work; use [] when resetting to a new plan.
 
-This means that top level tasks can be very high level, and the details are in the sub-tasks.
-
-When creating plans, ensure that each sub-task is clearly defined and contributes to the overall goal of the parent task.
-
-a correct hierarchy would be the following:
-
+A correct TODO structure:
 ```
  "plan": [
     {
@@ -148,13 +145,4 @@ a correct hierarchy would be the following:
     }
   ]
 ```
-
-Incorrent hierarchy:
-
-```
-* Explore the repository
-* Gather knowledge on component X
-* learn about XYZ
-* Implement the code
-* Validate results with tests
-```
+      

@@ -31,5 +31,6 @@
 ## Related Context
 
 - Package entry docs: [`../context.md`](../context.md), [`lib/context.md`](lib/context.md).
+- Single-responsibility architecture plan: [`../../docs/architecture/single-resp.md`](../../docs/architecture/single-resp.md).
 - Tests exercising these modules: [`../../tests/context.md`](../../tests/context.md).
 - CLI consumer of the runtime: [`../../cli/context.md`](../../cli/context.md).
