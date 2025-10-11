@@ -6,13 +6,13 @@
 
 ## Key Workflows
 
-- `test.yml` — runs linting and Jest suites on pull requests and pushes.
+- `test.yml` — runs the Jest test suite on pull requests and pushes.
 - `auto-release.yml` — bumps the npm patch version on merges to `main`, tags releases, checks out the freshly created tag, and publishes directly to npm.
 - `publish.yml` — fallback workflow to publish `@asynkron/openagent` to npm on release events or manual dispatch (skips if the version already exists).
 
 ## Positive Signals
 
-- All release-related workflows gate on the same lint/test checks used for PRs, so regressions are caught before publishing.
+- All release-related workflows gate on the same test checks used for PRs, so regressions are caught before publishing.
 - Workflows request OIDC tokens only when needed, supporting provenance-enabled `npm publish` without long-lived secrets.
 
 ## Risks / Gaps
