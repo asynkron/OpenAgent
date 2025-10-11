@@ -1,6 +1,7 @@
 import { summarizeContextUsage } from '../utils/contextUsage.js';
 import { extractResponseText } from '../openai/responseUtils.js';
 import { createResponse } from '../openai/responses.js';
+import { createChatMessageEntry, mapHistoryToOpenAIMessages } from './historyEntry.js';
 
 const DEFAULT_USAGE_THRESHOLD = 0.5;
 const DEFAULT_SUMMARY_PREFIX = 'Compacted memory:';
@@ -44,17 +45,17 @@ function buildSummarizationInput(entries) {
     .join('\n\n');
 
   return [
-    {
+    createChatMessageEntry({
       eventType: 'chat-message',
       role: 'system',
       content:
         'You summarize prior conversation history into a concise long-term memory for an autonomous agent. Capture key facts, decisions, obligations, and user preferences. Respond with plain text only.',
-    },
-    {
+    }),
+    createChatMessageEntry({
       eventType: 'chat-message',
       role: 'user',
       content: `Summarize the following ${entries.length} conversation entries for long-term memory. Preserve critical details while remaining concise.\n\n${formattedEntries}`,
-    },
+    }),
   ];
 }
 
@@ -129,12 +130,12 @@ export class HistoryCompactor {
       return max;
     }, 0);
 
-    const compactedEntry = {
+    const compactedEntry = createChatMessageEntry({
       eventType: 'chat-message',
       role: 'system',
       content: `${DEFAULT_SUMMARY_PREFIX}\n${summarizedText}`.trim(),
       pass: compactedPass,
-    };
+    });
 
     const originalHistoryLength = history.length;
     history.splice(firstContentIndex, entriesToCompactCount, compactedEntry);
@@ -153,7 +154,7 @@ export class HistoryCompactor {
     const response = await createResponse({
       openai: this.openai,
       model: this.model,
-      input,
+      input: mapHistoryToOpenAIMessages(input),
     });
 
     const summary = extractResponseText(response);

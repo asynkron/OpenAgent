@@ -6,6 +6,7 @@ import {
   getContextWindow,
   summarizeContextUsage,
 } from '../contextUsage.js';
+import { createChatMessageEntry } from '../../agent/historyEntry.js';
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -50,14 +51,24 @@ describe('estimateTokensForHistory', () => {
 
   test('estimates tokens using character length heuristic', () => {
     const history = [
-      { eventType: 'chat-message', role: 'system', content: 'You are a helpful assistant.', pass: 0 },
-      { eventType: 'chat-message', role: 'user', content: 'Explain recursion.', pass: 1 },
-      {
+      createChatMessageEntry({
+        eventType: 'chat-message',
+        role: 'system',
+        content: 'You are a helpful assistant.',
+        pass: 0,
+      }),
+      createChatMessageEntry({
+        eventType: 'chat-message',
+        role: 'user',
+        content: 'Explain recursion.',
+        pass: 1,
+      }),
+      createChatMessageEntry({
         eventType: 'chat-message',
         role: 'assistant',
         content: 'Recursion is a process where a function calls itself.',
         pass: 1,
-      },
+      }),
     ];
 
     const estimate = estimateTokensForHistory(history);
@@ -65,19 +76,24 @@ describe('estimateTokensForHistory', () => {
 
     const larger = estimateTokensForHistory([
       ...history,
-      { eventType: 'chat-message', role: 'user', content: 'x'.repeat(200), pass: 2 },
+      createChatMessageEntry({
+        eventType: 'chat-message',
+        role: 'user',
+        content: 'x'.repeat(200),
+        pass: 2,
+      }),
     ]);
     expect(larger).toBeGreaterThan(estimate);
   });
 
   test('handles structured content gracefully', () => {
     const history = [
-      {
+      createChatMessageEntry({
         eventType: 'chat-message',
         role: 'assistant',
         content: [{ type: 'text', text: 'Hello' }, { value: 'world' }],
         pass: 3,
-      },
+      }),
     ];
 
     const estimate = estimateTokensForHistory(history);
@@ -99,8 +115,18 @@ describe('summarizeContextUsage', () => {
 
   test('computes remaining context statistics', () => {
     const history = [
-      { eventType: 'chat-message', role: 'system', content: 'Sys', pass: 0 },
-      { eventType: 'chat-message', role: 'user', content: 'Explain binary search in detail.', pass: 1 },
+      createChatMessageEntry({
+        eventType: 'chat-message',
+        role: 'system',
+        content: 'Sys',
+        pass: 0,
+      }),
+      createChatMessageEntry({
+        eventType: 'chat-message',
+        role: 'user',
+        content: 'Explain binary search in detail.',
+        pass: 1,
+      }),
     ];
 
     const summary = summarizeContextUsage({ history, model: 'gpt-4o-mini' });

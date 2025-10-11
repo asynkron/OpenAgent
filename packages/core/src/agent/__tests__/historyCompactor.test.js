@@ -1,6 +1,7 @@
 /* eslint-env jest */
 import { jest } from '@jest/globals';
 import { HistoryCompactor } from '../historyCompactor.js';
+import { createChatMessageEntry } from '../historyEntry.js';
 
 function createOpenAIMock({ summaryText }) {
   const responsesCreate = jest.fn().mockResolvedValue({
@@ -29,11 +30,36 @@ function createOpenAIMock({ summaryText }) {
 
 describe('HistoryCompactor', () => {
   const baseHistory = [
-    { eventType: 'chat-message', role: 'system', content: 'system prompt', pass: 0 },
-    { eventType: 'chat-message', role: 'user', content: 'first question', pass: 1 },
-    { eventType: 'chat-message', role: 'assistant', content: 'first answer', pass: 1 },
-    { eventType: 'chat-message', role: 'user', content: 'second question', pass: 2 },
-    { eventType: 'chat-message', role: 'assistant', content: 'second answer', pass: 2 },
+    createChatMessageEntry({
+      eventType: 'chat-message',
+      role: 'system',
+      content: 'system prompt',
+      pass: 0,
+    }),
+    createChatMessageEntry({
+      eventType: 'chat-message',
+      role: 'user',
+      content: 'first question',
+      pass: 1,
+    }),
+    createChatMessageEntry({
+      eventType: 'chat-message',
+      role: 'assistant',
+      content: 'first answer',
+      pass: 1,
+    }),
+    createChatMessageEntry({
+      eventType: 'chat-message',
+      role: 'user',
+      content: 'second question',
+      pass: 2,
+    }),
+    createChatMessageEntry({
+      eventType: 'chat-message',
+      role: 'assistant',
+      content: 'second answer',
+      pass: 2,
+    }),
   ];
 
   test('compacts oldest entries when usage exceeds threshold', async () => {
@@ -68,11 +94,17 @@ describe('HistoryCompactor', () => {
     expect(Array.isArray(payload.input)).toBe(true);
     expect(payload.input).toHaveLength(2);
     expect(payload.input[1].content).toContain('Summarize the following 2 conversation entries');
+    expect(payload.input[0]).toEqual({
+      role: 'system',
+      content:
+        'You summarize prior conversation history into a concise long-term memory for an autonomous agent. Capture key facts, decisions, obligations, and user preferences. Respond with plain text only.',
+    });
     expect(options).toBeUndefined();
 
     expect(history).toHaveLength(4);
     const compactedEntry = history[1];
     expect(compactedEntry).toMatchObject({ eventType: 'chat-message', role: 'system', pass: 1 });
+    expect(compactedEntry.payload).toEqual({ role: 'system', content: compactedEntry.content });
     expect(compactedEntry.content).toMatch(/^Compacted memory:/);
     expect(compactedEntry.content).toContain('Condensed summary.');
 

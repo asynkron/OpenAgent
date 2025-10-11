@@ -1,3 +1,5 @@
+import { createChatMessageEntry } from './historyEntry.js';
+
 const JSON_INDENT = 2;
 const DEFAULT_THRESHOLD = 10;
 
@@ -159,7 +161,10 @@ export class AmnesiaManager {
       }
 
       if (shouldRewrite && hasParsed && parseResult && parseResult.parsed) {
-        history[index] = { ...entry, content: stringifyContent(parsedContent, entry.content) };
+        history[index] = createChatMessageEntry({
+          ...entry,
+          content: stringifyContent(parsedContent, entry.content),
+        });
         mutated = true;
       }
     }

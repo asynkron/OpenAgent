@@ -3,6 +3,7 @@ import { createResponse } from '../openai/responses.js';
 import { OPENAGENT_RESPONSE_TOOL } from './responseToolSchema.js';
 import { createEscWaiter, resetEscState } from './escState.js';
 import { createObservationHistoryEntry } from './historyMessageBuilder.js';
+import { mapHistoryToOpenAIMessages } from './historyEntry.js';
 
 export async function requestModelCompletion({
   openai,
@@ -29,7 +30,7 @@ export async function requestModelCompletion({
   const requestPromise = createResponse({
     openai,
     model,
-    input: history,
+    input: mapHistoryToOpenAIMessages(history),
     tools: [OPENAGENT_RESPONSE_TOOL],
     tool_choice: {
       type: 'function',
