@@ -68,9 +68,11 @@ const setupPassExecutor = async () => {
   }));
 
   const planHasOpenSteps = jest.fn(() => false);
+  const planStepHasIncompleteChildren = jest.fn(() => false);
   jest.unstable_mockModule('../../utils/plan.js', () => ({
     planHasOpenSteps,
-    default: { planHasOpenSteps },
+    planStepHasIncompleteChildren,
+    default: { planHasOpenSteps, planStepHasIncompleteChildren },
   }));
 
   const incrementCommandCount = jest.fn();

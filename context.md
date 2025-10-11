@@ -12,9 +12,9 @@
 - `tests/` — cross-package integration suites with mock OpenAI harnesses. See [`tests/context.md`](tests/context.md).
 - `packages/core/prompts/` & `schemas/` — authoritative protocol prompts plus JSON schema for validation. Linked details in [`packages/core/prompts/context.md`](packages/core/prompts/context.md) and [`schemas/context.md`](schemas/context.md).
 - `docs/` — design notes, operational guides, and meta documentation for contributors. See [`docs/context.md`](docs/context.md).
-- Editing helpers now live under `packages/core/scripts/`; root `scripts/` retains repo maintenance utilities (Git hooks, JSON validation, release safety checks). See [`packages/core/scripts/context.md`](packages/core/scripts/context.md) and [`scripts/context.md`](scripts/context.md).
-- Operational metadata: `.github/` workflows, `.githooks/` local hooks, `.openagent/` runtime plan snapshots. JetBrains `.idea/`
-  settings are intentionally gitignored to keep the repository clean for all contributors.
+ - Editing helpers now live under `packages/core/scripts/`; root `scripts/` retains repo maintenance utilities (JSON validation, release safety checks). See [`packages/core/scripts/context.md`](packages/core/scripts/context.md) and [`scripts/context.md`](scripts/context.md).
+ - Operational metadata: `.github/` workflows and `.openagent/` runtime plan snapshots. JetBrains `.idea/`
+   settings are intentionally gitignored to keep the repository clean for all contributors.
 
 ## Positive Signals
 
@@ -31,13 +31,12 @@
 
 ## Maintenance Notes
 
-- On fresh clones run `node scripts/install-git-hooks.js` first so the repository's Git hooks are installed before other tasks.
 - Whenever code, docs, or prompts change, update the nearest `context.md` (and parent summaries) so the index remains trustworthy.
 - README now opens with `![Screenshot](./screenshot.png)` to preview the CLI.
 - Cross-reference sibling directories if behavior spans subsystems (e.g., CLI rendering ↔ agent runtime).
 
 ## Related Context
 
-- Tooling & ops: [`scripts/context.md`](scripts/context.md), [`.github/context.md`](.github/context.md), [`.githooks/context.md`](.githooks/context.md).
+- Tooling & ops: [`scripts/context.md`](scripts/context.md) and [`.github/context.md`](.github/context.md).
 - Runtime state: [`.openagent/context.md`](.openagent/context.md).
 - IDE/project metadata: [`.vscode/context.md`](.vscode/context.md). JetBrains `.idea/` settings are local-only.

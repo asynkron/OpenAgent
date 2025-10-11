@@ -20,6 +20,14 @@ describe('runCli', () => {
 
     delete process.env.OPENAI_API_KEY;
 
+    await jest.unstable_mockModule('ink', () => {
+      const actual = jest.requireActual('ink');
+      return {
+        ...actual,
+        isRawModeSupported: () => false,
+      };
+    });
+
     const { runCli } = await import(RUNNER_MODULE);
 
     await runCli(['node', 'openagent']);
