@@ -11,9 +11,12 @@ export function PlanDetail({ node }) {
     return null;
   }
 
+  const age = typeof node.age === 'number' && Number.isFinite(node.age) ? node.age : 0;
+  const hasCommandPreview = typeof node.commandPreview === 'string' && node.commandPreview.length > 0;
+
   return h(
     Box,
-    { marginLeft: node.depth * 2 },
+    { marginLeft: node.depth * 2, flexDirection: 'column' },
     h(
       Text,
       null,
@@ -21,7 +24,16 @@ export function PlanDetail({ node }) {
       h(Text, { color: 'cyan' }, node.label),
       h(Text, { color: 'gray' }, '.'),
       node.title ? h(Text, null, ` ${node.title}`) : null,
+      h(Text, { color: 'gray' }, ` (age ${age})`),
     ),
+    hasCommandPreview
+      ? h(
+          Text,
+          { color: 'gray' },
+          '  ↳ ',
+          h(Text, { color: 'white' }, node.commandPreview),
+        )
+      : null,
   );
 }
 

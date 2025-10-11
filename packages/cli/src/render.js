@@ -61,7 +61,9 @@ export function renderPlan(plan) {
     const label = chalk.cyan(node.label);
     const dot = chalk.dim('.');
     const title = node.title ? ` ${chalk.white(node.title)}` : '';
-    return `${indent}${symbol} ${label}${dot}${title}`.trimEnd();
+    const agePart = chalk.dim(` (age ${node.age ?? 0})`);
+    const commandPart = node.commandPreview ? ` ${chalk.gray('—')} ${chalk.white(node.commandPreview)}` : '';
+    return `${indent}${symbol} ${label}${dot}${title}${agePart}${commandPart}`.trimEnd();
   });
 
   display('Plan', lines, 'cyan');
