@@ -1,4 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Static, Text, useApp, useInput } from 'ink';
 
 import { cancel as cancelActive } from '@asynkron/openagent-core';
@@ -12,6 +15,7 @@ import StatusMessage from './StatusMessage.js';
 
 const MAX_TIMELINE_ENTRIES = 100;
 const MAX_DEBUG_ENTRIES = 20;
+const MAX_COMMAND_LOG_ENTRIES = 50;
 
 const h = React.createElement;
 
@@ -172,6 +176,58 @@ function normalizeStatus(event) {
   return normalized;
 }
 
+function formatTimestampForFilename(date = new Date()) {
+  const pad = (value) => String(value).padStart(2, '0');
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  const seconds = pad(date.getSeconds());
+  return `${year}${month}${day}-${hours}${minutes}${seconds}`;
+}
+
+function resolveHistoryFilePath(rawPath) {
+  if (typeof rawPath === 'string' && rawPath.trim().length > 0) {
+    return path.resolve(process.cwd(), rawPath.trim());
+  }
+  const timestamp = formatTimestampForFilename();
+  const fallbackName = `openagent-history-${timestamp}.json`;
+  return path.resolve(process.cwd(), fallbackName);
+}
+
+async function writeHistorySnapshot({ history, filePath }) {
+  const targetPath = resolveHistoryFilePath(filePath);
+  const directory = path.dirname(targetPath);
+  await fs.mkdir(directory, { recursive: true });
+
+  let serialized;
+  try {
+    serialized = JSON.stringify(history ?? [], null, 2);
+  } catch (error) {
+    const wrapped = error instanceof Error ? error : new Error(String(error));
+    wrapped.message = `Failed to serialize history: ${wrapped.message}`;
+    throw wrapped;
+  }
+
+  await fs.writeFile(targetPath, `${serialized}\n`, 'utf8');
+  return targetPath;
+}
+
+function parsePositiveInteger(value, defaultValue = 1) {
+  if (value === undefined || value === null) {
+    return defaultValue;
+  }
+
+  const normalized = typeof value === 'number' ? value : Number.parseInt(String(value).trim(), 10);
+
+  if (!Number.isFinite(normalized) || normalized <= 0) {
+    return defaultValue;
+  }
+
+  return Math.floor(normalized);
+}
+
 /**
  * Main Ink container responsible for driving the CLI experience.
  */
@@ -180,6 +236,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
   const { exit } = useApp();
   const entryIdRef = useRef(0);
   const debugEventIdRef = useRef(0);
+  const commandLogIdRef = useRef(0);
   const [plan, setPlan] = useState([]);
   const [planProgress, setPlanProgress] = useState({ seen: false, value: null });
   const [contextUsage, setContextUsage] = useState(null);
@@ -188,6 +245,8 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
   const [entries, setEntries] = useState([]);
   const [timelineKey, setTimelineKey] = useState(0);
   const [debugEvents, setDebugEvents] = useState([]);
+  const [commandLog, setCommandLog] = useState([]);
+  const [commandInspector, setCommandInspector] = useState(null);
   const [exitState, setExitState] = useState(null);
 
   const appendEntry = useCallback((type, payload) => {
@@ -219,6 +278,22 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
         preview: event.preview || {},
         execution: event.execution,
       });
+      const commandPayload = event.command ?? null;
+      if (commandPayload) {
+        setCommandLog((prev) => {
+          commandLogIdRef.current += 1;
+          const entry = {
+            id: commandLogIdRef.current,
+            command: commandPayload,
+            receivedAt: Date.now(),
+          };
+          const next = [...prev, entry];
+          if (next.length > MAX_COMMAND_LOG_ENTRIES) {
+            return next.slice(next.length - MAX_COMMAND_LOG_ENTRIES);
+          }
+          return next;
+        });
+      }
     },
     [appendEntry],
   );
@@ -267,20 +342,132 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
     });
   }, []);
 
+  const handleSlashCommand = useCallback(
+    async (submission) => {
+      if (typeof submission !== 'string' || !submission.trim().startsWith('/')) {
+        return false;
+      }
+
+      const normalized = submission.trim();
+      const withoutPrefix = normalized.slice(1).trim();
+
+      if (!withoutPrefix) {
+        return false;
+      }
+
+      const [rawName, ...restParts] = withoutPrefix.split(/\s+/u);
+      const commandName = rawName.toLowerCase();
+      const rest = restParts.join(' ').trim();
+
+      switch (commandName) {
+        case 'history': {
+          const activeRuntime = runtimeRef.current;
+          if (!activeRuntime || typeof activeRuntime.getHistorySnapshot !== 'function') {
+            handleStatusEvent({
+              level: 'error',
+              message: 'History snapshot is unavailable for this session.',
+            });
+            return true;
+          }
+
+          let history;
+          try {
+            history = activeRuntime.getHistorySnapshot();
+          } catch (error) {
+            handleStatusEvent({
+              level: 'error',
+              message: 'Failed to read history from the runtime.',
+              details: error,
+            });
+            return true;
+          }
+
+          try {
+            const targetPath = await writeHistorySnapshot({ history, filePath: rest });
+            handleStatusEvent({
+              level: 'info',
+              message: `Saved history to ${targetPath}.`,
+            });
+          } catch (error) {
+            handleStatusEvent({
+              level: 'error',
+              message: 'Failed to write history file.',
+              details: error,
+            });
+          }
+          return true;
+        }
+        case 'command': {
+          if (!commandLog || commandLog.length === 0) {
+            handleStatusEvent({
+              level: 'info',
+              message: 'No commands have been received yet.',
+            });
+            setCommandInspector(null);
+            return true;
+          }
+
+          let requested = 1;
+          if (rest.length > 0) {
+            const parsed = parsePositiveInteger(rest, Number.NaN);
+            if (!Number.isFinite(parsed)) {
+              handleStatusEvent({
+                level: 'warn',
+                message: 'Command inspector requires a positive integer. Showing the latest command instead.',
+              });
+            } else {
+              requested = parsed;
+            }
+          }
+
+          const safeCount = Math.max(1, Math.min(commandLog.length, requested));
+          const panelKey = Date.now();
+          setCommandInspector({ requested: safeCount, token: panelKey });
+          handleStatusEvent({
+            level: 'info',
+            message:
+              safeCount === 1
+                ? 'Showing the most recent command payload.'
+                : `Showing the ${safeCount} most recent command payloads.`,
+          });
+          return true;
+        }
+        default:
+          return false;
+      }
+    },
+    [commandLog, handleStatusEvent],
+  );
+
   const handleSubmitPrompt = useCallback(
-    (value) => {
+    async (value) => {
       const submission = value.trim();
       if (submission.length > 0) {
         appendEntry('human-message', { message: submission });
       }
+
+      let handledLocally = false;
       try {
-        runtimeRef.current?.submitPrompt?.(submission);
+        handledLocally = await handleSlashCommand(submission);
       } catch (error) {
-        handleStatusEvent({ level: 'error', message: 'Failed to submit input.', details: error });
+        handledLocally = true;
+        handleStatusEvent({
+          level: 'error',
+          message: 'Slash command processing failed.',
+          details: error,
+        });
+      }
+
+      if (!handledLocally) {
+        try {
+          runtimeRef.current?.submitPrompt?.(submission);
+        } catch (error) {
+          handleStatusEvent({ level: 'error', message: 'Failed to submit input.', details: error });
+        }
       }
       setInputRequest(null);
     },
-    [appendEntry, handleStatusEvent],
+    [appendEntry, handleSlashCommand, handleStatusEvent],
   );
 
   const handleEvent = useCallback(
@@ -410,7 +597,28 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
     }
   });
 
+  const commandPanelEvents = useMemo(() => {
+    if (!commandInspector) {
+      return [];
+    }
+
+    if (!commandLog || commandLog.length === 0) {
+      return [];
+    }
+
+    const requested = parsePositiveInteger(commandInspector.requested, 1);
+    const safeCount = Math.max(1, Math.min(commandLog.length, requested));
+    const recent = commandLog.slice(commandLog.length - safeCount).reverse();
+
+    return recent.map((entry) => ({
+      id: entry.id,
+      content: formatDebugPayload(entry.command),
+    }));
+  }, [commandInspector, commandLog]);
+
   const hasDebugEvents = debugEvents.length > 0;
+  const showCommandInspector = commandPanelEvents.length > 0;
+  const commandInspectorKey = commandInspector?.token ?? 'command-inspector';
   const children = [];
 
   children.push(
@@ -424,7 +632,17 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
   children.push(h(Timeline, { entries, key: `timeline-${timelineKey}` }));
 
   if (hasDebugEvents) {
-    children.push(h(MemoDebugPanel, { events: debugEvents, key: 'debug' }));
+    children.push(h(MemoDebugPanel, { events: debugEvents, heading: 'Debug', key: 'debug' }));
+  }
+
+  if (showCommandInspector) {
+    children.push(
+      h(MemoDebugPanel, {
+        events: commandPanelEvents,
+        heading: 'Recent commands',
+        key: `command-${commandInspectorKey}`,
+      }),
+    );
   }
 
   children.push(

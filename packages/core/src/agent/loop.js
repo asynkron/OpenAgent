@@ -281,12 +281,21 @@ export function createAgentRuntime({
     }
   }
 
+  const getHistorySnapshot = () =>
+    history.map((entry) => {
+      if (!entry || typeof entry !== 'object') {
+        return entry;
+      }
+      return { ...entry };
+    });
+
   return {
     outputs,
     inputs,
     start,
     submitPrompt: (value) => inputs.push({ type: 'prompt', prompt: value }),
     cancel: (payload = null) => inputs.push({ type: 'cancel', payload }),
+    getHistorySnapshot,
   };
 }
 

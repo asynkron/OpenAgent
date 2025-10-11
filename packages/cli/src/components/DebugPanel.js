@@ -8,7 +8,7 @@ const h = React.createElement;
 /**
  * Displays debug payloads emitted by the agent when the debug flag is active.
  */
-export function DebugPanel({ events = [] }) {
+export function DebugPanel({ events = [], heading = 'Debug' }) {
   if (!Array.isArray(events) || events.length === 0) {
     return null;
   }
@@ -41,7 +41,7 @@ export function DebugPanel({ events = [] }) {
   }
 
   const children = [
-    h(Text, { color: 'gray', bold: true, key: 'heading' }, 'Debug'),
+    h(Text, { color: 'gray', bold: true, key: 'heading' }, heading),
     ...renderedEvents,
   ];
 

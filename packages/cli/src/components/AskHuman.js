@@ -49,6 +49,20 @@ export const HUMAN_SLASH_COMMANDS = [
     keywords: ['docs', 'support', 'commands'],
     insertValue: '/help',
   },
+  {
+    id: 'history',
+    label: 'history',
+    description: 'Export the current session history to a JSON file',
+    keywords: ['history', 'export', 'log'],
+    insertValue: '/history ',
+  },
+  {
+    id: 'command-inspector',
+    label: 'command',
+    description: 'Inspect recent command payloads (e.g. /command 3)',
+    keywords: ['command', 'debug', 'payload'],
+    insertValue: '/command ',
+  },
 ];
 
 const h = React.createElement;
