@@ -191,6 +191,7 @@ describe('executeAgentPass', () => {
 
     planHasOpenSteps.mockReturnValue(true);
 
+    // Two-step plan mirrors the real scenario where the second item never updated.
     parseAssistantResponse.mockImplementation(() => ({
       ok: true,
       value: {
@@ -402,6 +403,85 @@ describe('executeAgentPass', () => {
       .filter((event) => event && event.type === 'plan');
     const finalPlanEvent = planEvents[planEvents.length - 1];
     expect(finalPlanEvent.plan[0].status).toBe('completed');
+  });
+
+  test('marks every executed plan step as completed even when later steps reorder', async () => {
+    const executedRuns = [];
+    const {
+      executeAgentPass,
+      parseAssistantResponse,
+      executeAgentCommand,
+      planHasOpenSteps,
+    } = await setupPassExecutor({
+      executeAgentCommandImpl: ({ command }) => {
+        executedRuns.push(command?.run ?? '');
+        return {
+          result: { stdout: 'ready', stderr: '', exit_code: 0 },
+          executionDetails: { code: 0 },
+        };
+      },
+    });
+
+    planHasOpenSteps.mockReturnValue(true);
+
+    parseAssistantResponse.mockImplementation(() => ({
+      ok: true,
+      value: {
+        message: 'Executing plan',
+        plan: [
+          {
+            step: '1',
+            title: 'First task',
+            status: 'pending',
+            command: { run: 'echo one' },
+          },
+          {
+            step: '2',
+            title: 'Second task',
+            status: 'pending',
+            command: { run: 'echo two' },
+          },
+        ],
+      },
+      recovery: { strategy: 'direct' },
+    }));
+
+    const emitEvent = jest.fn();
+    const history = [];
+
+    const PASS_INDEX = 21;
+    const result = await executeAgentPass({
+      openai: {},
+      model: 'gpt-5-codex',
+      history,
+      emitEvent,
+      runCommandFn: jest.fn(),
+      applyFilterFn: jest.fn(),
+      tailLinesFn: jest.fn(),
+      getNoHumanFlag: () => false,
+      setNoHumanFlag: () => {},
+      planReminderMessage: 'remember the plan',
+      startThinkingFn: jest.fn(),
+      stopThinkingFn: jest.fn(),
+      escState: {},
+      approvalManager: null,
+      historyCompactor: null,
+      planManager: null,
+      emitAutoApproveStatus: false,
+      passIndex: PASS_INDEX,
+    });
+
+    expect(result).toBe(true);
+    expect(executeAgentCommand).toHaveBeenCalledTimes(2);
+    expect(executedRuns).toEqual(['echo one', 'echo two']);
+
+    const planEvents = emitEvent.mock.calls
+      .map(([event]) => event)
+      .filter((event) => event && event.type === 'plan');
+    expect(planEvents.length).toBeGreaterThanOrEqual(3);
+    const finalPlanEvent = planEvents[planEvents.length - 1];
+    expect(finalPlanEvent.plan[0].status).toBe('completed');
+    expect(finalPlanEvent.plan[1].status).toBe('completed');
   });
 
   test('re-emits plan events with persisted updates after execution finishes', async () => {

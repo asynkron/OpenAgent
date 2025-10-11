@@ -140,6 +140,48 @@ const collectExecutablePlanSteps = (plan) => {
   return executable;
 };
 
+const buildExecutableStepKey = (step, fallbackIndex = 0) => {
+  if (!step || typeof step !== 'object') {
+    return `index:${fallbackIndex}`;
+  }
+
+  const rawStep =
+    typeof step.step === 'string'
+      ? step.step.trim()
+      : step.step === null || typeof step.step === 'undefined'
+        ? ''
+        : String(step.step).trim();
+  if (rawStep) {
+    return `step:${rawStep.toLowerCase()}`;
+  }
+
+  if (typeof step.title === 'string' && step.title.trim()) {
+    return `title:${step.title.trim().toLowerCase()}`;
+  }
+
+  return `index:${fallbackIndex}`;
+};
+
+const rebuildExecutableStepMap = (entries, targetMap = new Map()) => {
+  targetMap.clear();
+  if (!Array.isArray(entries)) {
+    return targetMap;
+  }
+
+  entries.forEach((entry, index) => {
+    if (!entry || typeof entry !== 'object' || !entry.step || typeof entry.step !== 'object') {
+      return;
+    }
+
+    const key = buildExecutableStepKey(entry.step, index);
+    if (!targetMap.has(key)) {
+      targetMap.set(key, entry.step);
+    }
+  });
+
+  return targetMap;
+};
+
 const clonePlanForExecution = (plan) => {
   if (!Array.isArray(plan)) {
     return [];
@@ -542,6 +584,7 @@ export async function executeAgentPass({
   const planForExecution = clonePlanForExecution(activePlan);
   const executableSteps = collectExecutablePlanSteps(planForExecution);
   let activePlanExecutableSteps = collectExecutablePlanSteps(activePlan);
+  const activePlanStepMap = rebuildExecutableStepMap(activePlanExecutableSteps, new Map());
   let planMutatedDuringExecution = false;
 
   if (executableSteps.length === 0) {
@@ -628,10 +671,12 @@ export async function executeAgentPass({
 
   for (let index = 0; index < executableSteps.length; index += 1) {
     const { step, command } = executableSteps[index];
-    let activePlanStep =
-      activePlanExecutableSteps && index < activePlanExecutableSteps.length
-        ? activePlanExecutableSteps[index]?.step
-        : null;
+    const stepKey = buildExecutableStepKey(step, index);
+    let activePlanStep = activePlanStepMap.get(stepKey) ?? null;
+
+    if (!activePlanStep && Array.isArray(activePlanExecutableSteps) && index < activePlanExecutableSteps.length) {
+      activePlanStep = activePlanExecutableSteps[index]?.step ?? null;
+    }
 
     const normalizedRun = typeof command.run === 'string' ? command.run.trim() : '';
     if (normalizedRun && command.run !== normalizedRun) {
@@ -806,6 +851,7 @@ export async function executeAgentPass({
 
     if (Array.isArray(activePlan)) {
       activePlanExecutableSteps = collectExecutablePlanSteps(activePlan);
+      rebuildExecutableStepMap(activePlanExecutableSteps, activePlanStepMap);
     }
   }
 
