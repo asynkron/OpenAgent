@@ -7,10 +7,11 @@
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { formatBootProbeSummary, runBootProbes } from './bootProbes/index.js';
-import { applyStartupFlagsFromArgv } from '@asynkron/openagent-core';
 import { agentLoop } from './runtime.js';
+import { loadCoreModule } from './loadCoreModule.js';
 
 export async function runCli(argv = process.argv) {
+  const { applyStartupFlagsFromArgv } = await loadCoreModule();
   const bootProbeResults = await runBootProbes({ cwd: process.cwd() });
   const bootProbeSummary = formatBootProbeSummary(bootProbeResults).trim();
   const systemPromptAugmentation = bootProbeSummary

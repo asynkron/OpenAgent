@@ -11,6 +11,7 @@
 - `index.js` — package entry that re-exports the core runtime and surfaces CLI-specific helpers.
 - `bin/openagent.js` — executable shim invoked by `npx openagent` or global installs.
 - `src/` — Ink components, boot probes, runtime wiring, and readline helpers. See [`src/context.md`](src/context.md).
+- `src/loadCoreModule.js` — resolves the core runtime dependency with a local fallback when the workspace link is missing.
 
 ## Related Context
 
