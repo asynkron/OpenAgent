@@ -27,8 +27,20 @@ export const RESPONSE_PARAMETERS_SCHEMA = {
       type: 'array',
       maxItems: 5,
       items: { $ref: '#/$defs/planStep' },
-      description:
-        'You MUST provide a plan when have a set goal, NEVER drop/reset a plan without discussion, the plan stays on utill otherwise agreed upon, Progress tracker for multi-step work; use [] when resetting to a new plan.',
+      description: `You MUST provide a plan when have a set goal, 
+NEVER drop/reset a plan without discussion, 
+the plan stays on utill otherwise agreed upon, Progress tracker for multi-step work; use [] when resetting to a new plan.
+
+Plans are chains of tasks, not lists.
+a correct hierarchy would be the following
+* Validate results with tests
+..* Implement the code
+....* Explore the repository
+....* Gather knowledge on component X
+....* learn about XYZ
+
+      
+      `,
     },
   },
   $defs: {

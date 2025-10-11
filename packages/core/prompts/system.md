@@ -76,3 +76,23 @@ When using apply_patch, make sure there actually is a patch payload and a target
 
 ^ this is very likely intended to wait for the previous step to complete.¨
 Meaning this should be a parent task of the previous step, and thus execute only when the previous step is done.
+
+## Planning
+
+Plans are chains of tasks, not lists.
+
+a correct hierarchy would be the following:
+
+* Validate results with tests (will execute when all children are done)
+  * Implement the code (will execute when all children are done)
+    * Explore the repository
+    * Gather knowledge on component X
+    * learn about XYZ
+
+Incorrent hierarchy:
+
+* Explore the repository
+* Gather knowledge on component X
+* learn about XYZ
+* Implement the code
+* Validate results with tests
