@@ -1,4 +1,4 @@
-import { planHasOpenSteps } from '../utils/plan.js';
+import { planHasOpenSteps, planStepHasIncompleteChildren } from '../utils/plan.js';
 import { incrementCommandCount } from '../services/commandStatsService.js';
 import { combineStdStreams, buildPreview } from '../utils/output.js';
 import ObservationBuilder from './observationBuilder.js';
@@ -67,8 +67,13 @@ const collectExecutablePlanSteps = (plan) => {
 
       const status =
         typeof item.status === 'string' ? item.status.trim().toLowerCase() : '';
+      const hasIncompleteChildren = planStepHasIncompleteChildren(item);
 
-      if (!TERMINAL_PLAN_STATUSES.has(status) && hasCommandPayload(item.command)) {
+      if (
+        !hasIncompleteChildren &&
+        !TERMINAL_PLAN_STATUSES.has(status) &&
+        hasCommandPayload(item.command)
+      ) {
         executable.push({ step: item, command: item.command });
       }
 

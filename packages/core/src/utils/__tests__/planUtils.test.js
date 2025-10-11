@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { planHasOpenSteps } from '../plan.js';
+import { planHasOpenSteps, planStepHasIncompleteChildren } from '../plan.js';
 
 describe('plan utilities', () => {
   test('returns false for empty or non-array plans', () => {
@@ -42,5 +42,44 @@ describe('plan utilities', () => {
     ];
 
     expect(planHasOpenSteps(plan)).toBe(false);
+  });
+});
+
+describe('planStepHasIncompleteChildren', () => {
+  test('detects direct child with non-completed status', () => {
+    const step = {
+      step: '1',
+      title: 'Parent',
+      substeps: [{ step: '1.1', title: 'Child', status: 'running' }],
+    };
+
+    expect(planStepHasIncompleteChildren(step)).toBe(true);
+  });
+
+  test('returns false when all children completed', () => {
+    const step = {
+      step: '1',
+      title: 'Parent',
+      substeps: [{ step: '1.1', title: 'Child', status: 'completed' }],
+    };
+
+    expect(planStepHasIncompleteChildren(step)).toBe(false);
+  });
+
+  test('detects incomplete nested grandchildren despite completed child status', () => {
+    const step = {
+      step: '1',
+      title: 'Parent',
+      substeps: [
+        {
+          step: '1.1',
+          title: 'Child',
+          status: 'completed',
+          substeps: [{ step: '1.1.1', title: 'Grandchild', status: 'pending' }],
+        },
+      ],
+    };
+
+    expect(planStepHasIncompleteChildren(step)).toBe(true);
   });
 });

@@ -199,6 +199,35 @@ export function planHasOpenSteps(plan) {
   return hasOpen(plan);
 }
 
+export function planStepHasIncompleteChildren(step) {
+  if (!step || typeof step !== 'object') {
+    return false;
+  }
+
+  for (const key of PLAN_CHILD_KEYS) {
+    const children = Array.isArray(step[key]) ? step[key] : null;
+    if (!children || children.length === 0) {
+      continue;
+    }
+
+    for (const child of children) {
+      if (!child || typeof child !== 'object') {
+        return true;
+      }
+
+      if (!isCompletedStatus(child.status)) {
+        return true;
+      }
+
+      if (planStepHasIncompleteChildren(child)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 function aggregateProgress(items) {
   let completed = 0;
   let total = 0;
