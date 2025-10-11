@@ -20,4 +20,4 @@
 ## Related Context
 
 - Tooling scripts: [`../scripts/context.md`](../scripts/context.md).
-- CLI language probes: [`../src/cli/bootProbes/context.md`](../src/cli/bootProbes/context.md).
+- CLI language probes: [`../packages/cli/src/bootProbes/context.md`](../packages/cli/src/bootProbes/context.md).

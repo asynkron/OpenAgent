@@ -1,8 +1,9 @@
-# Directory Context: src/cli
+# Directory Context: packages/cli/src
 
 ## Purpose & Scope
 
-- Implements the interactive terminal UI and runtime wiring for the CLI version of OpenAgent.
+- Implements the interactive terminal UI and runtime wiring for the CLI package.
+- Depends on `@asynkron/openagent-core` for orchestration, startup flags, and shared utilities.
 
 ## Key Areas
 
@@ -10,7 +11,7 @@
 - `bootProbes/` — environment probes that detect toolchains (Node, Python, Git, etc.) and surface status in the CLI. See [`bootProbes/context.md`](bootProbes/context.md).
 - `runner.js` & `runtime.js` — orchestrate CLI startup, configure the agent runtime, and pipe events into Ink.
 - `render.js`, `status.js`, `thinking.js` — helper utilities for formatting markdown, plan progress, context usage, and spinner indicators.
-- `io.js` — wraps readline/Ink input handling, exposing `askHuman` and ESC detection constants.
+- `io.js` — wraps readline input handling, exposing `askHuman` and ESC detection constants.
 
 ## Positive Signals
 
@@ -20,9 +21,9 @@
 ## Risks / Gaps
 
 - Ink rendering relies on Node terminal capabilities; ensure compatibility when adding components (use `progressUtils` helpers).
-- Runner handles many CLI flags; keep `src/lib/startupFlags.js` and docs in sync when introducing new flags.
+- Runner handles CLI flags parsed via `@asynkron/openagent-core` startup flag helpers—keep docs/code aligned when adding new flags.
 
 ## Related Context
 
-- Agent runtime emitting events: [`../agent/context.md`](../agent/context.md).
-- Package exports reusing CLI helpers: [`../lib/context.md`](../lib/context.md).
+- Core runtime powering the CLI: [`../../core/src/context.md`](../../core/src/context.md).
+- Package overview: [`../context.md`](../context.md).

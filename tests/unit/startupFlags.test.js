@@ -4,7 +4,7 @@ import {
   getDebugFlag,
   parseStartupFlagsFromArgv,
   startupFlagAccessors,
-} from '../../src/lib/startupFlags.js';
+} from '../../packages/core/src/lib/startupFlags.js';
 
 describe('startupFlags debug support', () => {
   afterEach(() => {

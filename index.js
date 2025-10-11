@@ -1,14 +1,10 @@
 /**
- * Public entry point that re-exports the reusable runtime API from `src/lib`.
+ * Compatibility shim that re-exports the CLI package.
  *
- * When executed directly (`node index.js`) it delegates to the CLI runner so we
- * maintain backwards compatibility with the old structure while keeping
- * library-focused consumers free from CLI side effects.
+ * The real implementation now lives under `packages/cli`. Keeping this file lets
+ * local tooling and examples that import `./index.js` continue to work during
+ * the workspace transition.
  */
-import exported from './src/lib/index.js';
-import { maybeRunCli } from './src/cli/runner.js';
 
-export * from './src/lib/index.js';
-export default exported;
-
-maybeRunCli(import.meta.url, process.argv);
+export * from './packages/cli/index.js';
+export { default } from './packages/cli/index.js';

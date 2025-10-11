@@ -62,11 +62,11 @@ export async function loadAgentWithMockedModules() {
     return modelCompletionQueue.shift();
   });
 
-  jest.unstable_mockModule('../../src/agent/openaiRequest.js', () => ({
+  jest.unstable_mockModule('../../packages/core/src/agent/openaiRequest.js', () => ({
     requestModelCompletion: requestModelCompletionMock,
   }));
 
-  jest.unstable_mockModule('../../src/services/commandStatsService.js', () => ({
+  jest.unstable_mockModule('../../packages/core/src/services/commandStatsService.js', () => ({
     incrementCommandCount: commandStatsMock,
   }));
 

@@ -2,13 +2,13 @@
  * CLI bootstrap wiring extracted from the legacy root `index.js`.
  *
  * It keeps the executable entrypoint lightweight while delegating the reusable
- * logic to `src/lib/index.js`.
+ * logic to the core runtime module.
  */
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { formatBootProbeSummary, runBootProbes } from './bootProbes/index.js';
-
-import { agentLoop, applyStartupFlagsFromArgv } from '../lib/index.js';
+import { applyStartupFlagsFromArgv } from '@asynkron/openagent-core';
+import { agentLoop } from './runtime.js';
 
 export async function runCli(argv = process.argv) {
   const bootProbeResults = await runBootProbes({ cwd: process.cwd() });

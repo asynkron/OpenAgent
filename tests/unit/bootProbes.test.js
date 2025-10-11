@@ -2,13 +2,13 @@ import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { formatBootProbeSummary, runBootProbes } from '../../src/cli/bootProbes/index.js';
-import PythonBootProbe from '../../src/cli/bootProbes/pythonProbe.js';
-import NodeBootProbe from '../../src/cli/bootProbes/nodeProbe.js';
-import GoBootProbe from '../../src/cli/bootProbes/goProbe.js';
-import RustBootProbe from '../../src/cli/bootProbes/rustProbe.js';
-import JvmBootProbe from '../../src/cli/bootProbes/jvmProbe.js';
-import ContainerBootProbe from '../../src/cli/bootProbes/containerProbe.js';
+import { formatBootProbeSummary, runBootProbes } from '../../packages/cli/src/bootProbes/index.js';
+import PythonBootProbe from '../../packages/cli/src/bootProbes/pythonProbe.js';
+import NodeBootProbe from '../../packages/cli/src/bootProbes/nodeProbe.js';
+import GoBootProbe from '../../packages/cli/src/bootProbes/goProbe.js';
+import RustBootProbe from '../../packages/cli/src/bootProbes/rustProbe.js';
+import JvmBootProbe from '../../packages/cli/src/bootProbes/jvmProbe.js';
+import ContainerBootProbe from '../../packages/cli/src/bootProbes/containerProbe.js';
 
 async function createTempDir(prefix = 'boot-probe-test-') {
   return mkdtemp(join(tmpdir(), prefix));

@@ -21,7 +21,7 @@ describe('createResponse', () => {
       },
     };
 
-    const { createResponse } = await import('../../src/openai/responses.js');
+    const { createResponse } = await import('../../packages/core/src/openai/responses.js');
     await createResponse({ openai, model: 'gpt-5-codex', input: [] });
 
     expect(openai.responses.create).toHaveBeenCalledWith(
@@ -43,7 +43,7 @@ describe('createResponse', () => {
     };
 
     const { createResponse, getConfiguredReasoningEffort } = await import(
-      '../../src/openai/responses.js'
+      '../../packages/core/src/openai/responses.js'
     );
     await createResponse({ openai, model: 'gpt-5-codex', input: [] });
 
@@ -67,7 +67,7 @@ describe('createResponse', () => {
       },
     };
 
-    const { createResponse } = await import('../../src/openai/responses.js');
+    const { createResponse } = await import('../../packages/core/src/openai/responses.js');
     await createResponse({
       openai,
       model: 'gpt-5-codex',
@@ -96,7 +96,7 @@ describe('createResponse', () => {
       },
     };
 
-    const { createResponse } = await import('../../src/openai/responses.js');
+    const { createResponse } = await import('../../packages/core/src/openai/responses.js');
     await createResponse({ openai, model: 'gpt-5-codex', input: [], tools: [tool] });
 
     expect(openai.responses.create).toHaveBeenCalledWith(

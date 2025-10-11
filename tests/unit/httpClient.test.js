@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 import { EventEmitter } from 'node:events';
 
-import { HttpClient, DEFAULT_TIMEOUT_MS } from '../../src/utils/fetch.js';
+import { HttpClient, DEFAULT_TIMEOUT_MS } from '../../packages/core/src/utils/fetch.js';
 
 afterEach(() => {
   jest.useRealTimers();

@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 
-import { executeAgentCommand } from '../../src/agent/commandExecution.js';
+import { executeAgentCommand } from '../../packages/core/src/agent/commandExecution.js';
 
 describe('executeAgentCommand', () => {
   const makeDeps = () => ({

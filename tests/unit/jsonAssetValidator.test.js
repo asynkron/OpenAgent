@@ -8,7 +8,7 @@ import {
   ensureUniqueByProperty,
   loadJsonFile,
   validateWithSchema,
-} from '../../src/utils/jsonAssetValidator.js';
+} from '../../packages/core/src/utils/jsonAssetValidator.js';
 
 describe('jsonAssetValidator utilities', () => {
   test('loadJsonFile parses JSON content', async () => {

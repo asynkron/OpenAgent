@@ -25,5 +25,5 @@
 
 ## Related Context
 
-- Runtime under test: [`../src/context.md`](../src/context.md).
+- Runtime under test: [`../packages/core/src/context.md`](../packages/core/src/context.md).
 - Approval allowlist data: [`../approved_commands.json`](../approved_commands.json).

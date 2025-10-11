@@ -1,6 +1,11 @@
 import { jest } from '@jest/globals';
 
-import { register, cancel, isCanceled, getActiveOperation } from '../../src/utils/cancellation.js';
+import {
+  register,
+  cancel,
+  isCanceled,
+  getActiveOperation,
+} from '../../packages/core/src/utils/cancellation.js';
 
 describe('cancellation manager', () => {
   afterEach(() => {

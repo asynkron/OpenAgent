@@ -5,7 +5,7 @@ import {
   planHasOpenSteps,
   planToMarkdown,
   computePlanProgress,
-} from '../../src/utils/plan.js';
+} from '../../packages/core/src/utils/plan.js';
 
 describe('plan utilities', () => {
   test('mergePlanTrees preserves hidden steps while merging new substeps', () => {

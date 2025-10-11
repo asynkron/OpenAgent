@@ -42,7 +42,7 @@ Generate a report summarizing the findings and suggesting potential improvements
 
 <!--example observations-->
 
-- Runtime reshaping (index.js, src/agent/loop.js, src/cli/render.js): Rapid iteration to decouple CLI from library APIs, introduce event-stream runtime, persist plans, and add debug instrumentation. Overlap between files suggests incomplete modular boundaries.
+- Runtime reshaping (packages/cli/index.js, packages/core/src/agent/loop.js, packages/cli/src/render.js): Rapid iteration to decouple CLI from library APIs, introduce event-stream runtime, persist plans, and add debug instrumentation. Overlap between files suggests incomplete modular boundaries.
 - Process documents & manifests (prompts/_.md, context.md, package_.json): Frequent edits track evolving SOPs and dependencies—signals that conventions are still settling.
 
 #### Recommended stabilisation steps

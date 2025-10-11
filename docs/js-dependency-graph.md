@@ -1,33 +1,28 @@
 # JavaScript Dependency Graph
 
-This diagram shows which JavaScript files within the OpenAgent ESM implementation import other files (relative import paths only).
+This diagram shows how the top-level CLI entry composes the core runtime after the workspace split (relative import paths).
 
 ```mermaid
 graph LR
-  index_js["index.js"] --> src_agent_loop_js["src/agent/loop.js"]
-  index_js --> src_cli_io_js["src/cli/io.js"]
-  index_js --> src_cli_render_js["src/cli/render.js"]
-  index_js --> src_cli_thinking_js["src/cli/thinking.js"]
-  index_js --> src_commands_commandStats_js["src/commands/commandStats.js"]
-  index_js --> src_commands_preapproval_js["src/commands/preapproval.js"]
-  index_js --> src_commands_run_js["src/commands/run.js"]
-  index_js --> src_config_systemPrompt_js["src/config/systemPrompt.js"]
-  index_js --> src_openai_client_js["src/openai/client.js"]
-  index_js --> src_utils_text_js["src/utils/text.js"]
-  src_agent_loop_js --> src_cli_io_js
-  src_agent_loop_js --> src_cli_render_js
-  src_agent_loop_js --> src_cli_thinking_js
-  src_agent_loop_js --> src_commands_commandStats_js
-  src_agent_loop_js --> src_commands_preapproval_js
-  src_agent_loop_js --> src_commands_run_js
-  src_agent_loop_js --> src_config_systemPrompt_js
-  src_agent_loop_js --> src_openai_client_js
-  src_agent_loop_js --> src_utils_cancellation_js["src/utils/cancellation.js"]
-  src_agent_loop_js --> src_utils_output_js["src/utils/output.js"]
-  src_agent_loop_js --> src_utils_text_js
-  src_cli_io_js --> src_utils_cancellation_js
-  src_commands_preapproval_js --> src_utils_text_js
-  src_commands_run_js --> src_utils_cancellation_js
+  root_index["index.js"] --> cli_index["packages/cli/index.js"]
+  cli_index --> cli_thinking["packages/cli/src/thinking.js"]
+  cli_index --> cli_io["packages/cli/src/io.js"]
+  cli_index --> cli_render["packages/cli/src/render.js"]
+  cli_index --> cli_status["packages/cli/src/status.js"]
+  cli_index --> cli_runtime["packages/cli/src/runtime.js"]
+  cli_index --> core_index["packages/core/index.js"]
+  cli_runtime --> core_index
+  cli_runner["packages/cli/src/runner.js"] --> cli_runtime
+  cli_runner --> core_index
+  cli_io --> core_index
+  core_index --> core_agent_loop["packages/core/src/agent/loop.js"]
+  core_index --> core_commands_run["packages/core/src/commands/run.js"]
+  core_index --> core_services_approval["packages/core/src/services/commandApprovalService.js"]
+  core_index --> core_services_stats["packages/core/src/services/commandStatsService.js"]
+  core_index --> core_utils_cancellation["packages/core/src/utils/cancellation.js"]
+  core_index --> core_utils_text["packages/core/src/utils/text.js"]
+  core_index --> core_openai_client["packages/core/src/openai/client.js"]
+  core_index --> core_config_prompt["packages/core/src/config/systemPrompt.js"]
 ```
 
-_Generated via automated AST analysis using Acorn on the current workspace state._
+_Updated after migrating to the `packages/core` + `packages/cli` workspace layout._

@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, expect, jest, test } from '@jest/globals';
 import { render } from 'ink-testing-library';
-import AskHuman, { HUMAN_SLASH_COMMANDS } from '../../src/cli/components/AskHuman.js';
+import AskHuman, { HUMAN_SLASH_COMMANDS } from '../../packages/cli/src/components/AskHuman.js';
 
 const ESC = String.fromCharCode(27);
 const ANSI_ESCAPE_PATTERN = new RegExp(`${ESC}\\[[0-9;]*m`, 'g');

@@ -1,4 +1,4 @@
-# Directory Context: src/cli/bootProbes
+# Directory Context: packages/cli/src/bootProbes
 
 ## Purpose & Scope
 

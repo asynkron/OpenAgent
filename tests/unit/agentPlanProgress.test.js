@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { createAgentRuntime } from '../../src/agent/loop.js';
+import { createAgentRuntime } from '../../packages/core/src/agent/loop.js';
 
 let responseCounter = 0;
 
