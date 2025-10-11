@@ -6,12 +6,12 @@ Maintain a living index that connects project documentation to relevant implemen
 
 ## Cross-Link Matrix
 
-| Area             | Documentation                  | Implementation Hotspots                                       |
-| ---------------- | ------------------------------ | ------------------------------------------------------------- |
-| Agent Loop       | `docs/ops-overview.md`         | `src/agent/loop.js`, `src/agent/context.md`                   |
-| Prompt Sync      | `docs/prompt-maintenance.md`   | `scripts/sync-prompts.cjs`, `brain/` mirrors                  |
-| Context Indexing | `docs/context-indexing.md`     | Directory `context.md` files under `src/`, `docs/`, `brain/`  |
-| CLI Safety       | `docs/faq.md` (safety section) | `src/agent/approvals/`, `tests/integration/approvals.test.js` |
+| Area                 | Documentation                  | Implementation Hotspots                                                                           |
+| -------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------- |
+| Operations Runtime   | `docs/ops-overview.md`         | `packages/core/src/agent/loop.js`, `packages/cli/src/runner.js`, `.github/workflows/`             |
+| Prompt Sync          | `docs/prompt-maintenance.md`   | `scripts/sync-prompts.cjs`, `packages/core/prompts/context.md`, `brain/` mirrors, `docs/context-indexing.md` |
+| Context Indexing     | `docs/context-indexing.md`     | Directory `context.md` files under `src/`, `docs/`, `brain/`, `docs/docs-crosslinks.md`           |
+| CLI Safety           | `docs/faq.md` (safety section) | `packages/core/src/agent/approvals/`, `tests/integration/approvals.test.js`                       |
 
 ## Adding New Cross-Links
 

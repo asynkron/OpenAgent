@@ -20,6 +20,12 @@ This document outlines the day-to-day operational responsibilities that keep the
 | Schema validation    | `npm run test -- --runTestsByPath tests/json-schema.test.js` | Weekly                      |
 | Dependency audit     | `npm audit`                                                  | Monthly                     |
 
+## Implementation Hotspots
+
+- `packages/core/src/agent/loop.js` — orchestrates the runtime events described in this runbook.
+- `packages/cli/src/runner.js` — wires the CLI startup path and probes referenced above.
+- `docs/docs-crosslinks.md` — update the matrix whenever operational responsibilities shift or new tooling is introduced.
+
 ## Maintenance Cadence
 
 - **Daily**: Review open pull requests, approve safe command templates, and skim error logs.

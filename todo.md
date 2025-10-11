@@ -14,10 +14,10 @@
   - [x] Audit regex heuristics and add tests for emerging shell-injection patterns
   - [x] Add validation layer for templates/shortcuts command payloads
   - [x] Expand integration scenarios for approval rejections and preapproved commands
-- [ ] Refresh operational documentation and context indexes
+- [x] Refresh operational documentation and context indexes
   - [x] Remove deprecated modernization roadmap references
-  - [ ] Add cross-links between docs and implementation hotspots
-  - [ ] Clarify maintenance process for prompt copies and context indexes
+  - [x] Add cross-links between docs and implementation hotspots
+  - [x] Clarify maintenance process for prompt copies and context indexes
 - [x] Introduce schema validation and sync safeguards for JSON assets
   - [x] Define JSON schemas for prompts, templates, and shortcuts
   - [x] Add validation step to CI or startup flow

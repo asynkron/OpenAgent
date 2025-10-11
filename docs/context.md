@@ -6,8 +6,8 @@
 
 ## Key Themes
 
-- Prompt & protocol maintenance (`prompt-maintenance.md`, `context-indexing.md`).
-- Operational runbooks (`ops-overview.md`, `publishing.md`) now outline the patch-level auto-release workflow.
+- Prompt & protocol maintenance (`prompt-maintenance.md`, `context-indexing.md`) now documents the sync workflow for mirrored copies and context indexes.
+- Operational runbooks (`ops-overview.md`, `publishing.md`) highlight implementation hotspots for the agent loop, CLI runner, and release automation.
 - Engineering design notes (`class-interface-refactor-ideas.md`, `js-dependency-graph.md`) keep architectural diagrams aligned with the current module layout.
 - Workspace notes (`workspace-structure.md`) capture the package split, npm naming strategy, follow-on release steps, and
   guidance on co-locating package-level unit tests while keeping integration suites at the repository root.
