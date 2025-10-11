@@ -209,12 +209,12 @@ describe('executeAgentPass', () => {
 
     expect(history).toHaveLength(2);
     const observationEntry = history[history.length - 1];
-    expect(observationEntry.role).toBe('user');
-    const observation = JSON.parse(observationEntry.content);
-    expect(observation.observation_for_llm.schema_validation_error).toBe(true);
-    expect(observation.observation_for_llm.details).toEqual([
-      'response.command: Must be of type object.',
-    ]);
+    expect(observationEntry.role).toBe('assistant');
+    expect(observationEntry.content).toContain('failed schema validation');
+    expect(observationEntry.content).toContain('"schema_validation_error": true');
+    expect(observationEntry.content).toContain(
+      '"response.command: Must be of type object."',
+    );
   });
 
   test('caps plan reminder auto-response after three consecutive attempts', async () => {
@@ -298,7 +298,10 @@ describe('executeAgentPass', () => {
         expect.objectContaining({ type: 'status', level: 'warn', message: planReminderMessage }),
       );
       expect(history).toHaveLength(previousHistoryLength + 2);
-      expect(history[history.length - 1]).toEqual({ role: 'user', content: planReminderMessage });
+      const autoResponseEntry = history[history.length - 1];
+      expect(autoResponseEntry.role).toBe('assistant');
+      expect(autoResponseEntry.content).toContain('Auto-response content:');
+      expect(autoResponseEntry.content).toContain(planReminderMessage);
       expect(tracker.getCount()).toBe(attempt);
     }
 

@@ -2,6 +2,7 @@ import { register as registerCancellation } from '../utils/cancellation.js';
 import { createResponse } from '../openai/responses.js';
 import { OPENAGENT_RESPONSE_TOOL } from './responseToolSchema.js';
 import { createEscWaiter, resetEscState } from './escState.js';
+import { createObservationHistoryEntry } from './historyMessageBuilder.js';
 
 export async function requestModelCompletion({
   openai,
@@ -76,7 +77,7 @@ export async function requestModelCompletion({
         metadata: { esc_payload: outcome.payload ?? null },
       });
 
-      history.push({ role: 'user', content: JSON.stringify(observation) });
+      history.push(createObservationHistoryEntry({ observation }));
       return { status: 'canceled' };
     }
 
@@ -105,7 +106,7 @@ export async function requestModelCompletion({
         message: 'The in-flight request was aborted before completion.',
       });
 
-      history.push({ role: 'user', content: JSON.stringify(observation) });
+      history.push(createObservationHistoryEntry({ observation }));
       return { status: 'canceled' };
     }
 
