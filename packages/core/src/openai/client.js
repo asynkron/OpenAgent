@@ -23,7 +23,12 @@ export function getOpenAIClient() {
   if (!memoizedClient) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      throw new Error('OPENAI_API_KEY not found in environment variables.');
+      throw new Error(
+        [
+          'OPENAI_API_KEY is missing.',
+          'Action required: copy .env.example to packages/cli/.env and set OPENAI_API_KEY=<your key> before re-running OpenAgent.',
+        ].join(' '),
+      );
     }
 
     const clientOptions = {

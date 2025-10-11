@@ -139,18 +139,6 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
-/.idea/.gitignore
-/.idea/codeStyles/codeStyleConfig.xml
-/.idea/copilot.data.migration.agent.xml
-/.idea/copilot.data.migration.ask.xml
-/.idea/copilot.data.migration.ask2agent.xml
-/.idea/copilot.data.migration.edit.xml
-/.idea/encodings.xml
-/.idea/misc.xml
-/.idea/modules.xml
-/.idea/OpenAgent.iml
-/.idea/vcs.xml
-.env
+.idea/
 WARP.md
-/.idea/projectSettingsUpdater.xml
 packages/cli/.openagent

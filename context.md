@@ -13,7 +13,8 @@
 - `packages/core/prompts/` & `schemas/` — authoritative protocol prompts plus JSON schema for validation. Linked details in [`packages/core/prompts/context.md`](packages/core/prompts/context.md) and [`schemas/context.md`](schemas/context.md).
 - `docs/` — design notes, operational guides, and meta documentation for contributors. See [`docs/context.md`](docs/context.md).
 - Editing helpers now live under `packages/core/scripts/`; root `scripts/` retains repo maintenance utilities (Git hooks, JSON validation, release safety checks). See [`packages/core/scripts/context.md`](packages/core/scripts/context.md) and [`scripts/context.md`](scripts/context.md).
-- Operational metadata: `.github/` workflows, `.githooks/` local hooks, `.idea/` IDE settings, `.openagent/` runtime plan snapshots.
+- Operational metadata: `.github/` workflows, `.githooks/` local hooks, `.openagent/` runtime plan snapshots. JetBrains `.idea/`
+  settings are intentionally gitignored to keep the repository clean for all contributors.
 
 ## Positive Signals
 
@@ -39,4 +40,4 @@
 
 - Tooling & ops: [`scripts/context.md`](scripts/context.md), [`.github/context.md`](.github/context.md), [`.githooks/context.md`](.githooks/context.md).
 - Runtime state: [`.openagent/context.md`](.openagent/context.md).
-- IDE/project metadata: [`.idea/context.md`](.idea/context.md), [`.vscode/context.md`](.vscode/context.md).
+- IDE/project metadata: [`.vscode/context.md`](.vscode/context.md). JetBrains `.idea/` settings are local-only.
