@@ -29,11 +29,11 @@ function createOpenAIMock({ summaryText }) {
 
 describe('HistoryCompactor', () => {
   const baseHistory = [
-    { role: 'system', content: 'system prompt' },
-    { role: 'user', content: 'first question' },
-    { role: 'assistant', content: 'first answer' },
-    { role: 'user', content: 'second question' },
-    { role: 'assistant', content: 'second answer' },
+    { type: 'chat-message', role: 'system', content: 'system prompt', pass: 0 },
+    { type: 'chat-message', role: 'user', content: 'first question', pass: 1 },
+    { type: 'chat-message', role: 'assistant', content: 'first answer', pass: 1 },
+    { type: 'chat-message', role: 'user', content: 'second question', pass: 2 },
+    { type: 'chat-message', role: 'assistant', content: 'second answer', pass: 2 },
   ];
 
   test('compacts oldest entries when usage exceeds threshold', async () => {
@@ -72,7 +72,7 @@ describe('HistoryCompactor', () => {
 
     expect(history).toHaveLength(4);
     const compactedEntry = history[1];
-    expect(compactedEntry.role).toBe('system');
+    expect(compactedEntry).toMatchObject({ type: 'chat-message', role: 'system', pass: 1 });
     expect(compactedEntry.content).toMatch(/^Compacted memory:/);
     expect(compactedEntry.content).toContain('Condensed summary.');
 

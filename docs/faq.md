@@ -69,13 +69,15 @@ The runtime expects the assistant to return JSON that matches `RESPONSE_PARAMETE
 - Every non-terminal plan step includes its `command` inline; the runtime refuses to execute until the plan provides the next command payload.
 - `observation` captures the most recent command output for that plan step so the model can evaluate progress before updating statuses.
 
-If schema validation fails, the runtime pushes a corrective observation back to the model so it can retry with compliant JSON. The observation payload now arrives as natural assistant prose that still embeds the structured data:
+If schema validation fails, the runtime pushes a corrective observation back to the model so it can retry with compliant JSON. Observations are now serialized JSON blobs (as strings) instead of free-form prose:
 
-```text
+```json
 {
+  "type": "chat-message",
   "role": "assistant",
-  "content": "The previous assistant response failed schema validation.\n\nMessage: Schema validation failed: /plan/0/command/shell: is required\n\nStructured payload:\n{\n  \"schema_validation_error\": true,\n  \"message\": \"Schema validation failed: /plan/0/command/shell: is required\",\n  \"details\": [\n    \"/plan/0/command/shell: is required\"\n  ],\n  \"response_snippet\": \"{ \\\"plan\\\": [ { \\\"step\\\": \\\"1\\\", \\\"title\\\": \\\"Check git status\\\", \\\"status\\\": \\\"running\\\", \\\"command\\\": { \\\"run\\\": \\\"ls\\\" } } ] }\"\n}\n\nMetadata:\n{\n  \"timestamp\": \"2024-05-13T17:45:00.000Z\"\n}"
+  "pass": 8,
+  "content": "{\"type\":\"observation\",\"summary\":\"The previous assistant response failed schema validation.\",\"details\":\"Schema validation failed: /plan/0/command/shell: is required\",\"payload\":{\"schema_validation_error\":true,\"message\":\"Schema validation failed: /plan/0/command/shell: is required\",\"details\":[\"/plan/0/command/shell: is required\"],\"response_snippet\":\"{ \\\"plan\\\": [ { \\\"step\\\": \\\"1\\\", \\\"title\\\": \\\"Check git status\\\", \\\"status\\\": \\\"running\\\", \\\"command\\\": { \\\"run\\\": \\\"ls\\\" } } ] }\"},\"metadata\":{\"timestamp\":\"2024-05-13T17:45:00.000Z\"}}"
 }
 ```
 
-The leading sentence explains the failure, while `Structured payload` and `Metadata` blocks preserve the machine-readable values that the model should continue to honor.
+The `summary`, `details`, `payload`, and `metadata` fields carry the information the model needs while keeping the transport fully machine-readable.

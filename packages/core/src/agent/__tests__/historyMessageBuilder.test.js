@@ -23,13 +23,18 @@ describe('historyMessageBuilder', () => {
     const entry = createObservationHistoryEntry({
       observation,
       command: { run: 'echo hello' },
+      pass: 5,
     });
 
-    expect(entry.role).toBe('assistant');
-    expect(entry.content).toContain('I ran the command: echo hello.');
-    expect(entry.content).toContain('Structured payload:');
-    expect(entry.content).toContain('"stdout": "hello\\n"');
-    expect(entry.content).toContain('Metadata:');
+    expect(entry).toMatchObject({ type: 'chat-message', role: 'assistant', pass: 5 });
+
+    const parsed = JSON.parse(entry.content);
+    expect(parsed).toMatchObject({
+      type: 'observation',
+      summary: 'I ran the command: echo hello. It finished with exit code 0.',
+    });
+    expect(parsed.payload).toMatchObject({ stdout: 'hello\n', exit_code: 0 });
+    expect(parsed.metadata).toMatchObject({ timestamp: '2025-01-01T00:00:00.000Z' });
   });
 
   test('includes error messaging for schema validation failures', () => {
@@ -46,28 +51,51 @@ describe('historyMessageBuilder', () => {
 
     const message = formatObservationMessage({ observation });
 
-    expect(message).toContain('failed schema validation');
-    expect(message).toContain('Message: Schema validation failed.');
-    expect(message).toContain('"schema_validation_error": true');
-    expect(message).toContain('"command is required"');
+    expect(message).toMatchObject({
+      type: 'observation',
+      summary: 'The previous assistant response failed schema validation.',
+      details: 'Schema validation failed.',
+    });
+    expect(message.payload).toMatchObject({ schema_validation_error: true });
+    expect(message.payload.details).toContain('command is required');
+  });
+
+  test('serializes plan updates as structured JSON', () => {
+    const observation = {
+      observation_for_llm: {
+        plan: [{ step: '1', title: 'Do the thing', status: 'running' }],
+      },
+      observation_metadata: {
+        timestamp: '2025-01-01T00:00:00.000Z',
+      },
+    };
+
+    const entry = createObservationHistoryEntry({ observation, pass: 9 });
+    expect(entry).toMatchObject({ type: 'chat-message', role: 'assistant', pass: 9 });
+    const parsed = JSON.parse(entry.content);
+    expect(parsed).toMatchObject({ type: 'plan-update' });
+    expect(parsed.plan).toEqual([{ step: '1', title: 'Do the thing', status: 'running' }]);
+    expect(parsed.metadata).toMatchObject({ timestamp: '2025-01-01T00:00:00.000Z' });
   });
 
   test('wraps plan reminder auto responses', () => {
     const planReminderMessage = 'Please continue executing the outstanding plan steps.';
-    const entry = createPlanReminderEntry(planReminderMessage);
+    const entry = createPlanReminderEntry({ planReminderMessage, pass: 4 });
 
-    expect(entry.role).toBe('assistant');
-    expect(entry.content).toContain('unfinished steps in the active plan');
-    expect(entry.content).toContain('Auto-response content:');
-    expect(entry.content).toContain(planReminderMessage);
+    expect(entry).toMatchObject({ type: 'chat-message', role: 'assistant', pass: 4 });
+    const parsed = JSON.parse(entry.content);
+    expect(parsed).toMatchObject({ type: 'plan-reminder' });
+    expect(parsed.message).toContain('unfinished steps in the active plan');
+    expect(parsed.auto_response).toBe(planReminderMessage);
   });
 
   test('wraps refusal auto responses', () => {
-    const entry = createRefusalAutoResponseEntry('continue');
+    const entry = createRefusalAutoResponseEntry({ autoResponseMessage: 'continue', pass: 12 });
 
-    expect(entry.role).toBe('assistant');
-    expect(entry.content).toContain('appeared to be a refusal');
-    expect(entry.content).toContain('Auto-response content:');
-    expect(entry.content).toContain('continue');
+    expect(entry).toMatchObject({ type: 'chat-message', role: 'assistant', pass: 12 });
+    const parsed = JSON.parse(entry.content);
+    expect(parsed).toMatchObject({ type: 'refusal-reminder' });
+    expect(parsed.message).toContain('appeared to be a refusal');
+    expect(parsed.auto_response).toBe('continue');
   });
 });

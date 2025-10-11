@@ -137,6 +137,7 @@ describe('executeAgentPass', () => {
     const history = [];
 
     // The mocked payload only contains whitespace for both run and shell fields.
+    const PASS_INDEX = 11;
     const result = await executeAgentPass({
       openai: {},
       model: 'gpt-5-codex',
@@ -155,6 +156,7 @@ describe('executeAgentPass', () => {
       historyCompactor: null,
       planManager: null,
       emitAutoApproveStatus: false,
+      passIndex: PASS_INDEX,
     });
 
     expect(result).toBe(false);
@@ -164,6 +166,11 @@ describe('executeAgentPass', () => {
     expect(validateAssistantResponseSchema).toHaveBeenCalledTimes(1);
     expect(validateAssistantResponse).toHaveBeenCalledTimes(1);
     expect(executeAgentCommand).not.toHaveBeenCalled();
+
+    expect(history.every((entry) => entry.pass === PASS_INDEX)).toBe(true);
+    expect(requestModelCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({ passIndex: PASS_INDEX }),
+    );
   });
 
   test('auto-responds when schema validation fails', async () => {
@@ -184,6 +191,7 @@ describe('executeAgentPass', () => {
       errors: [{ path: 'response.plan[0].command', message: 'Must be of type object.' }],
     });
 
+    const PASS_INDEX = 7;
     const result = await executeAgentPass({
       openai: {},
       model: 'gpt-5-codex',
@@ -202,6 +210,7 @@ describe('executeAgentPass', () => {
       historyCompactor: null,
       planManager: null,
       emitAutoApproveStatus: false,
+      passIndex: PASS_INDEX,
     });
 
     expect(result).toBe(true);
@@ -225,11 +234,22 @@ describe('executeAgentPass', () => {
 
     expect(history).toHaveLength(2);
     const observationEntry = history[history.length - 1];
-    expect(observationEntry.role).toBe('assistant');
-    expect(observationEntry.content).toContain('failed schema validation');
-    expect(observationEntry.content).toContain('"schema_validation_error": true');
-    expect(observationEntry.content).toContain(
-      '"response.plan[0].command: Must be of type object."',
+    expect(observationEntry).toMatchObject({
+      type: 'chat-message',
+      role: 'assistant',
+      pass: PASS_INDEX,
+    });
+    const assistantEntry = history[0];
+    expect(assistantEntry).toMatchObject({ pass: PASS_INDEX });
+    const parsedObservation = JSON.parse(observationEntry.content);
+    expect(parsedObservation).toMatchObject({
+      type: 'observation',
+      summary: 'The previous assistant response failed schema validation.',
+    });
+    expect(parsedObservation.details).toContain('Schema validation failed');
+    expect(parsedObservation.payload).toMatchObject({ schema_validation_error: true });
+    expect(parsedObservation.payload.details).toContain(
+      'response.plan[0].command: Must be of type object.',
     );
   });
 
@@ -281,8 +301,10 @@ describe('executeAgentPass', () => {
       },
     };
 
-    const runPass = async () =>
-      executeAgentPass({
+    let passIndex = 1;
+
+    const runPass = async () => {
+      const result = await executeAgentPass({
         openai: {},
         model: 'gpt-5-codex',
         history,
@@ -301,13 +323,19 @@ describe('executeAgentPass', () => {
         planManager: null,
         emitAutoApproveStatus: false,
         planAutoResponseTracker: tracker,
+        passIndex,
       });
+
+      const currentPass = passIndex;
+      passIndex += 1;
+      return { result, pass: currentPass };
+    };
 
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       emitEvent.mockClear();
       const previousHistoryLength = history.length;
 
-      const result = await runPass();
+      const { result, pass } = await runPass();
 
       expect(result).toBe(true);
       expect(requestModelCompletion).toHaveBeenCalledTimes(attempt);
@@ -321,23 +349,33 @@ describe('executeAgentPass', () => {
       );
       expect(history).toHaveLength(previousHistoryLength + 2);
       const autoResponseEntry = history[history.length - 1];
-      expect(autoResponseEntry.role).toBe('assistant');
-      expect(autoResponseEntry.content).toContain('Auto-response content:');
-      expect(autoResponseEntry.content).toContain(planReminderMessage);
+      expect(autoResponseEntry).toMatchObject({
+        type: 'chat-message',
+        role: 'assistant',
+        pass,
+      });
+      const parsedReminder = JSON.parse(autoResponseEntry.content);
+      expect(parsedReminder).toMatchObject({ type: 'plan-reminder' });
+      expect(parsedReminder.auto_response).toBe(planReminderMessage);
       expect(tracker.getCount()).toBe(attempt);
+
+      const assistantEntry = history[history.length - 2];
+      expect(assistantEntry).toMatchObject({ pass });
     }
 
     emitEvent.mockClear();
     const previousHistoryLength = history.length;
 
-    const suppressedResult = await runPass();
+    const { result: suppressedResult, pass: suppressedPass } = await runPass();
 
     expect(suppressedResult).toBe(false);
     expect(emitEvent).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'status', message: planReminderMessage }),
     );
     expect(history).toHaveLength(previousHistoryLength + 1);
-    expect(history[history.length - 1]).toEqual(expect.objectContaining({ role: 'assistant' }));
+    expect(history[history.length - 1]).toEqual(
+      expect.objectContaining({ type: 'chat-message', role: 'assistant', pass: suppressedPass }),
+    );
     expect(tracker.getCount()).toBe(4);
   });
 });
