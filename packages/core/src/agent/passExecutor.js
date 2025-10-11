@@ -146,7 +146,13 @@ export async function executeAgentPass({
   planManager,
   emitAutoApproveStatus = false,
   planAutoResponseTracker = null,
+  passIndex,
 }) {
+  if (typeof passIndex !== 'number') {
+    throw new Error('executeAgentPass requires a numeric passIndex.');
+  }
+
+  const activePass = passIndex;
   const debugFn = typeof onDebug === 'function' ? onDebug : null;
   const emitDebug = (payloadOrFactory) => {
     if (!debugFn) {
@@ -215,6 +221,7 @@ export async function executeAgentPass({
     stopThinkingFn,
     setNoHumanFlag,
     emitEvent,
+    passIndex: activePass,
   });
 
   if (completionResult.status === 'canceled') {
@@ -242,6 +249,7 @@ export async function executeAgentPass({
   history.push({
     type: 'chat-message',
     role: 'assistant',
+    pass: activePass,
     content: responseContent,
   });
 
@@ -279,7 +287,7 @@ export async function executeAgentPass({
       },
     };
 
-    history.push(createObservationHistoryEntry({ observation }));
+    history.push(createObservationHistoryEntry({ observation, pass: activePass }));
     return true;
   }
 
@@ -363,7 +371,7 @@ export async function executeAgentPass({
       },
     };
 
-    history.push(createObservationHistoryEntry({ observation }));
+    history.push(createObservationHistoryEntry({ observation, pass: activePass }));
     return true;
   }
 
@@ -394,7 +402,7 @@ export async function executeAgentPass({
       },
     };
 
-    history.push(createObservationHistoryEntry({ observation }));
+    history.push(createObservationHistoryEntry({ observation, pass: activePass }));
     return true;
   }
 
@@ -468,7 +476,12 @@ export async function executeAgentPass({
     if (activePlanEmpty && incomingPlanEmpty && isLikelyRefusalMessage(normalizedMessage)) {
       // When the assistant refuses without offering a plan or command, nudge it forward automatically.
       emitEvent({ type: 'status', level: 'info', message: REFUSAL_STATUS_MESSAGE });
-      history.push(createRefusalAutoResponseEntry(REFUSAL_AUTO_RESPONSE));
+      history.push(
+        createRefusalAutoResponseEntry({
+          autoResponseMessage: REFUSAL_AUTO_RESPONSE,
+          pass: activePass,
+        }),
+      );
       resetPlanReminder();
       return true;
     }
@@ -482,7 +495,9 @@ export async function executeAgentPass({
           level: 'warn',
           message: planReminderMessage,
         });
-        history.push(createPlanReminderEntry(planReminderMessage));
+        history.push(
+          createPlanReminderEntry({ planReminderMessage, pass: activePass }),
+        );
         return true;
       }
 
@@ -536,7 +551,9 @@ export async function executeAgentPass({
             },
           };
 
-          history.push(createObservationHistoryEntry({ observation: planObservation }));
+          history.push(
+            createObservationHistoryEntry({ observation: planObservation, pass: activePass }),
+          );
           return true;
         }
 
@@ -621,7 +638,9 @@ export async function executeAgentPass({
     plan: planForExecution,
   }));
 
-  history.push(createObservationHistoryEntry({ observation: planObservation }));
+  history.push(
+    createObservationHistoryEntry({ observation: planObservation, pass: activePass }),
+  );
 
   return true;
 }

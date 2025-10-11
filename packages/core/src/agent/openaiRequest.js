@@ -14,6 +14,7 @@ export async function requestModelCompletion({
   stopThinkingFn,
   setNoHumanFlag,
   emitEvent = () => {},
+  passIndex,
 }) {
   const { promise: escPromise, cleanup: cleanupEscWaiter } = createEscWaiter(escState);
 
@@ -77,7 +78,9 @@ export async function requestModelCompletion({
         metadata: { esc_payload: outcome.payload ?? null },
       });
 
-      history.push(createObservationHistoryEntry({ observation }));
+      history.push(
+        createObservationHistoryEntry({ observation, pass: passIndex }),
+      );
       return { status: 'canceled' };
     }
 
@@ -106,7 +109,9 @@ export async function requestModelCompletion({
         message: 'The in-flight request was aborted before completion.',
       });
 
-      history.push(createObservationHistoryEntry({ observation }));
+      history.push(
+        createObservationHistoryEntry({ observation, pass: passIndex }),
+      );
       return { status: 'canceled' };
     }
 

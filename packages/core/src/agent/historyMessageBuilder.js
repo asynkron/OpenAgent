@@ -103,13 +103,14 @@ const buildObservationContent = ({ observation, command }) => {
 export const formatObservationMessage = ({ observation, command = null }) =>
   buildObservationContent({ observation, command });
 
-export const createObservationHistoryEntry = ({ observation, command = null }) => ({
+export const createObservationHistoryEntry = ({ observation, command = null, pass }) => ({
   type: 'chat-message',
   role: 'assistant',
+  pass,
   content: stringify(buildObservationContent({ observation, command })),
 });
 
-export const createPlanReminderEntry = (planReminderMessage) => {
+export const createPlanReminderEntry = ({ planReminderMessage, pass }) => {
   const content = {
     type: 'plan-reminder',
     message:
@@ -120,10 +121,10 @@ export const createPlanReminderEntry = (planReminderMessage) => {
     content.auto_response = planReminderMessage.trim();
   }
 
-  return { type: 'chat-message', role: 'assistant', content: stringify(content) };
+  return { type: 'chat-message', role: 'assistant', pass, content: stringify(content) };
 };
 
-export const createRefusalAutoResponseEntry = (autoResponseMessage) => {
+export const createRefusalAutoResponseEntry = ({ autoResponseMessage, pass }) => {
   const content = {
     type: 'refusal-reminder',
     message: 'The previous response appeared to be a refusal, so I nudged myself to continue.',
@@ -133,7 +134,7 @@ export const createRefusalAutoResponseEntry = (autoResponseMessage) => {
     content.auto_response = autoResponseMessage.trim();
   }
 
-  return { type: 'chat-message', role: 'assistant', content: stringify(content) };
+  return { type: 'chat-message', role: 'assistant', pass, content: stringify(content) };
 };
 
 export default {

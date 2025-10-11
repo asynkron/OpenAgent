@@ -37,7 +37,9 @@ function buildSummarizationInput(entries) {
     .map((entry, index) => {
       const role = entry?.role ?? 'unknown';
       const content = stringifyContent(entry?.content);
-      return `Entry ${index + 1} (${role}):\n${content}`;
+      const passLabel =
+        typeof entry?.pass === 'number' ? `pass ${entry.pass}` : 'unknown pass';
+      return `Entry ${index + 1} (${role}, ${passLabel}):\n${content}`;
     })
     .join('\n\n');
 
@@ -120,10 +122,18 @@ export class HistoryCompactor {
 
     this._log('log', `[history-compactor] Compacted summary:\n${summarizedText}`);
 
+    const compactedPass = entriesToCompact.reduce((max, entry) => {
+      if (typeof entry?.pass === 'number' && entry.pass > max) {
+        return entry.pass;
+      }
+      return max;
+    }, 0);
+
     const compactedEntry = {
       type: 'chat-message',
       role: 'system',
       content: `${DEFAULT_SUMMARY_PREFIX}\n${summarizedText}`.trim(),
+      pass: compactedPass,
     };
 
     const originalHistoryLength = history.length;

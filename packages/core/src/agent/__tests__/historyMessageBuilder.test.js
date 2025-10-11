@@ -23,9 +23,10 @@ describe('historyMessageBuilder', () => {
     const entry = createObservationHistoryEntry({
       observation,
       command: { run: 'echo hello' },
+      pass: 5,
     });
 
-    expect(entry).toMatchObject({ type: 'chat-message', role: 'assistant' });
+    expect(entry).toMatchObject({ type: 'chat-message', role: 'assistant', pass: 5 });
 
     const parsed = JSON.parse(entry.content);
     expect(parsed).toMatchObject({
@@ -69,8 +70,8 @@ describe('historyMessageBuilder', () => {
       },
     };
 
-    const entry = createObservationHistoryEntry({ observation });
-    expect(entry).toMatchObject({ type: 'chat-message', role: 'assistant' });
+    const entry = createObservationHistoryEntry({ observation, pass: 9 });
+    expect(entry).toMatchObject({ type: 'chat-message', role: 'assistant', pass: 9 });
     const parsed = JSON.parse(entry.content);
     expect(parsed).toMatchObject({ type: 'plan-update' });
     expect(parsed.plan).toEqual([{ step: '1', title: 'Do the thing', status: 'running' }]);
@@ -79,9 +80,9 @@ describe('historyMessageBuilder', () => {
 
   test('wraps plan reminder auto responses', () => {
     const planReminderMessage = 'Please continue executing the outstanding plan steps.';
-    const entry = createPlanReminderEntry(planReminderMessage);
+    const entry = createPlanReminderEntry({ planReminderMessage, pass: 4 });
 
-    expect(entry).toMatchObject({ type: 'chat-message', role: 'assistant' });
+    expect(entry).toMatchObject({ type: 'chat-message', role: 'assistant', pass: 4 });
     const parsed = JSON.parse(entry.content);
     expect(parsed).toMatchObject({ type: 'plan-reminder' });
     expect(parsed.message).toContain('unfinished steps in the active plan');
@@ -89,9 +90,9 @@ describe('historyMessageBuilder', () => {
   });
 
   test('wraps refusal auto responses', () => {
-    const entry = createRefusalAutoResponseEntry('continue');
+    const entry = createRefusalAutoResponseEntry({ autoResponseMessage: 'continue', pass: 12 });
 
-    expect(entry).toMatchObject({ type: 'chat-message', role: 'assistant' });
+    expect(entry).toMatchObject({ type: 'chat-message', role: 'assistant', pass: 12 });
     const parsed = JSON.parse(entry.content);
     expect(parsed).toMatchObject({ type: 'refusal-reminder' });
     expect(parsed.message).toContain('appeared to be a refusal');

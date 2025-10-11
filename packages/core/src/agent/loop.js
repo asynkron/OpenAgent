@@ -51,9 +51,15 @@ export function createAgentRuntime({
   const outputs = new AsyncQueue();
   const inputs = new AsyncQueue();
   let counter = 0;
+  let passCounter = 0;
   const emit = (event) => {
     event.__id = 'key' + counter++;
     outputs.push(event);
+  };
+
+  const nextPass = () => {
+    passCounter += 1;
+    return passCounter;
   };
 
   const planManager = createPlanManager({
@@ -119,6 +125,7 @@ export function createAgentRuntime({
       type: 'chat-message',
       role: 'system',
       content: combinedSystemPrompt,
+      pass: 0,
     },
   ];
 
@@ -233,14 +240,18 @@ export function createAgentRuntime({
           break;
         }
 
+        const activePass = nextPass();
+
         history.push({
           type: 'chat-message',
           role: 'user',
           content: userInput,
+          pass: activePass,
         });
 
         try {
           let continueLoop = true;
+          let currentPass = activePass;
 
           while (continueLoop) {
             const shouldContinue = await executeAgentPass({
@@ -263,9 +274,15 @@ export function createAgentRuntime({
               planManager,
               planAutoResponseTracker,
               emitAutoApproveStatus,
+              passIndex: currentPass,
             });
 
-            continueLoop = shouldContinue;
+            if (!shouldContinue) {
+              continueLoop = false;
+            } else {
+              currentPass = nextPass();
+              continueLoop = true;
+            }
           }
         } catch (error) {
           emit({
