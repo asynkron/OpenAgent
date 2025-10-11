@@ -115,9 +115,22 @@ export function createPlanManager({
     async update(nextPlan) {
       const merging = shouldMergePlans();
       if (!Array.isArray(nextPlan) || nextPlan.length === 0) {
-        activePlan = [];
+        if (!merging) {
+          activePlan = [];
+        }
       } else if (merging && activePlan.length > 0) {
         activePlan = mergePlanTrees(activePlan, nextPlan);
+      } else {
+        activePlan = clonePlan(nextPlan);
+      }
+
+      emitPlanProgressEvent(activePlan);
+      await persistPlanSnapshot();
+      return clonePlan(activePlan);
+    },
+    async sync(nextPlan) {
+      if (!Array.isArray(nextPlan)) {
+        activePlan = [];
       } else {
         activePlan = clonePlan(nextPlan);
       }
