@@ -23,4 +23,4 @@
 ## Related Context
 
 - Dispatcher using these primitives: [`../agent/context.md`](../agent/context.md).
-- Tests covering behavior: [`../../tests/unit/context.md`](../../tests/unit/context.md), [`../../tests/integration/context.md`](../../tests/integration/context.md).
+- Tests covering behavior: [`__tests__/runCommand.test.js`](__tests__/runCommand.test.js), [`../../tests/integration/context.md`](../../tests/integration/context.md).

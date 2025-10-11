@@ -11,7 +11,7 @@
 ## Positive Signals
 
 - Provides thorough normalization utilities (binary decoding, payload wrapping) making the binding resilient to different socket libraries.
-- Includes unit tests (`tests/unit/websocketBinding.test.js`) covering parsing, event wiring, and cancellation.
+- Includes unit tests (`__tests__/websocketBinding.test.js`) covering parsing, event wiring, and cancellation.
 
 ## Risks / Gaps
 

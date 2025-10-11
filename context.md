@@ -9,7 +9,7 @@
 
 - `packages/core/` — headless runtime, OpenAI client adapters, and shared utilities. See [`packages/core/context.md`](packages/core/context.md).
 - `packages/cli/` — Ink-based CLI that depends on the core runtime. See [`packages/cli/context.md`](packages/cli/context.md).
-- `tests/` — Jest unit/integration suites with mock OpenAI harnesses. See [`tests/context.md`](tests/context.md).
+- `tests/` — cross-package integration suites with mock OpenAI harnesses. See [`tests/context.md`](tests/context.md).
 - `prompts/` & `schemas/` — authoritative protocol prompts plus JSON schema for validation. Linked details in [`prompts/context.md`](prompts/context.md) and [`schemas/context.md`](schemas/context.md).
 - `docs/` — design notes, operational guides, and meta documentation for contributors. See [`docs/context.md`](docs/context.md).
 - `scripts/` — maintenance utilities for editing code, validating assets, and release hygiene. See [`scripts/context.md`](scripts/context.md).
@@ -17,10 +17,10 @@
 
 ## Positive Signals
 
-- Comprehensive automated coverage: unit suites exercise nearly every agent subsystem while integration tests validate the full runtime loop with mocked OpenAI responses.
+- Comprehensive automated coverage: per-package unit suites (under `packages/core` and `packages/cli`) exercise nearly every agent subsystem while integration tests validate the full runtime loop with mocked OpenAI responses.
 - Clear separation between the workspace packages: `packages/core` hosts orchestration/command logic while `packages/cli` owns presentation (Ink) and bootstrapping.
 - Documentation spans architecture, ops, and prompt maintenance, reducing ramp-up time for new contributors (especially AI assistants).
-- CLI unit tests now use `ink-testing-library` to simulate terminal input when exercising interactive components.
+- CLI unit tests under `packages/cli/src/**/__tests__` use `ink-testing-library` to simulate terminal input when exercising interactive components.
 
 ## Risks / Gaps
 

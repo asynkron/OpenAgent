@@ -16,6 +16,8 @@
 ## Positive Signals
 
 - Separation between runtime wiring and presentation components simplifies testing; many components have unit coverage.
+- Co-located `__tests__/` folders (e.g., under `components/`, `bootProbes/`, and `src/__tests__/`) keep CLI regression suites nex
+  to the code they exercise.
 - Boot probes provide immediate environment diagnostics before the agent runs commands.
 
 ## Risks / Gaps

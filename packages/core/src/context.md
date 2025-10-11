@@ -19,6 +19,8 @@
 ## Positive Signals
 
 - Modular design cleanly separates pure helpers from side-effectful layers; facilitates testing and alternate UIs.
+- Co-located `__tests__/` directories under `agent/`, `utils/`, `commands/`, `openai/`, `bindings/`, and `lib/` keep runtime unit
+  coverage next to the implementation files.
 - Startup flags (`lib/startupFlags.js`) centralize configuration toggles and are covered by unit tests.
 
 ## Risks / Gaps

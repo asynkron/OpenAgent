@@ -2,20 +2,23 @@
 
 ## Purpose & Scope
 
-- Jest-based test suites validating agent behavior end-to-end (`integration/`) and by component (`unit/`). Includes shared mocks.
+- Jest-based suites that exercise cross-package scenarios (for example the CLI bootstrapping through the runtime). Includes shared mocks.
+- Acts as the shared home for integration suites that exercise multiple packages now that unit tests live alongside the code in
+  `packages/core` and `packages/cli`.
 
 ## Key Areas
 
 - `integration/` — orchestrates full agent runs using a mocked OpenAI backend. See [`integration/context.md`](integration/context.md).
-- `unit/` — targeted tests for utilities, CLI rendering, OpenAI adapters, etc. See [`unit/context.md`](unit/context.md).
 - `mockOpenAI.js` — fixture exposing deterministic OpenAI responses for integration harnesses.
 - `ink-testing-library` dev dependency drives terminal keystroke simulation for CLI component specs.
 
 ## Positive Signals
 
 - Integration harness (`agentRuntimeTestHarness.js`) simulates CLI runtime, ensuring plan updates, command execution, and cancellation all cooperate.
-- Unit coverage spans plan utilities, prompt parsing, HTTP client, WebSocket binding, and CLI rendering—a broad regression net.
-- Recent unit tests assert tool-only OpenAI responses remain parseable, guarding against regressions in response extraction.
+- Package-level unit suites now live under `packages/core/src/**/__tests__` and `packages/cli/src/**/__tests__`, so regression
+  coverage travels with the implementation modules.
+- Recent unit tests under each package assert tool-only OpenAI responses remain parseable, guard the CLI renderers, and cover
+  cancellation/plan utilities without depending on the repository-level harness.
 - OpenAI mocking utilities now keep their enablement flag immutable, preventing accidental toggles mid-suite.
 
 ## Risks / Gaps
@@ -27,3 +30,4 @@
 
 - Runtime under test: [`../packages/core/src/context.md`](../packages/core/src/context.md).
 - Approval allowlist data: [`../approved_commands.json`](../approved_commands.json).
+- Package-level structure and guidance for co-locating future unit tests: [`../docs/workspace-structure.md`](../docs/workspace-structure.md).

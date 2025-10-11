@@ -9,7 +9,8 @@
 - Prompt & protocol maintenance (`prompt-maintenance.md`, `context-indexing.md`).
 - Operational runbooks (`ops-overview.md`, `publishing.md`) now outline the patch-level auto-release workflow.
 - Engineering design notes (`class-interface-refactor-ideas.md`, `js-dependency-graph.md`) keep architectural diagrams aligned with the current module layout.
-- Workspace notes (`workspace-structure.md`) capture the package split, npm naming strategy, and follow-on release steps.
+- Workspace notes (`workspace-structure.md`) capture the package split, npm naming strategy, follow-on release steps, and
+  guidance on co-locating package-level unit tests while keeping integration suites at the repository root.
 - FAQ and troubleshooting guides (`faq.md`, `openai-cancellation.md`) now cover enabling local Git hooks, provide an example of
   a schema-compliant `open-agent` response payload, and document the corrective observation we emit when schema validation fails
   (examples kept Prettier-compliant for JSON parsing clarity).

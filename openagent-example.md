@@ -912,7 +912,7 @@ Shell: bash
 Directory: .
 Timeout: 60s
 
-  ls tests/unit
+  ls packages/core/src/utils/__tests__
 
 
 Auto-approved by allowlist (approved_commands.json)
@@ -923,11 +923,13 @@ Runtime: 13ms
 Status: COMPLETED
 
 STDOUT ______________
-  agentBuiltins.test.js
-  editText.test.js
-  index.test.js
+  cancellation.test.js
+  contextUsage.test.js
+  httpClient.test.js
+  jsonAssetValidator.test.js
   outputUtils.test.js
-  renderLanguage.test.js
+  plan.test.js
+  planUtils.test.js
   replaceCommand.test.js
 
 
