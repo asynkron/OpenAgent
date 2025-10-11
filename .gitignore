@@ -153,3 +153,4 @@ vite.config.ts.timestamp-*
 .env
 WARP.md
 /.idea/projectSettingsUpdater.xml
+packages/cli/.openagent
