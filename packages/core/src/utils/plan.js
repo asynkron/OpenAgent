@@ -103,6 +103,22 @@ function selectChildKey(existingItem, incomingItem) {
   return null;
 }
 
+const VOLATILE_KEYS = new Set(['age']);
+
+function stripVolatileKeys(item) {
+  if (!item || typeof item !== 'object') {
+    return item;
+  }
+
+  const cleaned = { ...item };
+  for (const key of VOLATILE_KEYS) {
+    if (key in cleaned) {
+      delete cleaned[key];
+    }
+  }
+  return cleaned;
+}
+
 function mergePlanItems(existingItem, incomingItem) {
   if (!incomingItem || typeof incomingItem !== 'object') {
     return clonePlanItem(existingItem);
@@ -112,8 +128,8 @@ function mergePlanItems(existingItem, incomingItem) {
     return clonePlanItem(incomingItem);
   }
 
-  const base = clonePlanItem(existingItem);
-  const incoming = clonePlanItem(incomingItem);
+  const base = clonePlanItem(stripVolatileKeys(existingItem));
+  const incoming = clonePlanItem(stripVolatileKeys(incomingItem));
   const merged = { ...base, ...incoming };
 
   const childKey = selectChildKey(existingItem, incomingItem);
