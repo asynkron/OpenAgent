@@ -464,8 +464,13 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
         } catch (error) {
           handleStatusEvent({ level: 'error', message: 'Failed to submit input.', details: error });
         }
+        setInputRequest(null);
+        return;
       }
-      setInputRequest(null);
+
+      // When a slash command is handled locally, the runtime is still waiting for
+      // input. Keep the current request active so the next human prompt is routed
+      // to OpenAI instead of being treated as another local command.
     },
     [appendEntry, handleSlashCommand, handleStatusEvent],
   );
