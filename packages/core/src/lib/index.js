@@ -1,28 +1,15 @@
 /**
- * Aggregated library entry for the OpenAgent runtime.
+ * Aggregated library entry for the OpenAgent core runtime.
  *
  * Responsibilities:
  * - Provide a CLI-agnostic export surface for package consumers.
- * - Re-export CLI utilities without entangling the runtime wiring logic.
- * - Surface helpers that the CLI runner can consume without forcing consumers to
- *   import CLI glue manually.
+ * - Surface the orchestration loop, configuration helpers, and shared utilities
+ *   used by higher level interfaces like the CLI or WebSocket bindings.
  */
 
 import 'dotenv/config';
 
 import { MODEL, getOpenAIClient, resetOpenAIClient } from '../openai/client.js';
-import { startThinking, stopThinking, formatElapsedTime } from '../cli/thinking.js';
-import { createInterface, askHuman, ESCAPE_EVENT } from '../cli/io.js';
-import {
-  display,
-  wrapStructuredContent,
-  renderMarkdownMessage,
-  renderPlan,
-  renderMessage,
-  renderCommand,
-  renderPlanProgress,
-} from '../cli/render.js';
-import { renderRemainingContext } from '../cli/status.js';
 import { runCommand } from '../commands/run.js';
 import {
   CommandApprovalService,
@@ -35,7 +22,14 @@ import {
   commandSignature as __commandSignature,
   PREAPPROVED_CFG,
 } from '../services/commandApprovalService.js';
+import { incrementCommandCount } from '../services/commandStatsService.js';
 import { applyFilter, tailLines, shellSplit } from '../utils/text.js';
+import {
+  register as registerCancellation,
+  cancel,
+  isCanceled,
+  getActiveOperation,
+} from '../utils/cancellation.js';
 import {
   findAgentFiles,
   buildAgentsPrompt,
@@ -50,31 +44,22 @@ import {
 } from '../agent/loop.js';
 import { createWebSocketBinding } from '../bindings/websocket.js';
 import {
+  getStartupFlags,
+  getAutoApproveFlag,
+  getNoHumanFlag,
+  getPlanMergeFlag,
+  getDebugFlag,
+  setNoHumanFlag,
   setStartupFlags,
   parseStartupFlagsFromArgv,
   applyStartupFlagsFromArgv,
   startupFlagAccessors,
 } from './startupFlags.js';
-import { runCommandAndTrack, agentLoop } from '../cli/runtime.js';
 
 export {
   MODEL,
   getOpenAIClient,
   resetOpenAIClient,
-  startThinking,
-  stopThinking,
-  formatElapsedTime,
-  createInterface,
-  askHuman,
-  ESCAPE_EVENT,
-  display,
-  wrapStructuredContent,
-  renderMarkdownMessage,
-  renderPlan,
-  renderMessage,
-  renderCommand,
-  renderPlanProgress,
-  renderRemainingContext,
   runCommand,
   CommandApprovalService,
   sessionApprovalService,
@@ -85,9 +70,14 @@ export {
   resetSessionApprovals,
   __commandSignature,
   PREAPPROVED_CFG,
+  incrementCommandCount,
   applyFilter,
   tailLines,
   shellSplit,
+  registerCancellation,
+  cancel,
+  isCanceled,
+  getActiveOperation,
   findAgentFiles,
   buildAgentsPrompt,
   BASE_SYSTEM_PROMPT,
@@ -97,11 +87,16 @@ export {
   extractOpenAgentToolCall,
   extractResponseText,
   createWebSocketBinding,
+  getStartupFlags,
+  getAutoApproveFlag,
+  getNoHumanFlag,
+  getPlanMergeFlag,
+  getDebugFlag,
+  setNoHumanFlag,
   setStartupFlags,
   parseStartupFlagsFromArgv,
   applyStartupFlagsFromArgv,
-  runCommandAndTrack,
-  agentLoop,
+  startupFlagAccessors,
 };
 
 const exported = {
@@ -109,20 +104,6 @@ const exported = {
   MODEL,
   getOpenAIClient,
   resetOpenAIClient,
-  startThinking,
-  stopThinking,
-  formatElapsedTime,
-  createInterface,
-  askHuman,
-  ESCAPE_EVENT,
-  display,
-  wrapStructuredContent,
-  renderMarkdownMessage,
-  renderPlan,
-  renderMessage,
-  renderCommand,
-  renderPlanProgress,
-  renderRemainingContext,
   runCommand,
   CommandApprovalService,
   sessionApprovalService,
@@ -133,9 +114,14 @@ const exported = {
   resetSessionApprovals,
   __commandSignature,
   PREAPPROVED_CFG,
+  incrementCommandCount,
   applyFilter,
   tailLines,
   shellSplit,
+  registerCancellation,
+  cancel,
+  isCanceled,
+  getActiveOperation,
   findAgentFiles,
   buildAgentsPrompt,
   BASE_SYSTEM_PROMPT,
@@ -145,11 +131,15 @@ const exported = {
   extractOpenAgentToolCall,
   extractResponseText,
   createWebSocketBinding,
+  getStartupFlags,
+  getAutoApproveFlag,
+  getNoHumanFlag,
+  getPlanMergeFlag,
+  getDebugFlag,
+  setNoHumanFlag,
   setStartupFlags,
   parseStartupFlagsFromArgv,
   applyStartupFlagsFromArgv,
-  runCommandAndTrack,
-  agentLoop,
 };
 
 export default exported;

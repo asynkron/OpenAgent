@@ -1,5 +1,7 @@
 ## OpenAgent Example
 
+> **Workspace note:** The repository now uses `packages/core` and `packages/cli`. Any references to `./src/...` paths in this walkthrough should be mapped to the corresponding package directories (e.g., `./packages/core/src/...`, `./packages/cli/src/...`).
+
 ```
 Sending request to AI
 Received response from AI
@@ -289,16 +291,23 @@ STDOUT ______________
    * - Dispatch template and shortcut subcommands before starting the interactive agent loop when run directly.
    *
    * Collaborators:
-   * - `src/agent/loop.js` drives the interactive conversation flow.
-   * - `src/openai/client.js` manages the memoized OpenAI client and model metadata.
-   * - `src/commands`, `src/cli`, and `src/config` supply focused utilities that the loop depends upon.
+  * - `packages/core/src/agent/loop.js` drives the interactive conversation flow.
+  * - `packages/core/src/openai/client.js` manages the memoized OpenAI client and model metadata.
+  * - `packages/core/src/commands`, `packages/cli/src`, and `packages/core/src/config` supply focused utilities that the loop depends upon.
    */
 
   import 'dotenv/config';
 
-  import { getOpenAIClient, resetOpenAIClient, MODEL } from './src/openai/client.js';
-  import { startThinking, stopThinking, formatElapsedTime } from './src/cli/thinking.js';
-  import { createInterface, askHuman } from './src/cli/io.js';
+  import {
+    getOpenAIClient,
+    resetOpenAIClient,
+    MODEL,
+    startThinking,
+    stopThinking,
+    formatElapsedTime,
+    createInterface,
+    askHuman,
+  } from '@asynkron/openagent';
   …
 
 

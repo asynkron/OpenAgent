@@ -1,12 +1,13 @@
-# Directory Context: src/lib
+# Directory Context: packages/core/src/lib
 
 ## Purpose & Scope
 
-- Package-facing entry points that re-export the agent runtime, CLI helpers, and startup flag plumbing for external consumers.
+- Defines the package-facing entry points exported by `@asynkron/openagent-core`.
+- Re-exports the agent runtime, OpenAI client helpers, startup flags, and shared utilities without any CLI dependencies.
 
 ## Key Files
 
-- `index.js` — imports core modules (agent loop, CLI renderers, OpenAI client) and re-exports them as named exports plus a default aggregate object. Loads environment variables via `dotenv/config`.
+- `index.js` — imports runtime modules (agent loop, OpenAI client, services, utilities) and re-exports them as named exports plus a default aggregate object. Loads environment variables via `dotenv/config`.
 - `startupFlags.js` — parses CLI flags, tracks toggles (auto-approve, plan merging, debug), and exposes setters/getters shared between CLI and programmatic consumers.
 
 ## Positive Signals
@@ -17,9 +18,9 @@
 ## Risks / Gaps
 
 - Import side effects (loading `.env`) occur on module load; ensure this is acceptable when bundling or embedding.
-- Changes to export names must remain semver-safe; coordinate with `package.json` main/module fields.
+- Changes to export names must remain semver-safe; coordinate with `package.json` entry fields.
 
 ## Related Context
 
-- CLI usage of startup flags: [`../cli/context.md`](../cli/context.md).
+- CLI package consuming these exports: [`../../cli/context.md`](../../cli/context.md).
 - Runtime internals being re-exported: [`../agent/context.md`](../agent/context.md), [`../commands/context.md`](../commands/context.md).

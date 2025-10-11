@@ -3,7 +3,7 @@
 ```
 any-tool-that-accepts-patches <<'EOF'
 *** Begin Patch
-*** Update File: src/cli/components/CliApp.js
+*** Update File: packages/cli/src/components/CliApp.js
 @@
 -  const [planProgress, setPlanProgress] = useState(null);
 +  const [planProgress, setPlanProgress] = useState({ seen: false, value: null });
@@ -19,5 +19,5 @@ any-tool-that-accepts-patches <<'EOF'
 *** End Patch
 EOF
 Success. Updated the following files:
-M src/cli/components/CliApp.js
+M packages/cli/src/components/CliApp.js
 ```

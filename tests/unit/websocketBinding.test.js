@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 
-import { createWebSocketBinding } from '../../src/bindings/websocket.js';
-import { AsyncQueue } from '../../src/utils/asyncQueue.js';
+import { createWebSocketBinding } from '../../packages/core/src/bindings/websocket.js';
+import { AsyncQueue } from '../../packages/core/src/utils/asyncQueue.js';
 
 function createMockSocket() {
   const listeners = new Map();

@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 
-import { parseAssistantResponse } from '../../src/agent/responseParser.js';
+import { parseAssistantResponse } from '../../packages/core/src/agent/responseParser.js';
 import { nestedShellResponseText } from '../integration/__fixtures__/openaiNestedShellResponse.js';
 
 const DIRECT_PAYLOAD = '{"foo":"bar"}';

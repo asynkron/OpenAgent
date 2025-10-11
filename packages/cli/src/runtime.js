@@ -7,17 +7,16 @@ import {
   getPlanMergeFlag,
   getDebugFlag,
   setNoHumanFlag,
-} from '../lib/startupFlags.js';
-import { createAgentRuntime } from '../agent/loop.js';
-import { runCommand } from '../commands/run.js';
-import {
+  createAgentRuntime,
+  runCommand,
   isPreapprovedCommand,
   isSessionApproved,
   approveForSession,
   PREAPPROVED_CFG,
-} from '../services/commandApprovalService.js';
-import { applyFilter, tailLines } from '../utils/text.js';
-import { incrementCommandCount } from '../services/commandStatsService.js';
+  applyFilter,
+  tailLines,
+  incrementCommandCount,
+} from '@asynkron/openagent-core';
 import CliApp from './components/CliApp.js';
 
 export async function runCommandAndTrack(run, cwd = '.', timeoutSec = 60) {

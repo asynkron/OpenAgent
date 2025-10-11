@@ -3,7 +3,7 @@ import { describe, expect, test } from '@jest/globals';
 import {
   validateAssistantResponseSchema,
   validateAssistantResponse,
-} from '../../src/agent/responseValidator.js';
+} from '../../packages/core/src/agent/responseValidator.js';
 
 describe('validateAssistantResponseSchema', () => {
   test('accepts payload matching schema', () => {

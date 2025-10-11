@@ -1,4 +1,4 @@
-import { ObservationBuilder } from '../../src/agent/observationBuilder.js';
+import { ObservationBuilder } from '../../packages/core/src/agent/observationBuilder.js';
 
 describe('ObservationBuilder', () => {
   const deps = {

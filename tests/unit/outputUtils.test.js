@@ -1,4 +1,4 @@
-import { buildPreview, combineStdStreams } from '../../src/utils/output.js';
+import { buildPreview, combineStdStreams } from '../../packages/core/src/utils/output.js';
 
 describe('combineStdStreams', () => {
   test('concats stderr into stdout on success (exitCode 0)', () => {

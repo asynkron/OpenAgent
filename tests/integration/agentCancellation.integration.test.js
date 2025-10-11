@@ -6,7 +6,7 @@ import {
   resetQueuedResponses,
 } from './agentRuntimeTestHarness.js';
 import { createTestRunnerUI } from './testRunnerUI.js';
-import { cancel as cancelActive } from '../../src/utils/cancellation.js';
+import { cancel as cancelActive } from '../../packages/core/src/utils/cancellation.js';
 
 const PLAN_STEP_TITLES = {
   gather: 'Review instructions and constraints',

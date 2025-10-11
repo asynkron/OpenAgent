@@ -37,14 +37,14 @@ async function loadModule(
   let commandStatsMockFn;
   if (typeof commandStatsMock === 'function') {
     commandStatsMockFn = commandStatsMock;
-    jest.unstable_mockModule('../../src/services/commandStatsService.js', () => ({
+    jest.unstable_mockModule('../../packages/core/src/services/commandStatsService.js', () => ({
       incrementCommandCount: commandStatsMockFn,
       default: { incrementCommandCount: commandStatsMockFn },
     }));
   }
 
   if (typeof runCommandMock === 'function') {
-    jest.unstable_mockModule('../../src/commands/run.js', () => ({
+    jest.unstable_mockModule('../../packages/core/src/commands/run.js', () => ({
       runCommand: runCommandMock,
       default: {
         runCommand: runCommandMock,

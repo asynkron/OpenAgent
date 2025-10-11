@@ -1,4 +1,4 @@
-# Directory Context: src/cli/components
+# Directory Context: packages/cli/src/components
 
 ## Purpose & Scope
 

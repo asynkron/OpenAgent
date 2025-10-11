@@ -24,7 +24,7 @@ function setupCancellationMocks() {
     return lastHandle;
   });
 
-  jest.unstable_mockModule('../../src/utils/cancellation.js', () => ({
+  jest.unstable_mockModule('../../packages/core/src/utils/cancellation.js', () => ({
     register: registerMock,
     cancel: cancelMock,
     isCanceled: isCanceledMock,
@@ -54,7 +54,7 @@ describe('runCommand', () => {
   });
 
   test('throws when invoked without a normalized string command', async () => {
-    const { runCommand } = await import('../../src/commands/run.js');
+    const { runCommand } = await import('../../packages/core/src/commands/run.js');
 
     await expect(runCommand({ bad: true }, '.', 1)).rejects.toThrow('normalized command string');
   });
@@ -68,7 +68,7 @@ describe('runCommand', () => {
 
     const { registerMock, getLastHandle } = setupCancellationMocks();
 
-    const { runCommand } = await import('../../src/commands/run.js');
+    const { runCommand } = await import('../../packages/core/src/commands/run.js');
 
     const child = new EventEmitter();
     child.stdout = new EventEmitter();
@@ -109,7 +109,7 @@ describe('runCommand', () => {
 
     setupCancellationMocks();
 
-    const { runCommand } = await import('../../src/commands/run.js');
+    const { runCommand } = await import('../../packages/core/src/commands/run.js');
 
     const child = new EventEmitter();
     child.stdin = {
@@ -149,7 +149,7 @@ describe('runCommand', () => {
 
     setupCancellationMocks();
 
-    const { runCommand } = await import('../../src/commands/run.js');
+    const { runCommand } = await import('../../packages/core/src/commands/run.js');
 
     const child = new EventEmitter();
     child.stdout = new EventEmitter();
@@ -183,7 +183,7 @@ describe('runCommand', () => {
 
     setupCancellationMocks();
 
-    const { runCommand } = await import('../../src/commands/run.js');
+    const { runCommand } = await import('../../packages/core/src/commands/run.js');
 
     const child = new EventEmitter();
     child.stdout = new EventEmitter();

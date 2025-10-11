@@ -28,4 +28,4 @@
 ## Related Context
 
 - Component-level tests: [`../unit/context.md`](../unit/context.md).
-- Runtime implementation under test: [`../../src/agent/context.md`](../../src/agent/context.md).
+- Runtime implementation under test: [`../../packages/core/src/agent/context.md`](../../packages/core/src/agent/context.md).

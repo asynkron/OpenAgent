@@ -13,9 +13,9 @@ flowchart LR
     end
 
     subgraph CLI Layer
-        CLI["CLI Runtime\n(src/cli)"]
-        Ink["Ink Components\n(src/cli/components)"]
-        Probes["Boot Probes\n(src/cli/bootProbes)"]
+        CLI["CLI Runtime\n(packages/cli/src)"]
+        Ink["Ink Components\n(packages/cli/src/components)"]
+        Probes["Boot Probes\n(packages/cli/src/bootProbes)"]
     end
 
     subgraph Agent Runtime
@@ -104,7 +104,7 @@ CLI-->>U: Render output [Ink components]
 
 ## Key Responsibilities
 
-- **CLI (`src/cli`)**
+- **CLI (`packages/cli/src`)**
   - Boot probes confirm toolchain availability before session start.
   - Ink components render model thoughts, plan progress, and command output.
   - Runtime wires keyboard input (ESC, approvals) into the agent loop.

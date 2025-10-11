@@ -4,7 +4,7 @@ import {
   estimateTokensForHistory,
   getContextWindow,
   summarizeContextUsage,
-} from '../../src/utils/contextUsage.js';
+} from '../../packages/core/src/utils/contextUsage.js';
 
 const ORIGINAL_ENV = { ...process.env };
 

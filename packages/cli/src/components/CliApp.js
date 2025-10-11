@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Box, Static, Text, useApp, useInput } from 'ink';
 
-import { cancel as cancelActive } from '../../utils/cancellation.js';
+import { cancel as cancelActive } from '@asynkron/openagent-core';
 import AgentResponse from './AgentResponse.js';
 import AskHuman from './AskHuman.js';
 import HumanMessage from './HumanMessage.js';

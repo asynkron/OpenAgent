@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { HistoryCompactor } from '../../src/agent/historyCompactor.js';
+import { HistoryCompactor } from '../../packages/core/src/agent/historyCompactor.js';
 
 function createOpenAIMock({ summaryText }) {
   const responsesCreate = jest.fn().mockResolvedValue({

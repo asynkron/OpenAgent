@@ -13,7 +13,7 @@
 import * as readline from 'node:readline';
 import chalk from 'chalk';
 
-import { cancel as cancelActive } from '../utils/cancellation.js';
+import { cancel as cancelActive } from '@asynkron/openagent-core';
 
 export const ESCAPE_EVENT = 'openagent:escape';
 

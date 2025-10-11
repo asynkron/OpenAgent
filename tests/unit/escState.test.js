@@ -1,4 +1,8 @@
-import { createEscState, createEscWaiter, resetEscState } from '../../src/agent/escState.js';
+import {
+  createEscState,
+  createEscWaiter,
+  resetEscState,
+} from '../../packages/core/src/agent/escState.js';
 
 describe('createEscState', () => {
   test('returns state with trigger and detach', () => {

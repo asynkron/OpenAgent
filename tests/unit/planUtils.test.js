@@ -1,4 +1,4 @@
-import { planHasOpenSteps } from '../../src/utils/plan.js';
+import { planHasOpenSteps } from '../../packages/core/src/utils/plan.js';
 
 describe('plan utilities', () => {
   test('returns false for empty or non-array plans', () => {

@@ -28,7 +28,7 @@
 
 ## Risks / Gaps
 
-- Runtime complexity is high; when modifying event shapes ensure CLI (`src/cli`) and WebSocket bindings stay in sync.
+- Runtime complexity is high; when modifying event shapes ensure CLI (`packages/cli/src`) and WebSocket bindings stay in sync.
 - History compaction relies on model token limits; verify assumptions when changing default model or context window.
 - Error surfaces lean on console warnings; consider structured logging for external integrations.
 

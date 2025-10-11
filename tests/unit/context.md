@@ -29,5 +29,5 @@
 
 ## Related Context
 
-- Implementation targets: [`../../src/context.md`](../../src/context.md).
+- Implementation targets: [`../../packages/core/src/context.md`](../../packages/core/src/context.md).
 - Integration scaffolding that complements these suites: [`../integration/context.md`](../integration/context.md).

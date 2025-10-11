@@ -19,5 +19,5 @@
 
 ## Related Context
 
-- Plan management implementation: [`../src/agent/context.md`](../src/agent/context.md).
-- CLI runtime surface: [`../src/cli/context.md`](../src/cli/context.md).
+- Plan management implementation: [`../packages/core/src/agent/context.md`](../packages/core/src/agent/context.md).
+- CLI runtime surface: [`../packages/cli/src/context.md`](../packages/cli/src/context.md).

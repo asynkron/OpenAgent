@@ -1,4 +1,4 @@
-import { ApprovalManager } from '../../src/agent/approvalManager.js';
+import { ApprovalManager } from '../../packages/core/src/agent/approvalManager.js';
 
 describe('ApprovalManager.shouldAutoApprove', () => {
   const baseDeps = {

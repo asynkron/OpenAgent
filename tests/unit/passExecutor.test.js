@@ -6,7 +6,7 @@ const setupPassExecutor = async () => {
   const requestModelCompletion = jest
     .fn()
     .mockResolvedValue({ status: 'success', completion: { id: 'cmpl_1' } });
-  jest.unstable_mockModule('../../src/agent/openaiRequest.js', () => ({
+  jest.unstable_mockModule('../../packages/core/src/agent/openaiRequest.js', () => ({
     requestModelCompletion,
     default: { requestModelCompletion },
   }));
@@ -17,7 +17,7 @@ const setupPassExecutor = async () => {
     arguments: '{"message":"  ","command":{"run":"   ","shell":"   "}}',
   });
   const extractResponseText = jest.fn();
-  jest.unstable_mockModule('../../src/openai/responseUtils.js', () => ({
+  jest.unstable_mockModule('../../packages/core/src/openai/responseUtils.js', () => ({
     extractOpenAgentToolCall,
     extractResponseText,
     default: { extractOpenAgentToolCall, extractResponseText },
@@ -28,14 +28,14 @@ const setupPassExecutor = async () => {
     value: { message: '  ', command: { run: '   ', shell: '   ' } },
     recovery: { strategy: 'direct' },
   }));
-  jest.unstable_mockModule('../../src/agent/responseParser.js', () => ({
+  jest.unstable_mockModule('../../packages/core/src/agent/responseParser.js', () => ({
     parseAssistantResponse,
     default: { parseAssistantResponse },
   }));
 
   const validateAssistantResponseSchema = jest.fn(() => ({ valid: true, errors: [] }));
   const validateAssistantResponse = jest.fn(() => ({ valid: true, errors: [] }));
-  jest.unstable_mockModule('../../src/agent/responseValidator.js', () => ({
+  jest.unstable_mockModule('../../packages/core/src/agent/responseValidator.js', () => ({
     validateAssistantResponseSchema,
     validateAssistantResponse,
     default: { validateAssistantResponseSchema, validateAssistantResponse },
@@ -44,32 +44,32 @@ const setupPassExecutor = async () => {
   const executeAgentCommand = jest.fn(() => {
     throw new Error('executeAgentCommand should not run for blank commands');
   });
-  jest.unstable_mockModule('../../src/agent/commandExecution.js', () => ({
+  jest.unstable_mockModule('../../packages/core/src/agent/commandExecution.js', () => ({
     executeAgentCommand,
     default: { executeAgentCommand },
   }));
 
   const summarizeContextUsage = jest.fn(() => null);
-  jest.unstable_mockModule('../../src/utils/contextUsage.js', () => ({
+  jest.unstable_mockModule('../../packages/core/src/utils/contextUsage.js', () => ({
     summarizeContextUsage,
     default: { summarizeContextUsage },
   }));
 
   const planHasOpenSteps = jest.fn(() => false);
-  jest.unstable_mockModule('../../src/utils/plan.js', () => ({
+  jest.unstable_mockModule('../../packages/core/src/utils/plan.js', () => ({
     planHasOpenSteps,
     default: { planHasOpenSteps },
   }));
 
   const incrementCommandCount = jest.fn();
-  jest.unstable_mockModule('../../src/services/commandStatsService.js', () => ({
+  jest.unstable_mockModule('../../packages/core/src/services/commandStatsService.js', () => ({
     incrementCommandCount,
     default: { incrementCommandCount },
   }));
 
   const combineStdStreams = jest.fn();
   const buildPreview = jest.fn();
-  jest.unstable_mockModule('../../src/utils/output.js', () => ({
+  jest.unstable_mockModule('../../packages/core/src/utils/output.js', () => ({
     combineStdStreams,
     buildPreview,
     default: { combineStdStreams, buildPreview },
@@ -84,11 +84,11 @@ const setupPassExecutor = async () => {
       return { renderPayload: '', observation: {} };
     }
   }
-  jest.unstable_mockModule('../../src/agent/observationBuilder.js', () => ({
+  jest.unstable_mockModule('../../packages/core/src/agent/observationBuilder.js', () => ({
     default: FakeObservationBuilder,
   }));
 
-  const mod = await import('../../src/agent/passExecutor.js');
+  const mod = await import('../../packages/core/src/agent/passExecutor.js');
   return {
     executeAgentPass: mod.executeAgentPass,
     requestModelCompletion,
