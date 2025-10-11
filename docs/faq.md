@@ -73,7 +73,7 @@ If schema validation fails, the runtime pushes a corrective observation back to 
 
 ```json
 {
-  "type": "chat-message",
+  "eventType": "chat-message",
   "role": "assistant",
   "pass": 8,
   "content": "{\"type\":\"observation\",\"summary\":\"The previous assistant response failed schema validation.\",\"details\":\"Schema validation failed: /plan/0/command/shell: is required\",\"payload\":{\"schema_validation_error\":true,\"message\":\"Schema validation failed: /plan/0/command/shell: is required\",\"details\":[\"/plan/0/command/shell: is required\"],\"response_snippet\":\"{ \\\"plan\\\": [ { \\\"step\\\": \\\"1\\\", \\\"title\\\": \\\"Check git status\\\", \\\"status\\\": \\\"running\\\", \\\"command\\\": { \\\"run\\\": \\\"ls\\\" } } ] }\"},\"metadata\":{\"timestamp\":\"2024-05-13T17:45:00.000Z\"}}"

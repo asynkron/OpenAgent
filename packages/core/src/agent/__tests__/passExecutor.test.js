@@ -235,7 +235,7 @@ describe('executeAgentPass', () => {
     expect(history).toHaveLength(2);
     const observationEntry = history[history.length - 1];
     expect(observationEntry).toMatchObject({
-      type: 'chat-message',
+      eventType: 'chat-message',
       role: 'assistant',
       pass: PASS_INDEX,
     });
@@ -350,7 +350,7 @@ describe('executeAgentPass', () => {
       expect(history).toHaveLength(previousHistoryLength + 2);
       const autoResponseEntry = history[history.length - 1];
       expect(autoResponseEntry).toMatchObject({
-        type: 'chat-message',
+        eventType: 'chat-message',
         role: 'assistant',
         pass,
       });
@@ -374,7 +374,7 @@ describe('executeAgentPass', () => {
     );
     expect(history).toHaveLength(previousHistoryLength + 1);
     expect(history[history.length - 1]).toEqual(
-      expect.objectContaining({ type: 'chat-message', role: 'assistant', pass: suppressedPass }),
+      expect.objectContaining({ eventType: 'chat-message', role: 'assistant', pass: suppressedPass }),
     );
     expect(tracker.getCount()).toBe(4);
   });

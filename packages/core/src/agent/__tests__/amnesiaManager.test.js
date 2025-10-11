@@ -2,7 +2,7 @@ import { AmnesiaManager, applyDementiaPolicy } from '../amnesiaManager.js';
 
 describe('AmnesiaManager', () => {
   const buildHistoryEntry = ({ pass, role = 'assistant', content }) => ({
-    type: 'chat-message',
+    eventType: 'chat-message',
     role,
     pass,
     content,
@@ -10,7 +10,7 @@ describe('AmnesiaManager', () => {
 
   it('removes plan update entries older than the threshold', () => {
     const history = [
-      { type: 'chat-message', role: 'system', pass: 0, content: 'system' },
+      { eventType: 'chat-message', role: 'system', pass: 0, content: 'system' },
       buildHistoryEntry({
         pass: 1,
         content: JSON.stringify({ type: 'plan-update', message: 'latest', plan: [] }, null, 2),
@@ -63,7 +63,7 @@ describe('AmnesiaManager', () => {
 
   it('never alters system messages even if they are older than the threshold', () => {
     const history = [
-      { type: 'chat-message', role: 'system', pass: 0, content: 'system' },
+      { eventType: 'chat-message', role: 'system', pass: 0, content: 'system' },
       buildHistoryEntry({
         pass: 1,
         content: JSON.stringify({ type: 'plan-update', message: 'latest', plan: [] }, null, 2),
@@ -79,7 +79,7 @@ describe('AmnesiaManager', () => {
 
 describe('applyDementiaPolicy', () => {
   const buildHistoryEntry = ({ pass, role = 'assistant', content = 'content' }) => ({
-    type: 'chat-message',
+    eventType: 'chat-message',
     role,
     pass,
     content,
@@ -87,7 +87,7 @@ describe('applyDementiaPolicy', () => {
 
   it('removes entries older than the configured limit', () => {
     const history = [
-      { type: 'chat-message', role: 'system', pass: 0, content: 'system' },
+      { eventType: 'chat-message', role: 'system', pass: 0, content: 'system' },
       buildHistoryEntry({ pass: 5 }),
       buildHistoryEntry({ pass: 25 }),
       buildHistoryEntry({ pass: 40 }),
@@ -97,7 +97,7 @@ describe('applyDementiaPolicy', () => {
 
     expect(changed).toBe(true);
     expect(history).toEqual([
-      { type: 'chat-message', role: 'system', pass: 0, content: 'system' },
+      { eventType: 'chat-message', role: 'system', pass: 0, content: 'system' },
       buildHistoryEntry({ pass: 25 }),
       buildHistoryEntry({ pass: 40 }),
     ]);
@@ -105,7 +105,7 @@ describe('applyDementiaPolicy', () => {
 
   it('can remove system messages when preserveSystemMessages is false', () => {
     const history = [
-      { type: 'chat-message', role: 'system', pass: 0, content: 'system' },
+      { eventType: 'chat-message', role: 'system', pass: 0, content: 'system' },
       buildHistoryEntry({ pass: 5 }),
     ];
 

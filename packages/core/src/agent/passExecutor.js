@@ -247,7 +247,7 @@ export async function executeAgentPass({
   }
 
   history.push({
-    type: 'chat-message',
+    eventType: 'chat-message',
     role: 'assistant',
     pass: activePass,
     content: responseContent,
