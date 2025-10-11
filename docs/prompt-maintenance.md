@@ -7,7 +7,7 @@ Document the lifecycle for updating prompts, syncing their copies, and validatin
 ## Update Workflow
 
 1. Identify the need for change (bug report, feature, or experiment).
-2. Edit the canonical prompt source under `prompts/`.
+2. Edit the canonical prompt source under `packages/core/prompts/`.
 3. Run the prompt sync script: `npm run scripts:sync-prompts`.
 4. Execute schema validation: `npm test -- --runTestsByPath tests/json-schema.test.js`.
 5. Update any mirrored copies in `brain/` or `docs/` using the sync script output.
@@ -23,7 +23,7 @@ Document the lifecycle for updating prompts, syncing their copies, and validatin
 ## Rollback Strategy
 
 - Keep previous prompt versions tagged via `git tag prompt-v<date>` before major revisions.
-- Revert using `git checkout <tag> -- prompts/<file>` if regressions surface.
+- Revert using `git checkout <tag> -- packages/core/prompts/<file>` if regressions surface.
 - Notify maintainers via `#openagent-maintainers` with details and next steps.
 
 ## Related Resources

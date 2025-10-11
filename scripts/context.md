@@ -6,17 +6,17 @@
 
 ## Key Files
 
-- `apply_patch.mjs`, `edit-lines.mjs`, `replace-node.js`, `rename-identifier.mjs` — codemod helpers for structured edits.
+- `replace-node.js` — jscodeshift transform for structural refactors that still lives at the repo root.
 - `install-git-hooks.js` — configures `core.hooksPath` so local Git uses the repo's `.githooks` directory automatically. The script runs during `npm install`, `npm prepare`, and the lifecycle `pre*` scripts for lint, format, and test tasks.
-- `read.mjs` — implements the filesystem reader invoked via the normalized `read` command helper.
 - `validate-json-assets.js` — validates prompt JSON against `schemas/prompts.schema.json`.
 - `verify-release-tag.js` — ensures release tags align with package metadata before publishing.
-- `README.md` & `patchexample.md` — usage documentation and examples for scripted edits.
+- `README.md` & `patchexample.md` — documentation for the helper scripts (with updated paths pointing to `packages/core/scripts/`).
 
 ## Positive Signals
 
 - Provides automation hooks that AI agents can leverage instead of writing ad-hoc scripts.
 - JSON validation script is wired into tests, keeping prompts and schemas synchronized.
+- Editing helpers now reside in [`../packages/core/scripts`](../packages/core/scripts) so they ship with the core runtime package.
 
 ## Risks / Gaps
 
@@ -25,5 +25,5 @@
 
 ## Related Context
 
-- Prompt/schema interplay: [`../prompts/context.md`](../prompts/context.md), [`../schemas/context.md`](../schemas/context.md).
+- Prompt/schema interplay: [`../packages/core/prompts/context.md`](../packages/core/prompts/context.md), [`../schemas/context.md`](../schemas/context.md).
 - Release workflows consuming these scripts: [`.github/workflows/context.md`](../.github/workflows/context.md).

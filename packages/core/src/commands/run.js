@@ -14,24 +14,31 @@
 import { spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync, openSync, closeSync, readFileSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { register as registerCancellation } from '../utils/cancellation.js';
 
 const SCRATCH_ROOT = resolve('.openagent', 'temp');
+const APPLY_PATCH_SCRIPT = resolve(fileURLToPath(new URL('../../scripts/apply_patch.mjs', import.meta.url)));
+const READ_SCRIPT = resolve(fileURLToPath(new URL('../../scripts/read.mjs', import.meta.url)));
+const APPLY_PATCH_COMMAND = `node ${JSON.stringify(APPLY_PATCH_SCRIPT)}`;
+const READ_COMMAND = `node ${JSON.stringify(READ_SCRIPT)}`;
 
-function substituteApplyPatchCommand(command) {
-  const replacement = 'node scripts/apply_patch.mjs';
-
-  if (typeof command === 'string') {
-    const leadingWhitespaceMatch = command.match(/^\s*/);
-    const leadingWhitespace = leadingWhitespaceMatch ? leadingWhitespaceMatch[0] : '';
-    const trimmed = command.slice(leadingWhitespace.length);
-
-    if (/^apply_patch(?=\s|$)/.test(trimmed)) {
-      return `${leadingWhitespace}${trimmed.replace(/^apply_patch\b/, replacement)}`;
-    }
-
+function substituteBuiltinCommand(command) {
+  if (typeof command !== 'string') {
     return command;
+  }
+
+  const leadingWhitespaceMatch = command.match(/^\s*/);
+  const leadingWhitespace = leadingWhitespaceMatch ? leadingWhitespaceMatch[0] : '';
+  const trimmed = command.slice(leadingWhitespace.length);
+
+  if (/^apply_patch(?=\s|$)/.test(trimmed)) {
+    return `${leadingWhitespace}${trimmed.replace(/^apply_patch\b/, APPLY_PATCH_COMMAND)}`;
+  }
+
+  if (/^read(?=\s|$)/.test(trimmed)) {
+    return `${leadingWhitespace}${trimmed.replace(/^read\b/, READ_COMMAND)}`;
   }
 
   return command;
@@ -86,7 +93,7 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
     throw new TypeError('runCommand expects a normalized command string.');
   }
 
-  const normalizedCommand = substituteApplyPatchCommand(cmd);
+  const normalizedCommand = substituteBuiltinCommand(cmd);
 
   if (typeof normalizedCommand !== 'string') {
     throw new TypeError('runCommand expects a normalized command string.');

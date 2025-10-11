@@ -1,4 +1,4 @@
-# Directory Context: prompts
+# Directory Context: packages/core/prompts
 
 ## Purpose & Scope
 
@@ -23,5 +23,5 @@
 
 ## Related Context
 
-- Schema enforcement: [`../schemas/context.md`](../schemas/context.md).
-- Prompt discovery utilities: [`../packages/core/src/config/context.md`](../packages/core/src/config/context.md).
+- Schema enforcement: [`../../schemas/context.md`](../../schemas/context.md).
+- Prompt discovery utilities: [`../src/config/context.md`](../src/config/context.md).

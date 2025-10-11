@@ -1,6 +1,11 @@
 /* eslint-env jest */
 import { EventEmitter } from 'node:events';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { jest } from '@jest/globals';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function setupCancellationMocks() {
   const registerMock = jest.fn();
@@ -200,9 +205,43 @@ describe('runCommand', () => {
     child.emit('close', 0);
     await promise;
 
-    expect(spawnMock).toHaveBeenCalledWith(
-      expect.stringMatching(/^node scripts\/apply_patch\.mjs/),
-      expect.objectContaining({ shell: true }),
-    );
+    expect(spawnMock).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ shell: true }));
+
+    const invokedCommand = spawnMock.mock.calls[0][0];
+    const expectedScript = path.resolve(__dirname, '../../../scripts/apply_patch.mjs');
+    expect(invokedCommand.startsWith(`node ${JSON.stringify(expectedScript)}`)).toBe(true);
+    expect(invokedCommand).toMatch(/<<'PATCH'\s+foo\s+PATCH/);
+  });
+
+  test('substitutes read helper with local wrapper for string commands', async () => {
+    const spawnMock = jest.fn();
+
+    jest.unstable_mockModule('node:child_process', () => ({
+      spawn: spawnMock,
+    }));
+
+    setupCancellationMocks();
+
+    const { runCommand } = await import('../run.js');
+
+    const child = new EventEmitter();
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    child.stdout.setEncoding = jest.fn();
+    child.stderr.setEncoding = jest.fn();
+    child.kill = jest.fn();
+
+    spawnMock.mockReturnValue(child);
+
+    const promise = runCommand('read --spec-base64 QUJD', '.', 5);
+
+    child.emit('close', 0);
+    await promise;
+
+    expect(spawnMock).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ shell: true }));
+    const readInvocation = spawnMock.mock.calls[0][0];
+    const expectedReadScript = path.resolve(__dirname, '../../../scripts/read.mjs');
+    expect(readInvocation.startsWith(`node ${JSON.stringify(expectedReadScript)}`)).toBe(true);
+    expect(readInvocation).toContain('--spec-base64');
   });
 });

@@ -1,6 +1,6 @@
 # Developer helper scripts
 
-This file documents the small helper scripts in `scripts/` that provide safe, auditable, single-file refactors. Each script prints a unified diff by default (dry-run). Use `--apply` to write changes and `--check` to run a syntax check after applying.
+This file documents the small helper scripts in `packages/core/scripts/` that provide safe, auditable, single-file refactors. Each script prints a unified diff by default (dry-run). Use `--apply` to write changes and `--check` to run a syntax check after applying.
 
 Prerequisites
 
@@ -20,7 +20,7 @@ General workflow
 
 Scripts
 
-## ./scripts/apply_patch.mjs
+## ./packages/core/scripts/apply_patch.mjs
 
 What it does
 
@@ -35,7 +35,7 @@ When to use
 Usage
 
 ```bash
-node scripts/apply_patch.mjs <<'EOF'
+node packages/core/scripts/apply_patch.mjs <<'EOF'
 *** Begin Patch
 *** Update File: path/to/file.js
 @@
@@ -51,7 +51,7 @@ Notes
 - Preserves trailing newline semantics when present in the original file.
 - Emits a success summary mirroring the format shown in `scripts/patchexample.md`.
 
-## rename-identifier.mjs
+## ./packages/core/scripts/rename-identifier.mjs
 
 What it does
 
@@ -67,13 +67,13 @@ Usage
 Dry-run (preview unified diff):
 
 ```bash
-node scripts/rename-identifier.mjs --file path/to/file.js --old oldName --new newName
+node packages/core/scripts/rename-identifier.mjs --file path/to/file.js --old oldName --new newName
 ```
 
 Apply with syntax check:
 
 ```bash
-node scripts/rename-identifier.mjs --file path/to/file.js --old oldName --new newName --apply --check
+node packages/core/scripts/rename-identifier.mjs --file path/to/file.js --old oldName --new newName --apply --check
 ```
 
 Notes
@@ -94,7 +94,7 @@ Add these to `package.json` to make invocation shorter:
 
 ```json
 "scripts": {
-  "rename-id": "node scripts/rename-identifier.mjs"
+  "rename-id": "node packages/core/scripts/rename-identifier.mjs"
 }
 ```
 
@@ -151,9 +151,9 @@ Notes and tips
 - The transform replaces all matches by default within a file; use `--index` to pick a single occurrence per file.
 - Always run a dry-run and review diffs before applying across a codebase.
 
-## Using edit-lines.mjs with heredocs
+## Using packages/core/scripts/edit-lines.mjs with heredocs
 
-Here are recommended ways to pass multiline text to `scripts/edit-lines.mjs` (pick the approach that fits your workflow).
+Here are recommended ways to pass multiline text to `packages/core/scripts/edit-lines.mjs` (pick the approach that fits your workflow).
 
 1. Write the snippet to a temporary file and pass `--text-file` (recommended)
 
@@ -165,16 +165,16 @@ console.log('world');
 EOF
 
 # preview (dry-run)
-node scripts/edit-lines.mjs --file path/to/file.js --start 5 --count 3 --text-file /tmp/snippet.txt
+node packages/core/scripts/edit-lines.mjs --file path/to/file.js --start 5 --count 3 --text-file /tmp/snippet.txt
 
 # apply with syntax check
-node scripts/edit-lines.mjs --file path/to/file.js --start 5 --count 3 --text-file /tmp/snippet.txt --apply --check
+node packages/core/scripts/edit-lines.mjs --file path/to/file.js --start 5 --count 3 --text-file /tmp/snippet.txt --apply --check
 ```
 
 2. Inline via command-substitution (no temp file)
 
 ```bash
-node scripts/edit-lines.mjs --file path/to/file.js --start 5 --count 0 --text "$(cat <<'EOF'
+node packages/core/scripts/edit-lines.mjs --file path/to/file.js --start 5 --count 0 --text "$(cat <<'EOF'
 line one
 line two
 EOF
@@ -184,7 +184,7 @@ EOF
 3. Process-substitution (Bash/zsh) — pass a file descriptor to `--text-file` without creating a named file
 
 ```bash
-node scripts/edit-lines.mjs --file path/to/file.js --start 10 --count 2 --text-file <(cat <<'EOF'
+node packages/core/scripts/edit-lines.mjs --file path/to/file.js --start 10 --count 2 --text-file <(cat <<'EOF'
 first line
 second line
 EOF

@@ -10,9 +10,9 @@
 - `packages/core/` — headless runtime, OpenAI client adapters, and shared utilities. See [`packages/core/context.md`](packages/core/context.md).
 - `packages/cli/` — Ink-based CLI that depends on the core runtime. See [`packages/cli/context.md`](packages/cli/context.md).
 - `tests/` — cross-package integration suites with mock OpenAI harnesses. See [`tests/context.md`](tests/context.md).
-- `prompts/` & `schemas/` — authoritative protocol prompts plus JSON schema for validation. Linked details in [`prompts/context.md`](prompts/context.md) and [`schemas/context.md`](schemas/context.md).
+- `packages/core/prompts/` & `schemas/` — authoritative protocol prompts plus JSON schema for validation. Linked details in [`packages/core/prompts/context.md`](packages/core/prompts/context.md) and [`schemas/context.md`](schemas/context.md).
 - `docs/` — design notes, operational guides, and meta documentation for contributors. See [`docs/context.md`](docs/context.md).
-- `scripts/` — maintenance utilities for editing code, validating assets, and release hygiene. See [`scripts/context.md`](scripts/context.md).
+- Editing helpers now live under `packages/core/scripts/`; root `scripts/` retains repo maintenance utilities (Git hooks, JSON validation, release safety checks). See [`packages/core/scripts/context.md`](packages/core/scripts/context.md) and [`scripts/context.md`](scripts/context.md).
 - Operational metadata: `.github/` workflows, `.githooks/` local hooks, `.idea/` IDE settings, `.openagent/` runtime plan snapshots.
 
 ## Positive Signals
