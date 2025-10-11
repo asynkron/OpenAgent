@@ -94,6 +94,8 @@ e.g. a run tests task could depend on many other tasks completing first.
       description: "Run the user-requested shell command to print a greeting.",
       status: "pending",
       priority: 1,
+      //optional, AI can decide if this task must wait for other tasks to complete first
+      waitingForId: ["this-id-must-complete-first", "and-this-id-too"], 
       command: {
           reason: "Run the user-requested shell command to print a greeting.",
           shell: "/bin/bash",
