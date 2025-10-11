@@ -37,20 +37,27 @@ export const RESPONSE_PARAMETERS_SCHEMA = {
       required: ['step', 'title', 'status'],
       additionalProperties: false,
       properties: {
-        step: { type: 'string' },
+        step: {
+          type: 'string',
+          description: 'named after index in the plan. e.g. 1 or 2, or 1.1 for a sub task',
+        },
         title: { type: 'string' },
         status: {
           type: 'string',
           enum: ['pending', 'running', 'completed', 'failed'],
+          description:
+            'once a command result has been received, decide if the task is complete or failed. a task that has a command result can never be pending or running',
         },
         substeps: {
           type: 'array',
+          description:
+            'if you can break down a task into smaller parts, do that. small progress is better than no progress',
           items: { $ref: '#/$defs/planStep' },
         },
         command: {
           type: 'object',
           description:
-            'Next tool invocation to execute for this plan step. may NOT be raw string, e.g command: "ls". MUST follow this format: {"shell":"/bin/bash","run":"ls -la","cwd":"/home/user","timeout_sec":30,"filter_regex":".*\\.txt$","tail_lines":10}',
+            'Next tool invocation to execute for this plan step, this command should complete the task if successful. may NOT be raw string, e.g command: "ls". MUST follow this format: {"shell":"/bin/bash","run":"ls -la","cwd":"/home/user","timeout_sec":30,"filter_regex":".*\\.txt$","tail_lines":10}',
           additionalProperties: false,
           properties: {
             reason: {
