@@ -128,9 +128,13 @@ function mergePlanItems(existingItem, incomingItem) {
 
   const childKey = selectChildKey(existingItem, incomingItem);
   if (childKey) {
-    const existingChildren = Array.isArray(existingItem[childKey]) ? existingItem[childKey] : [];
-    const incomingChildren = Array.isArray(incomingItem[childKey]) ? incomingItem[childKey] : [];
-    existingItem[childKey] = mergePlanTrees(existingChildren, incomingChildren);
+    const incomingHasChildKey = Object.prototype.hasOwnProperty.call(incomingItem, childKey);
+
+    if (incomingHasChildKey) {
+      const existingChildren = Array.isArray(existingItem[childKey]) ? existingItem[childKey] : [];
+      const incomingChildren = Array.isArray(incomingItem[childKey]) ? incomingItem[childKey] : [];
+      existingItem[childKey] = mergePlanTrees(existingChildren, incomingChildren);
+    }
 
     for (const key of PLAN_CHILD_KEYS) {
       if (key !== childKey && key in existingItem) {

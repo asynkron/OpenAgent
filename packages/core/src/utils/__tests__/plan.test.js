@@ -26,9 +26,35 @@ describe('plan utilities', () => {
 
     // Step 2 should remain even though the update omitted it entirely.
     expect(merged).toHaveLength(2);
+    expect(merged[0]).toBe(existingPlan[0]);
     expect(merged[0].substeps).toHaveLength(2);
-    expect(merged[1].step).toBe('2');
-    expect(existingPlan[0].substeps).toBeUndefined();
+    expect(merged[0].substeps).toBe(existingPlan[0].substeps);
+    expect(merged[1]).toBe(existingPlan[1]);
+  });
+
+  test('mergePlanTrees keeps existing substeps when incoming item omits them', () => {
+    const existingPlan = [
+      {
+        step: '1',
+        title: 'do stuff',
+        status: 'running',
+        substeps: [{ step: '1.1', title: 'preserve me', status: 'pending' }],
+      },
+    ];
+
+    const incomingPlan = [
+      {
+        step: '1',
+        title: 'do stuff',
+        status: 'running',
+      },
+    ];
+
+    const merged = mergePlanTrees(existingPlan, incomingPlan);
+
+    expect(merged[0]).toBe(existingPlan[0]);
+    expect(merged[0].substeps).toHaveLength(1);
+    expect(merged[0].substeps[0].title).toBe('preserve me');
   });
 
   test('mergePlanTrees clears plan when incoming plan is empty', () => {
