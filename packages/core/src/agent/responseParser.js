@@ -201,8 +201,6 @@ function normalizeCommandPayload(command) {
   return normalizeFlatCommand(command);
 }
 
-const CHILD_KEY = 'substeps';
-
 function normalizePlanStep(step) {
   if (!isPlainObject(step)) {
     return step;
@@ -218,25 +216,35 @@ function normalizePlanStep(step) {
     normalizedStep.age = 0;
   }
 
-  const candidate = Array.isArray(normalizedStep[CHILD_KEY])
-    ? normalizedStep[CHILD_KEY]
-    : Array.isArray(normalizedStep.children)
-    ? normalizedStep.children
-    : Array.isArray(normalizedStep.steps)
-    ? normalizedStep.steps
-    : null;
+  const waitingFor = Array.isArray(normalizedStep.waitingForId)
+    ? normalizedStep.waitingForId
+    : [];
+  const waitingForId = [];
+  const seen = new Set();
+  for (const dependency of waitingFor) {
+    if (typeof dependency !== 'string') {
+      continue;
+    }
+    const trimmed = dependency.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      continue;
+    }
+    seen.add(trimmed);
+    waitingForId.push(trimmed);
+  }
+  normalizedStep.waitingForId = waitingForId;
 
-  if (candidate) {
-    normalizedStep[CHILD_KEY] = candidate.map((child) => normalizePlanStep(child));
-  } else if (CHILD_KEY in normalizedStep && !Array.isArray(normalizedStep[CHILD_KEY])) {
-    delete normalizedStep[CHILD_KEY];
+  if (!Number.isInteger(normalizedStep.priority)) {
+    const parsed = Number.parseInt(normalizedStep.priority, 10);
+    normalizedStep.priority = Number.isFinite(parsed) ? parsed : 0;
   }
 
-  if ('children' in normalizedStep) {
-    delete normalizedStep.children;
+  if (typeof normalizedStep.id === 'string') {
+    normalizedStep.id = normalizedStep.id.trim();
   }
-  if ('steps' in normalizedStep) {
-    delete normalizedStep.steps;
+
+  if (normalizedStep.id === undefined || normalizedStep.id === null) {
+    normalizedStep.id = '';
   }
 
   return normalizedStep;

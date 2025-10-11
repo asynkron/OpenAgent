@@ -27,86 +27,23 @@ export const RESPONSE_PARAMETERS_SCHEMA = {
       type: 'array',
       maxItems: 5,
       items: { $ref: '#/$defs/planStep' },
-      description: `This is a hierarchical TODO-list. be as finegrained as you can.
-Higher level items depend on lower level items.
-Plan ahead. create the bigger picture plan and add TODO steps accordingly.      
-the plan stays on utill otherwise agreed upon, Progress tracker for multi-step work; use [] when resetting to a new plan.
-
-A correct structure:
- "plan": [
-    {
-      "step": "1",
-      "title": "Validate results with tests",
-      "status": "pending",
-      "age": 0,
-      "command": {
-        "reason": "Final verification once implementation work is completed.",
-        "shell": "/bin/bash",
-        "run": "npm test",
-        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
-        "timeout_sec": 600
-      },
-      "substeps": [
-        {
-          "step": "1.1",
-          "title": "Implement the feature",
-          "status": "pending",
-          "age": 0,
-          "command": {
-            "reason": "Implementation commands will be issued after research clarifies the required changes.",
-            "shell": "/bin/bash",
-            "run": "echo \"Implementation command pending detailed design\"",
-            "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
-            "timeout_sec": 5
-          },
-          "substeps": [
-            {
-              "step": "1.1.1",
-              "title": "Explore the repository",
-              "status": "running",
-              "age": 0,
-              "command": {
-                "reason": "Inspect repository structure to locate relevant modules for the feature work.",
-                "shell": "/bin/bash",
-                "run": "ls",
-                "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
-                "timeout_sec": 30
-              }
-            },
-            {
-              "step": "1.1.2",
-              "title": "Gather knowledge",
-              "status": "pending",
-              "age": 0,
-              "command": {
-                "reason": "Review core package context to understand existing behavior before implementing changes.",
-                "shell": "/bin/bash",
-                "run": "cat packages/core/context.md",
-                "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
-                "timeout_sec": 30
-              }
-            }
-          ]
-        }
-      ]
-    }
-  ]
-
-      
-      `,
+      description: `This is a dependency-aware TODO list. Provide one flat array of steps where each item
+lists the task IDs it must wait for. Steps without dependencies are immediately runnable. Sort by
+priority so runnable work with lower numbers rises to the top. Use [] to clear the plan when starting
+over.`,
     },
   },
   $defs: {
     planStep: {
       type: 'object',
       description:
-        'represents a step in a plan.. if this step need to wait for other steps to complete, those steps should be child steps, e.g, taks 1. will wait for task 1.1 and task 1.2 to complete before running. the same applies to child steps',
-      required: ['step', 'title', 'status'],
+        'Represents a single plan task with optional dependencies declared via waitingForId.',
+      required: ['id', 'title', 'status', 'priority', 'waitingForId'],
       additionalProperties: false,
       properties: {
-        step: {
+        id: {
           type: 'string',
-          description: 'named after index in the plan. e.g. 1 or 2, or 1.1 for a sub task',
+          description: 'Stable identifier assigned by the AI. Must be unique within the plan.',
         },
         title: { type: 'string' },
         status: {
@@ -115,18 +52,22 @@ A correct structure:
           description:
             'once a command result has been received, decide if the task is complete or failed. a task that has a command result can never be pending or running, AI can also use "abandoned" to delete items, they will be cleared once received by the agent',
         },
+        priority: {
+          type: 'integer',
+          description: 'Lower numbers are executed first. Use consistent ordering across the plan.',
+        },
+        waitingForId: {
+          type: 'array',
+          description:
+            'List of prerequisite task IDs that must reach completed status before this task can run. Use an empty array when the task is ready to execute.',
+          items: { type: 'string' },
+        },
         age: {
           type: 'integer',
           minimum: 0,
           default: 0,
           description:
             'Number of assistant responses observed while this step has been running; increments once per response when status remains running.',
-        },
-        substeps: {
-          type: 'array',
-          description:
-            'if you can break down a task into smaller parts, do that. small progress is better than no progress',
-          items: { $ref: '#/$defs/planStep' },
         },
         command: {
           type: 'object',

@@ -13,18 +13,33 @@ export function PlanDetail({ node }) {
 
   const age = typeof node.age === 'number' && Number.isFinite(node.age) ? node.age : 0;
   const hasCommandPreview = typeof node.commandPreview === 'string' && node.commandPreview.length > 0;
+  const priorityLabel = Number.isFinite(node.priority) ? node.priority : '∞';
+  const statusLabel = node.status || 'pending';
+  const readinessLabel = node.canExecute
+    ? 'ready to run'
+    : node.hasMissingDependencies
+    ? `waiting on ${node.waitingLabel ? `${node.waitingLabel} (missing)` : 'missing tasks'}`
+    : node.waitingForId?.length
+    ? `waiting on ${node.waitingLabel || node.waitingForId.join(', ')}`
+    : 'waiting';
+
+  const metadataParts = [`status ${statusLabel}`, `priority ${priorityLabel}`, `age ${age}`];
+  if (node.id) {
+    metadataParts.push(`id ${node.id}`);
+  }
+  if (readinessLabel) {
+    metadataParts.push(readinessLabel);
+  }
 
   return h(
     Box,
-    { marginLeft: node.depth * 2, flexDirection: 'column' },
+    { flexDirection: 'column' },
     h(
       Text,
       null,
       h(Text, { color: node.color }, `${node.symbol} `),
-      h(Text, { color: 'cyan' }, node.label),
-      h(Text, { color: 'gray' }, '.'),
-      node.title ? h(Text, null, ` ${node.title}`) : null,
-      h(Text, { color: 'gray' }, ` (age ${age})`),
+      node.title ? h(Text, null, node.title) : h(Text, { dimColor: true }, '(untitled task)'),
+      h(Text, { color: 'gray' }, ` (${metadataParts.join(', ')})`),
     ),
     hasCommandPreview
       ? h(

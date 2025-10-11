@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { planHasOpenSteps, planStepHasIncompleteChildren } from '../plan.js';
+import { planHasOpenSteps, planStepHasIncompleteDependencies } from '../plan.js';
 
 describe('plan utilities', () => {
   test('returns false for empty or non-array plans', () => {
@@ -9,77 +9,27 @@ describe('plan utilities', () => {
     expect(planHasOpenSteps([])).toBe(false);
   });
 
-  test('detects pending steps', () => {
+  test('detects open steps when any item is not terminal', () => {
     const plan = [
-      { step: '1', title: 'Do things', status: 'completed' },
-      { step: '2', title: 'Next', status: 'pending' },
+      { id: 'one', title: 'Complete', status: 'completed', priority: 1, waitingForId: [] },
+      { id: 'two', title: 'Working', status: 'running', priority: 2, waitingForId: [] },
     ];
 
     expect(planHasOpenSteps(plan)).toBe(true);
-  });
 
-  test('detects pending nested substeps', () => {
-    const plan = [
-      {
-        step: '1',
-        title: 'Parent',
-        status: 'completed',
-        substeps: [{ step: '1.1', title: 'Child', status: 'running' }],
-      },
-    ];
-
-    expect(planHasOpenSteps(plan)).toBe(true);
-  });
-
-  test('returns false when all steps and substeps completed', () => {
-    const plan = [
-      {
-        step: '1',
-        title: 'Parent',
-        status: 'completed',
-        substeps: [{ step: '1.1', title: 'Child', status: 'completed' }],
-      },
-    ];
-
+    plan[1].status = 'failed';
     expect(planHasOpenSteps(plan)).toBe(false);
   });
-});
 
-describe('planStepHasIncompleteChildren', () => {
-  test('detects direct child with non-completed status', () => {
-    const step = {
-      step: '1',
-      title: 'Parent',
-      substeps: [{ step: '1.1', title: 'Child', status: 'running' }],
-    };
+  test('planStepHasIncompleteDependencies inspects referenced steps', () => {
+    const plan = [
+      { id: 'a', title: 'Ready', status: 'completed', priority: 1, waitingForId: [] },
+      { id: 'b', title: 'Blocked', status: 'pending', priority: 2, waitingForId: ['a'] },
+    ];
 
-    expect(planStepHasIncompleteChildren(step)).toBe(true);
-  });
+    expect(planStepHasIncompleteDependencies(plan, plan[1])).toBe(false);
 
-  test('returns false when all children completed', () => {
-    const step = {
-      step: '1',
-      title: 'Parent',
-      substeps: [{ step: '1.1', title: 'Child', status: 'completed' }],
-    };
-
-    expect(planStepHasIncompleteChildren(step)).toBe(false);
-  });
-
-  test('detects incomplete nested grandchildren despite completed child status', () => {
-    const step = {
-      step: '1',
-      title: 'Parent',
-      substeps: [
-        {
-          step: '1.1',
-          title: 'Child',
-          status: 'completed',
-          substeps: [{ step: '1.1.1', title: 'Grandchild', status: 'pending' }],
-        },
-      ],
-    };
-
-    expect(planStepHasIncompleteChildren(step)).toBe(true);
+    plan[0].status = 'running';
+    expect(planStepHasIncompleteDependencies(plan, plan[1])).toBe(true);
   });
 });

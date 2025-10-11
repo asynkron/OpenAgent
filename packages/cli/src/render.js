@@ -56,14 +56,40 @@ export function renderPlan(plan) {
   }
 
   const lines = nodes.map((node) => {
-    const indent = '  '.repeat(node.depth);
     const symbol = colorizeSymbol(node.symbol, node.color);
-    const label = chalk.cyan(node.label);
-    const dot = chalk.dim('.');
-    const title = node.title ? ` ${chalk.white(node.title)}` : '';
-    const agePart = chalk.dim(` (age ${node.age ?? 0})`);
-    const commandPart = node.commandPreview ? ` ${chalk.gray('—')} ${chalk.white(node.commandPreview)}` : '';
-    return `${indent}${symbol} ${label}${dot}${title}${agePart}${commandPart}`.trimEnd();
+    const title = node.title ? chalk.white(node.title) : chalk.dim('(untitled task)');
+    const statusPart = chalk.dim(`[${node.status || 'pending'}]`);
+    const priorityPart = Number.isFinite(node.priority)
+      ? chalk.dim(`priority ${node.priority}`)
+      : chalk.dim('priority ∞');
+    const agePart = chalk.dim(`age ${node.age ?? 0}`);
+    const idPart = node.id ? chalk.cyan(`id ${node.id}`) : '';
+    let readinessPart = '';
+    if (node.waitingForId.length > 0) {
+      readinessPart = node.hasMissingDependencies
+        ? chalk.red(
+            `waiting on ${node.waitingLabel ? `${node.waitingLabel} (missing)` : 'missing tasks'}`,
+          )
+        : chalk.dim(`waiting on ${node.waitingLabel}`);
+    } else if (node.canExecute) {
+      readinessPart = chalk.green('ready to run');
+    } else {
+      readinessPart = chalk.dim('waiting');
+    }
+
+    const metaParts = [statusPart, priorityPart, agePart];
+    if (idPart) {
+      metaParts.push(idPart);
+    }
+    if (readinessPart) {
+      metaParts.push(readinessPart);
+    }
+
+    const commandPart = node.commandPreview
+      ? ` ${chalk.gray('—')} ${chalk.white(node.commandPreview)}`
+      : '';
+
+    return `${symbol} ${title} (${metaParts.filter(Boolean).join(', ')})${commandPart}`.trimEnd();
   });
 
   display('Plan', lines, 'cyan');

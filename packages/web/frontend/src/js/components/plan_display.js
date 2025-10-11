@@ -1,38 +1,13 @@
 // Renders the agent plan timeline and its progress summary inside the chat panel.
-const CHILD_KEY = 'substeps';
 const COMPLETED_STATUSES = new Set(['completed', 'complete', 'done', 'finished']);
+const TERMINAL_STATUSES = new Set(['completed', 'complete', 'done', 'finished', 'failed', 'abandoned']);
 const ACTIVE_KEYWORDS = ['progress', 'working', 'running', 'executing', 'active', 'doing'];
-const BLOCKED_KEYWORDS = ['blocked', 'failed', 'error', 'stuck'];
 
 function normaliseText(value) {
   if (typeof value !== 'string') {
     return '';
   }
   return value.trim();
-}
-
-function normaliseStep(step) {
-  const text = normaliseText(step);
-  if (!text) {
-    return '';
-  }
-  return text.replace(/\.+$/, '');
-}
-
-function selectChildKey(item) {
-  if (!item || typeof item !== 'object') {
-    return null;
-  }
-  return Array.isArray(item[CHILD_KEY]) && item[CHILD_KEY].length > 0 ? CHILD_KEY : null;
-}
-
-function determineStepLabel(item, index, ancestors) {
-  const explicit = normaliseStep(item?.step);
-  if (explicit) {
-    return explicit;
-  }
-  const parts = [...ancestors, String(index + 1)];
-  return parts.join('.');
 }
 
 function computeStatusState(status) {
@@ -46,23 +21,15 @@ function computeStatusState(status) {
     return { label: text, state: 'completed' };
   }
 
-  if (BLOCKED_KEYWORDS.some((keyword) => normalised.includes(keyword))) {
+  if (normalised === 'failed' || normalised === 'abandoned') {
     return { label: text, state: 'blocked' };
   }
 
-  if (ACTIVE_KEYWORDS.some((keyword) => normalised.includes(keyword))) {
+  if (ACTIVE_KEYWORDS.some((keyword) => normalised.includes(keyword)) || normalised === 'running') {
     return { label: text, state: 'active' };
   }
 
-  if (
-    normalised.includes('pending') ||
-    normalised.includes('todo') ||
-    normalised.includes('to do')
-  ) {
-    return { label: text, state: 'pending' };
-  }
-
-  return { label: text, state: 'active' };
+  return { label: text, state: 'pending' };
 }
 
 function aggregateProgress(items) {
@@ -77,18 +44,8 @@ function aggregateProgress(items) {
     if (!item || typeof item !== 'object') {
       return;
     }
-    const childKey = selectChildKey(item);
-    if (childKey) {
-      const child = aggregateProgress(item[childKey]);
-      completed += child.completed;
-      total += child.total;
-      if (child.total > 0) {
-        return;
-      }
-    }
     total += 1;
-    const statusText = normaliseText(item.status);
-    const normalized = statusText.toLowerCase();
+    const normalized = normaliseText(item.status).toLowerCase();
     if (COMPLETED_STATUSES.has(normalized) || normalized.startsWith('complete')) {
       completed += 1;
     }
@@ -109,7 +66,133 @@ function computePlanProgress(plan) {
   };
 }
 
-function buildSteps(plan, ancestors = []) {
+function normalizeWaitingFor(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const seen = new Set();
+  const normalized = [];
+  value.forEach((entry) => {
+    if (typeof entry !== 'string') {
+      return;
+    }
+    const trimmed = entry.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      return;
+    }
+    seen.add(trimmed);
+    normalized.push(trimmed);
+  });
+  return normalized;
+}
+
+function buildPlanLookup(plan) {
+  const lookup = new Map();
+  if (!Array.isArray(plan)) {
+    return lookup;
+  }
+
+  plan.forEach((item) => {
+    if (!item || typeof item !== 'object') {
+      return;
+    }
+    const id = normaliseText(item.id);
+    if (id && !lookup.has(id)) {
+      lookup.set(id, item);
+    }
+  });
+
+  return lookup;
+}
+
+function dependenciesComplete(item, lookup) {
+  const waitingForId = normalizeWaitingFor(item.waitingForId);
+  if (waitingForId.length === 0) {
+    return { waitingForId, complete: true, missing: false };
+  }
+
+  let complete = true;
+  let missing = false;
+
+  waitingForId.forEach((dependency) => {
+    const referenced = lookup.get(dependency);
+    if (!referenced) {
+      complete = false;
+      missing = true;
+      return;
+    }
+    const statusText = normaliseText(referenced.status).toLowerCase();
+    if (!COMPLETED_STATUSES.has(statusText) && !statusText.startsWith('complete')) {
+      complete = false;
+    }
+  });
+
+  return { waitingForId, complete, missing };
+}
+
+function classifyStep(item, lookup) {
+  const statusText = normaliseText(item.status);
+  const normalizedStatus = statusText.toLowerCase();
+  const dependencyState = dependenciesComplete(item, lookup);
+  const canExecute = dependencyState.complete && !dependencyState.missing;
+
+  let state = 'pending';
+  if (COMPLETED_STATUSES.has(normalizedStatus) || normalizedStatus.startsWith('complete')) {
+    state = 'completed';
+  } else if (normalizedStatus === 'failed' || normalizedStatus === 'abandoned') {
+    state = 'blocked';
+  } else if (normalizedStatus === 'running') {
+    state = 'active';
+  } else if (!canExecute) {
+    state = 'blocked';
+  }
+
+  const readinessLabel = dependencyState.waitingForId.length
+    ? dependencyState.missing
+      ? `Waiting on ${dependencyState.waitingForId.join(', ')} (missing)`
+      : `Waiting on ${dependencyState.waitingForId.join(', ')}`
+    : canExecute
+    ? 'Ready to run'
+    : 'Waiting';
+
+  return {
+    id: normaliseText(item.id) || '',
+    title: normaliseText(item.title) || '(untitled task)',
+    statusLabel: statusText || 'Pending',
+    priority: Number.isFinite(item.priority) ? item.priority : Number.parseInt(item.priority, 10) || 0,
+    state,
+    readinessLabel,
+    waitingForId: dependencyState.waitingForId,
+    hasMissingDependencies: dependencyState.missing,
+    canExecute,
+  };
+}
+
+function sortSteps(plan) {
+  const lookup = buildPlanLookup(plan);
+  const normalized = [];
+
+  plan.forEach((item) => {
+    if (!item || typeof item !== 'object') {
+      return;
+    }
+    normalized.push(classifyStep(item, lookup));
+  });
+
+  normalized.sort((a, b) => {
+    if (a.canExecute !== b.canExecute) {
+      return a.canExecute ? -1 : 1;
+    }
+    if (a.priority !== b.priority) {
+      return a.priority - b.priority;
+    }
+    return a.title.localeCompare(b.title);
+  });
+
+  return normalized;
+}
+
+function buildSteps(plan) {
   if (!Array.isArray(plan) || plan.length === 0) {
     return null;
   }
@@ -117,18 +200,12 @@ function buildSteps(plan, ancestors = []) {
   const list = document.createElement('ol');
   list.className = 'agent-plan-steps';
 
-  plan.forEach((item, index) => {
+  const normalized = sortSteps(plan);
+
+  normalized.forEach((item) => {
     const step = document.createElement('li');
     step.className = 'agent-plan-step';
-
-    if (!item || typeof item !== 'object') {
-      return;
-    }
-
-    const label = determineStepLabel(item, index, ancestors);
-    const title = normaliseText(item.title);
-    const statusInfo = computeStatusState(item.status);
-    step.classList.add(`agent-plan-step--${statusInfo.state}`);
+    step.classList.add(`agent-plan-step--${item.state}`);
 
     const mainRow = document.createElement('div');
     mainRow.className = 'agent-plan-step-main';
@@ -138,34 +215,24 @@ function buildSteps(plan, ancestors = []) {
     indicator.setAttribute('aria-hidden', 'true');
     mainRow.appendChild(indicator);
 
-    const labelEl = document.createElement('span');
-    labelEl.className = 'agent-plan-step-label';
-    labelEl.textContent = label;
-    mainRow.appendChild(labelEl);
+    const titleEl = document.createElement('span');
+    titleEl.className = 'agent-plan-step-title';
+    titleEl.textContent = item.title;
+    mainRow.appendChild(titleEl);
 
-    if (title) {
-      const titleEl = document.createElement('span');
-      titleEl.className = 'agent-plan-step-title';
-      titleEl.textContent = title;
-      mainRow.appendChild(titleEl);
+    const metaEl = document.createElement('span');
+    metaEl.className = 'agent-plan-step-meta';
+    const metaParts = [`${item.statusLabel}`, `priority ${item.priority}`];
+    if (item.id) {
+      metaParts.push(`id ${item.id}`);
     }
+    if (item.readinessLabel) {
+      metaParts.push(item.readinessLabel);
+    }
+    metaEl.textContent = metaParts.join(' • ');
+    mainRow.appendChild(metaEl);
 
     step.appendChild(mainRow);
-
-    if (statusInfo.label) {
-      const statusEl = document.createElement('div');
-      statusEl.className = 'agent-plan-step-status';
-      statusEl.textContent = statusInfo.label;
-      step.appendChild(statusEl);
-    }
-
-    const childKey = selectChildKey(item);
-    if (childKey) {
-      const childList = buildSteps(item[childKey], label.split('.'));
-      if (childList) {
-        step.appendChild(childList);
-      }
-    }
 
     list.appendChild(step);
   });
@@ -198,83 +265,41 @@ export function createPlanDisplay({ container } = {}) {
 
   const progressBar = document.createElement('div');
   progressBar.className = 'agent-plan-progress-bar';
-  progressBar.setAttribute('role', 'progressbar');
-  progressBar.setAttribute('aria-valuemin', '0');
-  progressBar.setAttribute('aria-valuemax', '100');
-
-  const progressFill = document.createElement('div');
-  progressFill.className = 'agent-plan-progress-fill';
-  progressBar.appendChild(progressFill);
-
-  const progressLabel = document.createElement('span');
-  progressLabel.className = 'agent-plan-progress-label';
-  progressLabel.textContent = '';
-
   progressWrapper.appendChild(progressBar);
-  progressWrapper.appendChild(progressLabel);
+  header.appendChild(progressWrapper);
 
-  const stepsContainer = document.createElement('div');
-  stepsContainer.className = 'agent-plan-steps-container';
+  const listWrapper = document.createElement('div');
+  listWrapper.className = 'agent-plan-list';
 
   container.appendChild(header);
-  container.appendChild(progressWrapper);
-  container.appendChild(stepsContainer);
+  container.appendChild(listWrapper);
 
-  let currentPlan = null;
+  const updatePlan = (plan) => {
+    const progress = computePlanProgress(plan);
+    const summaryText = progress.totalSteps
+      ? `${progress.completedSteps}/${progress.totalSteps} completed`
+      : 'No active steps yet';
+    summary.textContent = summaryText;
 
-  function update(plan) {
-    const validPlan = Array.isArray(plan) ? plan : [];
-    currentPlan = validPlan;
+    progressBar.style.setProperty('--progress-ratio', String(progress.ratio));
+    progressBar.style.width = `${Math.round(progress.ratio * 100)}%`;
 
-    if (validPlan.length === 0) {
-      container.classList.add('hidden');
-      stepsContainer.innerHTML = '';
-      summary.textContent = '';
-      progressFill.style.width = '0%';
-      progressBar.setAttribute('aria-valuenow', '0');
-      progressBar.setAttribute('aria-valuetext', 'No steps planned');
-      progressLabel.textContent = 'No steps planned yet';
-      return;
+    listWrapper.innerHTML = '';
+    const stepsList = buildSteps(plan);
+    if (stepsList) {
+      listWrapper.appendChild(stepsList);
     }
-
-    container.classList.remove('hidden');
-
-    const list = buildSteps(validPlan);
-    stepsContainer.innerHTML = '';
-    if (list) {
-      stepsContainer.appendChild(list);
-    }
-
-    const progress = computePlanProgress(validPlan);
-    const percentage = Math.round(progress.ratio * 100);
-    progressFill.style.width = `${percentage}%`;
-    progressBar.setAttribute('aria-valuenow', String(percentage));
-    progressBar.setAttribute('aria-valuetext', `${percentage}% complete`);
-    const completedWord = progress.totalSteps === 1 ? 'step' : 'steps';
-    progressLabel.textContent = `${progress.completedSteps} of ${progress.totalSteps} ${completedWord} complete`;
-    if (progress.remainingSteps > 0) {
-      const remainingWord = progress.remainingSteps === 1 ? 'step' : 'steps';
-      summary.textContent = `${progress.remainingSteps} ${remainingWord} remaining`;
-    } else {
-      summary.textContent = 'All steps completed';
-    }
-  }
-
-  function reset() {
-    update([]);
-    currentPlan = null;
-  }
-
-  reset();
-
-  const api = {
-    update,
-    reset,
-    getPlan: () => currentPlan,
   };
 
-  // Expose the API on the container to simplify debugging in the browser console.
-  container.__planDisplay = api;
+  updatePlan([]);
 
-  return api;
+  return {
+    update(plan) {
+      updatePlan(plan);
+    },
+  };
 }
+
+export default {
+  createPlanDisplay,
+};
