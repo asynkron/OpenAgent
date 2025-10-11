@@ -238,12 +238,100 @@ describe('executeAgentPass', () => {
     const planEvents = emitEvent.mock.calls
       .map(([event]) => event)
       .filter((event) => event && event.type === 'plan');
-    expect(planEvents.length).toBeGreaterThanOrEqual(2);
+    expect(planEvents.length).toBeGreaterThanOrEqual(3);
     expect(planEvents[0].plan[0].status).toBe('pending');
-    const updatedPlanEvent = planEvents.find(
+    const runningEvent = planEvents.find(
       (event) => Array.isArray(event.plan) && event.plan[0]?.status === 'running',
     );
-    expect(updatedPlanEvent).toBeDefined();
+    expect(runningEvent).toBeDefined();
+    const completedEvent = planEvents.find(
+      (event) => Array.isArray(event.plan) && event.plan[0]?.status === 'completed',
+    );
+    expect(completedEvent).toBeDefined();
+  });
+
+  test('persists merged plans and marks successful commands as completed', async () => {
+    const {
+      executeAgentPass,
+      parseAssistantResponse,
+      executeAgentCommand,
+      planHasOpenSteps,
+    } = await setupPassExecutor({
+      executeAgentCommandImpl: () => ({
+        result: { stdout: 'ready', stderr: '', exit_code: 0 },
+        executionDetails: { code: 0 },
+      }),
+    });
+
+    planHasOpenSteps.mockReturnValue(true);
+
+    parseAssistantResponse.mockImplementation(() => ({
+      ok: true,
+      value: {
+        message: 'Executing plan',
+        plan: [
+          {
+            step: '1',
+            title: 'Do the work',
+            status: 'pending',
+            command: { run: 'echo hello' },
+          },
+        ],
+      },
+      recovery: { strategy: 'direct' },
+    }));
+
+    const emitEvent = jest.fn();
+    const history = [];
+
+    const syncedPlans = [];
+    const planManager = {
+      isMergingEnabled: jest.fn().mockReturnValue(true),
+      update: jest.fn().mockImplementation(async (plan) => plan),
+      get: jest.fn(),
+      reset: jest.fn(),
+      sync: jest.fn().mockImplementation(async function sync(plan) {
+        syncedPlans.push(JSON.parse(JSON.stringify(plan)));
+        return Array.isArray(plan) ? JSON.parse(JSON.stringify(plan)) : [];
+      }),
+    };
+
+    const PASS_INDEX = 6;
+    const result = await executeAgentPass({
+      openai: {},
+      model: 'gpt-5-codex',
+      history,
+      emitEvent,
+      runCommandFn: jest.fn(),
+      applyFilterFn: jest.fn(),
+      tailLinesFn: jest.fn(),
+      getNoHumanFlag: () => false,
+      setNoHumanFlag: () => {},
+      planReminderMessage: 'remember the plan',
+      startThinkingFn: jest.fn(),
+      stopThinkingFn: jest.fn(),
+      escState: {},
+      approvalManager: null,
+      historyCompactor: null,
+      planManager,
+      emitAutoApproveStatus: false,
+      passIndex: PASS_INDEX,
+    });
+
+    expect(result).toBe(true);
+    expect(executeAgentCommand).toHaveBeenCalledTimes(1);
+    expect(planManager.update).toHaveBeenCalledTimes(1);
+    expect(planManager.sync).toHaveBeenCalledTimes(2);
+
+    const nonEmptyPlans = syncedPlans.filter((plan) => Array.isArray(plan) && plan.length > 0);
+    expect(nonEmptyPlans.length).toBeGreaterThan(0);
+    expect(nonEmptyPlans[nonEmptyPlans.length - 1][0].status).toBe('completed');
+
+    const planEvents = emitEvent.mock.calls
+      .map(([event]) => event)
+      .filter((event) => event && event.type === 'plan');
+    const finalPlanEvent = planEvents[planEvents.length - 1];
+    expect(finalPlanEvent.plan[0].status).toBe('completed');
   });
 
   test('auto-responds when schema validation fails', async () => {

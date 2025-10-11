@@ -136,8 +136,11 @@ describe('agent plan progress events', () => {
     });
 
     const progressEvents = events.filter((event) => event.type === 'plan-progress');
-    expect(progressEvents).toHaveLength(1);
-    expect(progressEvents[0].progress).toMatchObject({ completedSteps: 1, totalSteps: 1 });
+    expect(progressEvents.length).toBeGreaterThan(0);
+    const hasCompletedSnapshot = progressEvents.some((event) =>
+      event.progress?.completedSteps === 1 && event.progress?.totalSteps === 1,
+    );
+    expect(hasCompletedSnapshot).toBe(true);
   });
 });
 

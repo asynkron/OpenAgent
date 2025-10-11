@@ -515,9 +515,35 @@ export async function executeAgentPass({
 
   emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
 
+  const persistPlanState = async (planSnapshot) => {
+    if (!planSnapshot || !Array.isArray(planSnapshot) || !invokePlanManager) {
+      return;
+    }
+
+    try {
+      let persisted;
+      if (typeof planManager?.sync === 'function') {
+        persisted = await invokePlanManager(planManager.sync, planSnapshot);
+      } else if (typeof planManager?.update === 'function') {
+        persisted = await invokePlanManager(planManager.update, planSnapshot);
+      }
+
+      if (Array.isArray(persisted)) {
+        activePlan = persisted;
+      }
+    } catch (error) {
+      emitEvent({
+        type: 'status',
+        level: 'warn',
+        message: 'Failed to persist plan state after execution.',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+
   const planForExecution = clonePlanForExecution(activePlan);
   const executableSteps = collectExecutablePlanSteps(planForExecution);
-  const activePlanExecutableSteps = collectExecutablePlanSteps(activePlan);
+  let activePlanExecutableSteps = collectExecutablePlanSteps(activePlan);
 
   if (executableSteps.length === 0) {
     if (
@@ -603,7 +629,7 @@ export async function executeAgentPass({
 
   for (let index = 0; index < executableSteps.length; index += 1) {
     const { step, command } = executableSteps[index];
-    const activePlanStep =
+    let activePlanStep =
       activePlanExecutableSteps && index < activePlanExecutableSteps.length
         ? activePlanExecutableSteps[index]?.step
         : null;
@@ -689,6 +715,15 @@ export async function executeAgentPass({
       emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
     }
 
+    await persistPlanState(activePlan);
+
+    if (Array.isArray(activePlan)) {
+      activePlanExecutableSteps = collectExecutablePlanSteps(activePlan);
+      if (index < activePlanExecutableSteps.length) {
+        activePlanStep = activePlanExecutableSteps[index]?.step ?? activePlanStep;
+      }
+    }
+
     const { result, executionDetails } = await executeAgentCommand({
       command,
       runCommandFn,
@@ -716,6 +751,24 @@ export async function executeAgentPass({
     });
 
     step.observation = observation;
+    if (activePlanStep && typeof activePlanStep === 'object') {
+      activePlanStep.observation = observation;
+    }
+
+    const exitCode =
+      typeof result?.exit_code === 'number'
+        ? result.exit_code
+        : typeof result?.exitCode === 'number'
+          ? result.exitCode
+          : null;
+    if (exitCode === 0) {
+      if (activePlanStep && typeof activePlanStep === 'object') {
+        activePlanStep.status = 'completed';
+      }
+      if (step && typeof step === 'object') {
+        step.status = 'completed';
+      }
+    }
 
     emitDebug(() => ({
       stage: 'command-execution',
@@ -732,6 +785,16 @@ export async function executeAgentPass({
       preview: renderPayload,
       execution: executionDetails,
     });
+
+    if (Array.isArray(activePlan)) {
+      emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
+    }
+
+    await persistPlanState(activePlan);
+
+    if (Array.isArray(activePlan)) {
+      activePlanExecutableSteps = collectExecutablePlanSteps(activePlan);
+    }
   }
 
   const planObservation = {
