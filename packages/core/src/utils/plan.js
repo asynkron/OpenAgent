@@ -22,6 +22,23 @@ function isCompletedStatus(status) {
   return normalized.startsWith('complete');
 }
 
+function isTerminalStatus(status) {
+  if (typeof status !== 'string') {
+    return false;
+  }
+
+  const normalized = status.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  if (normalized === 'failed') {
+    return true;
+  }
+
+  return isCompletedStatus(normalized);
+}
+
 function normalizeStepLabel(stepValue) {
   if (stepValue === null || stepValue === undefined) {
     return '';
@@ -164,15 +181,14 @@ export function planHasOpenSteps(plan) {
         continue;
       }
 
-      const normalizedStatus =
-        typeof item.status === 'string' ? item.status.trim().toLowerCase() : '';
+      const statusValue = typeof item.status === 'string' ? item.status : '';
 
       const childKey = PLAN_CHILD_KEYS.find((key) => Array.isArray(item[key]));
       if (childKey && hasOpen(item[childKey])) {
         return true;
       }
 
-      if (normalizedStatus !== 'completed') {
+      if (!isTerminalStatus(statusValue)) {
         return true;
       }
     }
@@ -210,7 +226,7 @@ function aggregateProgress(items) {
     }
 
     total += 1;
-    if (isCompletedStatus(item.status)) {
+    if (isTerminalStatus(item.status)) {
       completed += 1;
     }
   }

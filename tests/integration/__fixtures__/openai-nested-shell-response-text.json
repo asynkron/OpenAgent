@@ -73,17 +73,6 @@
               },
               "description": "You MUST provide a plan when have a set goal, NEVER drop/reset a plan without discussion, the plan stays on utill otherwise agreed upon, Progress tracker for multi-step work; use [] when resetting to a new plan."
             },
-            "command": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "run": {
-                  "$ref": "#/$defs/runCommand"
-                }
-              },
-              "required": ["run"],
-              "description": "Next tool invocation to execute when a plan contains non-complete steps. may NOT be raw string, e.g command: \"ls\""
-            }
           },
           "$defs": {
             "planStep": {
@@ -99,13 +88,19 @@
                 },
                 "status": {
                   "type": "string",
-                  "enum": ["pending", "running", "completed"]
+                  "enum": ["pending", "running", "completed", "failed"]
                 },
                 "substeps": {
                   "type": "array",
                   "items": {
                     "$ref": "#/$defs/planStep"
                   }
+                },
+                "command": {
+                  "$ref": "#/$defs/command"
+                },
+                "observation": {
+                  "type": "object"
                 }
               }
             },
@@ -169,5 +164,5 @@
     "metadata": {},
     "output_text": ""
   },
-  "responseText": "{\"message\":\"Running `echo hello`.\",\"command\":{\"shell\":{\"command\":\"echo hello\",\"cwd\":\".\"}}}"
+  "responseText": "{\"message\":\"Running `echo hello`.\",\"plan\":[{\"step\":\"1\",\"title\":\"Execute nested shell\",\"status\":\"running\",\"command\":{\"shell\":{\"command\":\"echo hello\",\"cwd\":\".\"}}}]}"
 }

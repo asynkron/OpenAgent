@@ -31,18 +31,23 @@ test('agent runtime executes one mocked command then exits on user request', asy
 
   queueModelResponse({
     message: 'Mocked response',
-    plan: [],
-    command: {
-      shell: 'bash',
-      run: 'echo "MOCKED_OK"',
-      cwd: '.',
-      timeout_sec: 5,
-    },
+    plan: [
+      {
+        step: '1',
+        title: 'Execute mocked command',
+        status: 'running',
+        command: {
+          shell: 'bash',
+          run: 'echo "MOCKED_OK"',
+          cwd: '.',
+          timeout_sec: 5,
+        },
+      },
+    ],
   });
   queueModelResponse({
     message: 'Mocked follow-up',
     plan: [],
-    command: null,
   });
 
   const runCommandMock = jest.fn().mockResolvedValue({
@@ -90,7 +95,6 @@ test('agent runtime executes nested shell commands from raw response strings', a
   queueModelResponse({
     message: 'Mocked follow-up',
     plan: [],
-    command: null,
   });
 
   const runCommandMock = jest.fn().mockResolvedValue({
@@ -125,12 +129,10 @@ const driveRefusalAutoResponse = async (refusalMessage) => {
   queueModelResponse({
     message: refusalMessage,
     plan: [],
-    command: null,
   });
   queueModelResponse({
     message: 'Second attempt succeeds.',
     plan: [],
-    command: null,
   });
 
   const runtime = agent.createAgentRuntime();
@@ -151,10 +153,16 @@ test.each([
 
   expect(mocks.requestModelCompletion).toHaveBeenCalledTimes(2);
   const secondCall = mocks.requestModelCompletion.mock.calls[1]?.[0] ?? {};
-  const userMessages = Array.isArray(secondCall.history)
-    ? secondCall.history.filter((entry) => entry.role === 'user').map((entry) => entry.content)
+  const assistantMessages = Array.isArray(secondCall.history)
+    ? secondCall.history
+        .filter((entry) => entry.role === 'assistant')
+        .map((entry) => String(entry.content ?? ''))
     : [];
-  expect(userMessages).toContain('continue');
+  expect(
+    assistantMessages.some((message) =>
+      message.toLowerCase().includes('auto-response') && message.includes('continue'),
+    ),
+  ).toBe(true);
 
   const autoStatusEvent = ui.events.find(
     (event) =>
@@ -174,7 +182,6 @@ test('agent runtime emits debug envelopes when debug flag enabled', async () => 
   queueModelResponse({
     message: 'Debug test response',
     plan: [],
-    command: null,
   });
 
   const runtime = agent.createAgentRuntime({
@@ -208,13 +215,11 @@ test('protocol validation failures are emitted on the debug channel only', async
   queueModelResponse({
     message: 'Working through the plan',
     plan: [{ step: '1', title: 'Do the work', status: 'pending' }],
-    command: null,
   });
 
   queueModelResponse({
     message: 'Recovered response',
     plan: [],
-    command: null,
   });
 
   const runtime = agent.createAgentRuntime({

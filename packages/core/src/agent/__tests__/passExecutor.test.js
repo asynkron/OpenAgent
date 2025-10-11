@@ -15,7 +15,8 @@ const setupPassExecutor = async () => {
   const extractOpenAgentToolCall = jest.fn().mockReturnValue({
     name: 'open-agent',
     call_id: 'call_mock_1',
-    arguments: '{"message":"  ","command":{"run":"   ","shell":"   "}}',
+    arguments:
+      '{"message":"  ","plan":[{"step":"1","title":"Mock","status":"running","command":{"run":"   ","shell":"   "}}]}',
   });
   const extractResponseText = jest.fn();
   jest.unstable_mockModule('../../openai/responseUtils.js', () => ({
@@ -26,7 +27,17 @@ const setupPassExecutor = async () => {
 
   const parseAssistantResponse = jest.fn(() => ({
     ok: true,
-    value: { message: '  ', command: { run: '   ', shell: '   ' } },
+    value: {
+      message: '  ',
+      plan: [
+        {
+          step: '1',
+          title: 'Mock',
+          status: 'running',
+          command: { run: '   ', shell: '   ' },
+        },
+      ],
+    },
     recovery: { strategy: 'direct' },
   }));
   jest.unstable_mockModule('../responseParser.js', () => ({
@@ -168,7 +179,7 @@ describe('executeAgentPass', () => {
 
     validateAssistantResponseSchema.mockReturnValue({
       valid: false,
-      errors: [{ path: 'response.command', message: 'Must be of type object.' }],
+      errors: [{ path: 'response.plan[0].command', message: 'Must be of type object.' }],
     });
 
     const result = await executeAgentPass({
@@ -202,7 +213,10 @@ describe('executeAgentPass', () => {
       expect.objectContaining({
         type: 'schema_validation_failed',
         errors: expect.arrayContaining([
-          expect.objectContaining({ path: 'response.command', message: 'Must be of type object.' }),
+          expect.objectContaining({
+            path: 'response.plan[0].command',
+            message: 'Must be of type object.',
+          }),
         ]),
       }),
     );
@@ -213,7 +227,7 @@ describe('executeAgentPass', () => {
     expect(observationEntry.content).toContain('failed schema validation');
     expect(observationEntry.content).toContain('"schema_validation_error": true');
     expect(observationEntry.content).toContain(
-      '"response.command: Must be of type object."',
+      '"response.plan[0].command: Must be of type object."',
     );
   });
 
@@ -238,8 +252,14 @@ describe('executeAgentPass', () => {
       ok: true,
       value: {
         message: 'Still reviewing the open plan steps.',
-        plan: [{ step: 'Investigate', status: 'in_progress' }],
-        command: { run: '   ', shell: '   ' },
+        plan: [
+          {
+            step: 'Investigate',
+            title: 'Investigate',
+            status: 'running',
+            command: { run: '   ', shell: '   ' },
+          },
+        ],
       },
       recovery: { strategy: 'direct' },
     }));

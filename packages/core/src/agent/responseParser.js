@@ -201,6 +201,36 @@ function normalizeCommandPayload(command) {
   return normalizeFlatCommand(command);
 }
 
+const PLAN_CHILD_KEYS = ['substeps', 'children', 'steps'];
+
+function normalizePlanStep(step) {
+  if (!isPlainObject(step)) {
+    return step;
+  }
+
+  const normalizedStep = { ...step };
+
+  if ('command' in normalizedStep) {
+    normalizedStep.command = normalizeCommandPayload(normalizedStep.command);
+  }
+
+  for (const key of PLAN_CHILD_KEYS) {
+    if (Array.isArray(normalizedStep[key])) {
+      normalizedStep[key] = normalizedStep[key].map((child) => normalizePlanStep(child));
+    }
+  }
+
+  return normalizedStep;
+}
+
+function normalizePlan(plan) {
+  if (!Array.isArray(plan)) {
+    return plan;
+  }
+
+  return plan.map((step) => normalizePlanStep(step));
+}
+
 function normalizeAssistantPayload(payload) {
   if (!isPlainObject(payload)) {
     return payload;
@@ -210,6 +240,10 @@ function normalizeAssistantPayload(payload) {
 
   if ('command' in normalized) {
     normalized.command = normalizeCommandPayload(normalized.command);
+  }
+
+  if (Array.isArray(normalized.plan)) {
+    normalized.plan = normalizePlan(normalized.plan);
   }
 
   return normalized;

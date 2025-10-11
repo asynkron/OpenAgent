@@ -50,10 +50,17 @@ describe('parseAssistantResponse', () => {
   test('normalizes run commands emitted without a dedicated run property', () => {
     const payload = JSON.stringify({
       message: 'Running command `echo hello`.',
-      command: {
-        cwd: '.',
-        shell: 'echo hello',
-      },
+      plan: [
+        {
+          step: '1',
+          title: 'Execute command',
+          status: 'running',
+          command: {
+            cwd: '.',
+            shell: 'echo hello',
+          },
+        },
+      ],
     });
 
     const result = parseAssistantResponse(payload);
@@ -61,17 +68,31 @@ describe('parseAssistantResponse', () => {
     expect(result.ok).toBe(true);
     expect(result.value).toEqual({
       message: 'Running command `echo hello`.',
-      command: {
-        cwd: '.',
-        run: 'echo hello',
-      },
+      plan: [
+        {
+          step: '1',
+          title: 'Execute command',
+          status: 'running',
+          command: {
+            cwd: '.',
+            run: 'echo hello',
+          },
+        },
+      ],
     });
   });
 
   test('wraps raw string command payloads in a run object', () => {
     const payload = JSON.stringify({
       message: 'Raw command provided as string.',
-      command: 'ls',
+      plan: [
+        {
+          step: '1',
+          title: 'Execute command',
+          status: 'running',
+          command: 'ls',
+        },
+      ],
     });
 
     const result = parseAssistantResponse(payload);
@@ -79,16 +100,30 @@ describe('parseAssistantResponse', () => {
     expect(result.ok).toBe(true);
     expect(result.value).toEqual({
       message: 'Raw command provided as string.',
-      command: {
-        run: 'ls',
-      },
+      plan: [
+        {
+          step: '1',
+          title: 'Execute command',
+          status: 'running',
+          command: {
+            run: 'ls',
+          },
+        },
+      ],
     });
   });
 
   test('flattens array command payloads into a run string', () => {
     const payload = JSON.stringify({
       message: 'Command tokens provided as array.',
-      command: ['apply_patch', "<<'PATCH'", 'content'],
+      plan: [
+        {
+          step: '1',
+          title: 'Execute command',
+          status: 'running',
+          command: ['apply_patch', "<<'PATCH'", 'content'],
+        },
+      ],
     });
 
     const result = parseAssistantResponse(payload);
@@ -96,23 +131,37 @@ describe('parseAssistantResponse', () => {
     expect(result.ok).toBe(true);
     expect(result.value).toEqual({
       message: 'Command tokens provided as array.',
-      command: {
-        run: "apply_patch <<'PATCH' content",
-      },
+      plan: [
+        {
+          step: '1',
+          title: 'Execute command',
+          status: 'running',
+          command: {
+            run: "apply_patch <<'PATCH' content",
+          },
+        },
+      ],
     });
   });
 
   test('normalizes nested shell command payloads emitted by the model', () => {
     const payload = JSON.stringify({
       message: 'Running command `echo hello`.',
-      command: {
-        shell: {
-          command: 'echo hello',
-          cwd: '.',
-          shell: '/bin/bash',
+      plan: [
+        {
+          step: '1',
+          title: 'Execute command',
+          status: 'running',
+          command: {
+            shell: {
+              command: 'echo hello',
+              cwd: '.',
+              shell: '/bin/bash',
+            },
+            timeout_sec: 5,
+          },
         },
-        timeout_sec: 5,
-      },
+      ],
     });
 
     const result = parseAssistantResponse(payload);
@@ -120,12 +169,19 @@ describe('parseAssistantResponse', () => {
     expect(result.ok).toBe(true);
     expect(result.value).toEqual({
       message: 'Running command `echo hello`.',
-      command: {
-        cwd: '.',
-        timeout_sec: 5,
-        run: 'echo hello',
-        shell: '/bin/bash',
-      },
+      plan: [
+        {
+          step: '1',
+          title: 'Execute command',
+          status: 'running',
+          command: {
+            cwd: '.',
+            timeout_sec: 5,
+            run: 'echo hello',
+            shell: '/bin/bash',
+          },
+        },
+      ],
     });
   });
 
@@ -136,10 +192,17 @@ describe('parseAssistantResponse', () => {
     expect(['direct', 'escaped_newlines']).toContain(result.recovery.strategy);
     expect(result.value).toEqual({
       message: expect.stringMatching(/^Running `echo(?: |\n)hello`\./),
-      command: {
-        cwd: '.',
-        run: 'echo hello',
-      },
+      plan: [
+        {
+          step: '1',
+          title: 'Execute nested shell',
+          status: 'running',
+          command: {
+            cwd: '.',
+            run: 'echo hello',
+          },
+        },
+      ],
     });
   });
 

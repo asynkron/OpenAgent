@@ -12,18 +12,23 @@ const PLAN_STEP_TITLES = {
   execute: 'Execute requested command',
 };
 
-function buildPlan(statusGather, statusExecute) {
-  return [
+function buildPlan(statusGather, statusExecute, command = null) {
+  const plan = [
     { step: '1', title: PLAN_STEP_TITLES.gather, status: statusGather },
     { step: '2', title: PLAN_STEP_TITLES.execute, status: statusExecute },
   ];
+
+  if (command) {
+    plan[1].command = command;
+  }
+
+  return plan;
 }
 
 function enqueueHandshakeResponse() {
   queueModelResponse({
     message: 'Handshake',
     plan: buildPlan('running', 'pending'),
-    command: null,
   });
 }
 
@@ -43,17 +48,15 @@ describe('Approval flow integration', () => {
 
     const firstPayload = {
       message: 'Needs approval',
-      plan: buildPlan('completed', 'running'),
-      command: {
+      plan: buildPlan('completed', 'running', {
         run: 'echo "APPROVED"',
         cwd: '.',
         timeout_sec: 5,
-      },
+      }),
     };
     const secondPayload = {
       message: 'Follow-up',
       plan: buildPlan('completed', 'completed'),
-      command: null,
     };
 
     queueModelResponse(firstPayload);
@@ -99,17 +102,15 @@ describe('Approval flow integration', () => {
 
     const firstPayload = {
       message: 'Needs approval',
-      plan: buildPlan('completed', 'running'),
-      command: {
+      plan: buildPlan('completed', 'running', {
         run: 'echo "SHOULD_NOT_RUN"',
         cwd: '.',
         timeout_sec: 5,
-      },
+      }),
     };
     const secondPayload = {
       message: 'Alternative requested',
       plan: buildPlan('completed', 'completed'),
-      command: null,
     };
 
     queueModelResponse(firstPayload);
@@ -149,19 +150,17 @@ describe('Approval flow integration', () => {
 
     const preapprovedCommand = {
       message: 'Preapproved command incoming',
-      plan: buildPlan('completed', 'running'),
-      command: {
+      plan: buildPlan('completed', 'running', {
         run: 'npm test',
         cwd: '.',
         timeout_sec: 5,
-      },
+      }),
     };
 
     queueModelResponse(preapprovedCommand);
     queueModelResponse({
       message: 'Follow-up',
       plan: buildPlan('completed', 'completed'),
-      command: null,
     });
 
     const runCommandMock = jest.fn().mockResolvedValue({

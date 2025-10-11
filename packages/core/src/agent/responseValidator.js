@@ -102,7 +102,8 @@ export function validateAssistantResponseSchema(payload) {
   };
 }
 
-const ALLOWED_STATUSES = new Set(['pending', 'running', 'completed']);
+const ALLOWED_STATUSES = new Set(['pending', 'running', 'completed', 'failed']);
+const TERMINAL_STATUSES = new Set(['completed', 'failed']);
 const PLAN_CHILD_KEYS = ['substeps'];
 
 function isPlainObject(value) {
@@ -115,6 +116,17 @@ function normalizeStatus(value) {
   }
 
   return value.trim().toLowerCase();
+}
+
+function hasExecutableCommand(command) {
+  if (!isPlainObject(command)) {
+    return false;
+  }
+
+  const run = typeof command.run === 'string' ? command.run.trim() : '';
+  const shell = typeof command.shell === 'string' ? command.shell.trim() : '';
+
+  return Boolean(run || shell);
 }
 
 function validatePlanItem(item, path, state, errors) {
@@ -148,8 +160,24 @@ function validatePlanItem(item, path, state, errors) {
     state.firstOpenStatus = normalizedStatus;
   }
 
-  if (normalizedStatus !== 'completed') {
+  const command = item.command;
+
+  if (typeof command !== 'undefined' && command !== null && !isPlainObject(command)) {
+    errors.push(`${path}.command must be an object when present.`);
+  }
+
+  const commandHasPayload = hasExecutableCommand(command);
+
+  if (!TERMINAL_STATUSES.has(normalizedStatus)) {
     state.hasOpenSteps = true;
+    if (!state.firstOpenStatus) {
+      state.firstOpenStatus = normalizedStatus;
+    }
+    if (!commandHasPayload) {
+      errors.push(`${path} requires a non-empty command while the step is ${normalizedStatus || 'active'}.`);
+    }
+  } else if (command && !commandHasPayload && isPlainObject(command)) {
+    errors.push(`${path}.command must include execution details when provided.`);
   }
 
   for (const key of PLAN_CHILD_KEYS) {
@@ -187,14 +215,13 @@ export function validateAssistantResponse(payload) {
     errors.push('"message" must be a string when provided.');
   }
 
-  const plan = Array.isArray(payload.plan) ? payload.plan : payload.plan === undefined ? [] : null;
+  const plan = Array.isArray(payload.plan)
+    ? payload.plan
+    : payload.plan === undefined
+      ? []
+      : null;
   if (plan === null) {
     errors.push('"plan" must be an array.');
-  }
-
-  const command = payload.command ?? null;
-  if (command !== null && !isPlainObject(command)) {
-    errors.push('"command" must be null or an object.');
   }
 
   if (Array.isArray(plan)) {
@@ -220,15 +247,7 @@ export function validateAssistantResponse(payload) {
       if (state.runningCount === 0) {
         errors.push('At least one plan step must have status "running" when a plan is active.');
       }
-
-      if (command === null) {
-        errors.push('Active plans require a "command" to execute next.');
-      }
     }
-  }
-
-  if (command && Object.keys(command).length === 0) {
-    errors.push('Command objects must include execution details.');
   }
 
   return {
