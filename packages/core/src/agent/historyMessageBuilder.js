@@ -86,12 +86,14 @@ const buildObservationContent = ({ observation, command }) => {
     content.summary = summaryParts.join(' ');
   }
 
-  if (payload.message &&
+  if (
+    payload.message &&
     (payload.json_parse_error ||
       payload.schema_validation_error ||
       payload.response_validation_error ||
       payload.canceled_by_human ||
-      payload.operation_canceled)) {
+      payload.operation_canceled)
+  ) {
     content.details = payload.message;
   }
 

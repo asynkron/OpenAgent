@@ -391,7 +391,11 @@ describe('executeAgentPass', () => {
     expect(history).toHaveLength(previousHistoryLength + 1);
     const suppressedEntry = history[history.length - 1];
     expect(suppressedEntry).toEqual(
-      expect.objectContaining({ eventType: 'chat-message', role: 'assistant', pass: suppressedPass }),
+      expect.objectContaining({
+        eventType: 'chat-message',
+        role: 'assistant',
+        pass: suppressedPass,
+      }),
     );
     expect(suppressedEntry.payload).toEqual({
       role: 'assistant',

@@ -101,7 +101,9 @@ describe('validateAssistantResponse', () => {
     });
 
     expect(result.valid).toBe(false);
-    expect(result.errors).toContain('plan[0] requires a non-empty command while the step is running.');
+    expect(result.errors).toContain(
+      'plan[0] requires a non-empty command while the step is running.',
+    );
   });
 
   test('allows completed plan step without command', () => {

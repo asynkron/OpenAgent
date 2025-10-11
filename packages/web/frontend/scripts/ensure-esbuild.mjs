@@ -59,7 +59,7 @@ if (esbuildNeedsRebuild()) {
   console.log('Detected incompatible esbuild binary. Rebuilding esbuild for this platform...');
   const rebuild = spawnSync('npm', ['rebuild', 'esbuild'], {
     cwd: projectRoot,
-    stdio: 'inherit'
+    stdio: 'inherit',
   });
 
   if (rebuild.status !== 0) {

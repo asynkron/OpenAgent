@@ -20,7 +20,8 @@ const MISSING_OPENAI_API_KEY_STEPS = [
   '3. Save the file and restart OpenAgent (`npm start` or `npx openagent`).',
 ];
 
-const MISSING_OPENAI_API_KEY_DOCS = 'Need help finding your key? https://platform.openai.com/api-keys';
+const MISSING_OPENAI_API_KEY_DOCS =
+  'Need help finding your key? https://platform.openai.com/api-keys';
 
 export async function runCli(argv = process.argv) {
   if (!process.env.OPENAI_API_KEY) {

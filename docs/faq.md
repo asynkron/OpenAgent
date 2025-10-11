@@ -41,12 +41,12 @@ The runtime expects the assistant to return JSON that matches `RESPONSE_PARAMETE
       "observation": {
         "observation_for_llm": {
           "stdout": "On branch main\nnothing to commit, working tree clean",
-          "exit_code": 0
+          "exit_code": 0,
         },
         "observation_metadata": {
-          "timestamp": "2024-05-13T17:40:00.000Z"
-        }
-      }
+          "timestamp": "2024-05-13T17:40:00.000Z",
+        },
+      },
     },
     {
       "step": "2",
@@ -57,10 +57,10 @@ The runtime expects the assistant to return JSON that matches `RESPONSE_PARAMETE
         "shell": "/bin/bash",
         "run": "ls -la",
         "cwd": "/workspace/OpenAgent",
-        "timeout_sec": 120
-      }
-    }
-  ]
+        "timeout_sec": 120,
+      },
+    },
+  ],
 }
 ```
 

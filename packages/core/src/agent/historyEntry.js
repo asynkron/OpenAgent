@@ -21,9 +21,7 @@ export function createChatMessageEntry(entry = {}) {
 
   const { eventType, payload: providedPayload, ...rest } = entry;
   const normalizedEventType =
-    typeof eventType === 'string' && eventType.trim()
-      ? eventType
-      : DEFAULT_EVENT_TYPE;
+    typeof eventType === 'string' && eventType.trim() ? eventType : DEFAULT_EVENT_TYPE;
 
   const role =
     rest.role ??
@@ -57,7 +55,11 @@ export function mapHistoryToOpenAIMessages(history) {
 
       const payload = entry.payload && typeof entry.payload === 'object' ? entry.payload : null;
       const role =
-        payload && typeof payload.role === 'string' ? payload.role : typeof entry.role === 'string' ? entry.role : null;
+        payload && typeof payload.role === 'string'
+          ? payload.role
+          : typeof entry.role === 'string'
+            ? entry.role
+            : null;
 
       if (!role) {
         return null;

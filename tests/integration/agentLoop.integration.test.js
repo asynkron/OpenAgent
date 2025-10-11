@@ -143,4 +143,3 @@ const driveRefusalAutoResponse = async (refusalMessage) => {
 
   return { mocks, ui };
 };
-

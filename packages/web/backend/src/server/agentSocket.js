@@ -1,5 +1,10 @@
 import { createWebSocketBinding } from '@asynkron/openagent-core';
-import { describeAgentError, formatAgentEvent, isWebSocketOpen, normaliseAgentText } from './utils.js';
+import {
+  describeAgentError,
+  formatAgentEvent,
+  isWebSocketOpen,
+  normaliseAgentText,
+} from './utils.js';
 
 export class AgentSocketManager {
   constructor({ agentConfig, sendPayload }) {
@@ -139,10 +144,10 @@ export class AgentSocketManager {
         typeof parsed.prompt !== 'undefined'
           ? parsed.prompt
           : typeof parsed.text !== 'undefined'
-          ? parsed.text
-          : typeof parsed.value !== 'undefined'
-            ? parsed.value
-            : parsed.message;
+            ? parsed.text
+            : typeof parsed.value !== 'undefined'
+              ? parsed.value
+              : parsed.message;
 
       if (typeof promptSource === 'undefined') {
         return;

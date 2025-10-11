@@ -413,7 +413,8 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
             if (!Number.isFinite(parsed)) {
               handleStatusEvent({
                 level: 'warn',
-                message: 'Command inspector requires a positive integer. Showing the latest command instead.',
+                message:
+                  'Command inspector requires a positive integer. Showing the latest command instead.',
               });
             } else {
               requested = parsed;

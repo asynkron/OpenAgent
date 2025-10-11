@@ -174,7 +174,9 @@ function validatePlanItem(item, path, state, errors) {
       state.firstOpenStatus = normalizedStatus;
     }
     if (!commandHasPayload) {
-      errors.push(`${path} requires a non-empty command while the step is ${normalizedStatus || 'active'}.`);
+      errors.push(
+        `${path} requires a non-empty command while the step is ${normalizedStatus || 'active'}.`,
+      );
     }
   } else if (command && !commandHasPayload && isPlainObject(command)) {
     errors.push(`${path}.command must include execution details when provided.`);
@@ -215,11 +217,7 @@ export function validateAssistantResponse(payload) {
     errors.push('"message" must be a string when provided.');
   }
 
-  const plan = Array.isArray(payload.plan)
-    ? payload.plan
-    : payload.plan === undefined
-      ? []
-      : null;
+  const plan = Array.isArray(payload.plan) ? payload.plan : payload.plan === undefined ? [] : null;
   if (plan === null) {
     errors.push('"plan" must be an array.');
   }

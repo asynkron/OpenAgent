@@ -33,13 +33,19 @@ describe('runCli', () => {
     await runCli(['node', 'openagent']);
 
     expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('OPENAI_API_KEY is missing. Action required: copy .env.example to packages/cli/.env and set OPENAI_API_KEY=<your key> before re-running OpenAgent.'),
+      expect.stringContaining(
+        'OPENAI_API_KEY is missing. Action required: copy .env.example to packages/cli/.env and set OPENAI_API_KEY=<your key> before re-running OpenAgent.',
+      ),
     );
 
     const banner = errorSpy.mock.calls[0][0];
     const normalizedBanner = banner.replace(/\u001b\[[0-9;]*m/g, '');
     expect(normalizedBanner).toBe(
-      ['-----', 'OPENAI_API_KEY is missing. Action required: copy .env.example to packages/cli/.env and set OPENAI_API_KEY=<your key> before re-running OpenAgent.', '-----'].join('\n'),
+      [
+        '-----',
+        'OPENAI_API_KEY is missing. Action required: copy .env.example to packages/cli/.env and set OPENAI_API_KEY=<your key> before re-running OpenAgent.',
+        '-----',
+      ].join('\n'),
     );
 
     expect(logSpy).toHaveBeenCalledWith('How to fix it:');

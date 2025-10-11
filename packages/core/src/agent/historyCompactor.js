@@ -38,8 +38,7 @@ function buildSummarizationInput(entries) {
     .map((entry, index) => {
       const role = entry?.role ?? 'unknown';
       const content = stringifyContent(entry?.content);
-      const passLabel =
-        typeof entry?.pass === 'number' ? `pass ${entry.pass}` : 'unknown pass';
+      const passLabel = typeof entry?.pass === 'number' ? `pass ${entry.pass}` : 'unknown pass';
       return `Entry ${index + 1} (${role}, ${passLabel}):\n${content}`;
     })
     .join('\n\n');

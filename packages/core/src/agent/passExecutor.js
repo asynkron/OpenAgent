@@ -66,8 +66,7 @@ const collectExecutablePlanSteps = (plan) => {
         continue;
       }
 
-      const status =
-        typeof item.status === 'string' ? item.status.trim().toLowerCase() : '';
+      const status = typeof item.status === 'string' ? item.status.trim().toLowerCase() : '';
       const hasIncompleteChildren = planStepHasIncompleteChildren(item);
 
       if (
@@ -498,9 +497,7 @@ export async function executeAgentPass({
           level: 'warn',
           message: planReminderMessage,
         });
-        history.push(
-          createPlanReminderEntry({ planReminderMessage, pass: activePass }),
-        );
+        history.push(createPlanReminderEntry({ planReminderMessage, pass: activePass }));
         return true;
       }
 
@@ -641,9 +638,7 @@ export async function executeAgentPass({
     plan: planForExecution,
   }));
 
-  history.push(
-    createObservationHistoryEntry({ observation: planObservation, pass: activePass }),
-  );
+  history.push(createObservationHistoryEntry({ observation: planObservation, pass: activePass }));
 
   return true;
 }

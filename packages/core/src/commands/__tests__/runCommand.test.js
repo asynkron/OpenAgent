@@ -205,7 +205,10 @@ describe('runCommand', () => {
     child.emit('close', 0);
     await promise;
 
-    expect(spawnMock).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ shell: true }));
+    expect(spawnMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ shell: true }),
+    );
 
     const invokedCommand = spawnMock.mock.calls[0][0];
     const expectedScript = path.resolve(__dirname, '../../../scripts/apply_patch.mjs');
@@ -238,7 +241,10 @@ describe('runCommand', () => {
     child.emit('close', 0);
     await promise;
 
-    expect(spawnMock).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ shell: true }));
+    expect(spawnMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ shell: true }),
+    );
     const readInvocation = spawnMock.mock.calls[0][0];
     const expectedReadScript = path.resolve(__dirname, '../../../scripts/read.mjs');
     expect(readInvocation.startsWith(`node ${JSON.stringify(expectedReadScript)}`)).toBe(true);

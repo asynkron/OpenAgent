@@ -12,9 +12,9 @@
 - `tests/` — cross-package integration suites with mock OpenAI harnesses. See [`tests/context.md`](tests/context.md).
 - `packages/core/prompts/` & `schemas/` — authoritative protocol prompts plus JSON schema for validation. Linked details in [`packages/core/prompts/context.md`](packages/core/prompts/context.md) and [`schemas/context.md`](schemas/context.md).
 - `docs/` — design notes, operational guides, and meta documentation for contributors. See [`docs/context.md`](docs/context.md).
- - Editing helpers now live under `packages/core/scripts/`; root `scripts/` retains repo maintenance utilities (JSON validation, release safety checks). See [`packages/core/scripts/context.md`](packages/core/scripts/context.md) and [`scripts/context.md`](scripts/context.md).
- - Operational metadata: `.github/` workflows and `.openagent/` runtime plan snapshots. JetBrains `.idea/`
-   settings are intentionally gitignored to keep the repository clean for all contributors.
+- Editing helpers now live under `packages/core/scripts/`; root `scripts/` retains repo maintenance utilities (JSON validation, release safety checks). See [`packages/core/scripts/context.md`](packages/core/scripts/context.md) and [`scripts/context.md`](scripts/context.md).
+- Operational metadata: `.github/` workflows and `.openagent/` runtime plan snapshots. JetBrains `.idea/`
+  settings are intentionally gitignored to keep the repository clean for all contributors.
 
 ## Positive Signals
 

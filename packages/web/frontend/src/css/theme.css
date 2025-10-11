@@ -1,71 +1,71 @@
 :root {
-    /* Base surface colors */
-    --color-bg-body: #0d1117; /* Primary page background for the app shell */
-    --color-bg-muted: #11151a; /* Subtle background for subdued containers */
-    --color-bg-surface: #161b22; /* Standard background for cards and panels */
-    --color-bg-elevated: #1f242e; /* Raised surfaces such as popouts and drawers */
-    --color-bg-overlay: #21262d; /* Dimmed backdrop for overlays and modals */
-    --color-bg-hover: #2b3440; /* Hover states on interactive tiles and rows */
-    --color-border-default: #30363d; /* Default border color for layout separators */
-    --color-surface-alpha-light: #80808020; /* Translucent wash for soft surface accents */
+  /* Base surface colors */
+  --color-bg-body: #0d1117; /* Primary page background for the app shell */
+  --color-bg-muted: #11151a; /* Subtle background for subdued containers */
+  --color-bg-surface: #161b22; /* Standard background for cards and panels */
+  --color-bg-elevated: #1f242e; /* Raised surfaces such as popouts and drawers */
+  --color-bg-overlay: #21262d; /* Dimmed backdrop for overlays and modals */
+  --color-bg-hover: #2b3440; /* Hover states on interactive tiles and rows */
+  --color-border-default: #30363d; /* Default border color for layout separators */
+  --color-surface-alpha-light: #80808020; /* Translucent wash for soft surface accents */
 
-    /* Semantic colors */
-    --color-success-base: #238636; /* Confirmation backgrounds for success moments */
-    --color-success-hover: #2ea043; /* Hover state for affirmative buttons and pills */
-    --color-success-border: #3fb950; /* Success outlines for badges and alerts */
-    --color-danger-base: #da3633; /* Destructive backgrounds for warning banners */
-    --color-danger-emphasis: #f85149; /* Stronger emphasis for destructive actions */
+  /* Semantic colors */
+  --color-success-base: #238636; /* Confirmation backgrounds for success moments */
+  --color-success-hover: #2ea043; /* Hover state for affirmative buttons and pills */
+  --color-success-border: #3fb950; /* Success outlines for badges and alerts */
+  --color-danger-base: #da3633; /* Destructive backgrounds for warning banners */
+  --color-danger-emphasis: #f85149; /* Stronger emphasis for destructive actions */
 
-    /* Accent palette */
-    --color-accent-blue: #58a6ff; /* Primary highlight for links and key accents */
-    --color-accent-blue-bright: #61afef; /* Brighter blue for emphasis highlights */
-    --color-accent-cyan: #56b6c2; /* Cool-toned accents for secondary highlights */
-    --color-accent-purple: #c678dd; /* Purple accent for decorative labels */
-    --color-accent-green: #98c379; /* Positive accent for success indicators */
-    --color-accent-gold: #e5c07b; /* Warm accent for premium markers */
-    --color-accent-tan: #d19a66; /* Neutral accent for muted highlights */
-    --color-accent-red: #e06c75; /* Alert accent for critical emphasis */
-    --color-accent-salmon: #ff7b72; /* Soft red accent for gentle alerts */
+  /* Accent palette */
+  --color-accent-blue: #58a6ff; /* Primary highlight for links and key accents */
+  --color-accent-blue-bright: #61afef; /* Brighter blue for emphasis highlights */
+  --color-accent-cyan: #56b6c2; /* Cool-toned accents for secondary highlights */
+  --color-accent-purple: #c678dd; /* Purple accent for decorative labels */
+  --color-accent-green: #98c379; /* Positive accent for success indicators */
+  --color-accent-gold: #e5c07b; /* Warm accent for premium markers */
+  --color-accent-tan: #d19a66; /* Neutral accent for muted highlights */
+  --color-accent-red: #e06c75; /* Alert accent for critical emphasis */
+  --color-accent-salmon: #ff7b72; /* Soft red accent for gentle alerts */
 
-    /* Typography colors */
-    --color-text-primary: #c9d1d9; /* Default body copy across views */
-    --color-text-secondary: #8b949e; /* Supporting text in secondary regions */
-    --color-text-muted: #5c6370; /* Muted text for helper and meta content */
-    --color-text-tertiary: #6e7681; /* Low-emphasis text for captions */
-    --color-text-inverse: #f0f6fc; /* Light text on dark overlays and buttons */
+  /* Typography colors */
+  --color-text-primary: #c9d1d9; /* Default body copy across views */
+  --color-text-secondary: #8b949e; /* Supporting text in secondary regions */
+  --color-text-muted: #5c6370; /* Muted text for helper and meta content */
+  --color-text-tertiary: #6e7681; /* Low-emphasis text for captions */
+  --color-text-inverse: #f0f6fc; /* Light text on dark overlays and buttons */
 
-    /* Utility colors */
-    --color-graph-stroke: #c0c0c0; /* Stroke color for charts and metrics */
-    --color-white: #ffffff; /* Base white for icons and contrast elements */
-    --color-white-soft: #ffffff10; /* Subtle white overlay for gentle highlights */
+  /* Utility colors */
+  --color-graph-stroke: #c0c0c0; /* Stroke color for charts and metrics */
+  --color-white: #ffffff; /* Base white for icons and contrast elements */
+  --color-white-soft: #ffffff10; /* Subtle white overlay for gentle highlights */
 
-    /* Overlay and shadow colors */
-    --color-overlay-60: rgba(13, 17, 23, 0.6); /* Medium scrim for background dimming */
-    --color-overlay-85: rgba(13, 17, 23, 0.85); /* Heavy scrim for focused overlays */
-    --color-overlay-90: rgba(13, 17, 23, 0.9); /* Strongest scrim for modal isolation */
-    --color-overlay-panel: rgba(22, 27, 34, 0.85); /* Panel backdrop for overlay content */
-    --color-shadow-soft: rgba(0, 0, 0, 0.4); /* Soft drop shadows on lifted surfaces */
-    --color-shadow-strong: rgba(0, 0, 0, 0.45); /* Pronounced drop shadows for dialogs */
-    --color-accent-blue-focus: rgba(88, 166, 255, 0.25); /* Focus ring glow for blue actions */
-    --color-accent-blue-soft: rgba(88, 166, 255, 0.2); /* Soft background tint for blue accents */
-    --color-accent-blue-faint: rgba(88, 166, 255, 0.08); /* Faint blue wash for subtle states */
+  /* Overlay and shadow colors */
+  --color-overlay-60: rgba(13, 17, 23, 0.6); /* Medium scrim for background dimming */
+  --color-overlay-85: rgba(13, 17, 23, 0.85); /* Heavy scrim for focused overlays */
+  --color-overlay-90: rgba(13, 17, 23, 0.9); /* Strongest scrim for modal isolation */
+  --color-overlay-panel: rgba(22, 27, 34, 0.85); /* Panel backdrop for overlay content */
+  --color-shadow-soft: rgba(0, 0, 0, 0.4); /* Soft drop shadows on lifted surfaces */
+  --color-shadow-strong: rgba(0, 0, 0, 0.45); /* Pronounced drop shadows for dialogs */
+  --color-accent-blue-focus: rgba(88, 166, 255, 0.25); /* Focus ring glow for blue actions */
+  --color-accent-blue-soft: rgba(88, 166, 255, 0.2); /* Soft background tint for blue accents */
+  --color-accent-blue-faint: rgba(88, 166, 255, 0.08); /* Faint blue wash for subtle states */
 
-    /* Spacing scale (padding and margin) */
-    --space-neg-8: -8px; /* Negative spacing for tight overlapping layouts */
-    --space-neg-1: -1px; /* Fine-tuned negative offsets for borders */
-    --space-0: 0; /* Reset spacing baseline */
-    --space-2: 2px; /* Ultra-tight spacing for compact controls */
-    --space-4: 4px; /* Small spacing for icon padding */
-    --space-5: 5px; /* Slightly larger spacing for chip content */
-    --space-6: 6px; /* Compact spacing for stacked labels */
-    --space-8: 8px; /* Standard gutter for dense layouts */
-    --space-10: 10px; /* Comfortable spacing for inline clusters */
-    --space-12: 12px; /* Medium spacing for form fields */
-    --space-14: 14px; /* Intermediate spacing for card interiors */
-    --space-16: 16px; /* Base spacing for sections and tiles */
-    --space-18: 18px; /* Spacious padding for highlighted elements */
-    --space-20: 20px; /* Generous spacing for primary content areas */
-    --space-24: 24px; /* Large padding for hero layouts */
-    --space-28: 28px; /* Extra-large spacing for panel breathing room */
-    --space-32: 32px; /* Max spacing for outer page margins */
+  /* Spacing scale (padding and margin) */
+  --space-neg-8: -8px; /* Negative spacing for tight overlapping layouts */
+  --space-neg-1: -1px; /* Fine-tuned negative offsets for borders */
+  --space-0: 0; /* Reset spacing baseline */
+  --space-2: 2px; /* Ultra-tight spacing for compact controls */
+  --space-4: 4px; /* Small spacing for icon padding */
+  --space-5: 5px; /* Slightly larger spacing for chip content */
+  --space-6: 6px; /* Compact spacing for stacked labels */
+  --space-8: 8px; /* Standard gutter for dense layouts */
+  --space-10: 10px; /* Comfortable spacing for inline clusters */
+  --space-12: 12px; /* Medium spacing for form fields */
+  --space-14: 14px; /* Intermediate spacing for card interiors */
+  --space-16: 16px; /* Base spacing for sections and tiles */
+  --space-18: 18px; /* Spacious padding for highlighted elements */
+  --space-20: 20px; /* Generous spacing for primary content areas */
+  --space-24: 24px; /* Large padding for hero layouts */
+  --space-28: 28px; /* Extra-large spacing for panel breathing room */
+  --space-32: 32px; /* Max spacing for outer page margins */
 }

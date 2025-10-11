@@ -95,9 +95,7 @@ async function startDefault(args) {
       }
 
       const details =
-        code != null
-          ? `CLI exited with code ${code}`
-          : `CLI exited due to signal ${signal}`;
+        code != null ? `CLI exited with code ${code}` : `CLI exited due to signal ${signal}`;
       reject(new Error(details));
     });
   });

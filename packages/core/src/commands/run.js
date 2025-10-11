@@ -19,7 +19,9 @@ import { fileURLToPath } from 'node:url';
 import { register as registerCancellation } from '../utils/cancellation.js';
 
 const SCRATCH_ROOT = resolve('.openagent', 'temp');
-const APPLY_PATCH_SCRIPT = resolve(fileURLToPath(new URL('../../scripts/apply_patch.mjs', import.meta.url)));
+const APPLY_PATCH_SCRIPT = resolve(
+  fileURLToPath(new URL('../../scripts/apply_patch.mjs', import.meta.url)),
+);
 const READ_SCRIPT = resolve(fileURLToPath(new URL('../../scripts/read.mjs', import.meta.url)));
 const APPLY_PATCH_COMMAND = `node ${JSON.stringify(APPLY_PATCH_SCRIPT)}`;
 const READ_COMMAND = `node ${JSON.stringify(READ_SCRIPT)}`;

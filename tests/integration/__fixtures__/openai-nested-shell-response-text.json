@@ -72,7 +72,7 @@
                 "$ref": "#/$defs/planStep"
               },
               "description": "You MUST provide a plan when have a set goal, NEVER drop/reset a plan without discussion, the plan stays on utill otherwise agreed upon, Progress tracker for multi-step work; use [] when resetting to a new plan."
-            },
+            }
           },
           "$defs": {
             "planStep": {
