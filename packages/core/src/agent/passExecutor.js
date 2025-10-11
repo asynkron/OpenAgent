@@ -21,7 +21,7 @@ const REFUSAL_STATUS_MESSAGE =
 const REFUSAL_MESSAGE_MAX_LENGTH = 160;
 const PLAN_REMINDER_AUTO_RESPONSE_LIMIT = 3;
 const TERMINAL_PLAN_STATUSES = new Set(['completed', 'failed']);
-const PLAN_CHILD_KEYS = ['substeps', 'children', 'steps'];
+const CHILD_KEY = 'substeps';
 
 const ensurePlanStepAge = (node) => {
   if (!node) {
@@ -41,10 +41,8 @@ const ensurePlanStepAge = (node) => {
     node.age = 0;
   }
 
-  for (const key of PLAN_CHILD_KEYS) {
-    if (Array.isArray(node[key])) {
-      node[key].forEach(ensurePlanStepAge);
-    }
+  if (Array.isArray(node[CHILD_KEY])) {
+    node[CHILD_KEY].forEach(ensurePlanStepAge);
   }
 };
 
@@ -69,11 +67,9 @@ const incrementRunningPlanStepAges = (plan) => {
       step.age += 1;
     }
 
-    for (const key of PLAN_CHILD_KEYS) {
-      if (Array.isArray(step[key])) {
-        for (const child of step[key]) {
-          stack.push(child);
-        }
+    if (Array.isArray(step[CHILD_KEY])) {
+      for (const child of step[CHILD_KEY]) {
+        stack.push(child);
       }
     }
   }
@@ -133,9 +129,8 @@ const collectExecutablePlanSteps = (plan) => {
         executable.push({ step: item, command: item.command });
       }
 
-      const childKey = PLAN_CHILD_KEYS.find((key) => Array.isArray(item[key]));
-      if (childKey) {
-        traverse(item[childKey]);
+      if (Array.isArray(item[CHILD_KEY])) {
+        traverse(item[CHILD_KEY]);
       }
     }
   };

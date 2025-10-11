@@ -2,8 +2,8 @@
  * Plan utilities extracted from the agent loop.
  */
 
-const PLAN_CHILD_KEYS = ['substeps', 'children', 'steps'];
 const COMPLETED_STATUSES = new Set(['completed', 'complete', 'done', 'finished']);
+const CHILD_KEY = 'substeps';
 
 function isCompletedStatus(status) {
   if (typeof status !== 'string') {
@@ -84,31 +84,35 @@ function clonePlanItem(item) {
 
   const cloned = { ...item };
 
-  for (const key of PLAN_CHILD_KEYS) {
-    if (Array.isArray(item[key])) {
-      cloned[key] = item[key].map((child) => clonePlanItem(child));
-    } else if (cloned[key] && !Array.isArray(cloned[key])) {
-      delete cloned[key];
-    }
+  delete cloned.children;
+  delete cloned.steps;
+
+  if (Array.isArray(item[CHILD_KEY])) {
+    cloned[CHILD_KEY] = item[CHILD_KEY].map((child) => clonePlanItem(child));
+  } else if (CHILD_KEY in cloned && !Array.isArray(cloned[CHILD_KEY])) {
+    delete cloned[CHILD_KEY];
   }
 
   return cloned;
 }
 
-function selectChildKey(existingItem, incomingItem) {
-  for (const key of PLAN_CHILD_KEYS) {
-    if (Array.isArray(incomingItem?.[key])) {
-      return key;
-    }
+function pruneLegacyChildKeys(item) {
+  if (!item || typeof item !== 'object') {
+    return;
   }
 
-  for (const key of PLAN_CHILD_KEYS) {
-    if (Array.isArray(existingItem?.[key])) {
-      return key;
-    }
+  if ('children' in item) {
+    delete item.children;
+  }
+  if ('steps' in item) {
+    delete item.steps;
   }
 
-  return null;
+  if (Array.isArray(item[CHILD_KEY])) {
+    item[CHILD_KEY].forEach((child) => {
+      pruneLegacyChildKeys(child);
+    });
+  }
 }
 
 const VOLATILE_KEYS = new Set(['age']);
@@ -127,33 +131,32 @@ function mergePlanItems(existingItem, incomingItem) {
   }
 
   for (const [key, value] of Object.entries(incomingItem)) {
-    if (VOLATILE_KEYS.has(key)) {
+    if (VOLATILE_KEYS.has(key) || key === CHILD_KEY) {
       continue;
     }
 
-    if (PLAN_CHILD_KEYS.includes(key)) {
+    if (key === 'children' || key === 'steps') {
       continue;
     }
 
     existingItem[key] = value;
   }
 
-  const childKey = selectChildKey(existingItem, incomingItem);
-  if (childKey) {
-    const incomingHasChildKey = Object.prototype.hasOwnProperty.call(incomingItem, childKey);
+  delete existingItem.children;
+  delete existingItem.steps;
 
-    if (incomingHasChildKey) {
-      const existingChildren = Array.isArray(existingItem[childKey]) ? existingItem[childKey] : [];
-      const incomingChildren = Array.isArray(incomingItem[childKey]) ? incomingItem[childKey] : [];
-      existingItem[childKey] = mergePlanTrees(existingChildren, incomingChildren);
-    }
-
-    for (const key of PLAN_CHILD_KEYS) {
-      if (key !== childKey && key in existingItem) {
-        delete existingItem[key];
-      }
+  if (Object.prototype.hasOwnProperty.call(incomingItem, CHILD_KEY)) {
+    const existingChildren = Array.isArray(existingItem[CHILD_KEY]) ? existingItem[CHILD_KEY] : [];
+    const incomingChildren = Array.isArray(incomingItem[CHILD_KEY]) ? incomingItem[CHILD_KEY] : [];
+    const mergedChildren = mergePlanTrees(existingChildren, incomingChildren);
+    if (mergedChildren.length > 0) {
+      existingItem[CHILD_KEY] = mergedChildren;
+    } else {
+      delete existingItem[CHILD_KEY];
     }
   }
+
+  pruneLegacyChildKeys(existingItem);
 
   return existingItem;
 }
@@ -212,8 +215,8 @@ export function planHasOpenSteps(plan) {
 
       const statusValue = typeof item.status === 'string' ? item.status : '';
 
-      const childKey = PLAN_CHILD_KEYS.find((key) => Array.isArray(item[key]));
-      if (childKey && hasOpen(item[childKey])) {
+      const children = Array.isArray(item[CHILD_KEY]) ? item[CHILD_KEY] : null;
+      if (children && hasOpen(children)) {
         return true;
       }
 
@@ -233,24 +236,22 @@ export function planStepHasIncompleteChildren(step) {
     return false;
   }
 
-  for (const key of PLAN_CHILD_KEYS) {
-    const children = Array.isArray(step[key]) ? step[key] : null;
-    if (!children || children.length === 0) {
-      continue;
+  const children = Array.isArray(step[CHILD_KEY]) ? step[CHILD_KEY] : null;
+  if (!children || children.length === 0) {
+    return false;
+  }
+
+  for (const child of children) {
+    if (!child || typeof child !== 'object') {
+      return true;
     }
 
-    for (const child of children) {
-      if (!child || typeof child !== 'object') {
-        return true;
-      }
+    if (!isCompletedStatus(child.status)) {
+      return true;
+    }
 
-      if (!isCompletedStatus(child.status)) {
-        return true;
-      }
-
-      if (planStepHasIncompleteChildren(child)) {
-        return true;
-      }
+    if (planStepHasIncompleteChildren(child)) {
+      return true;
     }
   }
 
@@ -270,12 +271,10 @@ function aggregateProgress(items) {
       continue;
     }
 
-    const childKey = PLAN_CHILD_KEYS.find(
-      (key) => Array.isArray(item[key]) && item[key].length > 0,
-    );
+    const children = Array.isArray(item[CHILD_KEY]) ? item[CHILD_KEY] : null;
 
-    if (childKey) {
-      const childProgress = aggregateProgress(item[childKey]);
+    if (children && children.length > 0) {
+      const childProgress = aggregateProgress(children);
       if (childProgress.total > 0) {
         completed += childProgress.completed;
         total += childProgress.total;
@@ -340,10 +339,10 @@ function formatPlanLine(item, index, ancestors, depth, lines) {
 
   lines.push(`${indent}${lineParts.join(' ')}`.trimEnd());
 
-  const childKey = PLAN_CHILD_KEYS.find((key) => Array.isArray(item[key]));
-  if (childKey) {
+  const children = Array.isArray(item[CHILD_KEY]) ? item[CHILD_KEY] : null;
+  if (children) {
     const nextAncestors = hasExplicitStep ? labelParts : [...ancestors, String(index + 1)];
-    formatPlanSection(item[childKey], nextAncestors, depth + 1, lines);
+    formatPlanSection(children, nextAncestors, depth + 1, lines);
   }
 }
 

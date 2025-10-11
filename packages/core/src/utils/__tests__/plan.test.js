@@ -105,13 +105,13 @@ describe('plan utilities', () => {
     expect(markdown).toContain('Step 2 - Final task [pending]');
   });
 
-  test('planHasOpenSteps detects unfinished nested work across key names', () => {
+  test('planHasOpenSteps detects unfinished nested work', () => {
     const plan = [
       {
         step: '1',
         title: 'Parent',
         status: 'completed',
-        children: [
+        substeps: [
           { step: '1.1', title: 'Child 1', status: 'completed' },
           { step: '1.2', title: 'Child 2', status: 'running' },
         ],
@@ -120,7 +120,7 @@ describe('plan utilities', () => {
 
     expect(planHasOpenSteps(plan)).toBe(true);
 
-    plan[0].children[1].status = 'completed';
+    plan[0].substeps[1].status = 'completed';
     expect(planHasOpenSteps(plan)).toBe(false);
   });
 

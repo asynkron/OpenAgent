@@ -1,5 +1,5 @@
 // Renders the agent plan timeline and its progress summary inside the chat panel.
-const PLAN_CHILD_KEYS = ['substeps', 'children', 'steps'];
+const CHILD_KEY = 'substeps';
 const COMPLETED_STATUSES = new Set(['completed', 'complete', 'done', 'finished']);
 const ACTIVE_KEYWORDS = ['progress', 'working', 'running', 'executing', 'active', 'doing'];
 const BLOCKED_KEYWORDS = ['blocked', 'failed', 'error', 'stuck'];
@@ -23,7 +23,7 @@ function selectChildKey(item) {
   if (!item || typeof item !== 'object') {
     return null;
   }
-  return PLAN_CHILD_KEYS.find((key) => Array.isArray(item[key]) && item[key].length > 0) || null;
+  return Array.isArray(item[CHILD_KEY]) && item[CHILD_KEY].length > 0 ? CHILD_KEY : null;
 }
 
 function determineStepLabel(item, index, ancestors) {

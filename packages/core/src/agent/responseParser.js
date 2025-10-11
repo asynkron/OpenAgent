@@ -201,7 +201,7 @@ function normalizeCommandPayload(command) {
   return normalizeFlatCommand(command);
 }
 
-const PLAN_CHILD_KEYS = ['substeps', 'children', 'steps'];
+const CHILD_KEY = 'substeps';
 
 function normalizePlanStep(step) {
   if (!isPlainObject(step)) {
@@ -218,10 +218,25 @@ function normalizePlanStep(step) {
     normalizedStep.age = 0;
   }
 
-  for (const key of PLAN_CHILD_KEYS) {
-    if (Array.isArray(normalizedStep[key])) {
-      normalizedStep[key] = normalizedStep[key].map((child) => normalizePlanStep(child));
-    }
+  const candidate = Array.isArray(normalizedStep[CHILD_KEY])
+    ? normalizedStep[CHILD_KEY]
+    : Array.isArray(normalizedStep.children)
+    ? normalizedStep.children
+    : Array.isArray(normalizedStep.steps)
+    ? normalizedStep.steps
+    : null;
+
+  if (candidate) {
+    normalizedStep[CHILD_KEY] = candidate.map((child) => normalizePlanStep(child));
+  } else if (CHILD_KEY in normalizedStep && !Array.isArray(normalizedStep[CHILD_KEY])) {
+    delete normalizedStep[CHILD_KEY];
+  }
+
+  if ('children' in normalizedStep) {
+    delete normalizedStep.children;
+  }
+  if ('steps' in normalizedStep) {
+    delete normalizedStep.steps;
   }
 
   return normalizedStep;
