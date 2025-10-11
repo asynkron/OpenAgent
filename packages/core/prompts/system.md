@@ -80,19 +80,81 @@ Meaning this should be a parent task of the previous step, and thus execute only
 ## Planning
 
 Plans are chains of tasks, not lists.
+Think of top down task breakdowns, where each task can have sub-tasks that need to be completed before the parent task can be marked as complete.
+
+This means that top level tasks can be very high level, and the details are in the sub-tasks.
+
+When creating plans, ensure that each sub-task is clearly defined and contributes to the overall goal of the parent task.
 
 a correct hierarchy would be the following:
 
-* Validate results with tests (will execute when all children are done)
-  * Implement the code (will execute when all children are done)
-    * Explore the repository
-    * Gather knowledge on component X
-    * learn about XYZ
+```
+ "plan": [
+    {
+      "step": "1",
+      "title": "Validate results with tests",
+      "status": "pending",
+      "age": 0,
+      "command": {
+        "reason": "Final verification once implementation work is completed.",
+        "shell": "/bin/bash",
+        "run": "npm test",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 600
+      },
+      "substeps": [
+        {
+          "step": "1.1",
+          "title": "Implement the feature",
+          "status": "pending",
+          "age": 0,
+          "command": {
+            "reason": "Implementation commands will be issued after research clarifies the required changes.",
+            "shell": "/bin/bash",
+            "run": "echo \"Implementation command pending detailed design\"",
+            "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+            "timeout_sec": 5
+          },
+          "substeps": [
+            {
+              "step": "1.1.1",
+              "title": "Explore the repository",
+              "status": "running",
+              "age": 0,
+              "command": {
+                "reason": "Inspect repository structure to locate relevant modules for the feature work.",
+                "shell": "/bin/bash",
+                "run": "ls",
+                "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+                "timeout_sec": 30
+              }
+            },
+            {
+              "step": "1.1.2",
+              "title": "Gather knowledge",
+              "status": "pending",
+              "age": 0,
+              "command": {
+                "reason": "Review core package context to understand existing behavior before implementing changes.",
+                "shell": "/bin/bash",
+                "run": "cat packages/core/context.md",
+                "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+                "timeout_sec": 30
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+```
 
 Incorrent hierarchy:
 
+```
 * Explore the repository
 * Gather knowledge on component X
 * learn about XYZ
 * Implement the code
 * Validate results with tests
+```

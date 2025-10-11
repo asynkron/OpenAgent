@@ -31,13 +31,65 @@ export const RESPONSE_PARAMETERS_SCHEMA = {
 NEVER drop/reset a plan without discussion, 
 the plan stays on utill otherwise agreed upon, Progress tracker for multi-step work; use [] when resetting to a new plan.
 
-Plans are chains of tasks, not lists.
-a correct hierarchy would be the following
-* Validate results with tests
-..* Implement the code
-....* Explore the repository
-....* Gather knowledge on component X
-....* learn about XYZ
+A correct structure:
+ "plan": [
+    {
+      "step": "1",
+      "title": "Validate results with tests",
+      "status": "pending",
+      "age": 0,
+      "command": {
+        "reason": "Final verification once implementation work is completed.",
+        "shell": "/bin/bash",
+        "run": "npm test",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 600
+      },
+      "substeps": [
+        {
+          "step": "1.1",
+          "title": "Implement the feature",
+          "status": "pending",
+          "age": 0,
+          "command": {
+            "reason": "Implementation commands will be issued after research clarifies the required changes.",
+            "shell": "/bin/bash",
+            "run": "echo \"Implementation command pending detailed design\"",
+            "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+            "timeout_sec": 5
+          },
+          "substeps": [
+            {
+              "step": "1.1.1",
+              "title": "Explore the repository",
+              "status": "running",
+              "age": 0,
+              "command": {
+                "reason": "Inspect repository structure to locate relevant modules for the feature work.",
+                "shell": "/bin/bash",
+                "run": "ls",
+                "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+                "timeout_sec": 30
+              }
+            },
+            {
+              "step": "1.1.2",
+              "title": "Gather knowledge",
+              "status": "pending",
+              "age": 0,
+              "command": {
+                "reason": "Review core package context to understand existing behavior before implementing changes.",
+                "shell": "/bin/bash",
+                "run": "cat packages/core/context.md",
+                "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+                "timeout_sec": 30
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
 
       
       `,
