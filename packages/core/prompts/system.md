@@ -103,6 +103,12 @@ e.g. a run tests task could depend on many other tasks completing first.
           cwd: "/Users/rogerjohansson/git/asynkron/OpenAgent",
           timeout_sec: 30
         }
+    },
+    {
+      id: "this-id-must-complete-first",
+      description: "Do something...",
+
+      ...
     }
   ],
 }
