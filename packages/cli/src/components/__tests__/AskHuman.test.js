@@ -21,6 +21,14 @@ describe('AskHuman slash commands', () => {
     const modelItem = HUMAN_SLASH_COMMANDS.find((item) => item.id === 'model');
     expect(modelItem).toBeDefined();
     expect(modelItem?.insertValue).toBe('/model ');
+
+    const historyItem = HUMAN_SLASH_COMMANDS.find((item) => item.id === 'history');
+    expect(historyItem).toBeDefined();
+    expect(historyItem?.insertValue).toBe('/history ');
+
+    const commandItem = HUMAN_SLASH_COMMANDS.find((item) => item.id === 'command-inspector');
+    expect(commandItem).toBeDefined();
+    expect(commandItem?.insertValue).toBe('/command ');
   });
 
   test('renders slash menu suggestions when triggered', async () => {
@@ -37,6 +45,8 @@ describe('AskHuman slash commands', () => {
     expect(frame).toContain('model');
     expect(frame).toContain('reasoning high');
     expect(frame).toContain('help');
+    expect(frame).toContain('history');
+    expect(frame).toContain('command');
 
     unmount();
   });
