@@ -6,7 +6,7 @@
 
 ## Key Files
 
-- `systemPrompt.js` — loads prompt assets (`prompts.json`, markdown files), resolves additional prompts on disk, and exposes helpers (`findAgentFiles`, `buildAgentsPrompt`, constants like `SYSTEM_PROMPT`).
+- `systemPrompt.js` — loads prompt assets (`packages/core/prompts/prompts.json`, markdown files), resolves additional prompts on disk, and exposes helpers (`findAgentFiles`, `buildAgentsPrompt`, constants like `SYSTEM_PROMPT`).
 
 ## Positive Signals
 
@@ -16,7 +16,7 @@
 ## Risks / Gaps
 
 - File system discovery assumes repository layout; ensure paths remain valid when packaging or bundling.
-- Updates to prompt schema must be reflected here and in `prompts/` docs.
+- Updates to prompt schema must be reflected here and in `packages/core/prompts/` docs.
 
 ## Related Context
 

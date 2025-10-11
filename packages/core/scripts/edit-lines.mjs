@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// scripts/edit-lines.mjs
+// packages/core/scripts/edit-lines.mjs
 // Simple line editor: delete `count` lines starting at `start` (1-based), then insert provided text at that index.
 // Dry-run prints a unified diff. Use --apply to write; --check runs `node --check` for JS files and will roll back on syntax errors.
 //
 // Usage examples:
-//   node scripts/edit-lines.mjs --file path/to/file.js --start 5 --count 6 --text "hello"
-//   node scripts/edit-lines.mjs --file path/to/file.js --start 100 --count 0 --text-file ./snippet.txt --apply --check
+//   node packages/core/scripts/edit-lines.mjs --file path/to/file.js --start 5 --count 6 --text "hello"
+//   node packages/core/scripts/edit-lines.mjs --file path/to/file.js --start 100 --count 0 --text-file ./snippet.txt --apply --check
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,7 +14,7 @@ import { spawnSync } from 'node:child_process';
 
 function usage() {
   console.error(
-    'Usage: node scripts/edit-lines.mjs --file <file> --start <N> --count <C> (--text "..." | --text-file <path>) [--apply] [--check]',
+    'Usage: node packages/core/scripts/edit-lines.mjs --file <file> --start <N> --count <C> (--text "..." | --text-file <path>) [--apply] [--check]',
   );
   process.exit(2);
 }

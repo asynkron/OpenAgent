@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
-const SCRIPTS_DIR = path.join(PROJECT_ROOT, 'scripts');
+const SCRIPTS_DIR = path.join(PROJECT_ROOT, 'packages/core/scripts');
 
 function createWorkspace() {
   const dir = mkdtempSync(path.join(tmpdir(), 'openagent-scripts-test-'));
@@ -33,7 +33,7 @@ function runScript(args, options = {}) {
   return result;
 }
 
-describe('scripts/apply_patch.mjs', () => {
+describe('packages/core/scripts/apply_patch.mjs', () => {
   test('applies a patch to the target file', () => {
     const { dir, cleanup } = createWorkspace();
     try {
@@ -64,7 +64,7 @@ describe('scripts/apply_patch.mjs', () => {
   });
 });
 
-describe('scripts/rename-identifier.mjs', () => {
+describe('packages/core/scripts/rename-identifier.mjs', () => {
   test('renames an identifier and updates references when applying changes', () => {
     const { dir, cleanup } = createWorkspace();
     try {
@@ -103,7 +103,7 @@ describe('scripts/rename-identifier.mjs', () => {
   });
 });
 
-describe('scripts/edit-lines.mjs', () => {
+describe('packages/core/scripts/edit-lines.mjs', () => {
   test('replaces the requested lines and preserves surrounding content', () => {
     const { dir, cleanup } = createWorkspace();
     try {

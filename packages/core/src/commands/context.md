@@ -12,8 +12,8 @@
 
 - Command execution isolates side effects from the agent loop, simplifying testing via mocks.
 - `run.js` ensures cancellation handlers are unregistered during all completion paths to avoid dangling callbacks.
-- `run.js` rewrites legacy `apply_patch` invocations to the bundled `scripts/apply_patch.mjs` shim so models can continue using the
-  familiar command while we control the implementation.
+- `run.js` rewrites legacy `apply_patch` and `read` invocations to the bundled helpers under `packages/core/scripts/`, keeping the
+  command surface stable while pointing to vetted implementations even when the working directory changes.
 
 ## Risks / Gaps
 

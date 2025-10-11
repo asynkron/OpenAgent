@@ -27,5 +27,5 @@
 
 ## Related Context
 
-- Prompt assets referenced throughout: [`../prompts/context.md`](../prompts/context.md).
+- Prompt assets referenced throughout: [`../packages/core/prompts/context.md`](../packages/core/prompts/context.md).
 - Release automation described here ties to [`../scripts/context.md`](../scripts/context.md) and [`.github/workflows/context.md`](../.github/workflows/context.md).

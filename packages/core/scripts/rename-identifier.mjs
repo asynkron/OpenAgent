@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// scripts/rename-identifier.mjs
+// packages/core/scripts/rename-identifier.mjs
 // Scope-aware per-file renamer (acorn-based).
 // - Finds a declaration for the old name and renames the declaration + all references that resolve to that binding.
 // - Dry-run prints a unified diff. Use --apply to write the file. Use --check to run `node --check` after applying.
@@ -20,7 +20,7 @@ try {
 
 function usage() {
   console.error(
-    'Usage: node scripts/rename-identifier.mjs --file <file> --old <oldName> --new <newName> [--index N] [--apply] [--check]',
+    'Usage: node packages/core/scripts/rename-identifier.mjs --file <file> --old <oldName> --new <newName> [--index N] [--apply] [--check]',
   );
   process.exit(2);
 }

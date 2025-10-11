@@ -13,23 +13,25 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(__dirname, '..');
 const SCHEMA_DIR = path.join(ROOT_DIR, 'schemas');
+const CORE_DIR = path.join(ROOT_DIR, 'packages/core');
+const PROMPTS_DIR = path.join(CORE_DIR, 'prompts');
 
 async function run() {
   const promptSchema = await loadJsonFile(path.join(SCHEMA_DIR, 'prompts.schema.json'));
-  const promptManifestPath = path.join(ROOT_DIR, 'prompts/prompts.json');
+  const promptManifestPath = path.join(PROMPTS_DIR, 'prompts.json');
   const promptManifest = await loadJsonFile(promptManifestPath);
 
   validateWithSchema({
     schema: promptSchema,
     data: promptManifest,
-    resource: 'prompts/prompts.json',
+    resource: 'packages/core/prompts/prompts.json',
   });
 
   ensureUniqueByProperty(promptManifest.prompts, 'id', {
-    resource: 'prompts/prompts.json',
+    resource: 'packages/core/prompts/prompts.json',
   });
 
-  await ensurePromptCopiesInSync(promptManifest, { rootDir: ROOT_DIR });
+  await ensurePromptCopiesInSync(promptManifest, { rootDir: CORE_DIR });
 
   console.log('JSON assets validated successfully.');
 }

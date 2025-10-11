@@ -6,7 +6,7 @@
 
 ## Key Files
 
-- `prompts.schema.json` — schema for `prompts/prompts.json`; ensures prompt metadata matches runtime expectations (e.g., required fields, allowed command types).
+- `prompts.schema.json` — schema for `packages/core/prompts/prompts.json`; ensures prompt metadata matches runtime expectations (e.g., required fields, allowed command types).
 
 ## Positive Signals
 
@@ -18,5 +18,5 @@
 
 ## Related Context
 
-- Prompt payloads: [`../prompts/context.md`](../prompts/context.md).
+- Prompt payloads: [`../packages/core/prompts/context.md`](../packages/core/prompts/context.md).
 - JSON validation utility: [`../scripts/context.md`](../scripts/context.md).

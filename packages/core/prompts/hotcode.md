@@ -43,7 +43,7 @@ Generate a report summarizing the findings and suggesting potential improvements
 <!--example observations-->
 
 - Runtime reshaping (packages/cli/index.js, packages/core/src/agent/loop.js, packages/cli/src/render.js): Rapid iteration to decouple CLI from library APIs, introduce event-stream runtime, persist plans, and add debug instrumentation. Overlap between files suggests incomplete modular boundaries.
-- Process documents & manifests (prompts/_.md, context.md, package_.json): Frequent edits track evolving SOPs and dependencies—signals that conventions are still settling.
+- Process documents & manifests (packages/core/prompts/_.md, context.md, package_.json): Frequent edits track evolving SOPs and dependencies—signals that conventions are still settling.
 
 #### Recommended stabilisation steps
 
@@ -51,7 +51,7 @@ Generate a report summarizing the findings and suggesting potential improvements
 
 1. Finalize runtime abstraction: Extract plan management, debug emission, and command execution into dedicated modules with contracts + tests. This will reduce multi-file ripple effects when features update.
 2. Lock interface boundaries: Publish TypeScript (or JSDoc) definitions for exported runtime APIs and event payloads; enforce via lint/tests so CLI consumers stay insulated from refactors.
-3. Documented release checkpoints: After each major runtime milestone, freeze prompts/\*.md and root context.md by running a structured review to curb continual documentation rewrites.
+3. Documented release checkpoints: After each major runtime milestone, freeze packages/core/prompts/\*.md and root context.md by running a structured review to curb continual documentation rewrites.
 4. Dependency hygiene: Adopt a changeset/release-notes workflow so package.json/package-lock.json updates tie to intentional version bumps, reducing noisy churn.
 
 Implementing the above should lower volatility across the hot files while preserving the recent architectural gains.

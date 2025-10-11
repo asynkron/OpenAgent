@@ -12,6 +12,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 
 function detectWorkspaceRoot(startDir = process.cwd()) {
@@ -28,6 +29,34 @@ function detectWorkspaceRoot(startDir = process.cwd()) {
     // ignored
   }
   return { root: path.resolve(startDir), source: 'cwd' };
+}
+
+const PACKAGE_ROOT = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
+const PROMPT_FILENAMES = ['system.md', 'developer.md'];
+
+function resolvePromptDirectories(rootDir) {
+  const seen = new Set();
+  const directories = [];
+  const candidates = [path.join(rootDir, 'prompts'), path.join(PACKAGE_ROOT, 'prompts')];
+
+  for (const candidate of candidates) {
+    const resolved = path.resolve(candidate);
+    if (seen.has(resolved)) {
+      continue;
+    }
+
+    seen.add(resolved);
+
+    try {
+      if (fs.statSync(resolved).isDirectory()) {
+        directories.push(resolved);
+      }
+    } catch (error) {
+      // Ignore missing directories.
+    }
+  }
+
+  return directories;
 }
 
 export function findAgentFiles(rootDir) {
@@ -102,15 +131,23 @@ function readFileIfExists(filePath) {
 export function buildBaseSystemPrompt(rootDir) {
   const sections = [];
 
-  const promptFiles = [
-    path.join(rootDir, 'prompts', 'system.md'),
-    path.join(rootDir, 'prompts', 'developer.md'),
-  ];
+  const promptDirs = resolvePromptDirectories(rootDir);
+  const seenFiles = new Set();
 
-  for (const promptFile of promptFiles) {
-    const content = readFileIfExists(promptFile);
-    if (content) {
-      sections.push(content);
+  for (const promptDir of promptDirs) {
+    for (const fileName of PROMPT_FILENAMES) {
+      const promptFile = path.join(promptDir, fileName);
+      const resolved = path.resolve(promptFile);
+      if (seenFiles.has(resolved)) {
+        continue;
+      }
+
+      seenFiles.add(resolved);
+
+      const content = readFileIfExists(promptFile);
+      if (content) {
+        sections.push(content);
+      }
     }
   }
 
