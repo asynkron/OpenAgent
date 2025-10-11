@@ -79,70 +79,28 @@ Meaning this should be a parent task of the previous step, and thus execute only
 
 ## Planning
 
-This is a hierarchical TODO-list. be as finegrained as you can.
-Higher level items depend on lower level items.
-Plan ahead. create the bigger picture plan and add TODO steps accordingly.
-the plan stays on until otherwise agreed upon, Progress tracker for multi-step work; use [] when resetting to a new plan.
+The plan is a simple flat list, each with a priority and an optional list of dependencies (waiting for other tasks to complete).
+e.g. a run tests task could depend on many other tasks completing first.
 
-A correct TODO structure:
-```
- "plan": [
+
+## Protocol
+
+"arguments": {
+  message: "Executing the requested command.",
+  plan: [
+    //task
     {
-      "step": "1",
-      "title": "Validate results with tests",
-      "status": "pending",
-      "age": 0,
-      "command": {
-        "reason": "Final verification once implementation work is completed.",
-        "shell": "/bin/bash",
-        "run": "npm test",
-        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
-        "timeout_sec": 600
-      },
-      "substeps": [
-        {
-          "step": "1.1",
-          "title": "Implement the feature",
-          "status": "pending",
-          "age": 0,
-          "command": {
-            "reason": "Implementation commands will be issued after research clarifies the required changes.",
-            "shell": "/bin/bash",
-            "run": "echo \"Implementation command pending detailed design\"",
-            "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
-            "timeout_sec": 5
-          },
-          "substeps": [
-            {
-              "step": "1.1.1",
-              "title": "Explore the repository",
-              "status": "running",
-              "age": 0,
-              "command": {
-                "reason": "Inspect repository structure to locate relevant modules for the feature work.",
-                "shell": "/bin/bash",
-                "run": "ls",
-                "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
-                "timeout_sec": 30
-              }
-            },
-            {
-              "step": "1.1.2",
-              "title": "Gather knowledge",
-              "status": "pending",
-              "age": 0,
-              "command": {
-                "reason": "Review core package context to understand existing behavior before implementing changes.",
-                "shell": "/bin/bash",
-                "run": "cat packages/core/context.md",
-                "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
-                "timeout_sec": 30
-              }
-            }
-          ]
+      id: "unique-id",
+      description: "Run the user-requested shell command to print a greeting.",
+      status: "pending",
+      priority: 1,
+      command: {
+          reason: "Run the user-requested shell command to print a greeting.",
+          shell: "/bin/bash",
+          run: "echo hello",
+          cwd: "/Users/rogerjohansson/git/asynkron/OpenAgent",
+          timeout_sec: 30
         }
-      ]
     }
-  ]
-```
-      
+  ],
+}

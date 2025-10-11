@@ -221,10 +221,10 @@ function normalizePlanStep(step) {
   const candidate = Array.isArray(normalizedStep[CHILD_KEY])
     ? normalizedStep[CHILD_KEY]
     : Array.isArray(normalizedStep.children)
-    ? normalizedStep.children
-    : Array.isArray(normalizedStep.steps)
-    ? normalizedStep.steps
-    : null;
+      ? normalizedStep.children
+      : Array.isArray(normalizedStep.steps)
+        ? normalizedStep.steps
+        : null;
 
   if (candidate) {
     normalizedStep[CHILD_KEY] = candidate.map((child) => normalizePlanStep(child));
