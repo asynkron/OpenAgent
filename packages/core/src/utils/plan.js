@@ -106,8 +106,6 @@ function mergePlanItems(existingItem, incomingItem) {
     return null;
   }
 
-  const existingStatusIsTerminal = isTerminalStatus(existingItem.status);
-
   for (const [key, value] of Object.entries(incomingItem)) {
     if (VOLATILE_KEYS.has(key) || key === CHILD_KEY) {
       continue;
@@ -117,11 +115,7 @@ function mergePlanItems(existingItem, incomingItem) {
       continue;
     }
 
-    if (
-      key === 'status' &&
-      existingStatusIsTerminal &&
-      !isTerminalStatus(value)
-    ) {
+    if (key === 'status') {
       continue;
     }
 
@@ -135,9 +129,10 @@ function mergePlanItems(existingItem, incomingItem) {
   return existingItem;
 }
 
-export function mergePlanTrees(existingPlan = [], incomingPlan = []) {
+export function mergePlanTrees(existingPlan = [], incomingPlan = [], options = {}) {
   const existing = Array.isArray(existingPlan) ? existingPlan : [];
   const incoming = Array.isArray(incomingPlan) ? incomingPlan : [];
+  const { preserveIncomingStatusForNewSteps = false } = options;
 
   if (incoming.length === 0) {
     return [];
@@ -162,7 +157,11 @@ export function mergePlanTrees(existingPlan = [], incomingPlan = []) {
         result.push(mergedItem);
       }
     } else if (!isAbandonedStatus(item?.status)) {
-      result.push(clonePlanItem(item));
+      const cloned = clonePlanItem(item);
+      if (!preserveIncomingStatusForNewSteps) {
+        cloned.status = 'pending';
+      }
+      result.push(cloned);
     }
   });
 
