@@ -3,12 +3,14 @@ import { Box, Text } from 'ink';
 
 import { createPlanNodes, type PlanNode, type PlanStep } from './planUtils.js';
 import PlanDetail from './PlanDetail.js';
-import theme from '../theme.js';
+import theme, { type Theme } from '../theme.js';
 
 const h = React.createElement;
-const { plan: planTheme } = theme;
-const planColors = planTheme?.colors ?? {};
-const planProps = planTheme?.props ?? {};
+const planTheme: Theme['plan'] | undefined = theme?.plan;
+type PlanColors = Theme['plan']['colors'];
+type PlanPropsConfig = Theme['plan']['props'];
+const planColors: Partial<PlanColors> = planTheme?.colors ?? {};
+const planProps: Partial<PlanPropsConfig> = planTheme?.props ?? {};
 
 type PlanProps = {
   plan?: PlanStep[] | null;

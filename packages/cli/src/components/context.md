@@ -32,7 +32,7 @@
 
 - Layout wrappers such as `Command` and the `Timeline` container explicitly set `width: '100%'`/`alignSelf: 'stretch'`
   so timeline entries fill the terminal width consistently.
-- Plan visuals now source container/heading props from `theme.plan`; adjust the theme when changing plan styling.
+- Plan visuals now source container/heading props from `theme.plan`; adjust the theme when changing plan styling. The component now imports the `Theme` type so TypeScript understands the available plan colors/props when constructing Ink props.
 - Debug panel events now carry stable identifiers (`{ id, content }`) so the panel can render without flicker when
   other animated components (thinking spinner, input caret) update the tree.
 - Timeline static rows also set `flexGrow: 1` to force full-width rendering even when nested components have
