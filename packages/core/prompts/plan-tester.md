@@ -6,7 +6,7 @@ Below are two Markdown-described test cases demonstrating flat and chained plans
 
 * Setup (3 independent steps, no dependencies):
     1. Step 1: echo hello
-    2. Step 2: rg nonexistingnameabcdef /dev/null (intentionally non-existing search target; rg exits with code 1 on no matches)
+    2. Step 2: false (intentionally failing command; exits with code 1)
     3. Step 3: echo hello
 * Expected behavior:
     * Step 1: succeeds (exit_code=0), stdout: hello.
@@ -37,7 +37,7 @@ Below are two Markdown-described test cases demonstrating flat and chained plans
         "status": "pending",
         "command": {
         "shell": "/bin/bash",
-        "run": "rg kfjdlgjsljds /dev/null",
+        "run": "false",
         "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
         "timeout_sec": 15,
         "reason": "Intentionally search for a token that should not exist to observe failure handling without blocking other steps."
