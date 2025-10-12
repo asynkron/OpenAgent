@@ -15,6 +15,7 @@
 - `plan.js` — plan tree merge/progress utilities used by agent runtime & UI.
   - Incoming items with `status: 'abandoned'` now remove the matching plan branch during merge.
   - Steps waiting on dependencies now remain blocked if any dependency failed instead of treating failure as completion.
+  - Merging no longer downgrades locally completed/failed steps when the assistant resends them as pending, preventing command replays.
 - `text.js` — string helpers (filters, tailing, shell splitting).
 
 ## Positive Signals
