@@ -25,6 +25,27 @@ import { createPlanManager } from './planManager.js';
 import { AmnesiaManager, applyDementiaPolicy } from './amnesiaManager.js';
 import { createChatMessageEntry } from './historyEntry.js';
 
+function cloneEventPayload(event) {
+  if (event === null || typeof event !== 'object') {
+    return event;
+  }
+
+  if (typeof structuredClone === 'function') {
+    try {
+      return structuredClone(event);
+    } catch (error) {
+      // Fall back to JSON serialization when structured cloning is unavailable
+      // or the payload contains values that cannot be cloned directly.
+    }
+  }
+
+  try {
+    return JSON.parse(JSON.stringify(event));
+  } catch (error) {
+    return Array.isArray(event) ? [...event] : { ...event };
+  }
+}
+
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 const PLAN_PENDING_REMINDER =
   'The plan is not completed, either send a command to continue, update the plan, take a deep breath and reanalyze the situation, add/remove steps or sub-steps, or abandon the plan if we don´t know how to continue';
@@ -58,8 +79,14 @@ export function createAgentRuntime({
   let counter = 0;
   let passCounter = 0;
   const emit = (event) => {
-    event.__id = 'key' + counter++;
-    outputs.push(event);
+    const clonedEvent = cloneEventPayload(event);
+
+    if (!clonedEvent || typeof clonedEvent !== 'object') {
+      throw new TypeError('Agent emit expected event to be an object.');
+    }
+
+    clonedEvent.__id = 'key' + counter++;
+    outputs.push(clonedEvent);
   };
 
   const nextPass = () => {
