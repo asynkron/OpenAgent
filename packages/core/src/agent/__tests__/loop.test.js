@@ -67,6 +67,10 @@ describe('createAgentRuntime', () => {
       createOutputsQueueFn: () => outputsQueue,
       createInputsQueueFn: () => new TestInputsQueue(),
       createPromptCoordinatorFn: (config) => new StubPromptCoordinator(config),
+      // Provide a stubbed client so tests do not require a real OpenAI API key.
+      getClient: () => ({ responses: {} }),
+      // Disable history compaction since it depends on the real client instance.
+      createHistoryCompactorFn: () => null,
       createPlanManagerFn: ({ emit }) => ({
         async initialize() {
           originalPlanEvent = {
