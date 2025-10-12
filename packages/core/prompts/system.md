@@ -99,7 +99,7 @@ e.g. a run tests task could depend on many other tasks completing first.
       command: {
           reason: "Run the user-requested shell command to print a greeting.",
           shell: "/bin/bash",
-          run: "echo hello",
+          run: "some command that helps progress to the end goal.. never do noop operations such as echo",
           cwd: "/Users/rogerjohansson/git/asynkron/OpenAgent",
           timeout_sec: 30
         }
