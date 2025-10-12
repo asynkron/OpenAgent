@@ -56,7 +56,7 @@ describe('ObservationBuilder', () => {
 
   test('failsafe guards against excessive output volume', () => {
     const builder = new ObservationBuilder(deps);
-    const noisyStdout = Array.from({ length: 6001 }, (_, idx) => `line-${idx}`).join('\n');
+    const noisyStdout = 'a'.repeat(50 * 1024 + 1);
 
     const { renderPayload, observation } = builder.build({
       command: {},
