@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * WebSocket binding for the agent runtime.
  *
@@ -9,7 +8,93 @@ import { createAgentRuntime } from '../agent/loop.js';
 
 const textDecoder = typeof TextDecoder !== 'undefined' ? new TextDecoder() : null;
 
-function decodeBinary(value) {
+type EventHandler = (...args: unknown[]) => void;
+
+type ListenerMethod = (event: string, handler: EventHandler) => unknown;
+
+type SendResult = void | boolean | PromiseLike<void | boolean>;
+
+const isFunction = (value: unknown): value is (...args: never[]) => unknown => typeof value === 'function';
+
+const isPromiseLike = (value: unknown): value is PromiseLike<unknown> =>
+  Boolean(value) && typeof value === 'object' && 'then' in (value as Record<string, unknown>) && isFunction((value as PromiseLike<unknown>).then);
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isRuntimeEvent = (value: unknown): value is RuntimeEvent => isRecord(value);
+
+export interface RuntimeOutputs {
+  next(): Promise<RuntimeEvent | null | undefined>;
+  close(): void;
+  [Symbol.asyncIterator]?(): AsyncIterator<RuntimeEvent | null | undefined>;
+}
+
+export interface RuntimeEvent extends Record<string, unknown> {}
+
+export interface AgentRuntime {
+  outputs?: RuntimeOutputs | null;
+  start(): Promise<void>;
+  cancel(payload?: unknown): void;
+  submitPrompt(prompt: string): void;
+}
+
+export interface WebSocketLike {
+  send(data: unknown): SendResult;
+  on?: ListenerMethod;
+  off?: ListenerMethod;
+  addEventListener?: ListenerMethod;
+  removeEventListener?: ListenerMethod;
+  removeListener?: ListenerMethod;
+}
+
+export type RuntimeFactory = (options: Parameters<typeof createAgentRuntime>[0]) => AgentRuntime;
+
+export interface IncomingStructuredMessage {
+  type?: string;
+  prompt?: unknown;
+  value?: unknown;
+  message?: unknown;
+  cancel?: boolean;
+  payload?: unknown;
+  [key: string]: unknown;
+}
+
+export type ParsedIncomingMessage =
+  | string
+  | IncomingStructuredMessage
+  | readonly unknown[]
+  | null
+  | undefined;
+
+export interface ParseIncomingFn {
+  (raw: unknown): ParsedIncomingMessage;
+}
+
+export type FormatOutgoingFn = (event: RuntimeEvent) => string;
+
+export interface StopOptions {
+  reason?: string;
+  cancel?: boolean;
+}
+
+export interface CreateWebSocketBindingOptions {
+  socket: WebSocketLike;
+  runtimeOptions?: Parameters<typeof createAgentRuntime>[0];
+  createRuntime?: RuntimeFactory;
+  parseIncoming?: ParseIncomingFn;
+  formatOutgoing?: FormatOutgoingFn;
+  autoStart?: boolean;
+  cancelOnDisconnect?: boolean;
+}
+
+export interface WebSocketBinding {
+  runtime: AgentRuntime;
+  start(): Promise<void>;
+  stop(options?: StopOptions): Promise<void>;
+}
+
+function decodeBinary(value: unknown): string | null {
   if (value == null) return null;
   if (typeof value === 'string') return value;
 
@@ -25,33 +110,38 @@ function decodeBinary(value) {
       return String.fromCharCode(...new Uint8Array(value));
     }
     if (ArrayBuffer.isView?.(value)) {
+      const view = value as ArrayBufferView;
       if (textDecoder) {
-        return textDecoder.decode(value);
+        return textDecoder.decode(view);
       }
-      return String.fromCharCode(...value);
+      const buffer = new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+      return String.fromCharCode(...buffer);
     }
   }
 
   return null;
 }
 
-function unwrapSocketMessage(raw) {
-  if (!raw || typeof raw !== 'object') {
+function unwrapSocketMessage(raw: unknown): unknown {
+  if (Array.isArray(raw)) {
+    if (raw.length === 1) {
+      return unwrapSocketMessage(raw[0]);
+    }
     return raw;
   }
 
-  if (typeof raw.data !== 'undefined') {
-    return unwrapSocketMessage(raw.data);
+  if (!isRecord(raw)) {
+    return raw;
   }
 
-  if (Array.isArray(raw) && raw.length === 1) {
-    return unwrapSocketMessage(raw[0]);
+  if ('data' in raw) {
+    return unwrapSocketMessage((raw as { data: unknown }).data);
   }
 
   return raw;
 }
 
-function defaultParseIncoming(raw) {
+export const defaultParseIncoming: ParseIncomingFn = (raw) => {
   const value = unwrapSocketMessage(raw);
   if (value == null) {
     return null;
@@ -63,8 +153,7 @@ function defaultParseIncoming(raw) {
       return { type: 'prompt', prompt: '' };
     }
     try {
-      const parsed = JSON.parse(value);
-      return parsed;
+      return JSON.parse(value) as IncomingStructuredMessage;
     } catch {
       return { type: 'prompt', prompt: value };
     }
@@ -75,45 +164,176 @@ function defaultParseIncoming(raw) {
     return defaultParseIncoming(decoded);
   }
 
-  return value;
-}
+  return value as ParsedIncomingMessage;
+};
 
-function defaultFormatOutgoing(event) {
-  return JSON.stringify(event ?? {});
-}
+export const defaultFormatOutgoing: FormatOutgoingFn = (event) => JSON.stringify(event ?? {});
 
-function normalisePromptValue(value) {
+type PromptEnvelope = { kind: 'prompt'; prompt: string };
+
+type CancelEnvelope = { kind: 'cancel'; payload?: unknown };
+
+type NormalizedIncomingEnvelope = PromptEnvelope | CancelEnvelope;
+
+const CANCEL_FALLBACK_REASON = 'socket-cancel';
+
+function normalisePromptValue(value: unknown): string {
   if (typeof value === 'string') return value;
   if (value == null) return '';
   return String(value);
 }
 
-function attachListener(socket, event, handler) {
-  if (typeof socket.on === 'function') {
+// Converts arbitrary socket payloads into high-level prompt/cancel envelopes so the
+// binding can forward them to the runtime without ad-hoc type assertions.
+function normaliseIncomingMessage(parsed: ParsedIncomingMessage): NormalizedIncomingEnvelope | null {
+  if (parsed == null) {
+    return null;
+  }
+
+  if (typeof parsed === 'string') {
+    return { kind: 'prompt', prompt: parsed };
+  }
+
+  if (!isRecord(parsed)) {
+    return { kind: 'prompt', prompt: normalisePromptValue(parsed) };
+  }
+
+  const type = typeof parsed.type === 'string' ? parsed.type : undefined;
+
+  if (type === 'cancel' || parsed.cancel === true) {
+    return { kind: 'cancel', payload: parsed.payload ?? { reason: CANCEL_FALLBACK_REASON } };
+  }
+
+  if (
+    type === 'prompt' ||
+    type === 'input' ||
+    type === 'message' ||
+    type === 'user-input' ||
+    typeof parsed.prompt !== 'undefined' ||
+    typeof parsed.value !== 'undefined' ||
+    typeof parsed.message !== 'undefined'
+  ) {
+    const prompt = normalisePromptValue(parsed.prompt ?? parsed.value ?? parsed.message);
+    return { kind: 'prompt', prompt };
+  }
+
+  return null;
+}
+
+const hasEmitterApi = (socket: WebSocketLike): socket is WebSocketLike & {
+  on: ListenerMethod;
+} => isFunction(socket.on);
+
+const hasEventTargetApi = (socket: WebSocketLike): socket is WebSocketLike & {
+  addEventListener: ListenerMethod;
+  removeEventListener?: ListenerMethod;
+} => isFunction(socket.addEventListener);
+
+const getRemovalMethod = (socket: WebSocketLike): ListenerMethod | undefined => {
+  if (isFunction(socket.off)) return socket.off.bind(socket);
+  if (isFunction(socket.removeListener)) return socket.removeListener.bind(socket);
+  if (isFunction(socket.removeEventListener)) return socket.removeEventListener.bind(socket);
+  return undefined;
+};
+
+function attachListener(socket: WebSocketLike, event: string, handler: EventHandler): () => void {
+  if (hasEmitterApi(socket)) {
     socket.on(event, handler);
+    const remove = getRemovalMethod(socket);
     return () => {
-      if (typeof socket.off === 'function') {
-        socket.off(event, handler);
-      } else if (typeof socket.removeListener === 'function') {
-        socket.removeListener(event, handler);
-      } else if (typeof socket.removeEventListener === 'function') {
-        socket.removeEventListener(event, handler);
+      try {
+        remove?.(event, handler);
+      } catch {
+        // Listener cleanup failures should not surface to consumers.
       }
     };
   }
 
-  if (typeof socket.addEventListener === 'function') {
+  if (hasEventTargetApi(socket)) {
     socket.addEventListener(event, handler);
-    return () => socket.removeEventListener?.(event, handler);
+    return () => {
+      try {
+        socket.removeEventListener?.(event, handler);
+      } catch {
+        // Ignore listener cleanup failures for browser-style sockets.
+      }
+    };
   }
 
   throw new Error('Socket must support on/off or addEventListener/removeEventListener.');
 }
 
-async function safeSend(socket, formatter, event, { suppressErrors = false } = {}) {
-  if (!socket || typeof socket.send !== 'function') return false;
+// Normalizes the runtime.outputs contract into a clean async iterable, regardless of
+// whether the queue exposes Symbol.asyncIterator or a bare next() method.
+const createOutputIterable = (outputs: RuntimeOutputs | null | undefined): AsyncIterable<RuntimeEvent> | null => {
+  if (!outputs) {
+    return null;
+  }
 
-  let payload;
+  const asyncIteratorFactory = outputs[Symbol.asyncIterator];
+  if (typeof asyncIteratorFactory === 'function') {
+    return {
+      async *[Symbol.asyncIterator]() {
+        const iterator = asyncIteratorFactory.call(outputs) as AsyncIterator<RuntimeEvent | null | undefined>;
+        try {
+          while (true) {
+            const result = await iterator.next();
+            if (result.done) {
+              break;
+            }
+            if (result.value == null) {
+              continue;
+            }
+            yield result.value;
+          }
+        } finally {
+          try {
+            const completion = iterator.return?.();
+            if (isPromiseLike(completion)) {
+              await completion;
+            }
+          } catch {
+            // Swallow completion errors to avoid surfacing cleanup failures.
+          }
+        }
+      },
+    };
+  }
+
+  if (typeof outputs.next === 'function') {
+    return {
+      async *[Symbol.asyncIterator]() {
+        try {
+          while (true) {
+            const value = await outputs.next();
+            if (value == null) {
+              continue;
+            }
+            yield value;
+          }
+        } finally {
+          try {
+            outputs.close?.();
+          } catch {
+            // Ignore cleanup failures when closing legacy runtime outputs.
+          }
+        }
+      },
+    };
+  }
+
+  return null;
+};
+
+async function safeSend(
+  socket: WebSocketLike,
+  formatter: FormatOutgoingFn,
+  event: RuntimeEvent,
+  { suppressErrors = false }: { suppressErrors?: boolean } = {},
+): Promise<boolean> {
+  if (!socket || !isFunction(socket.send)) return false;
+
+  let payload: unknown;
   try {
     payload = formatter(event);
   } catch (error) {
@@ -129,7 +349,7 @@ async function safeSend(socket, formatter, event, { suppressErrors = false } = {
 
   try {
     const result = socket.send(payload);
-    if (result && typeof result.then === 'function') {
+    if (isPromiseLike(result)) {
       await result;
     }
     return true;
@@ -144,26 +364,26 @@ async function safeSend(socket, formatter, event, { suppressErrors = false } = {
 export function createWebSocketBinding({
   socket,
   runtimeOptions = {},
-  createRuntime = createAgentRuntime,
+  createRuntime = createAgentRuntime as RuntimeFactory,
   parseIncoming = defaultParseIncoming,
   formatOutgoing = defaultFormatOutgoing,
   autoStart = true,
   cancelOnDisconnect = true,
-} = {}) {
+}: CreateWebSocketBindingOptions): WebSocketBinding {
   if (!socket || typeof socket !== 'object') {
     throw new Error('createWebSocketUi requires a WebSocket-like socket instance.');
   }
-  if (typeof socket.send !== 'function') {
+  if (!isFunction(socket.send)) {
     throw new Error('Provided socket must implement send().');
   }
 
-  const runtime = createRuntime(runtimeOptions);
-  const detachFns = [];
+  const runtime = createRuntime(runtimeOptions ?? {});
+  const detachFns: Array<() => void> = [];
   let started = false;
   let closed = false;
-  let startPromise = null;
-  let stopPromise = null;
-  let pumpPromise = null;
+  let startPromise: Promise<void> | null = null;
+  let stopPromise: Promise<void> | null = null;
+  let pumpPromise: Promise<void> | null = null;
 
   const detachAll = () => {
     while (detachFns.length > 0) {
@@ -176,10 +396,10 @@ export function createWebSocketBinding({
     }
   };
 
-  const handleMessage = (...args) => {
+  const handleMessage: EventHandler = (...args) => {
     if (closed) return;
 
-    let parsed;
+    let parsed: ParsedIncomingMessage;
     try {
       parsed = parseIncoming(args.length <= 1 ? args[0] : args);
     } catch (error) {
@@ -196,45 +416,24 @@ export function createWebSocketBinding({
       return;
     }
 
-    if (parsed == null) {
+    const envelope = normaliseIncomingMessage(parsed);
+    if (!envelope) {
       return;
     }
 
-    if (typeof parsed === 'string') {
-      runtime.submitPrompt(parsed);
+    if (envelope.kind === 'cancel') {
+      runtime.cancel(envelope.payload);
       return;
     }
 
-    if (typeof parsed !== 'object') {
-      runtime.submitPrompt(String(parsed));
-      return;
-    }
-
-    const type = typeof parsed.type === 'string' ? parsed.type : undefined;
-
-    if (type === 'cancel' || parsed.cancel === true) {
-      runtime.cancel(parsed.payload ?? { reason: 'socket-cancel' });
-      return;
-    }
-
-    const promptValue = parsed.prompt ?? parsed.value ?? parsed.message;
-
-    if (
-      type === 'prompt' ||
-      type === 'input' ||
-      type === 'message' ||
-      type === 'user-input' ||
-      typeof promptValue !== 'undefined'
-    ) {
-      runtime.submitPrompt(normalisePromptValue(promptValue));
-    }
+    runtime.submitPrompt(envelope.prompt);
   };
 
-  const handleClose = () => {
+  const handleClose: EventHandler = () => {
     void stop({ reason: 'socket-close', cancel: cancelOnDisconnect });
   };
 
-  const handleError = (error) => {
+  const handleError: EventHandler = (error) => {
     if (closed) return;
     console.error('[openagent:websocket-binding] Socket error encountered:', error);
     void stop({ reason: 'socket-error', cancel: cancelOnDisconnect });
@@ -260,22 +459,8 @@ export function createWebSocketBinding({
     // Optional; not all implementations expose an error event.
   }
 
-  async function pumpOutputs() {
-    const iterable =
-      runtime.outputs?.[Symbol.asyncIterator]?.() ??
-      (typeof runtime.outputs?.next === 'function'
-        ? {
-            async *[Symbol.asyncIterator]() {
-              while (true) {
-                const value = await runtime.outputs.next();
-                if (value === undefined || value === null) {
-                  continue;
-                }
-                yield value;
-              }
-            },
-          }[Symbol.asyncIterator]()
-        : null);
+  const pumpOutputs = async () => {
+    const iterable = createOutputIterable(runtime.outputs ?? null);
 
     if (!iterable) {
       return;
@@ -284,7 +469,7 @@ export function createWebSocketBinding({
     try {
       for await (const event of iterable) {
         if (closed) break;
-        if (!event || typeof event !== 'object') continue;
+        if (!isRuntimeEvent(event)) continue;
         await safeSend(socket, formatOutgoing, event);
       }
     } catch (error) {
@@ -302,9 +487,9 @@ export function createWebSocketBinding({
       }
       throw error;
     }
-  }
+  };
 
-  async function stop({ reason = 'manual-stop', cancel = cancelOnDisconnect } = {}) {
+  async function stop({ reason = 'manual-stop', cancel = cancelOnDisconnect }: StopOptions = {}) {
     if (stopPromise) {
       return stopPromise;
     }
@@ -371,4 +556,6 @@ export function createWebSocketBinding({
   };
 }
 
-export default { createWebSocketBinding };
+const defaultExport = { createWebSocketBinding } satisfies Record<string, unknown>;
+
+export default defaultExport;
