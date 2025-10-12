@@ -7,7 +7,8 @@ import theme from '../theme.js';
 const h = React.createElement;
 
 const { agent } = theme;
-const { colors: agentColors, props: agentProps = {} } = agent;
+const agentColors = agent.colors;
+const agentProps = agent.props;
 
 type AgentResponseProps = {
   message?: unknown;
@@ -29,16 +30,12 @@ export function AgentResponse({ message }: AgentResponseProps): React.ReactEleme
 
   const rendered = renderMarkdownMessage(prepared);
 
-  const containerProps: InkBoxProps = {
-    ...(agentProps.container ?? {}),
-  };
+  const containerProps: InkBoxProps = { ...(agentProps.container ?? {}) };
   if (!containerProps.backgroundColor) {
     containerProps.backgroundColor = agentColors.bg;
   }
 
-  const textProps: InkTextProps = {
-    ...(agentProps.text ?? {}),
-  };
+  const textProps: InkTextProps = { ...(agentProps.text ?? {}) };
   if (!textProps.color) {
     textProps.color = agentColors.fg;
   }

@@ -6,15 +6,16 @@
 
 ## Key Probes
 
-- Language/toolchain checks: `nodeProbe.js`, `pythonProbe.js`, `rustProbe.js`, `goProbe.js`, `dotnetProbe.js`, `jvmProbe.js`, `typescriptProbe.js`.
-- Formatting/linting: `eslintProbe.js`, `prettierProbe.js`.
-- VCS/OS/container: `gitProbe.js`, `operatingSystemProbe.js`, `containerProbe.js`.
-- Shared utilities: `context.js` provides probe registration helpers; `index.js` composes and runs probes sequentially.
+- Language/toolchain checks: `nodeProbe.ts`, `pythonProbe.ts`, `rustProbe.ts`, `goProbe.ts`, `dotnetProbe.ts`, `jvmProbe.ts`, `typescriptProbe.ts`.
+- Formatting/linting: `eslintProbe.ts`, `prettierProbe.ts`.
+- VCS/OS/container: `gitProbe.ts`, `operatingSystemProbe.ts`, `containerProbe.ts`.
+- Shared utilities: `context.ts` provides probe registration helpers; `index.ts` composes and runs probes sequentially with typed summaries.
 
 ## Positive Signals
 
 - Probes emit structured results consumed by the CLI, allowing quick user feedback on missing dependencies.
 - Coverage includes both interpreters and developer tooling, helping plan commands accordingly.
+- Entire probe suite now type-checks under strict TypeScript, improving safety when extending or registering new probes.
 
 ## Risks / Gaps
 

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import chalk from 'chalk';
 import os from 'node:os';
 
@@ -27,7 +26,7 @@ export type BootProbe = {
   run(context: BootProbeContext): Promise<Partial<BootProbeResult> | BootProbeResult | void>;
 };
 
-type BootProbeSummary = BootProbeResult & { probe: string };
+type BootProbeSummary = BootProbeResult & { probe: string; name?: string };
 
 const DEFAULT_PROBES: BootProbe[] = [
   JavaScriptBootProbe,
@@ -72,7 +71,7 @@ export function formatBootProbeSummary(
       continue;
     }
     const status = result.detected ? 'detected' : 'not detected';
-    const detailParts = [];
+    const detailParts: string[] = [];
 
     if (Array.isArray(result.details) && result.details.length > 0) {
       detailParts.push(result.details.join('; '));
@@ -140,7 +139,7 @@ export async function runBootProbes({
     if (detected) {
       emit('');
       const symbol = chalk.green('✔');
-      const summaryParts = [];
+      const summaryParts: string[] = [];
       if (result.details && result.details.length > 0) {
         summaryParts.push(result.details.join('; '));
       }

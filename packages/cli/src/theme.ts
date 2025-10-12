@@ -2,7 +2,7 @@
  * Central theme definition for the CLI timeline. Exposes both color palette and
  * component-level Ink props so styling lives in one place.
  */
-export const theme = Object.freeze({
+export const theme = {
   human: {
     colors: {
       fg: '#f5f5f5',
@@ -171,7 +171,7 @@ export const theme = Object.freeze({
       },
     },
   },
-}) as const;
+} as const;
 
 export type Theme = typeof theme;
 

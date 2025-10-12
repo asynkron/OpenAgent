@@ -15,6 +15,7 @@
 - `src/` — Ink components, boot probes, runtime wiring, and readline helpers written in TypeScript. See [`src/context.md`](src/context.md).
 - `src/loadCoreModule.ts` — resolves the core runtime dependency with a local fallback when the workspace link is missing, including runtime guards for missing exports.
 - `src/render.ts`, `src/status.ts`, `src/thinking.ts`, `src/io.ts` — legacy console helpers and readline utilities that continue to underpin tests and non-Ink integrations, now fully typed.
+- `src/bootProbes/` — environment detection suite now type-checked end-to-end (context helpers, registry, and individual probes).
 
 ## Related Context
 

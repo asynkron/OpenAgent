@@ -15,13 +15,14 @@ import { renderMarkdownMessage } from '../render.js';
 
 const h = React.createElement;
 const { command } = theme;
-const { colors: commandColors, props: commandProps } = command;
-const commandContainerProps = commandProps?.container ?? {};
-const commandHeadingProps = commandProps?.heading ?? {};
-const commandHeadingBadgeProps = commandProps?.headingBadge ?? {};
-const commandHeadingDetailProps = commandProps?.headingDetail ?? {};
-const commandSummaryLineProps = commandProps?.summaryLine ?? {};
-const commandRunContainerProps = commandProps?.runContainer ?? {};
+const commandProps = command.props as Record<string, any>;
+const commandColors = command.colors;
+const commandContainerProps = (commandProps.container ?? {}) as Record<string, unknown>;
+const commandHeadingProps = (commandProps.heading ?? {}) as Record<string, unknown>;
+const commandHeadingBadgeProps = (commandProps.headingBadge ?? {}) as Record<string, unknown>;
+const commandHeadingDetailProps = (commandProps.headingDetail ?? {}) as Record<string, unknown>;
+const commandSummaryLineProps = (commandProps.summaryLine ?? {}) as Record<string, any>;
+const commandRunContainerProps = (commandProps.runContainer ?? {}) as Record<string, unknown>;
 
 const BEGIN_PATCH_MARKER = '*** Begin Patch';
 const END_PATCH_MARKER = '*** End Patch';
@@ -183,8 +184,8 @@ export function Command({
   const { type, detail, summaryLines } = data;
   const children: React.ReactElement[] = [];
 
-  const headingProps = { key: 'heading', ...commandHeadingProps };
-  if (!headingProps.color) {
+  const headingProps: Record<string, unknown> = { key: 'heading', ...commandHeadingProps };
+  if (headingProps.color === undefined) {
     headingProps.color = commandColors.fg;
   }
 
@@ -225,12 +226,14 @@ export function Command({
     });
 
     if (runElements.length > 0) {
-      const runContainerProps: Record<string, unknown> = {
-        key: 'command-run',
-        flexDirection: 'column',
-        marginTop: 1,
-        ...commandRunContainerProps,
-      };
+      const runContainerProps: Record<string, unknown> = Object.assign(
+        {
+          key: 'command-run',
+          flexDirection: 'column',
+          marginTop: 1,
+        },
+        commandRunContainerProps,
+      );
       if (!runContainerProps.flexDirection) {
         runContainerProps.flexDirection = 'column';
       }
@@ -243,17 +246,19 @@ export function Command({
     children.push(SummaryLine({ line, index }));
   });
 
-  const containerProps: Record<string, unknown> = {
-    flexDirection: 'column',
-    marginTop: 1,
-    paddingX: 1,
-    paddingY: 1,
-    width: '100%',
-    alignSelf: 'stretch',
-    flexGrow: 1,
-    borderStyle: 'round',
-    ...commandContainerProps,
-  };
+  const containerProps: Record<string, unknown> = Object.assign(
+    {
+      flexDirection: 'column',
+      marginTop: 1,
+      paddingX: 1,
+      paddingY: 1,
+      width: '100%',
+      alignSelf: 'stretch',
+      flexGrow: 1,
+      borderStyle: 'round',
+    },
+    commandContainerProps,
+  );
 
   if (!containerProps.color) {
     containerProps.color = commandColors.fg;

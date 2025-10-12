@@ -7,7 +7,8 @@ import theme from '../theme.js';
 const h = React.createElement;
 
 const { human } = theme;
-const { colors: humanColors, props: humanProps = {} } = human;
+const humanColors = human.colors;
+const humanProps = human.props;
 
 type HumanMessageProps = {
   message?: unknown;
@@ -26,16 +27,12 @@ export function HumanMessage({ message }: HumanMessageProps): React.ReactElement
     return null;
   }
 
-  const containerProps: InkBoxProps = {
-    ...(humanProps.container ?? {}),
-  };
+  const containerProps: InkBoxProps = { ...(humanProps.container ?? {}) };
   if (!containerProps.backgroundColor) {
     containerProps.backgroundColor = humanColors.bg;
   }
 
-  const textProps: InkTextProps = {
-    ...(humanProps.text ?? {}),
-  };
+  const textProps: InkTextProps = { ...(humanProps.text ?? {}) };
   if (!textProps.color) {
     textProps.color = humanColors.fg;
   }
