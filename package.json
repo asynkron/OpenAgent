@@ -18,6 +18,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "fta": "fta packages",
     "preformat": "",
     "preformat:check": "",
     "prelint": "",
@@ -51,7 +52,9 @@
     "jest": "^29.7.0",
     "lint-staged": "^16.2.3",
     "prettier": "^3.2.5",
-    "typescript": "^5.6.3"
+    "ts-morph": "^23.0.0",
+    "typescript": "^5.6.3",
+    "fta-cli": "^3.0.0"
   },
   "lint-staged": {
     "*.{js,mjs,cjs,ts,tsx}": [
@@ -62,7 +65,5 @@
       "prettier --write"
     ]
   },
-  "dependencies": {
-    "fta-cli": "^3.0.0"
-  }
+  "dependencies": {}
 }

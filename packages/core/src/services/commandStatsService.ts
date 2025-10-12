@@ -72,7 +72,7 @@ export async function incrementCommandCount(
       }
       await fsp.unlink(tempFile).catch(() => {});
     }
-  } catch (err) {
+  } catch (_err) {
     return false;
   }
 }
