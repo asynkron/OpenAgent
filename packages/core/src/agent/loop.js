@@ -73,9 +73,32 @@ export function createAgentRuntime({
   dementiaLimit = 30,
   amnesiaLimit = 10,
   createAmnesiaManagerFn = (config) => new AmnesiaManager(config),
+  createOutputsQueueFn = () => new AsyncQueue(),
+  createInputsQueueFn = () => new AsyncQueue(),
+  createPlanManagerFn = (config) => createPlanManager(config),
+  createEscStateFn = () => createEscState(),
+  createPromptCoordinatorFn = (config) => new PromptCoordinator(config),
+  createApprovalManagerFn = (config) => new ApprovalManager(config),
 } = {}) {
-  const outputs = new AsyncQueue();
-  const inputs = new AsyncQueue();
+  const outputs = createOutputsQueueFn();
+  if (
+    !outputs ||
+    typeof outputs.push !== 'function' ||
+    typeof outputs.close !== 'function' ||
+    typeof outputs.next !== 'function'
+  ) {
+    throw new TypeError('createOutputsQueueFn must return an AsyncQueue-like object.');
+  }
+
+  const inputs = createInputsQueueFn();
+  if (
+    !inputs ||
+    typeof inputs.push !== 'function' ||
+    typeof inputs.close !== 'function' ||
+    typeof inputs.next !== 'function'
+  ) {
+    throw new TypeError('createInputsQueueFn must return an AsyncQueue-like object.');
+  }
   let counter = 0;
   let passCounter = 0;
   const emit = (event) => {
@@ -94,11 +117,27 @@ export function createAgentRuntime({
     return passCounter;
   };
 
-  const planManager = createPlanManager({
+  const planManagerConfig = {
     emit,
     emitStatus: (event) => outputs.push(event),
     getPlanMergeFlag,
-  });
+  };
+
+  let planManager = null;
+  try {
+    planManager = createPlanManagerFn(planManagerConfig);
+  } catch (error) {
+    emit({
+      type: 'status',
+      level: 'warn',
+      message: 'Failed to initialize plan manager via factory.',
+      details: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  if (!planManager || typeof planManager !== 'object') {
+    planManager = createPlanManager(planManagerConfig);
+  }
 
   // Track how many consecutive plan reminders we have injected so that the
   // agent eventually defers to a human if progress stalls.
@@ -116,12 +155,59 @@ export function createAgentRuntime({
     },
   };
 
-  const { state: escState, trigger: triggerEsc, detach: detachEscListener } = createEscState();
-  const promptCoordinator = new PromptCoordinator({
+  const fallbackEscController = createEscState();
+  let escController = fallbackEscController;
+
+  try {
+    const candidate = createEscStateFn();
+    if (candidate && typeof candidate === 'object') {
+      escController = {
+        ...candidate,
+        state: candidate.state ?? fallbackEscController.state,
+        trigger:
+          typeof candidate.trigger === 'function'
+            ? candidate.trigger
+            : fallbackEscController.trigger,
+        detach:
+          typeof candidate.detach === 'function'
+            ? candidate.detach
+            : fallbackEscController.detach,
+      };
+    }
+  } catch (error) {
+    emit({
+      type: 'status',
+      level: 'warn',
+      message: 'Failed to initialize ESC state via factory.',
+      details: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  const escState = escController.state;
+  const triggerEsc = escController.trigger;
+  const detachEscListener = escController.detach;
+
+  const promptCoordinatorConfig = {
     emitEvent: (event) => outputs.push(event),
     escState: { ...escState, trigger: triggerEsc },
     cancelFn: cancelActive,
-  });
+  };
+
+  let promptCoordinator = null;
+  try {
+    promptCoordinator = createPromptCoordinatorFn(promptCoordinatorConfig);
+  } catch (error) {
+    emit({
+      type: 'status',
+      level: 'warn',
+      message: 'Failed to initialize prompt coordinator via factory.',
+      details: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  if (!promptCoordinator || typeof promptCoordinator !== 'object') {
+    promptCoordinator = new PromptCoordinator(promptCoordinatorConfig);
+  }
 
   let openai;
   try {
@@ -137,7 +223,7 @@ export function createAgentRuntime({
     throw err;
   }
 
-  const approvalManager = new ApprovalManager({
+  const approvalManagerConfig = {
     isPreapprovedCommand: isPreapprovedCommandFn,
     isSessionApproved: isSessionApprovedFn,
     approveForSession: approveForSessionFn,
@@ -146,7 +232,23 @@ export function createAgentRuntime({
     preapprovedCfg,
     logWarn: (message) => outputs.push({ type: 'status', level: 'warn', message }),
     logSuccess: (message) => outputs.push({ type: 'status', level: 'info', message }),
-  });
+  };
+
+  let approvalManager = null;
+  try {
+    approvalManager = createApprovalManagerFn(approvalManagerConfig);
+  } catch (error) {
+    emit({
+      type: 'status',
+      level: 'warn',
+      message: 'Failed to initialize approval manager via factory.',
+      details: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  if (!approvalManager || typeof approvalManager !== 'object') {
+    approvalManager = new ApprovalManager(approvalManagerConfig);
+  }
 
   const augmentation =
     typeof systemPromptAugmentation === 'string' ? systemPromptAugmentation.trim() : '';
@@ -299,7 +401,9 @@ export function createAgentRuntime({
     running = true;
     inputProcessorPromise = processInputEvents();
 
-    await planManager.initialize();
+    if (planManager && typeof planManager.initialize === 'function') {
+      await planManager.initialize();
+    }
 
     emit({ type: 'banner', title: 'OpenAgent - AI Agent with JSON Protocol' });
     emit({ type: 'status', level: 'info', message: 'Submit prompts to drive the conversation.' });
