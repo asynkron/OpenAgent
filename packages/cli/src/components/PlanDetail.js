@@ -25,7 +25,7 @@ export function PlanDetail({ node }) {
     metaParts.push(`waiting for ${node.waitingFor.join(', ')}`);
   }
   metaParts.push(`age ${age}`);
-  const hasMeta = metaParts.length > 0;
+  const metaSuffix = metaParts.length > 0 ? ` -  ${metaParts.join(' • ')}` : '';
 
   return h(
     Box,
@@ -37,8 +37,8 @@ export function PlanDetail({ node }) {
       h(Text, { color: 'cyan' }, node.label),
       h(Text, { color: 'gray' }, '.'),
       node.title ? h(Text, null, ` ${node.title}`) : null,
+      metaSuffix ? h(Text, { color: 'gray' }, metaSuffix) : null,
     ),
-    hasMeta ? h(Text, { color: 'gray' }, `    ${metaParts.join(' • ')}`) : null,
     hasCommandPreview
       ? h(Text, { color: 'gray' }, '  ↳ ', h(Text, { color: 'white' }, node.commandPreview))
       : null,
