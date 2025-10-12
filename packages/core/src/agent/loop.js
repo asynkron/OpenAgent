@@ -93,6 +93,16 @@ export function createAgentRuntime({
   createChatMessageEntryFn = createChatMessageEntry,
   executeAgentPassFn = executeAgentPass,
   createPlanAutoResponseTrackerFn = null,
+  // Additional DI hooks
+  cloneEventPayloadFn = cloneEventPayload,
+  cancelFn = cancelActive,
+  planReminderMessage = PLAN_PENDING_REMINDER,
+  userInputPrompt = '\n ▷ ',
+  noHumanAutoMessage = NO_HUMAN_AUTO_MESSAGE,
+  // New additions
+  transformEmittedEventFns = null,
+  eventObservers = null,
+  idPrefix = 'key',
 } = {}) {
   const outputs = createOutputsQueueFn();
   if (
@@ -124,11 +134,11 @@ export function createAgentRuntime({
     } catch (e) {
       // ignore and fall back
     }
-    return 'key' + counter++;
+    return idPrefix + counter++;
   };
 
   const emit = (event) => {
-    const clonedEvent = cloneEventPayload(event);
+    const clonedEvent = cloneEventPayloadFn(event);
     if (!clonedEvent || typeof clonedEvent !== 'object') {
       throw new TypeError('Agent emit expected event to be an object.');
     }
@@ -142,11 +152,34 @@ export function createAgentRuntime({
         }
         finalEvent = transformed;
       } catch (e) {
-        // If transformer fails, emit a warning and continue with original event
         outputs.push({ type: 'status', level: 'warn', message: 'transformEmittedEventFn threw. Emitting original event.' });
       }
     }
+    if (Array.isArray(transformEmittedEventFns)) {
+      for (const fn of transformEmittedEventFns) {
+        if (typeof fn !== 'function') continue;
+        try {
+          const transformed = fn(finalEvent);
+          if (!transformed) {
+            return; // drop event
+          }
+          finalEvent = transformed;
+        } catch (e) {
+          outputs.push({ type: 'status', level: 'warn', message: 'transformEmittedEventFns item threw. Continuing with current event.' });
+        }
+      }
+    }
     outputs.push(finalEvent);
+    if (Array.isArray(eventObservers)) {
+      for (const obs of eventObservers) {
+        if (typeof obs !== 'function') continue;
+        try {
+          obs(finalEvent);
+        } catch (e) {
+          outputs.push({ type: 'status', level: 'warn', message: 'eventObservers item threw.' });
+        }
+      }
+    }
   };
 
   const nextPass = () => {
@@ -234,7 +267,7 @@ export function createAgentRuntime({
   const promptCoordinatorConfig = {
     emitEvent: (event) => emit(event),
     escState: { ...escState, trigger: triggerEsc },
-    cancelFn: cancelActive,
+    cancelFn,
   };
 
   let promptCoordinator = null;
@@ -475,8 +508,8 @@ export function createAgentRuntime({
       while (true) {
         const noHumanActive = getNoHumanFlag();
         const userInput = noHumanActive
-          ? NO_HUMAN_AUTO_MESSAGE
-          : await promptCoordinator.request('\n ▷ ', { scope: 'user-input' });
+          ? noHumanAutoMessage
+          : await promptCoordinator.request(userInputPrompt, { scope: 'user-input' });
 
         if (!userInput) {
           if (noHumanActive) {
@@ -519,7 +552,7 @@ export function createAgentRuntime({
               tailLinesFn,
               getNoHumanFlag,
               setNoHumanFlag,
-              planReminderMessage: PLAN_PENDING_REMINDER,
+              planReminderMessage,
               startThinkingFn: startThinkingEvent,
               stopThinkingFn: stopThinkingEvent,
               escState,
