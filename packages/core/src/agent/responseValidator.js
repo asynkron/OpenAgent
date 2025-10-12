@@ -102,7 +102,8 @@ export function validateAssistantResponseSchema(payload) {
   };
 }
 
-const TERMINAL_STATUSES = new Set(['completed', 'failed']);
+const TERMINAL_STATUSES = new Set(['completed', 'failed', 'abandoned']);
+const ALLOWED_STATUSES = new Set(['pending', 'completed', 'failed', 'abandoned']);
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -133,9 +134,11 @@ function validatePlanItem(item, path, state, errors) {
     return;
   }
 
-  const idLabel = typeof item.id === 'string' ? item.id.trim() : String(item.id ?? '').trim();
+  const idLabel = typeof item.id === 'string' ? item.id.trim() : '';
+  const stepLabel = typeof item.step === 'string' ? item.step.trim() : '';
   if (!idLabel) {
-    errors.push(`${path} is missing a non-empty "id" label.`);
+    const hint = stepLabel ? ' Provide an "id" value instead of "step" to satisfy the schema.' : '';
+    errors.push(`${path} is missing a non-empty "id" label.${hint}`.trim());
   }
 
   if (typeof item.title !== 'string' || !item.title.trim()) {
@@ -144,8 +147,12 @@ function validatePlanItem(item, path, state, errors) {
 
   const normalizedStatus = normalizeStatus(item.status);
 
-  if (normalizedStatus === 'running') {
-    state.runningCount += 1;
+  if (!normalizedStatus) {
+    errors.push(`${path} is missing a valid "status".`);
+  } else if (!ALLOWED_STATUSES.has(normalizedStatus)) {
+    errors.push(
+      `${path}.status must be one of: ${Array.from(ALLOWED_STATUSES).join(', ')}.`,
+    );
   }
 
   if (!state.firstOpenStatus && normalizedStatus !== 'completed') {
@@ -200,7 +207,6 @@ export function validateAssistantResponse(payload) {
 
   if (Array.isArray(plan)) {
     const state = {
-      runningCount: 0,
       firstOpenStatus: '',
       hasOpenSteps: false,
     };
@@ -208,6 +214,7 @@ export function validateAssistantResponse(payload) {
     plan.forEach((item, index) => {
       validatePlanItem(item, `plan[${index}]`, state, errors);
     });
+
   }
 
   return {

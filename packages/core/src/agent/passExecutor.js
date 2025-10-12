@@ -845,6 +845,19 @@ export async function executeAgentPass({
       }
     }
 
+    if (result && result.killed) {
+      // When a command is canceled we drop the executable payload so the agent
+      // waits for the model to acknowledge the interruption instead of
+      // immediately retrying the same command in a tight loop.
+      if (activePlanStep && typeof activePlanStep === 'object') {
+        delete activePlanStep.command;
+        planMutatedDuringExecution = true;
+      }
+      if (step && typeof step === 'object') {
+        delete step.command;
+      }
+    }
+
     emitDebug(() => ({
       stage: 'command-execution',
       command,

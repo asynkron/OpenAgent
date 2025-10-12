@@ -33,9 +33,9 @@ test('agent runtime executes one mocked command then exits on user request', asy
     message: 'Mocked response',
     plan: [
       {
-        step: '1',
+        id: 'plan-step-execute',
         title: 'Execute mocked command',
-        status: 'running',
+        status: 'pending',
         command: {
           shell: 'bash',
           run: 'echo "MOCKED_OK"',
@@ -118,7 +118,7 @@ test('agent runtime executes nested shell commands from raw response strings', a
   const errorEvents = ui.events.filter((event) => event.type === 'error');
   expect(errorEvents).toHaveLength(0);
   expect(runCommandMock).toHaveBeenCalledTimes(1);
-  expect(runCommandMock).toHaveBeenCalledWith('echo hello', '.', 60, undefined);
+  expect(runCommandMock).toHaveBeenCalledWith('echo hello', '.', 60, '/bin/bash');
 });
 
 const driveRefusalAutoResponse = async (refusalMessage) => {
