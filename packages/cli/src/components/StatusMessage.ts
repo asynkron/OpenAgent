@@ -1,10 +1,17 @@
-// @ts-nocheck
 import React from 'react';
 import { Box, Text } from 'ink';
 
 const h = React.createElement;
 
-function resolveColor(level) {
+type StatusLevel = 'warn' | 'error' | 'success' | 'info' | string;
+
+export type StatusPayload = {
+  level?: StatusLevel;
+  message?: string;
+  details?: unknown;
+};
+
+function resolveColor(level: StatusLevel | undefined) {
   switch (level) {
     case 'warn':
       return 'yellow';
@@ -20,7 +27,11 @@ function resolveColor(level) {
 /**
  * Lightweight status line renderer that mirrors the legacy console output.
  */
-export function StatusMessage({ status }) {
+export function StatusMessage({
+  status,
+}: {
+  status?: StatusPayload | null;
+}): React.ReactElement | null {
   if (!status || typeof status !== 'object') {
     return null;
   }
@@ -37,7 +48,7 @@ export function StatusMessage({ status }) {
     children.push(h(Text, { dimColor: true, key: `details-${keySuffix}` }, details));
   }
 
-  return h(Box, { flexDirection: 'column' }, children);
+  return h(Box, { flexDirection: 'column' }, children) as React.ReactElement;
 }
 
 export default StatusMessage;

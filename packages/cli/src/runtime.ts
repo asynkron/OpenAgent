@@ -1,6 +1,5 @@
-// @ts-nocheck
 import React from 'react';
-import { render } from 'ink';
+import { render, type Instance } from 'ink';
 
 import {
   getAutoApproveFlag,
@@ -20,7 +19,17 @@ import {
 } from '@asynkron/openagent-core';
 import CliApp from './components/CliApp.js';
 
-export async function runCommandAndTrack(run, cwd = '.', timeoutSec = 60) {
+type RunCommandInput = string | string[];
+
+type AgentRuntime = ReturnType<typeof createAgentRuntime>;
+
+type RuntimeOptions = Record<string, unknown>;
+
+export async function runCommandAndTrack(
+  run: RunCommandInput,
+  cwd: string = '.',
+  timeoutSec: number = 60,
+) {
   const result = await runCommand(run, cwd, timeoutSec);
   try {
     let key = 'unknown';
@@ -33,7 +42,7 @@ export async function runCommandAndTrack(run, cwd = '.', timeoutSec = 60) {
   return result;
 }
 
-async function runAgentLoopWithCurrentDependencies(options = {}) {
+async function runAgentLoopWithCurrentDependencies(options: RuntimeOptions = {}): Promise<void> {
   const runtime = createAgentRuntime({
     getAutoApproveFlag,
     getNoHumanFlag,
@@ -50,7 +59,7 @@ async function runAgentLoopWithCurrentDependencies(options = {}) {
     ...options,
   });
 
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     let settled = false;
 
     const handleResolve = () => {
@@ -60,14 +69,14 @@ async function runAgentLoopWithCurrentDependencies(options = {}) {
       }
     };
 
-    const handleReject = (error) => {
+    const handleReject = (error: unknown) => {
       if (!settled) {
         settled = true;
         reject(error);
       }
     };
 
-    const app = render(
+    const app: Instance = render(
       React.createElement(CliApp, {
         runtime,
         onRuntimeComplete: handleResolve,
@@ -76,13 +85,13 @@ async function runAgentLoopWithCurrentDependencies(options = {}) {
       { exitOnCtrlC: false },
     );
 
-    app.waitUntilExit().catch((error) => {
+    app.waitUntilExit().catch((error: unknown) => {
       handleReject(error);
     });
   });
 }
 
-export async function agentLoop(options) {
+export async function agentLoop(options: RuntimeOptions = {}): Promise<void> {
   return runAgentLoopWithCurrentDependencies(options);
 }
 
