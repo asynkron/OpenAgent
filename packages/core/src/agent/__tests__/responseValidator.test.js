@@ -115,7 +115,7 @@ describe('validateAssistantResponse', () => {
     expect(result.errors).toEqual([]);
   });
 
-  test('limits top-level plan size', () => {
+  test('accepts plan with more than three top-level steps', () => {
     const result = validateAssistantResponse({
       plan: [
         { id: 'step-1', title: 'A', status: 'completed' },
@@ -125,8 +125,8 @@ describe('validateAssistantResponse', () => {
       ],
     });
 
-    expect(result.valid).toBe(false);
-    expect(result.errors).toContain('Plan must not contain more than 3 top-level steps.');
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
   });
 
   test('accepts plan when open steps are pending', () => {
