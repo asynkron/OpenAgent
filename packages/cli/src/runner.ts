@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * CLI bootstrap wiring extracted from the legacy root `index.js`.
  *
@@ -56,7 +55,11 @@ export async function runCli(argv: string[] = process.argv, io?: CliIo): Promise
     return;
   }
 
-  const { applyStartupFlagsFromArgv } = await loadCoreModule();
+  const coreModule = await loadCoreModule();
+  const { applyStartupFlagsFromArgv } = coreModule;
+  if (typeof applyStartupFlagsFromArgv !== 'function') {
+    throw new TypeError('Core module is missing applyStartupFlagsFromArgv');
+  }
   const bootProbeResults = await runBootProbes({ cwd: process.cwd() });
   const bootProbeSummary = formatBootProbeSummary(bootProbeResults).trim();
   const systemPromptAugmentation = bootProbeSummary
@@ -67,11 +70,11 @@ export async function runCli(argv: string[] = process.argv, io?: CliIo): Promise
 
   try {
     await agentLoop({ systemPromptAugmentation });
-  } catch (err) {
-    if (err && err.message) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message) {
       process.exitCode = 1;
     }
-    throw err;
+    throw error;
   }
 }
 

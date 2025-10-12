@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Terminal rendering helpers preserved for backwards compatibility with tests
  * and programmatic consumers. The CLI itself now uses Ink components, but these
@@ -6,21 +5,56 @@
  */
 
 import chalk from 'chalk';
-import { marked } from 'marked';
+import { marked, type Renderer } from 'marked';
 import markedTerminal from 'marked-terminal';
 
-import { createPlanNodes } from './components/planUtils.js';
-import { computeProgressState } from './components/progressUtils.js';
-import { buildCommandRenderData } from './components/commandUtils.js';
+import { createPlanNodes, type PlanNode, type PlanNodeColor, type PlanStep } from './components/planUtils.js';
+import {
+  computeProgressState,
+  type PlanProgress,
+  type ProgressState,
+} from './components/progressUtils.js';
+import {
+  buildCommandRenderData,
+  type Command,
+  type CommandResult,
+  type CommandPreview,
+  type CommandExecution,
+  type CommandRenderData,
+  type SummaryLine,
+} from './components/commandUtils.js';
 
-const TerminalRenderer = markedTerminal.default || markedTerminal;
+type CommandRenderOutput = CommandPreview & {
+  execution?: CommandExecution | null;
+  [key: string]: unknown;
+};
+
+type TerminalRendererCtor = new (options: unknown) => Renderer;
+
+const TerminalRendererModule = markedTerminal as unknown as {
+  default?: TerminalRendererCtor;
+} & TerminalRendererCtor;
+
+const TerminalRenderer: TerminalRendererCtor =
+  TerminalRendererModule.default ?? (TerminalRendererModule as TerminalRendererCtor);
 
 const terminalRenderer = new TerminalRenderer({
   reflowText: false,
   tab: 2,
 });
 
-export function display(_label, content, _color = 'white') {
+const PLAN_SYMBOL_COLORS: Record<PlanNodeColor, (value: string) => string> = {
+  yellow: chalk.yellow,
+  green: chalk.green,
+  red: chalk.red,
+  gray: chalk.gray,
+};
+
+export function display(
+  _label: string,
+  content: string | string[],
+  _color: string = 'white',
+): void {
   if (!content || (Array.isArray(content) && content.length === 0)) {
     return;
   }
@@ -29,7 +63,7 @@ export function display(_label, content, _color = 'white') {
   console.log(text);
 }
 
-export function wrapStructuredContent(message) {
+export function wrapStructuredContent(message: unknown): string {
   if (!message) {
     return '';
   }
@@ -37,21 +71,19 @@ export function wrapStructuredContent(message) {
   return String(message).trim();
 }
 
-export function renderMarkdownMessage(message) {
+export function renderMarkdownMessage(message: unknown): string {
   const prepared = wrapStructuredContent(message);
   const rendered = marked.parse(prepared, { renderer: terminalRenderer });
-  return typeof rendered === 'string' ? rendered.trimEnd() : rendered;
+  return typeof rendered === 'string' ? rendered.trimEnd() : String(rendered).trimEnd();
 }
 
-function colorizeSymbol(symbol, color) {
-  if (!color || typeof chalk[color] !== 'function') {
-    return symbol;
-  }
-  return chalk[color](symbol);
+function colorizeSymbol(symbol: string, color: PlanNodeColor): string {
+  const colorize = PLAN_SYMBOL_COLORS[color];
+  return colorize ? colorize(symbol) : symbol;
 }
 
-export function renderPlan(plan) {
-  const nodes = createPlanNodes(plan);
+export function renderPlan(plan: PlanStep[] | null | undefined): void {
+  const nodes: PlanNode[] = createPlanNodes(plan);
   if (nodes.length === 0) {
     return;
   }
@@ -81,8 +113,8 @@ export function renderPlan(plan) {
   display('Plan', lines, 'cyan');
 }
 
-export function renderPlanProgress(progress) {
-  const state = computeProgressState(progress);
+export function renderPlanProgress(progress: PlanProgress | null | undefined): void {
+  const state: ProgressState = computeProgressState(progress);
 
   if (state.total <= 0) {
     console.log(chalk.blueBright('Plan progress: ') + chalk.dim('no active steps yet.'));
@@ -99,42 +131,42 @@ export function renderPlanProgress(progress) {
   );
 }
 
-export function renderMessage(message) {
+export function renderMessage(message: unknown): void {
   if (!message) return;
 
   const rendered = renderMarkdownMessage(message);
   display('AI', rendered, 'magenta');
 }
 
-function formatHeading(label, detail) {
+function formatHeading(label: string, detail: string): string {
   const padded = label.padEnd(1);
   const suffix = detail ? ` ${detail}` : '';
   return ` ${chalk.blueBright(chalk.bold(padded))}${suffix}`;
 }
 
-function arrowLine(text) {
+function arrowLine(text: string): string {
   return chalk.dim(` └ ${text}`);
 }
 
-function errorArrowLine(text) {
+function errorArrowLine(text: string): string {
   return chalk.red(` └ ${text}`);
 }
 
-function errorIndentLine(text) {
+function errorIndentLine(text: string): string {
   return chalk.red(`   ${text}`);
 }
 
-function indentLine(text) {
+function indentLine(text: string): string {
   return chalk.dim(`   ${text}`);
 }
 
-function exitCodeLine(line) {
+function exitCodeLine(line: Extract<SummaryLine, { kind: 'exit-code' }>): string {
   const prefix = chalk.dim('   ');
   const colorize = line.status === 'success' ? chalk.green : chalk.red;
   return `${prefix}${colorize(line.text)}`;
 }
 
-function formatSummaryLines(summaryLines) {
+function formatSummaryLines(summaryLines: SummaryLine[]): string[] {
   return summaryLines.map((line) => {
     switch (line.kind) {
       case 'error-arrow':
@@ -152,19 +184,24 @@ function formatSummaryLines(summaryLines) {
   });
 }
 
-export function renderCommand(command, result, output = {}) {
+export function renderCommand(
+  command: Command | null | undefined,
+  result: CommandResult | null | undefined,
+  output: CommandRenderOutput = {},
+): void {
   if (!command || typeof command !== 'object') {
     return;
   }
 
-  const execution = output?.execution || {};
-  const data = buildCommandRenderData(command, result, output, execution);
+  const execution: CommandExecution =
+    output?.execution && typeof output.execution === 'object' ? output.execution : {};
+  const data: CommandRenderData | null = buildCommandRenderData(command, result, output, execution);
   if (!data) {
     return;
   }
 
   const { type, detail, description, summaryLines } = data;
-  const lines = [];
+  const lines: string[] = [];
 
   if (description) {
     lines.push(` ${chalk.blueBright(chalk.bold('DESCRIPTION'))} ${chalk.white(description)}`);

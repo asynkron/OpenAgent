@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Public entry point for the OpenAgent CLI package.
  *
@@ -29,6 +28,27 @@ import { runCli, maybeRunCli } from './src/runner.js';
 
 export * from '@asynkron/openagent-core';
 
+type CliHelpers = {
+  startThinking: typeof startThinking;
+  stopThinking: typeof stopThinking;
+  formatElapsedTime: typeof formatElapsedTime;
+  createInterface: typeof createInterface;
+  askHuman: typeof askHuman;
+  ESCAPE_EVENT: typeof ESCAPE_EVENT;
+  display: typeof display;
+  wrapStructuredContent: typeof wrapStructuredContent;
+  renderMarkdownMessage: typeof renderMarkdownMessage;
+  renderPlan: typeof renderPlan;
+  renderMessage: typeof renderMessage;
+  renderCommand: typeof renderCommand;
+  renderPlanProgress: typeof renderPlanProgress;
+  renderRemainingContext: typeof renderRemainingContext;
+  runCommandAndTrack: typeof runCommandAndTrack;
+  agentLoop: typeof agentLoop;
+  runCli: typeof runCli;
+  maybeRunCli: typeof maybeRunCli;
+};
+
 export {
   startThinking,
   stopThinking,
@@ -50,8 +70,8 @@ export {
   maybeRunCli,
 };
 
-const exported = {
-  ...coreDefault,
+const exported: typeof coreDefault & CliHelpers = {
+  ...(coreDefault as typeof coreDefault),
   startThinking,
   stopThinking,
   formatElapsedTime,
@@ -75,14 +95,15 @@ const exported = {
 export default exported;
 
 const moduleMetaUrl = (() => {
-  try {
+  if (typeof import.meta !== 'undefined' && typeof import.meta.url === 'string') {
     return import.meta.url;
-  } catch {
-    if (typeof __filename !== 'undefined') {
-      return pathToFileURL(__filename).href;
-    }
-    return null;
   }
+
+  if (typeof process !== 'undefined' && Array.isArray(process.argv) && process.argv[1]) {
+    return pathToFileURL(process.argv[1]).href;
+  }
+
+  return null;
 })();
 
 if (moduleMetaUrl) {

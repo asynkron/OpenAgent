@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Readline helpers that manage interactive user prompts.
  *
@@ -18,14 +17,19 @@ import { cancel as cancelActive } from '@asynkron/openagent-core';
 
 export const ESCAPE_EVENT = 'openagent:escape';
 
-function installEscapeListener(rl) {
-  const input = rl?.input;
+type EscapeEventPayload = {
+  reason: 'escape';
+  timestamp: number;
+};
+
+function installEscapeListener(rl: readline.Interface): void {
+  const input = rl.input as NodeJS.ReadStream | null;
   if (!input || typeof input.on !== 'function') {
     return;
   }
 
-  const listeners = [];
-  const addCleanup = (fn) => {
+  const listeners: Array<() => void> = [];
+  const addCleanup = (fn: () => void) => {
     if (typeof fn === 'function') {
       listeners.push(fn);
     }
@@ -36,10 +40,10 @@ function installEscapeListener(rl) {
     rl.emit(ESCAPE_EVENT, {
       reason: 'escape',
       timestamp: Date.now(),
-    });
+    } satisfies EscapeEventPayload);
   };
 
-  const handleCtrlC = (key) => {
+  const handleCtrlC = (key: readline.Key | undefined) => {
     const handled = process.emit('SIGINT');
     if (!handled) {
       process.exit(0);
@@ -47,9 +51,9 @@ function installEscapeListener(rl) {
     return key;
   };
 
-  if (typeof input.setRawMode === 'function' && input.isTTY) {
+  if (typeof input.setRawMode === 'function' && Boolean(input.isTTY)) {
     readline.emitKeypressEvents(input, rl);
-    const wasRaw = input.isRaw;
+    const wasRaw = Boolean(input.isRaw);
     if (!wasRaw) {
       input.setRawMode(true);
       addCleanup(() => {
@@ -61,7 +65,7 @@ function installEscapeListener(rl) {
       });
     }
 
-    const handleKeypress = (_str, key = {}) => {
+    const handleKeypress = (_str: string, key: readline.Key | undefined = undefined) => {
       if (!key) {
         return;
       }
@@ -79,7 +83,7 @@ function installEscapeListener(rl) {
       input.removeListener('keypress', handleKeypress);
     });
   } else {
-    const handleData = (chunk) => {
+    const handleData = (chunk: Buffer | string) => {
       if (!chunk) return;
       const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
       if (buf.includes(0x1b)) {
@@ -103,7 +107,7 @@ function installEscapeListener(rl) {
   });
 }
 
-export function createInterface() {
+export function createInterface(): readline.Interface {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -115,9 +119,9 @@ export function createInterface() {
   return rl;
 }
 
-export async function askHuman(rl, prompt) {
-  const answer = await new Promise((resolve) => {
-    rl.question(chalk.bold.blue(prompt), (response) => {
+export async function askHuman(rl: readline.Interface, prompt: string): Promise<string> {
+  const answer = await new Promise<string>((resolve) => {
+    rl.question(chalk.bold.blue(prompt), (response: string) => {
       resolve(response);
     });
   });

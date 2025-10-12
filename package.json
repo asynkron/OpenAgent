@@ -11,7 +11,7 @@
     "start": "node ./scripts/start.js",
     "prestart": "npm run build --workspace @asynkron/openagent-core",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "pretest": "npm run build --workspace @asynkron/openagent-core",
+    "pretest": "npm run build --workspace @asynkron/openagent-core && npm run build --workspace @asynkron/openagent",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -19,7 +19,6 @@
     "preformat": "",
     "preformat:check": "",
     "prelint": "",
-    "pretest": "npm run build --workspace @asynkron/openagent",
     "prepare": "",
     "postinstall": "",
     "release:verify-tag": "node ./scripts/verify-release-tag.js"
