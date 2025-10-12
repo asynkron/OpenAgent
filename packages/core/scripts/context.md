@@ -7,7 +7,7 @@
 
 ## Key Files
 
-- `apply_patch.mjs` — applies headless patches emitted by language models.
+- `apply_patch.mjs` — applies headless patches emitted by language models and now reports applied vs. unmatched hunks alongside the untouched file contents when a hunk fails to match.
 - `edit-lines.mjs` — targeted line replacement utility with dry-run/rollback safeguards.
 - `read.mjs` — base64-encoded batch file reader used by the `read` command helper.
 - `rename-identifier.mjs` — scope-aware identifier renamer for single-file refactors.

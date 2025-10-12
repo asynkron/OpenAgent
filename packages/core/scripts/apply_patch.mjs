@@ -22,7 +22,7 @@ function parsePatch(input) {
 
   const flushHunk = () => {
     if (!currentHunk) return;
-    const parsed = parseHunk(currentHunk.lines, currentOp.path);
+    const parsed = parseHunk(currentHunk.lines, currentOp.path, currentHunk.header);
     currentOp.hunks.push(parsed);
     currentHunk = null;
   };
@@ -73,12 +73,12 @@ function parsePatch(input) {
 
     if (line.startsWith('@@')) {
       flushHunk();
-      currentHunk = { lines: [] };
+      currentHunk = { header: line, lines: [] };
       continue;
     }
 
     if (!currentHunk) {
-      currentHunk = { lines: [] };
+      currentHunk = { header: null, lines: [] };
     }
     currentHunk.lines.push(line);
   }
@@ -90,7 +90,7 @@ function parsePatch(input) {
   return operations;
 }
 
-function parseHunk(lines, filePath) {
+function parseHunk(lines, filePath, header) {
   const before = [];
   const after = [];
   for (const raw of lines) {
@@ -108,7 +108,12 @@ function parseHunk(lines, filePath) {
       throw new Error(`Unsupported hunk line in ${filePath}: "${raw}"`);
     }
   }
-  return { before, after, rawLines: lines.slice() };
+  const rawPatchLines = [];
+  if (header) {
+    rawPatchLines.push(header);
+  }
+  rawPatchLines.push(...lines);
+  return { before, after, rawLines: lines.slice(), header, rawPatchLines };
 }
 
 function findSubsequence(haystack, needle, startIndex = 0) {
@@ -143,7 +148,11 @@ function applyHunk(state, hunk) {
     matchIndex = findSubsequence(lines, before, 0);
   }
   if (matchIndex === -1) {
-    throw new Error(`Unable to locate hunk in ${state.relativePath}.`);
+    const error = new Error(`Hunk not found in ${state.relativePath}.`);
+    error.code = 'HUNK_NOT_FOUND';
+    error.relativePath = state.relativePath;
+    error.originalContent = state.originalContent ?? state.lines.join('\n');
+    throw error;
   }
 
   lines.splice(matchIndex, before.length, ...after);
@@ -170,9 +179,11 @@ async function applyOperations(operations) {
       path: absolutePath,
       relativePath,
       lines,
+      originalContent: content,
       originalEndsWithNewline: normalized.endsWith('\n'),
       touched: false,
       cursor: 0,
+      hunkStatuses: [],
     };
     fileStates.set(absolutePath, state);
     return state;
@@ -184,9 +195,17 @@ async function applyOperations(operations) {
     }
     const state = await ensureFileState(op.path);
     state.cursor = 0;
-    for (const hunk of op.hunks) {
-      applyHunk(state, hunk);
-      state.touched = true;
+    state.hunkStatuses = [];
+    for (let index = 0; index < op.hunks.length; index += 1) {
+      const hunk = op.hunks[index];
+      const hunkNumber = index + 1;
+      try {
+        applyHunk(state, hunk);
+        state.hunkStatuses.push({ number: hunkNumber, status: 'applied' });
+        state.touched = true;
+      } catch (error) {
+        enhanceHunkError(error, state, hunk, hunkNumber);
+      }
     }
   }
 
@@ -206,6 +225,26 @@ async function applyOperations(operations) {
   }
 
   return results;
+}
+
+// Attach rich metadata to hunk failures so callers can see what succeeded before the miss.
+function enhanceHunkError(error, state, hunk, hunkNumber) {
+  const statuses = state.hunkStatuses.concat({ number: hunkNumber, status: 'no-match' });
+  if (!error.code) {
+    error.code = 'HUNK_NOT_FOUND';
+  }
+  if (!error.relativePath) {
+    error.relativePath = state.relativePath;
+  }
+  if (!error.originalContent) {
+    error.originalContent = state.originalContent ?? state.lines.join('\n');
+  }
+  error.hunkStatuses = statuses;
+  error.failedHunk = {
+    number: hunkNumber,
+    rawPatchLines: Array.isArray(hunk.rawPatchLines) ? hunk.rawPatchLines.slice() : [],
+  };
+  throw error;
 }
 
 function exitWithError(message) {
@@ -242,8 +281,55 @@ async function main() {
       console.log(`${entry.status} ${entry.path}`);
     }
   } catch (error) {
-    exitWithError(error.message);
+    exitWithError(formatError(error));
   }
 }
 
-main().catch((error) => exitWithError(error.message));
+// Summarise which hunks landed vs. which failed to guide manual recovery.
+function describeHunkStatuses(hunkStatuses = []) {
+  if (!Array.isArray(hunkStatuses) || hunkStatuses.length === 0) {
+    return '';
+  }
+  const applied = hunkStatuses
+    .filter((entry) => entry.status === 'applied')
+    .map((entry) => entry.number);
+  const failed = hunkStatuses.find((entry) => entry.status !== 'applied');
+  const lines = [];
+  if (applied.length > 0) {
+    const appliedLabel = applied.join(', ');
+    lines.push(`Hunks applied: ${appliedLabel}.`);
+  }
+  if (failed) {
+    lines.push(`No match for hunk ${failed.number}.`);
+  }
+  return lines.join('\n');
+}
+
+function formatError(error) {
+  if (!error) {
+    return 'Unknown error occurred.';
+  }
+  const message = error.message ?? 'Unknown error occurred.';
+  const code = error.code ?? '';
+  const messageHasHunk = /hunk not found/i.test(message);
+  if (code === 'HUNK_NOT_FOUND' || messageHasHunk) {
+    const relativePath = error.relativePath ?? 'unknown file';
+    const displayPath = relativePath.startsWith('./') ? relativePath : `./${relativePath}`;
+    const originalContent = error.originalContent ?? '';
+    const parts = [message];
+    const hunkSummary = describeHunkStatuses(error.hunkStatuses);
+    if (hunkSummary) {
+      parts.push('', hunkSummary);
+    }
+    const failedHunk = error.failedHunk;
+    if (failedHunk && Array.isArray(failedHunk.rawPatchLines) && failedHunk.rawPatchLines.length > 0) {
+      parts.push('', 'Offending hunk:');
+      parts.push(failedHunk.rawPatchLines.join('\n'));
+    }
+    parts.push('', `Full content of file: ${displayPath}::::`, originalContent);
+    return parts.join('\n');
+  }
+  return message;
+}
+
+main().catch((error) => exitWithError(formatError(error)));
