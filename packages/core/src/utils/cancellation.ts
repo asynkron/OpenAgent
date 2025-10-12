@@ -1,38 +1,54 @@
-// @ts-nocheck
 /**
- * Global cancellation manager that coordinates aborting the in-flight async task
- * (OpenAI request or shell command) and exposes helper primitives the agent loop
- * can share across modules.
+ * Global cancellation manager coordinating abortable operations that span the
+ * OpenAgent runtime (OpenAI requests, shell commands, etc.).
  */
 
-const state = {
+type CancelCallback = (reason?: unknown) => void;
+
+type CancellationReason = unknown | null;
+
+type CancellationEntry = {
+  token: symbol;
+  description: string;
+  cancelFn: CancelCallback | null;
+  canceled: boolean;
+  reason: CancellationReason;
+  createdAt: number;
+  cancelError: unknown;
+  removed: boolean;
+};
+
+type CancellationState = {
+  stack: CancellationEntry[];
+  tokens: Map<symbol, CancellationEntry>;
+};
+
+const state: CancellationState = {
   stack: [],
   tokens: new Map(),
 };
 
-function cleanupStack() {
+function cleanupStack(): void {
   for (let i = state.stack.length - 1; i >= 0; i -= 1) {
     const entry = state.stack[i];
     if (!entry || entry.removed) {
       state.stack.splice(i, 1);
-      if (entry && entry.token) {
-        if (!entry.canceled) {
-          state.tokens.delete(entry.token);
-        }
+      if (entry?.token && !entry.canceled) {
+        state.tokens.delete(entry.token);
       }
     }
   }
 }
 
-function getTopEntry() {
+function getTopEntry(): CancellationEntry | null {
   cleanupStack();
   if (state.stack.length === 0) {
     return null;
   }
-  return state.stack[state.stack.length - 1];
+  return state.stack[state.stack.length - 1] ?? null;
 }
 
-function removeEntry(entry) {
+function removeEntry(entry: CancellationEntry | null | undefined): void {
   if (!entry) {
     return;
   }
@@ -46,13 +62,13 @@ function removeEntry(entry) {
   }
 }
 
-function markCanceled(entry, reason) {
+function markCanceled(entry: CancellationEntry | null | undefined, reason?: unknown): boolean {
   if (!entry || entry.canceled) {
     return false;
   }
 
   entry.canceled = true;
-  entry.reason = reason ?? null;
+  entry.reason = (reason ?? null) as CancellationReason;
 
   if (typeof entry.cancelFn === 'function') {
     try {
@@ -66,11 +82,25 @@ function markCanceled(entry, reason) {
   return true;
 }
 
-export function register({ description = 'operation', onCancel } = {}) {
+export type RegisterOptions = {
+  description?: string;
+  onCancel?: CancelCallback | null;
+};
+
+export type CancellationRegistration = {
+  token: symbol;
+  isCanceled: () => boolean;
+  cancel: (reason?: unknown) => boolean;
+  setCancelCallback: (fn: CancelCallback | null | undefined) => void;
+  updateDescription: (desc: string) => void;
+  unregister: () => void;
+};
+
+export function register({ description = 'operation', onCancel }: RegisterOptions = {}): CancellationRegistration {
   cleanupStack();
 
   const token = Symbol('cancellation-operation');
-  const entry = {
+  const entry: CancellationEntry = {
     token,
     description,
     cancelFn: typeof onCancel === 'function' ? onCancel : null,
@@ -107,7 +137,7 @@ export function register({ description = 'operation', onCancel } = {}) {
   };
 }
 
-export function cancel(reason) {
+export function cancel(reason?: unknown): boolean {
   const active = getTopEntry();
   if (!active) {
     return false;
@@ -115,7 +145,7 @@ export function cancel(reason) {
   return markCanceled(active, reason);
 }
 
-export function isCanceled(token) {
+export function isCanceled(token?: symbol): boolean {
   cleanupStack();
   if (token) {
     const entry = state.tokens.get(token);
@@ -125,7 +155,7 @@ export function isCanceled(token) {
   return active ? active.canceled : false;
 }
 
-export function getActiveOperation() {
+export function getActiveOperation(): CancellationEntry | null {
   return getTopEntry();
 }
 

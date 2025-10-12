@@ -1,61 +1,86 @@
-// @ts-nocheck
 import * as http from 'node:http';
 import * as https from 'node:https';
 
 export const DEFAULT_TIMEOUT_MS = 60_000;
 
-/**
- * @typedef {Object} HttpClientRequestOptions
- * @property {number} [timeoutSec]
- * @property {number} [timeoutMs]
- * @property {string} [method]
- * @property {Record<string, string>} [headers]
- */
+type FetchImplementation = (
+  input: string | URL,
+  init?: {
+    method?: string;
+    redirect?: string;
+    headers?: Record<string, string>;
+    signal?: unknown;
+  },
+) => Promise<{
+  text(): Promise<string>;
+  status?: number;
+  statusText?: string;
+  ok?: boolean;
+}>;
 
-/**
- * @typedef {Object} HttpResponse
- * @property {string} body
- * @property {number} status
- * @property {string} statusText
- * @property {boolean} ok
- */
+type AbortControllerLike = {
+  readonly signal: unknown;
+  abort(reason?: unknown): void;
+};
 
-/**
- * @typedef {Object} HttpClientDependencies
- * @property {typeof fetch} [fetchImpl]
- * @property {typeof AbortController} [AbortControllerImpl]
- * @property {typeof http} [httpModule]
- * @property {typeof https} [httpsModule]
- */
+type AbortControllerConstructor = new () => AbortControllerLike;
 
-/**
- * @typedef {Object} HttpClientInterface
- * @property {(url: string, options?: HttpClientRequestOptions) => Promise<HttpResponse>} fetch
- * @property {(error: unknown) => boolean} [isAbortLike]
- */
+export type HttpClientRequestOptions = {
+  timeoutSec?: number;
+  timeoutMs?: number;
+  method?: string;
+  headers?: Record<string, string>;
+};
+
+export type HttpResponse = {
+  body: string;
+  status: number;
+  statusText: string;
+  ok: boolean;
+};
+
+export type HttpClientDependencies = {
+  fetchImpl?: FetchImplementation | null;
+  AbortControllerImpl?: AbortControllerConstructor | null;
+  httpModule?: typeof http;
+  httpsModule?: typeof https;
+};
+
+export type HttpClientInterface = {
+  fetch: (url: string, options?: HttpClientRequestOptions) => Promise<HttpResponse>;
+  isAbortLike?: (error: unknown) => boolean;
+};
+
+type InternalRequestOptions = {
+  timeoutMs: number;
+  method: string;
+  headers?: Record<string, string>;
+};
+
+type TimeoutError = Error & { aborted: true };
 
 /**
  * Provides fetch-like semantics backed by either the global Fetch API or Node's http/https modules.
  * Implements the {@link HttpClientInterface} contract for dependency injection and testing.
  */
-export class HttpClient {
-  /**
-   * @param {HttpClientDependencies} [deps]
-   */
-  constructor(deps = {}) {
+export class HttpClient implements HttpClientInterface {
+  private readonly fetchImpl: FetchImplementation | null;
+
+  private readonly AbortControllerImpl: AbortControllerConstructor | null;
+
+  private readonly httpModule: typeof http;
+
+  private readonly httpsModule: typeof https;
+
+  constructor(deps: HttpClientDependencies = {}) {
     this.fetchImpl = typeof deps.fetchImpl === 'function' ? deps.fetchImpl : null;
     this.AbortControllerImpl =
       typeof deps.AbortControllerImpl === 'function' ? deps.AbortControllerImpl : null;
-    this.httpModule = deps.httpModule || http;
-    this.httpsModule = deps.httpsModule || https;
+    this.httpModule = deps.httpModule ?? http;
+    this.httpsModule = deps.httpsModule ?? https;
   }
 
-  /**
-   * @param {number|undefined} timeoutSec
-   * @param {number|undefined} timeoutMs
-   * @returns {number}
-   */
-  resolveTimeoutMs(timeoutSec, timeoutMs) {
+  private resolveTimeoutMs(timeoutSec?: number, timeoutMs?: number): number {
     if (typeof timeoutMs === 'number' && Number.isFinite(timeoutMs) && timeoutMs >= 0) {
       return Math.floor(timeoutMs);
     }
@@ -65,65 +90,64 @@ export class HttpClient {
     return DEFAULT_TIMEOUT_MS;
   }
 
-  /**
-   * @param {string} [message]
-   * @returns {Error & { aborted: boolean }}
-   */
-  createTimeoutError(message = 'Request timed out') {
-    const error = new Error(message);
+  private createTimeoutError(message = 'Request timed out'): TimeoutError {
+    const error = new Error(message) as TimeoutError;
     error.name = 'TimeoutError';
     error.aborted = true;
     return error;
   }
 
-  /**
-   * @param {unknown} error
-   * @returns {boolean}
-   */
-  isAbortLike(error) {
+  isAbortLike(error: unknown): boolean {
     return Boolean(
       error &&
         typeof error === 'object' &&
-        ((error.aborted && error.aborted === true) ||
-          error.name === 'TimeoutError' ||
-          error.name === 'AbortError'),
+        ((typeof (error as { aborted?: unknown }).aborted === 'boolean' &&
+          (error as { aborted?: unknown }).aborted === true) ||
+          (error as { name?: unknown }).name === 'TimeoutError' ||
+          (error as { name?: unknown }).name === 'AbortError'),
     );
   }
 
-  /**
-   * @param {string} url
-   * @param {HttpClientRequestOptions} [options]
-   * @returns {Promise<HttpResponse>}
-   */
-  async fetch(url, options = {}) {
-    const fetchImpl = typeof this.fetchImpl === 'function' ? this.fetchImpl : globalThis.fetch;
-    const abortControllerImpl =
-      typeof this.AbortControllerImpl === 'function'
-        ? this.AbortControllerImpl
-        : globalThis.AbortController;
-
-    const method = options.method || 'GET';
+  async fetch(url: string, options: HttpClientRequestOptions = {}): Promise<HttpResponse> {
+    const method = options.method ?? 'GET';
     const headers = options.headers;
     const timeoutMs = this.resolveTimeoutMs(options.timeoutSec, options.timeoutMs);
-    const effectiveOptions = { method, headers, timeoutMs };
+    const effectiveOptions: InternalRequestOptions = { method, headers, timeoutMs };
 
-    if (typeof fetchImpl === 'function') {
-      return this.fetchWithGlobal(url, effectiveOptions, fetchImpl, abortControllerImpl);
+    const abortControllerImpl =
+      this.AbortControllerImpl ??
+      (globalThis.AbortController as AbortControllerConstructor | undefined) ??
+      null;
+
+    if (this.fetchImpl) {
+      return this.fetchWithGlobal(url, effectiveOptions, this.fetchImpl, abortControllerImpl);
+    }
+
+    const globalFetch = globalThis.fetch as FetchImplementation | undefined;
+    if (typeof globalFetch === 'function') {
+      return this.fetchWithGlobal(url, effectiveOptions, globalFetch, abortControllerImpl);
     }
 
     return this.fetchWithNode(url, effectiveOptions);
   }
 
-  /**
-   * @private
-   */
-  async fetchWithGlobal(url, { timeoutMs, method, headers }, fetchImpl, AbortControllerImpl) {
+  private async fetchWithGlobal(
+    url: string,
+    { timeoutMs, method, headers }: InternalRequestOptions,
+    fetchImpl: FetchImplementation,
+    AbortControllerImpl: AbortControllerConstructor | null,
+  ): Promise<HttpResponse> {
     const controller = AbortControllerImpl ? new AbortControllerImpl() : null;
 
     let timedOut = false;
-    let timeoutHandle;
+    let timeoutHandle: NodeJS.Timeout | undefined;
 
-    const options = {
+    const options: {
+      method: string;
+      redirect: 'follow';
+      signal?: unknown;
+      headers?: Record<string, string>;
+    } = {
       method,
       redirect: 'follow',
       signal: controller?.signal,
@@ -140,6 +164,7 @@ export class HttpClient {
           try {
             controller.abort();
           } catch (error) {
+            // Ignore abort failures; we'll fall back to rejecting below.
             void error;
           }
         }, timeoutMs);
@@ -151,11 +176,13 @@ export class HttpClient {
       return {
         body,
         status: response.status ?? 0,
-        statusText: response.statusText || '',
-        ok: response.ok ?? (response.status >= 200 && response.status < 300),
+        statusText: response.statusText ?? '',
+        ok: response.ok ?? (response.status !== undefined
+          ? response.status >= 200 && response.status < 300
+          : false),
       };
     } catch (error) {
-      if (timedOut && error && error.name === 'AbortError') {
+      if (timedOut && (error as { name?: string }).name === 'AbortError') {
         throw this.createTimeoutError();
       }
       throw error;
@@ -166,15 +193,12 @@ export class HttpClient {
     }
   }
 
-  /**
-   * @private
-   */
-  fetchWithNode(url, { timeoutMs, method, headers }) {
+  private fetchWithNode(url: string, { timeoutMs, method, headers }: InternalRequestOptions): Promise<HttpResponse> {
     const parsed = new URL(url);
     const lib = parsed.protocol === 'https:' ? this.httpsModule : this.httpModule;
 
-    return new Promise((resolve, reject) => {
-      let timeoutHandle;
+    return new Promise<HttpResponse>((resolve, reject) => {
+      let timeoutHandle: NodeJS.Timeout | undefined;
 
       const clearTimer = () => {
         if (timeoutHandle) {
@@ -192,16 +216,16 @@ export class HttpClient {
           headers: headers && typeof headers === 'object' ? headers : {},
         },
         (res) => {
-          const chunks = [];
+          const chunks: Buffer[] = [];
 
-          res.on('data', (chunk) => chunks.push(chunk));
+          res.on('data', (chunk: Buffer) => chunks.push(chunk));
           res.on('end', () => {
             clearTimer();
             const status = res.statusCode ?? 0;
             resolve({
               body: Buffer.concat(chunks).toString('utf8'),
               status,
-              statusText: res.statusMessage || '',
+              statusText: res.statusMessage ?? '',
               ok: status >= 200 && status < 300,
             });
           });
@@ -210,7 +234,7 @@ export class HttpClient {
 
       req.on('error', (error) => {
         clearTimer();
-        if (error && error.message === 'Request timed out') {
+        if ((error as Error)?.message === 'Request timed out') {
           reject(this.createTimeoutError());
         } else {
           reject(error);

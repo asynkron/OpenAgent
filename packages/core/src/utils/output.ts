@@ -1,19 +1,29 @@
-// @ts-nocheck
 /**
  * Output helpers shared across the agent runtime.
  */
 
-export function combineStdStreams(filteredStdout, filteredStderr, exitCode) {
-  if (exitCode === 0 && filteredStderr && String(filteredStderr).trim().length > 0) {
-    const left = filteredStdout ? String(filteredStdout) : '';
-    const right = String(filteredStderr);
-    const combined = left ? `${left}\n${right}` : right;
+export type CombinedStreams = {
+  stdout: string;
+  stderr: string;
+};
+
+export function combineStdStreams(
+  filteredStdout: unknown,
+  filteredStderr: unknown,
+  exitCode: number,
+): CombinedStreams {
+  const stdoutText = filteredStdout != null ? String(filteredStdout) : '';
+  const stderrText = filteredStderr != null ? String(filteredStderr) : '';
+
+  if (exitCode === 0 && stderrText.trim().length > 0) {
+    const combined = stdoutText ? `${stdoutText}\n${stderrText}` : stderrText;
     return { stdout: combined, stderr: '' };
   }
-  return { stdout: filteredStdout || '', stderr: filteredStderr || '' };
+
+  return { stdout: stdoutText, stderr: stderrText };
 }
 
-export function buildPreview(text, maxLines = 20) {
+export function buildPreview(text: unknown, maxLines = 20): string {
   if (text === undefined || text === null) {
     return '';
   }
