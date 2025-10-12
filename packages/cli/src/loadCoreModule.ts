@@ -1,9 +1,7 @@
 const CORE_PACKAGE_ID = '@asynkron/openagent-core';
 const LOCAL_CORE_ENTRY_URL = new URL('../../core/index.js', import.meta.url);
 
-type CoreModule = Record<string, unknown> & {
-  applyStartupFlagsFromArgv?: (argv: string[]) => void;
-};
+type CoreModule = typeof import('@asynkron/openagent-core');
 
 type Importer = (specifier: string) => Promise<CoreModule>;
 
@@ -58,25 +56,23 @@ function resolveFallbackTarget(fallbackSpecifier?: string | URL): string {
     return LOCAL_CORE_ENTRY_URL.href;
   }
 
-  if (typeof fallbackSpecifier === 'string') {
-    return fallbackSpecifier;
-  }
-
-  return fallbackSpecifier.href;
+  return typeof fallbackSpecifier === 'string' ? fallbackSpecifier : fallbackSpecifier.href;
 }
 
-function isModuleNotFoundError(error: unknown): boolean {
+type ModuleNotFoundError = Error & { code?: string };
+
+function isModuleNotFoundError(error: unknown): error is ModuleNotFoundError {
   if (!(error instanceof Error)) {
     return false;
   }
 
-  const code = (error as { code?: unknown }).code;
+  const code = (error as ModuleNotFoundError).code;
   const message = typeof error.message === 'string' ? error.message : '';
 
   return (
     code === 'ERR_MODULE_NOT_FOUND' ||
     code === 'MODULE_NOT_FOUND' ||
-    /Cannot find (module|package)/i.test(message)
+    /Cannot find (module|package)/iu.test(message)
   );
 }
 
