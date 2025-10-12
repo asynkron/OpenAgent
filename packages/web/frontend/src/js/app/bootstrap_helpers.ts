@@ -10,6 +10,10 @@ import {
 
 type MarkdownTarget = MarkdownDisplayApi | MarkdownDisplayContext;
 
+function isMarkdownDisplayApi(target: MarkdownTarget): target is MarkdownDisplayApi {
+  return 'render' in target && 'getContext' in target;
+}
+
 type RenderOptions = {
   updateCurrent?: boolean;
 };
@@ -75,17 +79,15 @@ export function createViewerApi(markdownTarget: MarkdownTarget): {
     throw new Error('createViewerApi requires a markdown context or display.');
   }
 
-  const hasRenderer =
-    typeof (markdownTarget as MarkdownDisplayApi).render === 'function' &&
-    typeof (markdownTarget as MarkdownDisplayApi).getContext === 'function';
+  const hasRenderer = isMarkdownDisplayApi(markdownTarget);
   const context: MarkdownDisplayContext = hasRenderer
-    ? (markdownTarget as MarkdownDisplayApi).getContext()
+    ? markdownTarget.getContext()
     : (markdownTarget as MarkdownDisplayContext);
 
   return {
     render(contentValue: string, options: RenderOptions = {}): void {
       if (hasRenderer) {
-        (markdownTarget as MarkdownDisplayApi).render(contentValue, options);
+        markdownTarget.render(contentValue, options);
         return;
       }
       renderMarkdown(context, contentValue, options);
@@ -257,8 +259,9 @@ export function getCssNumber(
   variableName: string,
   fallback: number,
 ): number {
-  if (typeof variableName !== 'string' || !variableName) {
-    return typeof fallback === 'number' ? fallback : 0;
+  const safeFallback = Number.isFinite(fallback) ? fallback : 0;
+  if (!variableName) {
+    return safeFallback;
   }
 
   try {
@@ -273,7 +276,7 @@ export function getCssNumber(
     console.warn('Failed to read CSS variable', variableName, error);
   }
 
-  return typeof fallback === 'number' ? fallback : 0;
+  return safeFallback;
 }
 
 export function setStatus(_message: string): void {
@@ -295,9 +298,7 @@ export function createResetViewToFallback({
 }: ResetViewDependencies): (options?: ResetViewOptions) => void {
   return function resetViewToFallback(options: ResetViewOptions = {}): void {
     const { skipHistory = false } = options;
-    if (typeof editorApi?.exitEditMode === 'function') {
-      editorApi.exitEditMode({ restoreContent: false });
-    }
+    editorApi?.exitEditMode?.({ restoreContent: false });
     sharedContext.setCurrentFile(null, { silent: true });
     const fallback = sharedContext.fallbackMarkdownFor(
       sharedContext.getResolvedRootPath() ||

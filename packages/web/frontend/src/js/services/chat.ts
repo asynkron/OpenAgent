@@ -21,6 +21,54 @@ type ChatInputElement = HTMLTextAreaElement | HTMLInputElement;
 
 type OptionalElement<T extends Element> = T | null | undefined;
 
+interface HighlightedMarkedOptions extends MarkedOptions {
+  /**
+   * `marked` does not currently expose the `highlight` callback on the options
+   * interface, so we extend it to keep the type-safe override local.
+   */
+  highlight?(code: string, infoString?: string): string;
+}
+
+const AGENT_PAYLOAD_TYPES = [
+  'agent_message',
+  'agent_status',
+  'agent_error',
+  'agent_thinking',
+  'agent_request_input',
+  'agent_plan',
+  'agent_event',
+  'agent_command',
+] as const;
+
+type AgentPayloadType = (typeof AGENT_PAYLOAD_TYPES)[number];
+
+type AgentIncomingPayload =
+  | (AgentMessagePayload & { type: 'agent_message' })
+  | (AgentMessagePayload & { type: 'agent_status' })
+  | (AgentMessagePayload & { type: 'agent_error' })
+  | (AgentMessagePayload & { type: 'agent_thinking'; state?: 'start' | 'stop' })
+  | (AgentMessagePayload & { type: 'agent_request_input' })
+  | (AgentMessagePayload & { type: 'agent_plan' })
+  | (AgentEventPayload & { type: 'agent_event' })
+  | (AgentCommandPayload & { type: 'agent_command' });
+
+type AgentPayloadByType = {
+  [Type in AgentPayloadType]: Extract<AgentIncomingPayload, { type: Type }>;
+};
+
+const AGENT_PAYLOAD_TYPE_SET = new Set<string>(AGENT_PAYLOAD_TYPES);
+
+type ListenerTarget = EventTarget & {
+  addEventListener(type: string, listener: EventListener, options?: boolean | AddEventListenerOptions): void;
+  removeEventListener(
+    type: string,
+    listener: EventListener,
+    options?: boolean | EventListenerOptions,
+  ): void;
+};
+
+type ListenerMap = HTMLElementEventMap;
+
 export interface ChatServiceOptions {
   panel: OptionalElement<HTMLElement>;
   startContainer?: OptionalElement<HTMLElement>;
@@ -44,19 +92,23 @@ export interface ChatServiceApi {
 }
 
 function createHighlightedCodeBlock(
-  text: unknown,
-  { language = '', classNames = [] }: { language?: string; classNames?: string[] | string } = {},
+  text: string | null | undefined,
+  {
+    language = '',
+    classNames = [],
+  }: { language?: string | null; classNames?: ReadonlyArray<string> | string } = {},
 ): HTMLPreElement | null {
-  if (typeof text !== 'string' || text.length === 0) {
+  const content = text ?? '';
+  if (content.length === 0) {
     return null;
   }
 
   const blockClasses = normaliseClassList(classNames);
-  const safeLanguage = typeof language === 'string' ? language.trim() : '';
+  const safeLanguage = (language ?? '').trim();
 
   try {
-    const markdown = `\`\`\`${safeLanguage}\n${text}\n\`\`\``;
-    const options = {
+    const markdown = `\`\`\`${safeLanguage}\n${content}\n\`\`\``;
+    const options: HighlightedMarkedOptions = {
       gfm: true,
       highlight(code: string, infoString?: string): string {
         const requestedLanguage = safeLanguage || (infoString || '').trim();
@@ -71,7 +123,7 @@ function createHighlightedCodeBlock(
         }
       },
     };
-    const parsed = marked.parse(markdown, options as unknown as MarkedOptions);
+    const parsed = marked.parse(markdown, options);
 
     if (typeof parsed === 'string') {
       const template = document.createElement('template');
@@ -97,7 +149,6 @@ function createHighlightedCodeBlock(
   blockClasses.forEach((className) => pre.classList.add(className));
 
   const codeElement = document.createElement('code');
-  const content = text;
 
   try {
     const requestedLanguage = safeLanguage && hljs.getLanguage(safeLanguage) ? safeLanguage : '';
@@ -131,31 +182,34 @@ function autoResize(textarea: OptionalElement<ChatInputElement>): void {
   textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
 }
 
-function addListener(
-  target: EventTarget | null | undefined,
-  type: string,
-  handler: EventListener,
+function addListener<Type extends keyof ListenerMap, Target extends ListenerTarget>(
+  target: Target | null | undefined,
+  type: Type,
+  handler: (event: ListenerMap[Type]) => void,
   cleanupFns: CleanupFn[],
 ): void {
-  if (!target || typeof (target as EventTarget).addEventListener !== 'function') {
+  if (!target) {
     return;
   }
-  const attachTarget = target as EventTarget;
-  attachTarget.addEventListener(type, handler);
-  cleanupFns.push(() => attachTarget.removeEventListener(type, handler));
+  target.addEventListener(type, handler as EventListener);
+  cleanupFns.push(() => target.removeEventListener(type, handler as EventListener));
 }
 
-function parseAgentPayload(data: unknown): AgentMessagePayload | null {
+function isAgentPayloadType(value: string): value is AgentPayloadType {
+  return AGENT_PAYLOAD_TYPE_SET.has(value);
+}
+
+function parseAgentPayload(data: unknown): AgentIncomingPayload | null {
   if (!data || typeof data !== 'object') {
     return null;
   }
 
-  const payload = data as AgentMessagePayload;
-  if (!('type' in payload)) {
+  const payload = data as { type?: unknown };
+  if (typeof payload.type !== 'string' || !isAgentPayloadType(payload.type)) {
     return null;
   }
 
-  return payload;
+  return payload as AgentIncomingPayload;
 }
 
 export function createChatService({
@@ -183,16 +237,16 @@ export function createChatService({
   const cleanupFns: CleanupFn[] = [];
   const pendingMessages: string[] = [];
   const scrollContainer = chatBody ?? messageList ?? null;
-  const sendButtons: HTMLButtonElement[] = [];
+  const sendButtons = new Set<HTMLButtonElement>();
   const planDisplay = createPlanDisplay({ container: planContainer ?? null });
 
   const startButton = startForm?.querySelector<HTMLButtonElement>('button[type="submit"]');
-  if (startButton && !sendButtons.includes(startButton)) {
-    sendButtons.push(startButton);
+  if (startButton) {
+    sendButtons.add(startButton);
   }
   const chatButton = chatForm?.querySelector<HTMLButtonElement>('button[type="submit"]');
-  if (chatButton && !sendButtons.includes(chatButton)) {
-    sendButtons.push(chatButton);
+  if (chatButton) {
+    sendButtons.add(chatButton);
   }
 
   let socket: WebSocket | null = null;
@@ -232,9 +286,9 @@ export function createChatService({
     }
   }
 
-  function setStatus(message: unknown, { level }: { level?: string } = {}): void {
-    lastStatus = typeof message === 'string' ? message : '';
-    lastStatusLevel = typeof level === 'string' ? level : '';
+  function setStatus(message: string | null | undefined, { level }: { level?: string } = {}): void {
+    lastStatus = message ?? '';
+    lastStatusLevel = level ?? '';
     if (!isThinking) {
       updateStatusDisplay();
     }
@@ -306,8 +360,7 @@ export function createChatService({
     thinkingMessage = null;
   }
 
-  function updateThinkingState(next: unknown): void {
-    const active = Boolean(next);
+  function updateThinkingState(active: boolean): void {
     if (active) {
       ensureThinkingMessage();
     } else {
@@ -317,9 +370,9 @@ export function createChatService({
       return;
     }
     isThinking = active;
-    sendButtons.forEach((button) => {
+    for (const button of sendButtons) {
       button.disabled = active;
-    });
+    }
     updateStatusDisplay();
   }
 
@@ -420,21 +473,33 @@ export function createChatService({
     let headerText = title;
     let bodyText = '';
 
-    const fallbackTitles: Record<string, string> = {
+    const fallbackTitles = {
       banner: title || text || 'Agent banner',
       status: title || 'Status update',
       'request-input': title || 'Input requested',
-    };
+    } as const;
 
-    if (eventType === 'banner') {
-      headerText = fallbackTitles.banner;
-      bodyText = subtitle || description || details;
-      if (!bodyText && text && text !== headerText) {
-        bodyText = text;
+    switch (eventType) {
+      case 'banner': {
+        headerText = fallbackTitles.banner;
+        bodyText = subtitle || description || details || '';
+        if (!bodyText && text && text !== headerText) {
+          bodyText = text;
+        }
+        break;
       }
-    } else {
-      headerText = fallbackTitles[eventType] || headerText;
-      bodyText = subtitle || description || details || text;
+      case 'status':
+      case 'request-input': {
+        headerText = fallbackTitles[eventType as keyof typeof fallbackTitles] ?? headerText;
+        bodyText = subtitle || description || details || text;
+        break;
+      }
+      default: {
+        if (!headerText) {
+          headerText = title || text;
+        }
+        bodyText = subtitle || description || details || text;
+      }
     }
 
     if (!headerText && !bodyText && text) {
@@ -473,9 +538,7 @@ export function createChatService({
       bubble.appendChild(body);
     }
 
-    const metadata =
-      payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : null;
-    const scopeText = metadata ? normaliseText(metadata.scope).trim() : '';
+    const scopeText = normaliseText(payload.metadata?.scope).trim();
     if (scopeText) {
       const meta = documentRef.createElement('div');
       meta.className = 'agent-event-meta';
@@ -492,12 +555,12 @@ export function createChatService({
     scrollToLatest();
   }
 
-  function appendCommand(payload: AgentCommandPayload = {}): void {
+  function appendCommand(payload?: AgentCommandPayload | null): void {
     if (!messageList) {
       return;
     }
 
-    const command = payload.command ?? null;
+    const command = payload?.command ?? null;
     const runText = normaliseText(command?.run);
     const description = normaliseText(command?.description).trim();
     const shellText = normaliseText(command?.shell).trim();
@@ -572,12 +635,83 @@ export function createChatService({
     }
   }
 
+  /**
+   * Map each agent payload type to a dedicated handler so we benefit from
+   * TypeScript's discriminated unions without resorting to runtime `switch`
+   * statements.
+   */
+  const agentPayloadHandlers = {
+    agent_message(payload: AgentPayloadByType['agent_message']): void {
+      updateThinkingState(false);
+      const text = normaliseText(payload.text);
+      if (text) {
+        appendMessage('agent', text);
+      }
+    },
+    agent_status(payload: AgentPayloadByType['agent_status']): void {
+      updateThinkingState(false);
+      const text = normaliseText(payload.text);
+      if (isApprovalNotification({ ...payload, text } satisfies AgentMessagePayload)) {
+        return;
+      }
+      if (text) {
+        setStatus(text, { level: payload.level });
+      }
+    },
+    agent_error(payload: AgentPayloadByType['agent_error']): void {
+      updateThinkingState(false);
+      const message = normaliseText(payload.message);
+      if (message) {
+        setStatus(message, { level: 'error' });
+        appendMessage('agent', message);
+      }
+      const details = normaliseText(payload.details).trim();
+      if (details && details !== message) {
+        appendMessage('agent', details);
+      }
+    },
+    agent_thinking(payload: AgentPayloadByType['agent_thinking']): void {
+      updateThinkingState(payload.state === 'start');
+    },
+    agent_request_input(payload: AgentPayloadByType['agent_request_input']): void {
+      updateThinkingState(false);
+      const promptText = normaliseText(payload.prompt).trim();
+      if (!promptText || promptText === '▷' || isApprovalText(promptText)) {
+        setStatus('');
+      } else {
+        setStatus(promptText);
+      }
+    },
+    agent_plan(payload: AgentPayloadByType['agent_plan']): void {
+      ensureConversationStarted();
+      const planSteps: PlanStep[] = Array.isArray(payload.plan) ? (payload.plan as PlanStep[]) : [];
+      planDisplay?.update(planSteps);
+    },
+    agent_event(payload: AgentPayloadByType['agent_event']): void {
+      const eventType = payload.eventType ?? 'event';
+      appendEvent(eventType, payload);
+    },
+    agent_command(payload: AgentPayloadByType['agent_command']): void {
+      updateThinkingState(false);
+      appendCommand(payload);
+    },
+  } satisfies { [Type in AgentPayloadType]: (payload: AgentPayloadByType[Type]) => void };
+
+  function handleAgentPayload<Type extends AgentPayloadType>(
+    payload: AgentPayloadByType[Type],
+  ): void {
+    // Narrow the handler to the precise payload type. TypeScript cannot track the
+    // discriminant across the lookup, so we help it with a one-off assertion.
+    const handler = agentPayloadHandlers[payload.type] as (payload: AgentPayloadByType[Type]) => void;
+    handler(payload);
+  }
+
   function handleIncoming(event: MessageEvent<string>): void {
     if (!event.data) {
       return;
     }
 
-    let payload: AgentMessagePayload | null = null;
+    let payload: AgentIncomingPayload | null = null;
     try {
       const parsed = JSON.parse(event.data);
       payload = parseAgentPayload(parsed);
@@ -590,85 +724,7 @@ export function createChatService({
       return;
     }
 
-    const { type = '' } = payload as AgentMessagePayload & { type?: string };
-
-    switch (type) {
-      case 'agent_message': {
-        updateThinkingState(false);
-        const text = normaliseText(payload.text);
-        if (text) {
-          appendMessage('agent', text);
-        }
-        break;
-      }
-      case 'agent_status': {
-        updateThinkingState(false);
-        const text = normaliseText(payload.text);
-        const statusPayload = { ...payload, text };
-        if (isApprovalNotification(statusPayload)) {
-          break;
-        }
-        if (text) {
-          const level = typeof payload.level === 'string' ? payload.level : undefined;
-          setStatus(text, { level });
-        }
-        break;
-      }
-      case 'agent_error': {
-        updateThinkingState(false);
-        const message = normaliseText(payload.message);
-        if (message) {
-          setStatus(message, { level: 'error' });
-          appendMessage('agent', message);
-        }
-        const details = normaliseText(payload.details).trim();
-        if (details && details !== message) {
-          appendMessage('agent', details);
-        }
-        break;
-      }
-      case 'agent_thinking': {
-        if (payload.state === 'start') {
-          updateThinkingState(true);
-        } else if (payload.state === 'stop') {
-          updateThinkingState(false);
-        }
-        break;
-      }
-      case 'agent_request_input': {
-        updateThinkingState(false);
-        const promptText = normaliseText(payload.prompt).trim();
-        if (!promptText || promptText === '▷' || isApprovalText(promptText)) {
-          setStatus('');
-        } else {
-          setStatus(promptText);
-        }
-        break;
-      }
-      case 'agent_plan': {
-        ensureConversationStarted();
-        if (Array.isArray(payload.plan)) {
-          planDisplay?.update(payload.plan);
-        } else {
-          planDisplay?.update([]);
-        }
-        break;
-      }
-      case 'agent_event': {
-        const eventType = typeof payload.eventType === 'string' ? payload.eventType : 'event';
-        appendEvent(eventType, payload);
-        break;
-      }
-      case 'agent_command': {
-        updateThinkingState(false);
-        appendCommand(payload as AgentCommandPayload);
-        break;
-      }
-      default: {
-        console.warn('Received unsupported agent payload', payload);
-        break;
-      }
-    }
+    handleAgentPayload(payload);
   }
 
   function handleOpen(event: Event): void {
@@ -769,7 +825,7 @@ export function createChatService({
   }
 
   function sendUserMessage(rawText: string): boolean {
-    if (typeof rawText !== 'string' || isThinking) {
+    if (isThinking) {
       return false;
     }
     const trimmed = rawText.trim();
@@ -782,36 +838,46 @@ export function createChatService({
     return true;
   }
 
+  function dispatchFromInput(
+    input: ChatInputElement | null | undefined,
+    { resize = false }: { resize?: boolean } = {},
+  ): void {
+    const value = input?.value ?? '';
+    if (sendUserMessage(value) && input) {
+      input.value = '';
+      if (resize) {
+        autoResize(input);
+      }
+    }
+  }
+
   function handleStartSubmit(event: SubmitEvent): void {
     event.preventDefault();
-    const value = startInput?.value || '';
-    const sent = sendUserMessage(value);
-    if (sent && startInput) {
-      startInput.value = '';
-    }
+    dispatchFromInput(startInput);
   }
 
   function handleChatSubmit(event: SubmitEvent): void {
     event.preventDefault();
-    const value = chatInput?.value || '';
-    const sent = sendUserMessage(value);
-    if (sent && chatInput) {
-      chatInput.value = '';
-      autoResize(chatInput);
-    }
+    dispatchFromInput(chatInput, { resize: true });
   }
 
   function handleChatKeydown(event: KeyboardEvent): void {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      handleChatSubmit(event as unknown as SubmitEvent);
+      dispatchFromInput(chatInput, { resize: true });
     }
   }
 
-  addListener(startForm, 'submit', handleStartSubmit as EventListener, cleanupFns);
-  addListener(chatForm, 'submit', handleChatSubmit as EventListener, cleanupFns);
-  addListener(chatInput, 'keydown', handleChatKeydown as EventListener, cleanupFns);
-  addListener(chatInput, 'input', (() => autoResize(chatInput)) as EventListener, cleanupFns);
+  const handleChatInputChange = (_event: Event): void => {
+    if (chatInput) {
+      autoResize(chatInput);
+    }
+  };
+
+  addListener(startForm, 'submit', handleStartSubmit, cleanupFns);
+  addListener(chatForm, 'submit', handleChatSubmit, cleanupFns);
+  addListener(chatInput, 'keydown', handleChatKeydown, cleanupFns);
+  addListener(chatInput, 'input', handleChatInputChange, cleanupFns);
 
   if (chatInput) {
     autoResize(chatInput);

@@ -77,8 +77,7 @@ export function createHeaderController({
   }
 
   function isDockviewActive(): boolean {
-    const activeFlag = layout?.dockviewIsActive;
-    return typeof activeFlag === 'boolean' ? activeFlag : Boolean(activeFlag);
+    return Boolean(layout?.dockviewIsActive);
   }
 
   function updateDocumentPanelTitle(): void {
@@ -92,9 +91,9 @@ export function createHeaderController({
     const title = `${baseTitle}${indicator}`;
     const panelApi = viewerPanel?.api;
 
-    if (panelApi && typeof panelApi.setTitle === 'function') {
+    if (panelApi?.setTitle) {
       panelApi.setTitle(title);
-    } else if (typeof viewerPanel.setTitle === 'function') {
+    } else if (viewerPanel?.setTitle) {
       viewerPanel.setTitle(title);
     }
   }

@@ -14,6 +14,14 @@ type RenderOptions = {
   updateCurrent?: boolean;
 };
 
+interface MarkdownHighlightedOptions extends MarkedOptions {
+  /**
+   * `marked` omits the `highlight` callback from its option type, so we extend
+   * it locally to maintain type safety for syntax highlighting.
+   */
+  highlight?(code: string, language?: string): string;
+}
+
 function renderMarkdown(
   { content }: MarkdownDisplayContext,
   markdownText: string = '',
@@ -26,7 +34,7 @@ function renderMarkdown(
   let html = String(markdownText || '');
 
   try {
-    const options = {
+    const options: MarkdownHighlightedOptions = {
       gfm: true,
       highlight(code: string, language?: string): string {
         if (!language) {
@@ -49,7 +57,7 @@ function renderMarkdown(
         }
       },
     };
-    const parsed = marked.parse(markdownText || '', options as unknown as MarkedOptions);
+    const parsed = marked.parse(markdownText || '', options);
     if (typeof parsed === 'string') {
       html = parsed;
     }

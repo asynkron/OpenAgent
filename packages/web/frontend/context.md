@@ -26,3 +26,5 @@
 - Introduced Jest coverage for the bootstrap helpers (tree building, CSS utilities, and fallback reset orchestration) to guard the TypeScript migration.
 - Split shared chat and plan logic into `src/js/services/chat_model.ts` and `src/js/components/plan_model.ts` so DOM wiring stays lean and unit tests can target the pure helpers.
 - Added Jest suites under `src/js/**/__tests__` to cover plan aggregation and chat payload normalisation utilities.
+- Streamlined chat, shared context, and bootstrap helpers with stricter TypeScript unions and optional chaining, replacing runtime `typeof` guards with typed utilities for cleaner DOM event handling.
+- Refined chat payload routing with a typed handler map and removed the last `unknown` casts from markdown rendering to keep syntax highlighting and message handling strictly typed.

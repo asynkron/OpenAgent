@@ -318,7 +318,7 @@ export function createUnifiedApp({
 
     const tocController = createTocController?.({ tocList }) ?? null;
     const cleanup = tocController?.attach?.();
-    tocCleanup = typeof cleanup === 'function' ? cleanup : null;
+    tocCleanup = cleanup ?? null;
 
     attachPointerListeners();
 
@@ -331,14 +331,10 @@ export function createUnifiedApp({
         appState,
         getCurrentFile: () => sharedContext.getCurrentFile?.() ?? null,
         onNavigate: (targetFile, options) => {
-          if (typeof navigationApi?.loadFile === 'function') {
-            void navigationApi.loadFile(targetFile, options);
-          }
+          void navigationApi?.loadFile?.(targetFile, options);
         },
         onFallback: (options) => {
-          if (typeof resetViewToFallback === 'function') {
-            resetViewToFallback(options);
-          }
+          resetViewToFallback?.(options);
         },
       }) ?? null;
     sharedContext.router = router;
@@ -377,8 +373,11 @@ export function createUnifiedApp({
     editorApi = initEditor?.(sharedContext, viewerApi, navigationApi) ?? null;
 
     navigationApi?.bindEditorApi?.(editorApi);
-    if (typeof navigationApi?.updateActiveFileHighlight === 'function') {
-      sharedContext.updateActiveFileHighlight = () => navigationApi?.updateActiveFileHighlight?.();
+    if (navigationApi?.updateActiveFileHighlight) {
+      const activeNavigation = navigationApi;
+      sharedContext.updateActiveFileHighlight = () => {
+        activeNavigation.updateActiveFileHighlight?.();
+      };
     }
 
     resetViewToFallback =
@@ -388,7 +387,7 @@ export function createUnifiedApp({
         editorApi,
       }) ?? null;
 
-    if (content && typeof editorApi?.handleHeadingActionClick === 'function') {
+    if (content && editorApi?.handleHeadingActionClick) {
       contentClickHandler = (event: Event) => {
         editorApi?.handleHeadingActionClick?.(event);
       };
@@ -418,33 +417,32 @@ export function createUnifiedApp({
       }) ?? null;
 
     function initialise(): void {
-      const fallback = sharedContext.fallbackMarkdownFor?.(
+      const fallback = sharedContext.fallbackMarkdownFor(
         appState.resolvedRootPath || appState.originalPathArgument || 'the selected path',
       );
-      viewerApi?.render?.(
-        typeof initialState.content === 'string' ? initialState.content : fallback,
-        {
-          updateCurrent: true,
-        },
-      );
+      const initialContent = initialState.content ?? fallback ?? '';
+      viewerApi?.render?.(initialContent, {
+        updateCurrent: true,
+      });
       navigationApi?.renderFileList?.();
-      sharedContext.updateHeader?.();
-      if (initialState && typeof (initialState as { error?: string }).error === 'string') {
-        sharedContext.setStatus?.((initialState as { error: string }).error);
+      sharedContext.updateHeader();
+      const initialError = initialState.error;
+      if (initialError?.length) {
+        sharedContext.setStatus(initialError);
       }
       terminalService?.setupTerminalPanel?.();
       chatService?.connect?.();
       realtimeService?.connect?.();
 
-      const filesList = (sharedContext.getFiles?.() as FileListEntry[] | undefined) || [];
-      if (!sharedContext.getCurrentFile?.() && filesList.length) {
+      const filesList = (sharedContext.getFiles() as FileListEntry[]) || [];
+      if (!sharedContext.getCurrentFile() && filesList.length) {
         const firstFile = (filesList[0] as { relativePath?: string }).relativePath;
         if (firstFile) {
-          sharedContext.setCurrentFile?.(firstFile);
+          sharedContext.setCurrentFile(firstFile);
         }
       }
 
-      const currentPath = sharedContext.getCurrentFile?.();
+      const currentPath = sharedContext.getCurrentFile();
       if (!context.initialFileFromLocation && currentPath) {
         void navigationApi?.loadFile?.(currentPath, { replaceHistory: true });
       }
