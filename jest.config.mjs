@@ -9,7 +9,7 @@ const replaceJsExtensionsPlugin = path.join(
 
 export default {
   testEnvironment: 'node',
-  setupFilesAfterEnv: ['<rootDir>/tests/mockOpenAI.js'],
+  setupFilesAfterEnv: ['<rootDir>/tests/mockOpenAI.ts'],
   roots: ['<rootDir>/packages', '<rootDir>/tests'],
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {

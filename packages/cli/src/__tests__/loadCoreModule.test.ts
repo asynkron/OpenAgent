@@ -1,8 +1,8 @@
 import { jest } from '@jest/globals';
 
-const loaderPath = '../loadCoreModule.js';
+const loaderPath = '../loadCoreModule.ts';
 const loaderUrl = new URL(loaderPath, import.meta.url);
-const fallbackSpecifier = new URL('../../core/index.js', loaderUrl).href;
+const fallbackSpecifier = new URL('../../core/index.ts', loaderUrl).href;
 
 async function importLoader() {
   return import(loaderPath);

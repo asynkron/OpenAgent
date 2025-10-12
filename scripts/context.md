@@ -6,10 +6,10 @@
 
 ## Key Files
 
-- `replace-node.js` — jscodeshift transform for structural refactors that still lives at the repo root.
-- `start.js` — orchestrates `npm start` modes. Defaults to the CLI but adds a `web` target that builds the frontend bundle before launching the web backend.
-- `validate-json-assets.js` — validates prompt JSON against `schemas/prompts.schema.json`.
-- `verify-release-tag.js` — ensures release tags align with package metadata before publishing.
+- `replace-node.cts` — thin wrapper that re-exports the compiled jscodeshift transform from `@asynkron/openagent-core`, keeping legacy CLI invocations working while the source lives alongside the core package.
+- `start.ts` — orchestrates `npm start` modes. Defaults to the CLI but adds a `web` target that builds the frontend bundle before launching the web backend. Emits to `scripts/dist/start.js` during the root build.
+- `validate-json-assets.ts` — validates prompt JSON against `schemas/prompts.schema.json`, guarding against schema drift. Compiled output lives under `scripts/dist/`.
+- `verify-release-tag.ts` — ensures release tags align with package metadata before publishing (also compiled into `scripts/dist/`).
 - `babel/plugins/replaceJsExtensions.cjs` — Babel helper used by Jest to rewrite the CLI's `.js`
   import specifiers (including dynamic `import()` calls) to `.ts` during test transforms so the
   TypeScript sources load without bundling.

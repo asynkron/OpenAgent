@@ -8,9 +8,10 @@
     "packages/*"
   ],
   "scripts": {
-    "start": "node ./scripts/start.js",
+    "start": "node ./scripts/dist/start.js",
     "prestart": "npm run build",
-    "build": "npm run build --workspace @asynkron/openagent-core && npm run build --workspaces --if-present",
+    "build": "npm run build --workspace @asynkron/openagent-core && npm run build --workspaces --if-present && npm run build:scripts",
+    "build:scripts": "tsc -p tsconfig.scripts.json",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "pretest": "npm run build",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
@@ -22,7 +23,7 @@
     "prelint": "",
     "prepare": "",
     "postinstall": "",
-    "release:verify-tag": "node ./scripts/verify-release-tag.js"
+    "release:verify-tag": "npm run build:scripts && node ./scripts/dist/verify-release-tag.js"
   },
   "keywords": [],
   "author": "",

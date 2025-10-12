@@ -28,7 +28,7 @@ function resolveCallerPath() {
     }
 
     if (candidate === thisFilePath) continue;
-    if (candidate.endsWith('tests/mockOpenAI.js')) continue;
+    if (candidate.endsWith('tests/mockOpenAI.ts')) continue;
     if (candidate.includes('node_modules/jest')) continue;
 
     return candidate;

@@ -6,14 +6,14 @@
 
 ## Key Files
 
-- `agentLoop.integration.test.js` — validates the interactive loop emits expected events, respects plan persistence, and handles approvals.
+- `agentLoop.integration.test.ts` — validates the interactive loop emits expected events, respects plan persistence, and handles approvals.
 - `__fixtures__/openai-nested-shell-response-text.json` — captured OpenAI response payload (including the outer metadata) used to reproduce newline-heavy command payloads inside tests; now normalized to the current schema with explicit `id` labels and full shell/run command objects so schema validation passes during integration runs.
-- `__fixtures__/openaiNestedShellResponse.js` — helper that loads the captured payload and extracts the nested `responseText` string for the suites.
-- `agentCancellation.integration.test.js` — covers ESC handling and cancellation propagation across queued commands.
-- `approvalFlow.integration.test.js` — exercises auto-approval, session approvals, and human prompts end-to-end.
-- `cmdStats.integration.test.js` — tracks command statistics service wiring.
-- `scripts.integration.test.js` — smoke-tests automation scripts when invoked via the CLI runtime.
-- `agentRuntimeTestHarness.js` & `testRunnerUI.js` — scaffolding to run the agent loop programmatically and assert emitted events, now injecting an in-memory plan manager so suites stay isolated from `.openagent/plan.json` while still exercising merge/progress logic.
+- `__fixtures__/openaiNestedShellResponse.ts` — helper that loads the captured payload and extracts the nested `responseText` string for the suites.
+- `agentCancellation.integration.test.ts` — covers ESC handling and cancellation propagation across queued commands.
+- `approvalFlow.integration.test.ts` — exercises auto-approval, session approvals, and human prompts end-to-end.
+- `cmdStats.integration.test.ts` — tracks command statistics service wiring.
+- `scripts.integration.test.ts` — smoke-tests automation scripts when invoked via the CLI runtime.
+- `agentRuntimeTestHarness.ts` & `testRunnerUI.ts` — scaffolding to run the agent loop programmatically and assert emitted events, now injecting an in-memory plan manager so suites stay isolated from `.openagent/plan.json` while still exercising merge/progress logic.
 
 ## Positive Signals
 

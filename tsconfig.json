@@ -18,7 +18,9 @@
     "packages/**/*.d.ts",
     "types/**/*.d.ts",
     "tests/**/*.ts",
-    "scripts/**/*.ts"
+    "scripts/**/*.ts",
+    "scripts/**/*.cts",
+    "index.ts"
   ],
   "exclude": ["node_modules", "coverage", "dist"]
 }

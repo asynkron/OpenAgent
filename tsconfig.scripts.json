@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./scripts/dist",
+    "rootDir": "./scripts",
+    "noEmit": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "tsBuildInfoFile": "./scripts/dist/.tsbuildinfo"
+  },
+  "include": ["scripts/**/*.ts", "scripts/**/*.cts"],
+  "exclude": ["scripts/dist"]
+}

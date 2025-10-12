@@ -9,12 +9,12 @@
 ## Key Areas
 
 - `integration/` — orchestrates full agent runs using a mocked OpenAI backend. See [`integration/context.md`](integration/context.md).
-- `mockOpenAI.js` — fixture exposing deterministic OpenAI responses for integration harnesses.
+- `mockOpenAI.ts` — fixture exposing deterministic OpenAI responses for integration harnesses.
 - `ink-testing-library` dev dependency drives terminal keystroke simulation for CLI component specs.
 
 ## Positive Signals
 
-- Integration harness (`agentRuntimeTestHarness.js`) simulates CLI runtime, ensuring plan updates, command execution, and cancellation all cooperate while now isolating plan state in-memory so suites do not depend on `.openagent/plan.json`.
+- Integration harness (`agentRuntimeTestHarness.ts`) simulates CLI runtime, ensuring plan updates, command execution, and cancellation all cooperate while now isolating plan state in-memory so suites do not depend on `.openagent/plan.json`.
 - Package-level unit suites now live under `packages/core/src/**/__tests__` and `packages/cli/src/**/__tests__` (now authored in TypeScript), so regression
   coverage travels with the implementation modules.
 - Recent unit tests under each package assert tool-only OpenAI responses remain parseable, guard the CLI renderers, and cover

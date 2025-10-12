@@ -10,7 +10,7 @@
 
 ## Positive Signals
 
-- Schema is consumed by `scripts/validate-json-assets.js` and Jest tests, catching prompt regressions early.
+- Schema is consumed by `scripts/validate-json-assets.ts` (compiled to `scripts/dist/`) and Jest tests, catching prompt regressions early.
 
 ## Risks / Gaps
 
