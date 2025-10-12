@@ -113,47 +113,6 @@ const Timeline = React.memo(function Timeline({ entries }) {
   );
 });
 
-function deepEqual(a, b) {
-  if (a === b) {
-    return true;
-  }
-
-  if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') {
-    return false;
-  }
-
-  if (Array.isArray(a) !== Array.isArray(b)) {
-    return false;
-  }
-
-  if (Array.isArray(a)) {
-    if (a.length !== b.length) {
-      return false;
-    }
-    for (let index = 0; index < a.length; index += 1) {
-      if (!deepEqual(a[index], b[index])) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  const aKeys = Object.keys(a);
-  const bKeys = Object.keys(b);
-
-  if (aKeys.length !== bKeys.length) {
-    return false;
-  }
-
-  for (const key of aKeys) {
-    if (!Object.prototype.hasOwnProperty.call(b, key) || !deepEqual(a[key], b[key])) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 function formatDebugPayload(payload) {
   if (typeof payload === 'string') {
     return payload;
@@ -272,6 +231,14 @@ async function writeHistorySnapshot({ history, filePath }) {
   return targetPath;
 }
 
+function appendWithLimit(list, entry, limit) {
+  const next = [...list, entry];
+  if (!limit || next.length <= limit) {
+    return { next, trimmed: false };
+  }
+  return { next: next.slice(next.length - limit), trimmed: true };
+}
+
 function parsePositiveInteger(value, defaultValue = 1) {
   if (value === undefined || value === null) {
     return defaultValue;
@@ -309,16 +276,12 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
   const [passCounter, setPassCounter] = useState(0);
 
   const appendEntry = useCallback((type, payload) => {
-    entryIdRef.current += 1;
-    const id = entryIdRef.current;
+    const id = ++entryIdRef.current;
     let trimmed = false;
     setEntries((prev) => {
-      const next = [...prev, { id, type, payload }];
-      if (next.length > MAX_TIMELINE_ENTRIES) {
-        trimmed = true;
-        return next.slice(next.length - MAX_TIMELINE_ENTRIES);
-      }
-      return next;
+      const result = appendWithLimit(prev, { id, type, payload }, MAX_TIMELINE_ENTRIES);
+      trimmed = result.trimmed;
+      return result.next;
     });
     if (trimmed) {
       setTimelineKey((value) => value + 1);
@@ -344,17 +307,12 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
       });
       if (commandPayload) {
         setCommandLog((prev) => {
-          commandLogIdRef.current += 1;
           const entry = {
-            id: commandLogIdRef.current,
+            id: ++commandLogIdRef.current,
             command: cloneValue(commandPayload),
             receivedAt: Date.now(),
           };
-          const next = [...prev, entry];
-          if (next.length > MAX_COMMAND_LOG_ENTRIES) {
-            return next.slice(next.length - MAX_COMMAND_LOG_ENTRIES);
-          }
-          return next;
+          return appendWithLimit(prev, entry, MAX_COMMAND_LOG_ENTRIES).next;
         });
       }
     },
@@ -389,20 +347,15 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
           return prev;
         }
 
-        debugEventIdRef.current += 1;
         const entry = {
           id:
             typeof event.id === 'string' || typeof event.id === 'number'
               ? event.id
-              : debugEventIdRef.current,
+              : ++debugEventIdRef.current,
           content: formatted,
         };
 
-        const next = [...prev, entry];
-        if (next.length > MAX_DEBUG_ENTRIES) {
-          return next.slice(next.length - MAX_DEBUG_ENTRIES);
-        }
-        return next;
+        return appendWithLimit(prev, entry, MAX_DEBUG_ENTRIES).next;
       });
       const summary = summarizeAutoResponseDebug(event.payload);
       if (summary) {
@@ -597,26 +550,18 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
         case 'assistant-message':
           handleAssistantMessage(event);
           break;
-        case 'plan': {
-          // Clone the plan payload so downstream mutations in the runtime cannot
-          // mutate our stateful reference and short-circuit Ink updates.
-          const nextPlan = Array.isArray(event.plan) ? cloneValue(event.plan) : [];
-          setPlan((prevPlan) => (deepEqual(prevPlan, nextPlan) ? prevPlan : nextPlan));
+        case 'plan':
+          setPlan(Array.isArray(event.plan) ? cloneValue(event.plan) : []);
           break;
-        }
-        case 'plan-progress': {
-          const nextPlanProgress = {
+        case 'plan-progress':
+          setPlanProgress({
             seen: true,
             value: event.progress ? cloneValue(event.progress) : null,
-          };
-          setPlanProgress((prev) => (deepEqual(prev, nextPlanProgress) ? prev : nextPlanProgress));
+          });
           break;
-        }
-        case 'context-usage': {
-          const nextContextUsage = event.usage ? cloneValue(event.usage) : null;
-          setContextUsage((prev) => (deepEqual(prev, nextContextUsage) ? prev : nextContextUsage));
+        case 'context-usage':
+          setContextUsage(event.usage ? cloneValue(event.usage) : null);
           break;
-        }
         case 'command-result':
           handleCommandEvent(event);
           break;
@@ -717,46 +662,30 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
   });
 
   const commandPanelEvents = useMemo(() => {
-    if (!commandInspector) {
+    if (!commandInspector || !commandLog?.length) {
       return [];
     }
 
-    if (!commandLog || commandLog.length === 0) {
-      return [];
-    }
+    const safeCount = Math.max(
+      1,
+      Math.min(commandLog.length, parsePositiveInteger(commandInspector.requested, 1)),
+    );
 
-    const requested = parsePositiveInteger(commandInspector.requested, 1);
-    const safeCount = Math.max(1, Math.min(commandLog.length, requested));
-    const recent = commandLog.slice(commandLog.length - safeCount).reverse();
-
-    return recent.map((entry) => ({
-      id: entry.id,
-      content: formatDebugPayload(entry.command),
-    }));
+    return commandLog
+      .slice(commandLog.length - safeCount)
+      .reverse()
+      .map((entry) => ({ id: entry.id, content: formatDebugPayload(entry.command) }));
   }, [commandInspector, commandLog]);
 
-  const hasDebugEvents = debugEvents.length > 0;
-  const showCommandInspector = commandPanelEvents.length > 0;
-  const commandInspectorKey = commandInspector?.token ?? 'command-inspector';
-  const children = [];
-
-  children.push(h(Timeline, { entries, key: `timeline-${timelineKey}` }));
-
-  if (hasDebugEvents) {
-    children.push(h(MemoDebugPanel, { events: debugEvents, heading: 'Debug', key: 'debug' }));
-  }
-
-  if (showCommandInspector) {
-    children.push(
+  const sections = [
+    h(Timeline, { entries, key: `timeline-${timelineKey}` }),
+    debugEvents.length > 0 && h(MemoDebugPanel, { events: debugEvents, heading: 'Debug', key: 'debug' }),
+    commandPanelEvents.length > 0 &&
       h(MemoDebugPanel, {
         events: commandPanelEvents,
         heading: 'Recent commands',
-        key: `command-${commandInspectorKey}`,
+        key: `command-${commandInspector?.token ?? 'command-inspector'}`,
       }),
-    );
-  }
-
-  children.push(
     h(AskHuman, {
       prompt: inputRequest?.prompt,
       onSubmit: inputRequest ? handleSubmitPrompt : undefined,
@@ -765,17 +694,10 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
       passCounter,
       key: 'ask-human',
     }),
-  );
+    h(MemoPlan, { plan, progress: planProgress.value, key: 'plan' }),
+  ].filter(Boolean);
 
-  children.push(
-    h(MemoPlan, {
-      plan,
-      progress: planProgress.value,
-      key: 'plan',
-    }),
-  );
-
-  return h(Box, { flexDirection: 'column' }, children);
+  return h(Box, { flexDirection: 'column' }, sections);
 }
 
 export default CliApp;
