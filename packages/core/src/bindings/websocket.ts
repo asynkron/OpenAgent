@@ -275,15 +275,26 @@ const createOutputIterable = (outputs: RuntimeOutputs | null | undefined): Async
     return {
       async *[Symbol.asyncIterator]() {
         const iterator = asyncIteratorFactory.call(outputs) as AsyncIterator<RuntimeEvent | null | undefined>;
-        while (true) {
-          const result = await iterator.next();
-          if (result.done) {
-            break;
+        try {
+          while (true) {
+            const result = await iterator.next();
+            if (result.done) {
+              break;
+            }
+            if (result.value == null) {
+              continue;
+            }
+            yield result.value;
           }
-          if (result.value == null) {
-            continue;
+        } finally {
+          try {
+            const completion = iterator.return?.();
+            if (isPromiseLike(completion)) {
+              await completion;
+            }
+          } catch {
+            // Swallow completion errors to avoid surfacing cleanup failures.
           }
-          yield result.value;
         }
       },
     };
@@ -292,12 +303,20 @@ const createOutputIterable = (outputs: RuntimeOutputs | null | undefined): Async
   if (typeof outputs.next === 'function') {
     return {
       async *[Symbol.asyncIterator]() {
-        while (true) {
-          const value = await outputs.next();
-          if (value == null) {
-            continue;
+        try {
+          while (true) {
+            const value = await outputs.next();
+            if (value == null) {
+              continue;
+            }
+            yield value;
           }
-          yield value;
+        } finally {
+          try {
+            outputs.close?.();
+          } catch {
+            // Ignore cleanup failures when closing legacy runtime outputs.
+          }
         }
       },
     };

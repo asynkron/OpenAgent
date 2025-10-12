@@ -6,7 +6,7 @@
 
 ## Key Files
 
-- `websocket.ts` — strongly typed WebSocket adapter that wraps `createAgentRuntime`, normalizes incoming payloads (string/binary) into typed prompt/cancellation envelopes, and streams runtime events back over the socket.
+- `websocket.ts` — strongly typed WebSocket adapter that wraps `createAgentRuntime`, normalizes incoming payloads (string/binary) into typed prompt/cancellation envelopes, streams runtime events back over the socket, and forwards iterator completion so runtime queues clean up when sockets disconnect early.
 
 ## Positive Signals
 
