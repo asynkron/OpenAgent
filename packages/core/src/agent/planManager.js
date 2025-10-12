@@ -1,12 +1,10 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-import { mergePlanTrees, computePlanProgress } from '../utils/plan.js';
+import { mergePlanTrees, computePlanProgress, clonePlanTree } from '../utils/plan.js';
 
 function defaultClone(plan) {
-  return mergePlanTrees([], Array.isArray(plan) ? plan : [], {
-    preserveIncomingStatusForNewSteps: true,
-  });
+  return clonePlanTree(plan);
 }
 
 function formatStatusEvent(level, message, details) {

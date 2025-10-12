@@ -81,4 +81,50 @@ describe('createPlanManager', () => {
     expect(persistedPlan[0].status).toBe('running');
     expect(snapshots[snapshots.length - 1][0].status).toBe('running');
   });
+
+  test('preserves local status when assistant resends existing steps', async () => {
+    const emit = jest.fn();
+    const emitStatus = jest.fn();
+    const mkdirFn = jest.fn();
+    const writeFileFn = jest.fn();
+    const readFileFn = jest
+      .fn()
+      .mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
+
+    const planManager = createPlanManager({
+      emit,
+      emitStatus,
+      planDirectoryPath: '/tmp',
+      planFilePath: '/tmp/plan.json',
+      mkdirFn,
+      writeFileFn,
+      readFileFn,
+    });
+
+    await planManager.initialize();
+
+    await planManager.update([
+      {
+        id: 'step-1',
+        title: 'Do something',
+        status: 'completed',
+        command: { run: 'echo done' },
+      },
+    ]);
+
+    const merged = await planManager.update([
+      {
+        id: 'step-1',
+        title: 'Do something',
+        status: 'pending',
+        command: { run: 'echo maybe' },
+        waitingForId: ['step-2'],
+      },
+    ]);
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0].status).toBe('completed');
+    expect(Array.isArray(merged[0].waitingForId)).toBe(true);
+    expect(merged[0].waitingForId).toEqual(['step-2']);
+  });
 });

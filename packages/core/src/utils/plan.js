@@ -2,6 +2,25 @@
  * Plan utilities extracted from the agent loop.
  */
 
+const hasStructuredClone = typeof globalThis.structuredClone === 'function';
+
+function deepCloneValue(value) {
+  if (hasStructuredClone) {
+    try {
+      return globalThis.structuredClone(value);
+    } catch (error) {
+      // Fall through to JSON fallback.
+    }
+  }
+
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch (error) {
+    // As a last resort return the original reference.
+    return value;
+  }
+}
+
 function isCompletedStatus(status) {
   if (typeof status !== 'string') {
     return false;
@@ -74,19 +93,9 @@ function createPlanKey(item, fallbackIndex) {
   return `index:${fallbackIndex}`;
 }
 
-function clonePlanItem(item) {
-  if (!item || typeof item !== 'object') {
-    return {};
-  }
-
-  const cloned = { ...item };
-
-  return cloned;
-}
-
 function mergePlanItems(existingItem, incomingItem) {
   if (!existingItem || typeof existingItem !== 'object') {
-    return clonePlanItem(incomingItem);
+    return deepCloneValue(incomingItem);
   }
 
   if (!incomingItem || typeof incomingItem !== 'object') {
@@ -129,8 +138,10 @@ export function mergePlanTrees(existingPlan = [], incomingPlan = []) {
         result.push(mergedItem);
       }
     } else if (!isAbandonedStatus(item?.status)) {
-      const cloned = clonePlanItem(item);
-      cloned.status = 'pending';
+      const cloned = deepCloneValue(item);
+      if (cloned && typeof cloned === 'object') {
+        cloned.status = 'pending';
+      }
       result.push(cloned);
     }
   });
@@ -299,6 +310,15 @@ export function planToMarkdown(plan) {
   return `${header}${lines.join('\n')}\n`;
 }
 
+export function clonePlanTree(plan) {
+  if (!Array.isArray(plan)) {
+    return [];
+  }
+
+  const cloned = deepCloneValue(plan);
+  return Array.isArray(cloned) ? cloned : [];
+}
+
 export default {
   mergePlanTrees,
   planHasOpenSteps,
@@ -306,4 +326,5 @@ export default {
   planToMarkdown,
   planStepIsBlocked,
   buildPlanLookup,
+  clonePlanTree,
 };

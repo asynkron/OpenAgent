@@ -12,11 +12,12 @@
 - `fetch.js` — thin wrapper around `undici`/`node-fetch` semantics with timeout & error normalization.
 - `jsonAssetValidator.js` — validates JSON files against provided schemas; leveraged by scripts/tests.
 - `output.js` — formatting helpers for CLI output and logs.
-- `plan.js` — plan tree merge/progress utilities used by agent runtime & UI.
+- `plan.js` — plan tree clone/merge/progress utilities used by agent runtime & UI.
   - Incoming items with `status: 'abandoned'` now remove the matching plan branch during merge.
   - Steps waiting on dependencies now remain blocked if any dependency failed instead of treating failure as completion.
   - Merging no longer downgrades locally completed/failed steps when the assistant resends them as pending, preventing command replays.
   - Assistant-provided statuses are ignored (except `abandoned`) so the runtime owns status transitions, and any newly merged steps start in `pending`.
+  - Deep-clone helper ensures persisted plans round-trip without clearing locally managed status/observation fields.
 - `text.js` — string helpers (filters, tailing, shell splitting).
 
 ## Positive Signals
