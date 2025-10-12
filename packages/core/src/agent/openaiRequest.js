@@ -36,6 +36,9 @@ export async function requestModelCompletion({
       type: 'function',
       name: 'open-agent',
     },
+    response_format: {
+      type: 'json_object', // or "text" / "json_schema"
+    },
     options: requestOptions,
   });
 
