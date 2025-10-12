@@ -202,7 +202,7 @@ export function createAgentRuntime({
         const id = idGeneratorFn({ counter });
         if (id) return String(id);
       }
-    } catch (e) {
+    } catch (_error) {
       // ignore and fall back
     }
     return idPrefix + counter++;
@@ -221,7 +221,7 @@ export function createAgentRuntime({
         if (typeof obs !== 'function') continue;
         try {
           obs(clonedEvent);
-        } catch (e) {
+        } catch (_error) {
           outputs.push({ type: 'status', level: 'warn', message: 'eventObservers item threw.' });
         }
       }
