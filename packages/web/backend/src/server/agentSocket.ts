@@ -1,4 +1,6 @@
-import { createWebSocketBinding } from '@asynkron/openagent-core';
+import { createWebSocketBinding, type WebSocketBinding } from '@asynkron/openagent-core';
+import type { RawData, WebSocket } from 'ws';
+
 import {
   describeAgentError,
   formatAgentEvent,
@@ -6,14 +8,40 @@ import {
   normaliseAgentText,
 } from './utils.js';
 
+export interface AgentConfig {
+  autoApprove: boolean;
+}
+
+export interface AgentPayload {
+  type: string;
+  [key: string]: unknown;
+}
+
+export interface AgentSocketManagerOptions {
+  agentConfig: AgentConfig;
+  sendPayload: (ws: WebSocket, payload: AgentPayload) => boolean;
+}
+
+interface AgentSocketRecord {
+  binding: WebSocketBinding;
+  cleaned: boolean;
+  cleanup: ((reason?: string) => Promise<void>) | null;
+}
+
 export class AgentSocketManager {
-  constructor({ agentConfig, sendPayload }) {
+  private readonly agentConfig: AgentConfig;
+
+  private readonly sendPayload: (ws: WebSocket, payload: AgentPayload) => boolean;
+
+  private readonly clients: Map<WebSocket, AgentSocketRecord> = new Map();
+
+  constructor({ agentConfig, sendPayload }: AgentSocketManagerOptions) {
     this.agentConfig = agentConfig;
     this.sendPayload = sendPayload;
-    this.clients = new Map(); // ws -> { binding, cleaned, cleanup }
+    // Track each websocket so we can cleanly tear down bindings on shutdown.
   }
 
-  buildRuntimeOptions() {
+  private buildRuntimeOptions(): { getAutoApproveFlag: () => boolean; emitAutoApproveStatus: boolean } | undefined {
     if (this.agentConfig?.autoApprove === false) {
       return undefined;
     }
@@ -23,12 +51,12 @@ export class AgentSocketManager {
     };
   }
 
-  handleConnection(ws) {
-    let binding;
+  handleConnection(ws: WebSocket): void {
+    let binding: WebSocketBinding | undefined;
     console.log('Agent websocket connection received - initialising runtime binding');
     try {
       const runtimeOptions = this.buildRuntimeOptions();
-      const bindingOptions = {
+      const bindingOptions: Parameters<typeof createWebSocketBinding>[0] = {
         socket: ws,
         autoStart: false,
         formatOutgoing: (event) => {
@@ -57,27 +85,31 @@ export class AgentSocketManager {
       return;
     }
 
-    const record = {
+    if (!binding) {
+      return;
+    }
+
+    const record: AgentSocketRecord = {
       binding,
       cleaned: false,
       cleanup: null,
     };
 
-    let cleanup;
+    let cleanup: ((reason?: string) => Promise<void>) | undefined;
 
-    const handleClose = () => {
+    const handleClose = (): void => {
       console.log('Agent websocket closed by client');
       void cleanup?.('socket-close');
     };
 
-    const handleError = (socketError) => {
-      if (socketError && socketError.message) {
+    const handleError = (socketError: unknown): void => {
+      if (socketError instanceof Error && socketError.message) {
         console.warn('Agent websocket error', socketError);
       }
       void cleanup?.('socket-error');
     };
 
-    cleanup = async (reason = 'socket-close') => {
+    cleanup = async (reason = 'socket-close'): Promise<void> => {
       if (record.cleaned) {
         return;
       }
@@ -94,7 +126,7 @@ export class AgentSocketManager {
       }
 
       try {
-        await binding.stop?.({ reason });
+        await binding?.stop?.({ reason });
       } catch (error) {
         console.warn('Failed to stop agent binding cleanly', error);
       }
@@ -106,25 +138,26 @@ export class AgentSocketManager {
     ws.on('close', handleClose);
     ws.on('error', handleError);
 
-    ws.on('message', (raw, isBinary) => {
-      let serialized;
+    ws.on('message', (raw: RawData, isBinary: boolean) => {
+      let serialized = '';
       if (typeof raw === 'string') {
         serialized = raw;
       } else if (Buffer.isBuffer(raw)) {
         serialized = raw.toString('utf8');
-      } else if (!isBinary && raw && typeof raw.toString === 'function') {
-        serialized = raw.toString();
-      } else {
-        serialized = '';
+      } else if (Array.isArray(raw)) {
+        serialized = Buffer.concat(raw).toString('utf8');
+      } else if (!isBinary && raw instanceof ArrayBuffer) {
+        serialized = Buffer.from(raw).toString('utf8');
       }
 
       console.log('Agent websocket received payload', serialized || raw);
 
-      if (!serialized || !binding?.runtime?.submitPrompt) {
+      const runtime = binding.runtime;
+      if (!serialized || !runtime?.submitPrompt) {
         return;
       }
 
-      let parsed;
+      let parsed: unknown;
       try {
         parsed = JSON.parse(serialized);
       } catch (error) {
@@ -135,19 +168,19 @@ export class AgentSocketManager {
         return;
       }
 
-      const type = typeof parsed.type === 'string' ? parsed.type.toLowerCase() : undefined;
+      const type = typeof (parsed as { type?: unknown }).type === 'string'
+        ? ((parsed as { type: string }).type.toLowerCase())
+        : undefined;
       if (type !== 'chat' && type !== 'prompt') {
         return;
       }
 
+      const source = parsed as Record<string, unknown>;
       const promptSource =
-        typeof parsed.prompt !== 'undefined'
-          ? parsed.prompt
-          : typeof parsed.text !== 'undefined'
-            ? parsed.text
-            : typeof parsed.value !== 'undefined'
-              ? parsed.value
-              : parsed.message;
+        source.prompt ??
+        source.text ??
+        source.value ??
+        source.message;
 
       if (typeof promptSource === 'undefined') {
         return;
@@ -163,7 +196,7 @@ export class AgentSocketManager {
       }
 
       try {
-        binding.runtime.submitPrompt(prompt);
+        runtime.submitPrompt(prompt);
         console.log('Forwarded agent prompt payload to runtime queue');
       } catch (error) {
         console.warn('Failed to forward agent prompt payload to runtime queue', error);
@@ -172,19 +205,19 @@ export class AgentSocketManager {
 
     try {
       const startResult = binding.start?.();
-      if (startResult && typeof startResult.then === 'function') {
-        startResult
+      if (startResult && typeof (startResult as Promise<void>).then === 'function') {
+        void (startResult as Promise<void>)
           .then(() => {
             console.log('Agent runtime reported async start completion');
           })
-          .catch(async (startError) => {
+          .catch(async (startError: unknown) => {
             const details = describeAgentError(startError);
             this.sendPayload(ws, {
               type: 'agent_error',
               message: 'Agent runtime failed to start.',
               details,
             });
-            await cleanup('runtime-error');
+            await cleanup?.('runtime-error');
             try {
               ws.close(1011, 'Agent runtime failed to start');
             } catch (closeError) {
@@ -201,7 +234,7 @@ export class AgentSocketManager {
         message: 'Agent runtime failed to start.',
         details,
       });
-      void cleanup('runtime-error');
+      void cleanup?.('runtime-error');
       try {
         ws.close(1011, 'Agent runtime failed to start');
       } catch (closeError) {
@@ -210,11 +243,11 @@ export class AgentSocketManager {
     }
   }
 
-  async stopAll(reason = 'server-stop') {
+  async stopAll(reason: string = 'server-stop'): Promise<void> {
     const entries = Array.from(this.clients.entries());
     for (const [ws, record] of entries) {
-      const binding = record?.binding ?? record;
-      if (record?.cleanup) {
+      const binding = record.binding;
+      if (record.cleanup) {
         try {
           await record.cleanup(reason);
         } catch (error) {
@@ -238,7 +271,7 @@ export class AgentSocketManager {
   }
 }
 
-export function sendAgentPayload(ws, payload) {
+export function sendAgentPayload(ws: WebSocket, payload: AgentPayload | null | undefined): boolean {
   if (!payload) {
     return false;
   }
