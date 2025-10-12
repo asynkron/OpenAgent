@@ -14,28 +14,30 @@ type RenderOptions = {
   updateCurrent?: boolean;
 };
 
-type FileEntry = {
+export type FileEntry = {
   name?: string;
   relativePath?: string;
   size?: number;
   updated?: string;
 };
 
-type DirectoryEntry = {
+export type FileTreeFile = FileEntry & { type: 'file' };
+
+export type FileTreeDirectory = {
   type: 'directory';
   name: string;
   relativePath: string;
-  children: Array<DirectoryEntry | FileTreeEntry>;
+  children: FileTreeEntry[];
 };
 
-type FileTreeEntry = DirectoryEntry | (FileEntry & { type: 'file' });
+export type FileTreeEntry = FileTreeDirectory | FileTreeFile;
 
-type FileIndexInput = {
+export type FileIndexInput = {
   files?: FileEntry[];
   tree?: FileTreeEntry[];
 };
 
-type NormalisedFileIndex = {
+export type NormalisedFileIndex = {
   files: FileEntry[];
   tree: FileTreeEntry[];
 };
@@ -103,7 +105,10 @@ export function createViewerApi(markdownTarget: MarkdownTarget): {
   };
 }
 
-export function normaliseFileIndex({ filesValue, treeValue }: {
+export function normaliseFileIndex({
+  filesValue,
+  treeValue,
+}: {
   filesValue?: FileEntry[] | FileIndexInput | null;
   treeValue?: FileTreeEntry[] | null;
 }): NormalisedFileIndex {
@@ -112,10 +117,13 @@ export function normaliseFileIndex({ filesValue, treeValue }: {
 
   if (Array.isArray(filesValue)) {
     flat = filesValue;
-  } else if (filesValue && Array.isArray((filesValue as FileIndexInput).files)) {
-    flat = (filesValue as FileIndexInput).files ?? [];
-    if (Array.isArray((filesValue as FileIndexInput).tree)) {
-      tree = (filesValue as FileIndexInput).tree ?? [];
+  } else if (filesValue && typeof filesValue === 'object') {
+    const candidate = filesValue as FileIndexInput;
+    if (Array.isArray(candidate.files)) {
+      flat = candidate.files;
+    }
+    if (Array.isArray(candidate.tree)) {
+      tree = candidate.tree;
     }
   }
 
@@ -134,40 +142,37 @@ export function normaliseFileIndex({ filesValue, treeValue }: {
   return { files: flat, tree };
 }
 
-export function flattenTree(nodes: unknown): FileEntry[] {
+export function flattenTree(nodes: readonly FileTreeEntry[] | null | undefined): FileEntry[] {
   const result: FileEntry[] = [];
   if (!Array.isArray(nodes)) {
     return result;
   }
 
-  const stack: unknown[] = [...nodes];
+  const stack: FileTreeEntry[] = [...nodes];
   while (stack.length) {
     const node = stack.shift();
-    if (!node || typeof node !== 'object') {
+    if (!node) {
       continue;
     }
 
-    if ((node as { type?: string }).type === 'file') {
-      const fileNode = node as FileEntry & { type: 'file' };
+    if (node.type === 'file') {
       result.push({
-        name: fileNode.name,
-        relativePath: fileNode.relativePath,
-        size: fileNode.size,
-        updated: fileNode.updated,
+        name: node.name,
+        relativePath: node.relativePath,
+        size: node.size,
+        updated: node.updated,
       });
       continue;
     }
 
-    if ((node as { type?: string }).type === 'directory' && Array.isArray((node as DirectoryEntry).children)) {
-      stack.unshift(...(node as DirectoryEntry).children);
-    }
+    stack.unshift(...node.children);
   }
 
   return result;
 }
 
-export function buildTreeFromFlatList(flatList: FileEntry[]): FileTreeEntry[] {
-  if (!Array.isArray(flatList) || !flatList.length) {
+export function buildTreeFromFlatList(flatList: readonly FileEntry[] | null | undefined): FileTreeEntry[] {
+  if (!Array.isArray(flatList) || flatList.length === 0) {
     return [];
   }
 
@@ -176,13 +181,14 @@ export function buildTreeFromFlatList(flatList: FileEntry[]): FileTreeEntry[] {
   directoryMap.set('', root);
 
   function ensureDirectory(path: string, name: string): FileTreeEntry[] {
-    if (directoryMap.has(path)) {
-      return directoryMap.get(path) ?? [];
+    const cached = directoryMap.get(path);
+    if (cached) {
+      return cached;
     }
 
     const parentPath = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
     const parentChildren = directoryMap.get(parentPath) ?? root;
-    const node: DirectoryEntry = {
+    const node: FileTreeDirectory = {
       type: 'directory',
       name,
       relativePath: path,
@@ -201,7 +207,7 @@ export function buildTreeFromFlatList(flatList: FileEntry[]): FileTreeEntry[] {
     const segments = file.relativePath.split('/');
     const fileName = segments.pop() ?? file.relativePath;
     let currentPath = '';
-    segments.forEach((segment) => {
+    segments.forEach((segment: string) => {
       if (!segment) {
         return;
       }
@@ -211,36 +217,35 @@ export function buildTreeFromFlatList(flatList: FileEntry[]): FileTreeEntry[] {
 
     const parentPath = segments.join('/');
     const parentChildren = directoryMap.get(parentPath) ?? root;
-    parentChildren.push({
+    const entry: FileTreeFile = {
       type: 'file',
       name: fileName,
       relativePath: file.relativePath,
       size: file.size,
       updated: file.updated,
-    });
+    };
+    parentChildren.push(entry);
   });
 
   sortTree(root);
   return root;
 }
 
-export function sortTree(nodes: unknown): void {
+export function sortTree(nodes: FileTreeEntry[] | null | undefined): void {
   if (!Array.isArray(nodes)) {
     return;
   }
+
   nodes.sort((a, b) => {
-    const typeA = (a as { type?: string }).type;
-    const typeB = (b as { type?: string }).type;
-    if (typeA === typeB) {
-      return String((a as { name?: string }).name || '').localeCompare(
-        String((b as { name?: string }).name || ''),
-      );
+    if (a.type === b.type) {
+      return String(a.name ?? '').localeCompare(String(b.name ?? ''));
     }
-    return typeA === 'directory' ? -1 : 1;
+    return a.type === 'directory' ? -1 : 1;
   });
+
   nodes.forEach((node) => {
-    if ((node as { type?: string }).type === 'directory') {
-      sortTree((node as DirectoryEntry).children);
+    if (node.type === 'directory') {
+      sortTree(node.children);
     }
   });
 }

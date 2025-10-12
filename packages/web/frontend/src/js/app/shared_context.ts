@@ -1,4 +1,11 @@
 import type { AppElements, AppState } from './context.js';
+import {
+  buildTreeFromFlatList as createFileTreeFromFlatList,
+  type FileEntry,
+  type FileIndexInput,
+  type FileTreeEntry,
+  type NormalisedFileIndex,
+} from './bootstrap_helpers.js';
 
 type ConnectionStatusHandler = (connected: boolean) => void;
 
@@ -10,9 +17,11 @@ type BuildQueryFn = (params?: Record<string, string | undefined>) => string;
 
 type FallbackMarkdownFn = (path: string) => string;
 
-type NormaliseFileIndexFn = (values: unknown) => unknown;
+type NormaliseFileIndexFn = (
+  values: FileEntry[] | FileIndexInput | null | undefined,
+) => NormalisedFileIndex;
 
-type BuildTreeFromFlatListFn = (list: unknown) => unknown;
+type BuildTreeFromFlatListFn = (list: FileEntry[] | null | undefined) => FileTreeEntry[];
 
 type GetCssNumberFn = (variableName: string, fallbackValue: number) => number;
 
@@ -77,10 +86,10 @@ type SharedContext = {
   getResolvedRootPath(): string;
   setResolvedRootPath(value: string): void;
   getOriginalPathArgument(): string;
-  getFiles(): unknown[];
-  setFiles(value: unknown): void;
-  getFileTree(): unknown[];
-  setFileTree(value: unknown): void;
+  getFiles(): FileEntry[];
+  setFiles(value: FileEntry[] | FileIndexInput | null | undefined): void;
+  getFileTree(): FileTreeEntry[];
+  setFileTree(value: FileTreeEntry[] | null | undefined): void;
   getExpandedDirectories(): Set<string>;
   getKnownDirectories(): Set<string>;
   updateHeader(): void;
@@ -89,20 +98,35 @@ type SharedContext = {
   buildQuery(params: Record<string, string | undefined>): string;
   updateLocation(file: string, options?: { replace?: boolean }): void;
   fallbackMarkdownFor(path: string): string;
-  normaliseFileIndex(values: unknown): unknown;
-  buildTreeFromFlatList(list: unknown): unknown;
+  normaliseFileIndex(values: FileEntry[] | FileIndexInput | null | undefined): NormalisedFileIndex;
+  buildTreeFromFlatList(list: FileEntry[] | null | undefined): FileTreeEntry[];
   getCssNumber(variableName: string, fallbackValue: number): number;
   setStatus(message: string, options?: { level?: string }): void;
   setConnectionStatus(connected: boolean): void;
   updateActiveFileHighlight(): void;
 };
 
-function defaultNormaliseFileIndex(value: unknown): unknown {
-  return value;
+function defaultNormaliseFileIndex(
+  value: FileEntry[] | FileIndexInput | null | undefined,
+): NormalisedFileIndex {
+  if (Array.isArray(value)) {
+    return { files: value, tree: [] };
+  }
+
+  if (value && typeof value === 'object') {
+    const files = Array.isArray(value.files) ? value.files : [];
+    const tree = Array.isArray(value.tree) ? value.tree : [];
+    return { files, tree };
+  }
+
+  return { files: [], tree: [] };
 }
 
-function defaultBuildTreeFromFlatList(value: unknown): unknown {
-  return value;
+function defaultBuildTreeFromFlatList(value: FileEntry[] | null | undefined): FileTreeEntry[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return createFileTreeFromFlatList(value);
 }
 
 function defaultGetCssNumber(_root: HTMLElement | null | undefined, _name: string, fallback: number): number {
@@ -289,16 +313,26 @@ export function createSharedContext({
     getOriginalPathArgument(): string {
       return appState.originalPathArgument;
     },
-    getFiles(): unknown[] {
+    getFiles(): FileEntry[] {
       return appState.files;
     },
-    setFiles(value: unknown): void {
-      appState.files = Array.isArray(value) ? value : [];
+    setFiles(value: FileEntry[] | FileIndexInput | null | undefined): void {
+      if (Array.isArray(value)) {
+        appState.files = value;
+        return;
+      }
+
+      if (value && typeof value === 'object' && Array.isArray(value.files)) {
+        appState.files = value.files;
+        return;
+      }
+
+      appState.files = [];
     },
-    getFileTree(): unknown[] {
+    getFileTree(): FileTreeEntry[] {
       return appState.fileTree;
     },
-    setFileTree(value: unknown): void {
+    setFileTree(value: FileTreeEntry[] | null | undefined): void {
       appState.fileTree = Array.isArray(value) ? value : [];
     },
     getExpandedDirectories(): Set<string> {
@@ -359,11 +393,13 @@ export function createSharedContext({
     fallbackMarkdownFor(path: string): string {
       return invokeFallbackMarkdownFor(path);
     },
-    normaliseFileIndex(values: unknown): unknown {
+    normaliseFileIndex(
+      values: FileEntry[] | FileIndexInput | null | undefined,
+    ): NormalisedFileIndex {
       return invokeNormaliseFileIndex(values);
     },
-    buildTreeFromFlatList(list: unknown): unknown {
-      return invokeBuildTreeFromFlatList(list);
+    buildTreeFromFlatList(list: FileEntry[] | null | undefined): FileTreeEntry[] {
+      return invokeBuildTreeFromFlatList(Array.isArray(list) ? list : []);
     },
     getCssNumber(variableName: string, fallbackValue: number): number {
       return invokeGetCssNumber(variableName, fallbackValue);

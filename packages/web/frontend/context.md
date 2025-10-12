@@ -22,3 +22,5 @@
 - Migrated all JavaScript sources to TypeScript and now bundle from `src/js/unified_index.ts`.
 - Replaced legacy global Markdown/highlight wiring with direct module imports for `marked` and `highlight.js`.
 - Added richer type definitions across chat services, viewer helpers, and bootstrap routines to improve safety under strict TypeScript settings.
+- Strengthened the file-index bootstrap helpers and shared context state with explicit `FileEntry`/`FileTreeEntry` types, removing `unknown` plumbing from navigation flows.
+- Introduced Jest coverage for the bootstrap helpers (tree building, CSS utilities, and fallback reset orchestration) to guard the TypeScript migration.
