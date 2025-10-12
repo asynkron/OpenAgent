@@ -683,9 +683,19 @@ export async function executeAgentPass({
 
   resetPlanReminder();
 
-  while (nextExecutable) {
-    const { step, command, index: snapshotIndex, key: stepKey } = nextExecutable;
-    let activePlanStep = activePlanStepMap.get(stepKey) ?? null;
+  const manageCommandThinking =
+    Boolean(nextExecutable) &&
+    typeof startThinkingFn === 'function' &&
+    typeof stopThinkingFn === 'function';
+
+  if (manageCommandThinking) {
+    startThinkingFn();
+  }
+
+  try {
+    while (nextExecutable) {
+      const { step, command, index: snapshotIndex, key: stepKey } = nextExecutable;
+      let activePlanStep = activePlanStepMap.get(stepKey) ?? null;
 
     if (
       !activePlanStep &&
@@ -868,8 +878,12 @@ export async function executeAgentPass({
     const persistedAfterExecution = await persistPlanState(activePlan);
     planMutatedDuringExecution ||= persistedAfterExecution;
     refreshActivePlanExecutableSteps();
-
     nextExecutable = selectNextExecutableEntry();
+    }
+  } finally {
+    if (manageCommandThinking) {
+      stopThinkingFn();
+    }
   }
 
   if (planMutatedDuringExecution && Array.isArray(activePlan)) {
