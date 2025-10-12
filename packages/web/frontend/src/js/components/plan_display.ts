@@ -4,14 +4,53 @@ const ACTIVE_KEYWORDS = ['progress', 'working', 'running', 'executing', 'active'
 const BLOCKED_KEYWORDS = ['blocked', 'failed', 'error', 'stuck'];
 const TERMINAL_STATUSES = new Set(['completed', 'complete', 'done', 'finished', 'failed']);
 
-function normaliseText(value) {
-  if (typeof value !== 'string') {
-    return '';
-  }
-  return value.trim();
+type PlanStep = {
+  id?: string | null;
+  title?: string | null;
+  status?: string | null;
+  priority?: number | string | null;
+  waitingForId?: Array<string | null | undefined> | null;
+};
+
+type DecoratedPlanEntry = {
+  item: PlanStep;
+  waitingFor: string[];
+  blocked: boolean;
+  priority: number;
+  index: number;
+};
+
+type PlanProgress = {
+  completedSteps: number;
+  remainingSteps: number;
+  totalSteps: number;
+  ratio: number;
+};
+
+type NormalisedStatus = {
+  label: string;
+  state: 'blocked' | 'pending' | 'completed' | 'active';
+};
+
+type PlanDisplayApi = {
+  update(plan: PlanStep[] | null | undefined): void;
+  reset(): void;
+  getPlan(): PlanStep[] | null;
+};
+
+type PlanDisplayOptions = {
+  container: HTMLElement | null;
+};
+
+interface PlanDisplayHost extends HTMLElement {
+  __planDisplay?: PlanDisplayApi;
 }
 
-function computeStatusState(status, blocked) {
+function normaliseText(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function computeStatusState(status: unknown, blocked: boolean): NormalisedStatus {
   const text = normaliseText(status);
 
   if (blocked) {
@@ -47,29 +86,23 @@ function computeStatusState(status, blocked) {
   return { label: text, state: 'active' };
 }
 
-function normalizeId(value) {
-  if (typeof value !== 'string') {
-    return '';
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return '';
-  }
-
-  return trimmed;
+function normalizeId(value: unknown): string {
+  const text = normaliseText(value);
+  return text;
 }
 
-function dependenciesFor(step) {
+function dependenciesFor(step: PlanStep | null | undefined): string[] {
   if (!step || typeof step !== 'object' || !Array.isArray(step.waitingForId)) {
     return [];
   }
 
-  return step.waitingForId.map((value) => normalizeId(value)).filter((value) => value.length > 0);
+  return step.waitingForId
+    .map((value) => normalizeId(value))
+    .filter((value): value is string => value.length > 0);
 }
 
-function buildPlanLookup(plan) {
-  const lookup = new Map();
+function buildPlanLookup(plan: PlanStep[] | null | undefined): Map<string, PlanStep> {
+  const lookup = new Map<string, PlanStep>();
 
   if (!Array.isArray(plan)) {
     return lookup;
@@ -89,7 +122,7 @@ function buildPlanLookup(plan) {
   return lookup;
 }
 
-function isTerminalStatus(status) {
+function isTerminalStatus(status: unknown): boolean {
   if (typeof status !== 'string') {
     return false;
   }
@@ -98,13 +131,13 @@ function isTerminalStatus(status) {
   return TERMINAL_STATUSES.has(normalized) || normalized.startsWith('complete');
 }
 
-function isStepBlocked(step, lookup) {
+function isStepBlocked(step: PlanStep | null | undefined, lookup: Map<string, PlanStep>): boolean {
   const dependencies = dependenciesFor(step);
   if (dependencies.length === 0) {
     return false;
   }
 
-  if (!lookup || lookup.size === 0) {
+  if (lookup.size === 0) {
     return true;
   }
 
@@ -118,12 +151,12 @@ function isStepBlocked(step, lookup) {
   return false;
 }
 
-function parsePriority(value) {
-  const numeric = Number.parseInt(value, 10);
+function parsePriority(value: PlanStep['priority']): number {
+  const numeric = Number.parseInt(String(value ?? ''), 10);
   return Number.isFinite(numeric) ? numeric : Number.POSITIVE_INFINITY;
 }
 
-function decoratePlan(plan) {
+function decoratePlan(plan: PlanStep[] | null | undefined): DecoratedPlanEntry[] {
   if (!Array.isArray(plan)) {
     return [];
   }
@@ -131,7 +164,7 @@ function decoratePlan(plan) {
   const lookup = buildPlanLookup(plan);
 
   return plan
-    .map((item, index) => {
+    .map<DecoratedPlanEntry | null>((item, index) => {
       if (!item || typeof item !== 'object') {
         return null;
       }
@@ -148,7 +181,7 @@ function decoratePlan(plan) {
         index,
       };
     })
-    .filter(Boolean)
+    .filter((entry): entry is DecoratedPlanEntry => Boolean(entry))
     .sort((a, b) => {
       if (a.blocked !== b.blocked) {
         return a.blocked ? 1 : -1;
@@ -162,7 +195,10 @@ function decoratePlan(plan) {
     });
 }
 
-function aggregateProgress(items) {
+function aggregateProgress(items: PlanStep[] | null | undefined): {
+  completed: number;
+  total: number;
+} {
   let completed = 0;
   let total = 0;
 
@@ -186,7 +222,7 @@ function aggregateProgress(items) {
   return { completed, total };
 }
 
-function computePlanProgress(plan) {
+function computePlanProgress(plan: PlanStep[] | null | undefined): PlanProgress {
   const { completed, total } = aggregateProgress(Array.isArray(plan) ? plan : []);
   const ratio = total > 0 ? Math.min(1, Math.max(0, completed / total)) : 0;
   const remaining = Math.max(0, total - completed);
@@ -198,7 +234,7 @@ function computePlanProgress(plan) {
   };
 }
 
-function buildSteps(plan) {
+function buildSteps(plan: PlanStep[] | null | undefined): HTMLOListElement | null {
   const decorated = decoratePlan(plan);
   if (decorated.length === 0) {
     return null;
@@ -245,7 +281,7 @@ function buildSteps(plan) {
       step.appendChild(statusEl);
     }
 
-    const metaParts = [];
+    const metaParts: string[] = [];
     if (Number.isFinite(priority)) {
       metaParts.push(`Priority ${priority}`);
     }
@@ -266,12 +302,13 @@ function buildSteps(plan) {
   return list;
 }
 
-export function createPlanDisplay({ container } = {}) {
+export function createPlanDisplay({ container }: PlanDisplayOptions = { container: null }): PlanDisplayApi | null {
   if (!container) {
     return null;
   }
 
-  container.classList.add('agent-plan');
+  const host = container as PlanDisplayHost;
+  host.classList.add('agent-plan');
 
   const header = document.createElement('div');
   header.className = 'agent-plan-header';
@@ -309,18 +346,18 @@ export function createPlanDisplay({ container } = {}) {
   const stepsContainer = document.createElement('div');
   stepsContainer.className = 'agent-plan-steps-container';
 
-  container.appendChild(header);
-  container.appendChild(progressWrapper);
-  container.appendChild(stepsContainer);
+  host.appendChild(header);
+  host.appendChild(progressWrapper);
+  host.appendChild(stepsContainer);
 
-  let currentPlan = null;
+  let currentPlan: PlanStep[] | null = null;
 
-  function update(plan) {
+  function update(plan: PlanStep[] | null | undefined): void {
     const validPlan = Array.isArray(plan) ? plan : [];
     currentPlan = validPlan;
 
     if (validPlan.length === 0) {
-      container.classList.add('hidden');
+      host.classList.add('hidden');
       stepsContainer.innerHTML = '';
       summary.textContent = '';
       progressFill.style.width = '0%';
@@ -330,7 +367,7 @@ export function createPlanDisplay({ container } = {}) {
       return;
     }
 
-    container.classList.remove('hidden');
+    host.classList.remove('hidden');
 
     const list = buildSteps(validPlan);
     stepsContainer.innerHTML = '';
@@ -353,21 +390,24 @@ export function createPlanDisplay({ container } = {}) {
     }
   }
 
-  function reset() {
+  function reset(): void {
     update([]);
     currentPlan = null;
   }
 
   reset();
 
-  const api = {
+  const api: PlanDisplayApi = {
     update,
     reset,
-    getPlan: () => currentPlan,
+    getPlan(): PlanStep[] | null {
+      return currentPlan;
+    },
   };
 
-  // Expose the API on the container to simplify debugging in the browser console.
-  container.__planDisplay = api;
+  host.__planDisplay = api;
 
   return api;
 }
+
+export type { PlanDisplayApi, PlanStep };

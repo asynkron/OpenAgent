@@ -1,10 +1,22 @@
 /**
  * Provides helpers for wiring up the table-of-contents sidebar.
  */
-export function createTocController({ tocList, documentRef = document, windowRef = window } = {}) {
-  function handleTocClick(event) {
-    const link = event.target?.closest?.('a.toc-link');
-    if (!link) {
+export function createTocController({
+  tocList,
+  documentRef = document,
+  windowRef = window,
+}: {
+  tocList?: HTMLElement | null;
+  documentRef?: Document;
+  windowRef?: Window & typeof globalThis;
+} = {}): {
+  attach(target?: HTMLElement | null): () => void;
+  handleTocClick(event: MouseEvent): void;
+} {
+  function handleTocClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    const link = target?.closest?.('a.toc-link');
+    if (!(link instanceof HTMLAnchorElement)) {
       return;
     }
 
@@ -41,7 +53,7 @@ export function createTocController({ tocList, documentRef = document, windowRef
     }
   }
 
-  function attach(target = tocList) {
+  function attach(target: HTMLElement | null = tocList ?? null): () => void {
     if (!target?.addEventListener) {
       return () => {};
     }

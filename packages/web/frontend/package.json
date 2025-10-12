@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "npm run clean && npm run build:js && npm run build:css",
-    "build:js": "node scripts/ensure-esbuild.mjs && esbuild src/js/unified_index.js --bundle --minify --sourcemap --target=es2018 --outdir=../backend/public/static/dist '--define:process.env.NODE_ENV=\"production\"'",
+    "build:js": "node scripts/ensure-esbuild.mjs && esbuild src/js/unified_index.ts --bundle --minify --sourcemap --target=es2018 --outdir=../backend/public/static/dist '--define:process.env.NODE_ENV=\"production\"'",
     "build:css": "node scripts/ensure-esbuild.mjs && esbuild src/css/app.css src/css/theme.css --bundle --minify --outdir=../backend/public/static/dist --loader:.woff2=file --loader:.woff=file --loader:.ttf=file",
     "clean": "rimraf ../backend/public/static/dist"
   },

@@ -1,9 +1,62 @@
 const INDICATOR = ' ●';
 
+type HeaderElements = {
+  fileName?: HTMLElement | null;
+  sidebarPath?: HTMLElement | null;
+  downloadButton?: HTMLButtonElement | null;
+  deleteButton?: HTMLButtonElement | null;
+  editButton?: HTMLButtonElement | null;
+  previewButton?: HTMLButtonElement | null;
+  saveButton?: HTMLButtonElement | null;
+  cancelButton?: HTMLButtonElement | null;
+};
+
+type DockviewPanel = {
+  api?: {
+    setTitle?: (title: string) => void;
+  } | null;
+  setTitle?: (title: string) => void;
+};
+
+type DockviewSetup = {
+  panels?: {
+    viewer?: DockviewPanel | null;
+  } | null;
+};
+
+type HeaderLayout = {
+  dockviewSetup?: DockviewSetup | null;
+  dockviewIsActive?: boolean;
+};
+
+type HeaderControllerState = {
+  currentFile: string | null;
+  hasPendingChanges: boolean;
+  isEditing: boolean;
+  isPreviewing: boolean;
+  resolvedRootPath: string;
+  originalPathArgument: string;
+};
+
+export interface HeaderControllerApi {
+  updateHeader(): void;
+  updateActionVisibility(): void;
+  updateDocumentPanelTitle(): void;
+  applyHasPendingChanges(value: boolean): void;
+}
+
 /**
  * Creates an imperative controller for managing the application header.
  */
-export function createHeaderController({ elements = {}, layout = {}, appState }) {
+export function createHeaderController({
+  elements = {},
+  layout = {},
+  appState,
+}: {
+  elements?: HeaderElements;
+  layout?: HeaderLayout;
+  appState: HeaderControllerState;
+}): HeaderControllerApi {
   if (!appState) {
     throw new Error('appState is required to create the header controller.');
   }
@@ -19,16 +72,16 @@ export function createHeaderController({ elements = {}, layout = {}, appState })
     cancelButton,
   } = elements;
 
-  function getDockviewSetup() {
+  function getDockviewSetup(): DockviewSetup | null {
     return layout?.dockviewSetup ?? null;
   }
 
-  function isDockviewActive() {
+  function isDockviewActive(): boolean {
     const activeFlag = layout?.dockviewIsActive;
     return typeof activeFlag === 'boolean' ? activeFlag : Boolean(activeFlag);
   }
 
-  function updateDocumentPanelTitle() {
+  function updateDocumentPanelTitle(): void {
     const viewerPanel = getDockviewSetup()?.panels?.viewer;
     if (!viewerPanel) {
       return;
@@ -46,7 +99,7 @@ export function createHeaderController({ elements = {}, layout = {}, appState })
     }
   }
 
-  function updateActionVisibility() {
+  function updateActionVisibility(): void {
     const hasFile = Boolean(appState.currentFile);
     const editing = Boolean(appState.isEditing);
     const previewing = Boolean(appState.isPreviewing);
@@ -59,7 +112,7 @@ export function createHeaderController({ elements = {}, layout = {}, appState })
     deleteButton?.classList?.toggle('hidden', editing);
   }
 
-  function updateHeader() {
+  function updateHeader(): void {
     const hasFile = Boolean(appState.currentFile);
     const indicator = appState.hasPendingChanges && hasFile ? INDICATOR : '';
 
@@ -84,24 +137,24 @@ export function createHeaderController({ elements = {}, layout = {}, appState })
         appState.resolvedRootPath || appState.originalPathArgument || 'Unknown';
     }
 
-    const toggleDisable = (button, disabled) => {
+    const toggleDisable = (button: HTMLButtonElement | null | undefined, disabled: boolean): void => {
       if (button) {
         button.disabled = Boolean(disabled);
       }
     };
 
-    toggleDisable(downloadButton, !hasFile);
-    toggleDisable(deleteButton, !hasFile);
-    toggleDisable(editButton, !hasFile && !appState.isEditing);
-    toggleDisable(previewButton, !hasFile);
-    toggleDisable(saveButton, !hasFile);
-    toggleDisable(cancelButton, false);
+    toggleDisable(downloadButton ?? null, !hasFile);
+    toggleDisable(deleteButton ?? null, !hasFile);
+    toggleDisable(editButton ?? null, !hasFile && !appState.isEditing);
+    toggleDisable(previewButton ?? null, !hasFile);
+    toggleDisable(saveButton ?? null, !hasFile);
+    toggleDisable(cancelButton ?? null, false);
 
     updateActionVisibility();
     updateDocumentPanelTitle();
   }
 
-  function applyHasPendingChanges(value) {
+  function applyHasPendingChanges(value: boolean): void {
     const nextValue = Boolean(value);
     if (nextValue === appState.hasPendingChanges) {
       return;
