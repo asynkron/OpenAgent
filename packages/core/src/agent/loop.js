@@ -30,19 +30,25 @@ function cloneEventPayload(event) {
     return event;
   }
 
-  if (typeof structuredClone === 'function') {
-    try {
-      return structuredClone(event);
-    } catch (error) {
-      // Fall back to JSON serialization when structured cloning is unavailable
-      // or the payload contains values that cannot be cloned directly.
-    }
-  }
-
   try {
+    // JSON serialization guarantees a deep clone for plain data structures.
     return JSON.parse(JSON.stringify(event));
-  } catch (error) {
-    return Array.isArray(event) ? [...event] : { ...event };
+  } catch (jsonError) {
+    if (typeof structuredClone === 'function') {
+      try {
+        return structuredClone(event);
+      } catch (structuredCloneError) {
+        // Ignore and fall back to manual recursion below.
+      }
+    }
+
+    if (Array.isArray(event)) {
+      return event.map((item) => cloneEventPayload(item));
+    }
+
+    return Object.fromEntries(
+      Object.entries(event).map(([key, value]) => [key, cloneEventPayload(value)]),
+    );
   }
 }
 

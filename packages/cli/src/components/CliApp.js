@@ -582,7 +582,9 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
           handleAssistantMessage(event);
           break;
         case 'plan': {
-          const nextPlan = Array.isArray(event.plan) ? event.plan : [];
+          // Clone the plan payload so downstream mutations in the runtime cannot
+          // mutate our stateful reference and short-circuit Ink updates.
+          const nextPlan = Array.isArray(event.plan) ? cloneValue(event.plan) : [];
           setPlan((prevPlan) => (deepEqual(prevPlan, nextPlan) ? prevPlan : nextPlan));
           break;
         }
