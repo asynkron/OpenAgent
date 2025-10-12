@@ -106,12 +106,22 @@ function mergePlanItems(existingItem, incomingItem) {
     return null;
   }
 
+  const existingStatusIsTerminal = isTerminalStatus(existingItem.status);
+
   for (const [key, value] of Object.entries(incomingItem)) {
     if (VOLATILE_KEYS.has(key) || key === CHILD_KEY) {
       continue;
     }
 
     if (key === 'children' || key === 'steps') {
+      continue;
+    }
+
+    if (
+      key === 'status' &&
+      existingStatusIsTerminal &&
+      !isTerminalStatus(value)
+    ) {
       continue;
     }
 

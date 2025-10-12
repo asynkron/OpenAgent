@@ -31,6 +31,22 @@ describe('plan utilities', () => {
     expect(merged[2]).toBe(existingPlan[1]);
   });
 
+  test('mergePlanTrees does not downgrade terminal statuses back to pending', () => {
+    const existingPlan = [
+      { id: 'a', title: 'Finish work', status: 'completed', command: { run: 'echo done' } },
+    ];
+
+    const incomingPlan = [
+      { id: 'a', title: 'Finish work', status: 'pending', command: { run: 'echo done' } },
+    ];
+
+    const merged = mergePlanTrees(existingPlan, incomingPlan);
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toBe(existingPlan[0]);
+    expect(merged[0].status).toBe('completed');
+  });
+
   test('mergePlanTrees removes steps marked as abandoned', () => {
     const existingPlan = [
       { id: 'a', title: 'Keep me', status: 'running' },
