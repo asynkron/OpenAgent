@@ -54,6 +54,43 @@ describe('ObservationBuilder', () => {
     expect(() => builder.build({ result: null })).toThrow(/requires a result object/);
   });
 
+  test('failsafe guards against excessive output volume', () => {
+    const builder = new ObservationBuilder(deps);
+    const noisyStdout = Array.from({ length: 6001 }, (_, idx) => `line-${idx}`).join('\n');
+
+    const { renderPayload, observation } = builder.build({
+      command: {},
+      result: {
+        stdout: noisyStdout,
+        stderr: '',
+        exit_code: 0,
+        runtime_ms: 42,
+        killed: false,
+      },
+    });
+
+    expect(renderPayload).toEqual({
+      stdout: '!!!corrupt command, excessive output!!!',
+      stderr: '!!!corrupt command, excessive output!!!',
+      stdoutPreview: '!!!co',
+      stderrPreview: '!!!co',
+    });
+
+    expect(observation).toMatchObject({
+      observation_for_llm: {
+        stdout: '!!!corrupt command, excessive output!!!',
+        stderr: '!!!corrupt command, excessive output!!!',
+        exit_code: 1,
+        truncated: true,
+      },
+      observation_metadata: {
+        runtime_ms: 42,
+        killed: false,
+        timestamp: '2025-10-06T01:00:00.000Z',
+      },
+    });
+  });
+
   test('builds cancellation observation', () => {
     const builder = new ObservationBuilder(deps);
     const obs = builder.buildCancellationObservation({
