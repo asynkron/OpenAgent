@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Aggregated library entry for the OpenAgent core runtime.
  *

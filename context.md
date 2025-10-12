@@ -37,6 +37,8 @@
 - TypeScript scaffolding now lives at the workspace root via `tsconfig.json` plus `npm run typecheck` for incremental adoption; compiled JavaScript still ships from package directories until the build pipeline is fully converted.
 - The CLI package (`packages/cli`) now compiles TypeScript sources into `dist/` on demand via `npm run build --workspace @asynkron/openagent` and `npm run start` builds automatically through its `prestart` script.
 - TypeScript scaffolding now lives at the workspace root via `tsconfig.json` plus `npm run typecheck`; `packages/core` now compiles its `src/**/*.ts` sources into `dist/` via `npm run build --workspace @asynkron/openagent-core` before publishing.
+- Jest runs TypeScript sources through `babel-jest` (see `jest.config.mjs`), so suites now execute without the legacy `ts-jest` shim that previously blocked execution.
+- Root `npm test` builds every workspace first (`npm run build --workspaces --if-present`) so Jest can resolve the compiled `dist/` outputs referenced by mocks and module mappers.
 - The root `pretest` hook builds both `@asynkron/openagent-core` and `@asynkron/openagent` so Jest always runs against fresh TypeScript output.
 
 ## Related Context

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Text and shell utility helpers used across the agent runtime.
  *

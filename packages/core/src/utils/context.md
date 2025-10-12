@@ -6,13 +6,13 @@
 
 ## Key Modules
 
-- `asyncQueue.js` — async iterator/queue abstraction used by the agent runtime for event pipelines.
-- `cancellation.js` — cooperative cancellation registry (`register`, `cancel`) for long-running commands.
-- `contextUsage.js` — tracks token usage metrics for display in the CLI.
-- `fetch.js` — thin wrapper around `undici`/`node-fetch` semantics with timeout & error normalization.
-- `jsonAssetValidator.js` — validates JSON files against provided schemas; leveraged by scripts/tests.
-- `output.js` — formatting helpers for CLI output and logs.
-- `plan.js` — plan tree clone/merge/progress utilities used by agent runtime & UI.
+- `asyncQueue.ts` — generic async iterator/queue abstraction used by the agent runtime for event pipelines.
+- `cancellation.ts` — cooperative cancellation registry (`register`, `cancel`) for long-running commands with typed tokens/entries so registrants surface misuse at compile time.
+- `contextUsage.ts` — tracks token usage metrics for display in the CLI.
+- `fetch.ts` — thin wrapper around `undici`/`node-fetch` semantics with timeout & error normalization; now prefers the global Fetch API with typed fallbacks to Node's `http`/`https` modules.
+- `jsonAssetValidator.ts` — validates JSON files against provided schemas; leveraged by scripts/tests.
+- `output.ts` — formatting helpers for CLI output and logs, now typed to guarantee string outputs.
+- `plan.ts` — plan tree clone/merge/progress utilities used by agent runtime & UI.
   - Incoming items with `status: 'abandoned'` now remove the matching plan branch during merge.
   - Steps waiting on dependencies now remain blocked if any dependency failed instead of treating failure as completion.
   - Merging no longer downgrades locally completed/failed steps when the assistant resends them as pending, preventing command replays.
@@ -22,6 +22,9 @@
   - Progress helpers only treat canonical terminal statuses (`completed`, `failed`) as finished; tests assert unrecognized values like `done` remain pending.
 - `text.ts` (emits `text.js` for runtime consumption) — string helpers (filters, tailing, shell splitting).
 
+Recent migrations tightened the TypeScript coverage for `asyncQueue`, `contextUsage`, `jsonAssetValidator`, `cancellation`, `fetch`,
+and `output`, replacing `@ts-nocheck` annotations with explicit types to surface errors during compilation.
+
 ## Positive Signals
 
 - Utilities are mostly pure and individually unit-tested via the co-located `__tests__/` suites, minimizing regressions when refactoring.
@@ -30,7 +33,7 @@
 ## Risks / Gaps
 
 - Some utilities assume Node >=18 features (e.g., `AbortController`); confirm compatibility when targeting older runtimes.
-- `fetch.js` rethrows errors with minimal context; wrap with additional logging when used in new surfaces.
+- `fetch.ts` rethrows errors with minimal context; wrap with additional logging when used in new surfaces.
 
 ## Related Context
 

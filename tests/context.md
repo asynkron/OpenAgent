@@ -20,6 +20,7 @@
 - Recent unit tests under each package assert tool-only OpenAI responses remain parseable, guard the CLI renderers, and cover
   cancellation/plan utilities without depending on the repository-level harness.
 - OpenAI mocking utilities now keep their enablement flag immutable, preventing accidental toggles mid-suite.
+- The shared OpenAI mock rewrites `.js` module specifiers to `.ts` when only the TypeScript sources exist, keeping Babel-powered Jest runs aligned with the workspace migration.
 
 ## Risks / Gaps
 
