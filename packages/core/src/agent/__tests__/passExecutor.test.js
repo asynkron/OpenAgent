@@ -614,7 +614,7 @@ describe('executeAgentPass', () => {
     expect(commandRuns).toEqual(['run-c', 'run-a', 'run-b']);
   });
 
-  test('persists merged plans and marks successful commands as completed', async () => {
+  test('merges incoming plans and marks successful commands as completed', async () => {
     const { executeAgentPass, parseAssistantResponse, executeAgentCommand, planHasOpenSteps } =
       await setupPassExecutor({
         executeAgentCommandImpl: () => ({
@@ -644,16 +644,12 @@ describe('executeAgentPass', () => {
     const emitEvent = jest.fn();
     const history = [];
 
-    const syncedPlans = [];
     const planManager = {
       isMergingEnabled: jest.fn().mockReturnValue(true),
       update: jest.fn().mockImplementation(async (plan) => plan),
       get: jest.fn(),
       reset: jest.fn(),
-      sync: jest.fn().mockImplementation(async function sync(plan) {
-        syncedPlans.push(JSON.parse(JSON.stringify(plan)));
-        return Array.isArray(plan) ? JSON.parse(JSON.stringify(plan)) : [];
-      }),
+      sync: jest.fn(),
     };
 
     const PASS_INDEX = 6;
@@ -681,11 +677,7 @@ describe('executeAgentPass', () => {
     expect(result).toBe(true);
     expect(executeAgentCommand).toHaveBeenCalledTimes(1);
     expect(planManager.update).toHaveBeenCalledTimes(1);
-    expect(planManager.sync).toHaveBeenCalledTimes(2);
-
-    const nonEmptyPlans = syncedPlans.filter((plan) => Array.isArray(plan) && plan.length > 0);
-    expect(nonEmptyPlans.length).toBeGreaterThan(0);
-    expect(nonEmptyPlans[nonEmptyPlans.length - 1][0].status).toBe('completed');
+    expect(planManager.sync).not.toHaveBeenCalled();
 
     const planEvents = emitEvent.mock.calls
       .map(([event]) => event)
@@ -769,7 +761,7 @@ describe('executeAgentPass', () => {
     expect(finalPlanEvent.plan[1].status).toBe('completed');
   });
 
-  test('re-emits plan events with persisted updates after execution finishes', async () => {
+  test('re-emits plan events with in-memory updates after execution finishes', async () => {
     const { executeAgentPass, parseAssistantResponse, executeAgentCommand, planHasOpenSteps } =
       await setupPassExecutor({
         executeAgentCommandImpl: () => ({
@@ -799,21 +791,12 @@ describe('executeAgentPass', () => {
     const emitEvent = jest.fn();
     const history = [];
 
-    let syncInvocations = 0;
     const planManager = {
       isMergingEnabled: jest.fn().mockReturnValue(true),
       update: jest.fn().mockImplementation(async (plan) => plan),
       get: jest.fn(),
       reset: jest.fn(),
-      sync: jest.fn().mockImplementation(async function sync(plan) {
-        syncInvocations += 1;
-        const cloned = Array.isArray(plan) ? JSON.parse(JSON.stringify(plan)) : [];
-        if (cloned[0] && syncInvocations >= 2) {
-          cloned[0].status = 'completed';
-          cloned[0].observation = { done: true };
-        }
-        return cloned;
-      }),
+      sync: jest.fn(),
     };
 
     const PASS_INDEX = 12;
@@ -840,7 +823,7 @@ describe('executeAgentPass', () => {
 
     expect(result).toBe(true);
     expect(executeAgentCommand).toHaveBeenCalledTimes(1);
-    expect(planManager.sync).toHaveBeenCalledTimes(2);
+    expect(planManager.sync).not.toHaveBeenCalled();
 
     const planEvents = emitEvent.mock.calls
       .map(([event]) => event)
@@ -848,8 +831,8 @@ describe('executeAgentPass', () => {
 
     expect(planEvents.length).toBeGreaterThanOrEqual(3);
     const lastPlanEvent = planEvents[planEvents.length - 1];
-    expect(lastPlanEvent.plan[0].status).toBe('completed');
-    expect(lastPlanEvent.plan[0].observation).toEqual({ done: true });
+    expect(lastPlanEvent.plan[0].status).toBe('failed');
+    expect(lastPlanEvent.plan[0]).toHaveProperty('observation');
   });
 
   test('auto-responds when schema validation fails', async () => {

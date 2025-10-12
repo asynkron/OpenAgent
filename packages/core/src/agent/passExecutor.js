@@ -530,6 +530,9 @@ export async function executeAgentPass({
 
   if (planManager) {
     try {
+      // The plan manager is only consulted when the model sends a fresh plan payload.
+      // We let it merge new steps/tasks from the assistant response but avoid using it
+      // for post-execution persistence so local status updates stay in memory only.
       const mergePreference = await invokePlanManager?.(planManager.isMergingEnabled);
       const shouldMerge = mergePreference !== false;
 
@@ -567,35 +570,6 @@ export async function executeAgentPass({
   incrementRunningPlanStepAges(activePlan);
 
   emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
-
-  const persistPlanState = async (planSnapshot) => {
-    if (!planSnapshot || !Array.isArray(planSnapshot) || !invokePlanManager) {
-      return false;
-    }
-
-    try {
-      let persisted;
-      if (typeof planManager?.sync === 'function') {
-        persisted = await invokePlanManager(planManager.sync, planSnapshot);
-      } else if (typeof planManager?.update === 'function') {
-        persisted = await invokePlanManager(planManager.update, planSnapshot);
-      }
-
-      if (Array.isArray(persisted)) {
-        activePlan = persisted;
-        return true;
-      }
-    } catch (error) {
-      emitEvent({
-        type: 'status',
-        level: 'warn',
-        message: 'Failed to persist plan state after execution.',
-        details: error instanceof Error ? error.message : String(error),
-      });
-    }
-
-    return false;
-  };
 
   const planForExecution = clonePlanForExecution(activePlan);
   let activePlanExecutableSteps = collectExecutablePlanSteps(activePlan);
@@ -821,8 +795,6 @@ export async function executeAgentPass({
         emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
       }
 
-      const persistedBeforeExecution = await persistPlanState(activePlan);
-      planMutatedDuringExecution ||= persistedBeforeExecution;
       refreshActivePlanExecutableSteps();
       activePlanStep = activePlanStepMap.get(stepKey) ?? activePlanStep;
       if (
@@ -954,8 +926,6 @@ export async function executeAgentPass({
         emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
       }
 
-      const persistedAfterExecution = await persistPlanState(activePlan);
-      planMutatedDuringExecution ||= persistedAfterExecution;
       refreshActivePlanExecutableSteps();
       nextExecutable = selectNextExecutableEntry();
     }
