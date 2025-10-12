@@ -225,6 +225,31 @@ function resolveHistoryFilePath(rawPath) {
   return path.resolve(process.cwd(), fallbackName);
 }
 
+function cloneValue(value) {
+  if (value === undefined || value === null) {
+    return value;
+  }
+
+  if (typeof value !== 'object') {
+    return value;
+  }
+
+  if (typeof structuredClone === 'function') {
+    try {
+      return structuredClone(value);
+    } catch (error) {
+      // Fall through to JSON fallback when structured cloning fails (e.g., non-cloneable values).
+    }
+  }
+
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch (error) {
+    // As a last resort, return the original reference so we at least render something.
+    return value;
+  }
+}
+
 async function writeHistorySnapshot({ history, filePath }) {
   const targetPath = resolveHistoryFilePath(filePath);
   const directory = path.dirname(targetPath);
@@ -301,19 +326,23 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
 
   const handleCommandEvent = useCallback(
     (event) => {
+      const commandPayload = cloneValue(event.command ?? null);
+      const resultPayload = cloneValue(event.result ?? null);
+      const previewPayload = cloneValue(event.preview ?? {});
+      const executionPayload = cloneValue(event.execution ?? null);
+
       appendEntry('command-result', {
-        command: event.command,
-        result: event.result,
-        preview: event.preview || {},
-        execution: event.execution,
+        command: commandPayload,
+        result: resultPayload,
+        preview: previewPayload || {},
+        execution: executionPayload,
       });
-      const commandPayload = event.command ?? null;
       if (commandPayload) {
         setCommandLog((prev) => {
           commandLogIdRef.current += 1;
           const entry = {
             id: commandLogIdRef.current,
-            command: commandPayload,
+            command: cloneValue(commandPayload),
             receivedAt: Date.now(),
           };
           const next = [...prev, entry];
@@ -558,12 +587,15 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
           break;
         }
         case 'plan-progress': {
-          const nextPlanProgress = { seen: true, value: event.progress || null };
+          const nextPlanProgress = {
+            seen: true,
+            value: event.progress ? cloneValue(event.progress) : null,
+          };
           setPlanProgress((prev) => (deepEqual(prev, nextPlanProgress) ? prev : nextPlanProgress));
           break;
         }
         case 'context-usage': {
-          const nextContextUsage = event.usage || null;
+          const nextContextUsage = event.usage ? cloneValue(event.usage) : null;
           setContextUsage((prev) => (deepEqual(prev, nextContextUsage) ? prev : nextContextUsage));
           break;
         }
@@ -578,7 +610,13 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
           });
           break;
         case 'request-input':
-          setInputRequest({ prompt: event.prompt ?? '▷', metadata: event.metadata || null });
+          setInputRequest({
+            prompt: event.prompt ?? '▷',
+            metadata:
+              event.metadata === undefined || event.metadata === null
+                ? null
+                : cloneValue(event.metadata),
+          });
           break;
         case 'debug':
           handleDebugEvent(event);
