@@ -4,7 +4,9 @@ import { resolve } from 'node:path';
 import { mergePlanTrees, computePlanProgress } from '../utils/plan.js';
 
 function defaultClone(plan) {
-  return mergePlanTrees([], Array.isArray(plan) ? plan : []);
+  return mergePlanTrees([], Array.isArray(plan) ? plan : [], {
+    preserveIncomingStatusForNewSteps: true,
+  });
 }
 
 function formatStatusEvent(level, message, details) {
