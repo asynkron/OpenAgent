@@ -14,6 +14,9 @@ export default {
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
     '^@asynkron/openagent-core$': '<rootDir>/packages/core/dist/index.js',
+    '^ai$': '<rootDir>/tests/stubs/ai.ts',
+    '^@ai-sdk/openai$': '<rootDir>/tests/stubs/aiSdkOpenAI.ts',
+    '^openai$': '<rootDir>/tests/stubs/openai.ts',
   },
   transform: {
     '^.+\\.(ts|tsx)$': [

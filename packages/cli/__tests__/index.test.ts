@@ -38,7 +38,7 @@ async function loadModule(
   }));
 
   jest.unstable_mockModule('dotenv/config', () => ({}));
-  jest.unstable_mockModule('openai', () => ({ default: MockOpenAI }));
+  jest.unstable_mockModule('@ai-sdk/openai', () => ({ createOpenAI: MockOpenAI }));
 
   if (typeof httpModuleFactory === 'function') {
     const httpModule = await httpModuleFactory();
