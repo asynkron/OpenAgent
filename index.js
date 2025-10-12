@@ -6,5 +6,5 @@
  * the workspace transition.
  */
 
-export * from './packages/cli/index.js';
-export { default } from './packages/cli/index.js';
+export * from './packages/cli/dist/index.js';
+export { default } from './packages/cli/dist/index.js';

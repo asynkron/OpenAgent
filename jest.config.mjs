@@ -1,3 +1,12 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const configDir = path.dirname(fileURLToPath(import.meta.url));
+const replaceJsExtensionsPlugin = path.join(
+  configDir,
+  'scripts/babel/plugins/replaceJsExtensions.cjs',
+);
+
 export default {
   testEnvironment: 'node',
   setupFilesAfterEnv: ['<rootDir>/tests/mockOpenAI.js'],
@@ -13,9 +22,10 @@ export default {
           ['@babel/preset-env', { targets: { node: 'current' }, modules: false }],
           ['@babel/preset-typescript', { allowDeclareFields: true }],
         ],
+        plugins: [replaceJsExtensionsPlugin],
       },
     ],
   },
-  extensionsToTreatAsEsm: ['ts'],
+  extensionsToTreatAsEsm: ['.ts'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'json', 'node'],
 };

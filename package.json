@@ -17,7 +17,7 @@
     "preformat": "",
     "preformat:check": "",
     "prelint": "",
-    "pretest": "",
+    "pretest": "npm run build --workspace @asynkron/openagent",
     "prepare": "",
     "postinstall": "",
     "release:verify-tag": "node ./scripts/verify-release-tag.js"
