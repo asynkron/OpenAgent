@@ -14,10 +14,14 @@ type ListenerMethod = (event: string, handler: EventHandler) => unknown;
 
 type SendResult = void | boolean | PromiseLike<void | boolean>;
 
-const isFunction = (value: unknown): value is (...args: never[]) => unknown => typeof value === 'function';
+const isFunction = (value: unknown): value is (...args: never[]) => unknown =>
+  typeof value === 'function';
 
 const isPromiseLike = (value: unknown): value is PromiseLike<unknown> =>
-  Boolean(value) && typeof value === 'object' && 'then' in (value as Record<string, unknown>) && isFunction((value as PromiseLike<unknown>).then);
+  Boolean(value) &&
+  typeof value === 'object' &&
+  'then' in (value as Record<string, unknown>) &&
+  isFunction((value as PromiseLike<unknown>).then);
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -185,7 +189,9 @@ function normalisePromptValue(value: unknown): string {
 
 // Converts arbitrary socket payloads into high-level prompt/cancel envelopes so the
 // binding can forward them to the runtime without ad-hoc type assertions.
-function normaliseIncomingMessage(parsed: ParsedIncomingMessage): NormalizedIncomingEnvelope | null {
+function normaliseIncomingMessage(
+  parsed: ParsedIncomingMessage,
+): NormalizedIncomingEnvelope | null {
   if (parsed == null) {
     return null;
   }
@@ -220,11 +226,15 @@ function normaliseIncomingMessage(parsed: ParsedIncomingMessage): NormalizedInco
   return null;
 }
 
-const hasEmitterApi = (socket: WebSocketLike): socket is WebSocketLike & {
+const hasEmitterApi = (
+  socket: WebSocketLike,
+): socket is WebSocketLike & {
   on: ListenerMethod;
 } => isFunction(socket.on);
 
-const hasEventTargetApi = (socket: WebSocketLike): socket is WebSocketLike & {
+const hasEventTargetApi = (
+  socket: WebSocketLike,
+): socket is WebSocketLike & {
   addEventListener: ListenerMethod;
   removeEventListener?: ListenerMethod;
 } => isFunction(socket.addEventListener);
@@ -265,7 +275,9 @@ function attachListener(socket: WebSocketLike, event: string, handler: EventHand
 
 // Normalizes the runtime.outputs contract into a clean async iterable, regardless of
 // whether the queue exposes Symbol.asyncIterator or a bare next() method.
-const createOutputIterable = (outputs: RuntimeOutputs | null | undefined): AsyncIterable<RuntimeEvent> | null => {
+const createOutputIterable = (
+  outputs: RuntimeOutputs | null | undefined,
+): AsyncIterable<RuntimeEvent> | null => {
   if (!outputs) {
     return null;
   }
@@ -274,7 +286,9 @@ const createOutputIterable = (outputs: RuntimeOutputs | null | undefined): Async
   if (typeof asyncIteratorFactory === 'function') {
     return {
       async *[Symbol.asyncIterator]() {
-        const iterator = asyncIteratorFactory.call(outputs) as AsyncIterator<RuntimeEvent | null | undefined>;
+        const iterator = asyncIteratorFactory.call(outputs) as AsyncIterator<
+          RuntimeEvent | null | undefined
+        >;
         try {
           while (true) {
             const result = await iterator.next();

@@ -53,7 +53,10 @@ declare module '@asynkron/openagent-core' {
     shellOrOptions?: unknown,
   ): Promise<CommandResult>;
 
-  export function incrementCommandCount(commandKey: string, logPath?: string | null): Promise<boolean>;
+  export function incrementCommandCount(
+    commandKey: string,
+    logPath?: string | null,
+  ): Promise<boolean>;
 
   export function applyFilter(text: string, regex?: RegExp | string | null): string;
 

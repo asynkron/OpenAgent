@@ -104,7 +104,9 @@ async function recordCommandStat(commandKey: string): Promise<void> {
   }
 }
 
-async function runAgentLoopWithCurrentDependencies(options: RuntimeOptions = {} as RuntimeOptions): Promise<void> {
+async function runAgentLoopWithCurrentDependencies(
+  options: RuntimeOptions = {} as RuntimeOptions,
+): Promise<void> {
   const runtime = createAgentRuntime(normalizeRuntimeOptions(options));
 
   return new Promise<void>((resolve, reject) => {

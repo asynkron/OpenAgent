@@ -83,9 +83,7 @@ describe('loadCoreModule', () => {
 
     const { loadCoreModule } = await importLoader();
 
-    await expect(loadCoreModule({ importer })).rejects.toThrow(
-      /missing required exports/i,
-    );
+    await expect(loadCoreModule({ importer })).rejects.toThrow(/missing required exports/i);
   });
 
   test('memoizes the resolved module between calls', async () => {

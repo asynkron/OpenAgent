@@ -1,1 +1,6 @@
-# Generated bundles\npackages/web/backend/public/static/dist\n
+# Generated bundles
+packages/web/backend/public/static/dist
+
+# Build outputs
+packages/**/dist
+scripts/dist

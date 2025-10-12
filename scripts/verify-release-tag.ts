@@ -25,7 +25,8 @@ if (!rawTag) {
 const tagWithoutPrefix = rawTag.startsWith('v') ? rawTag.slice(1) : rawTag;
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
-const scriptsDir = path.basename(currentDir) === 'dist' ? path.resolve(currentDir, '..') : currentDir;
+const scriptsDir =
+  path.basename(currentDir) === 'dist' ? path.resolve(currentDir, '..') : currentDir;
 const packageJsonPath = path.join(scriptsDir, '..', 'package.json');
 const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as PackageMetadata;
 const packageVersion = packageJson.version;

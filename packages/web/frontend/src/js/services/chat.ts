@@ -59,7 +59,11 @@ type AgentPayloadByType = {
 const AGENT_PAYLOAD_TYPE_SET = new Set<string>(AGENT_PAYLOAD_TYPES);
 
 type ListenerTarget = EventTarget & {
-  addEventListener(type: string, listener: EventListener, options?: boolean | AddEventListenerOptions): void;
+  addEventListener(
+    type: string,
+    listener: EventListener,
+    options?: boolean | AddEventListenerOptions,
+  ): void;
   removeEventListener(
     type: string,
     listener: EventListener,
@@ -702,7 +706,9 @@ export function createChatService({
   ): void {
     // Narrow the handler to the precise payload type. TypeScript cannot track the
     // discriminant across the lookup, so we help it with a one-off assertion.
-    const handler = agentPayloadHandlers[payload.type] as (payload: AgentPayloadByType[Type]) => void;
+    const handler = agentPayloadHandlers[payload.type] as (
+      payload: AgentPayloadByType[Type],
+    ) => void;
     handler(payload);
   }
 
