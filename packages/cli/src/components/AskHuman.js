@@ -74,7 +74,7 @@ const askHumanProps = humanProps?.askHuman ?? {};
  * Collects free-form user input while keeping the prompt visible inside the Ink
  * layout.
  */
-export function AskHuman({ onSubmit, thinking = false, contextUsage = null }) {
+export function AskHuman({ onSubmit, thinking = false, contextUsage = null, passCounter = 0 }) {
   const [value, setValue] = useState('');
   const [locked, setLocked] = useState(false);
   const mountedRef = useRef(true);
@@ -138,9 +138,14 @@ export function AskHuman({ onSubmit, thinking = false, contextUsage = null }) {
         isDisabled: locked,
       });
 
+  const normalizedPassCounter = Number.isFinite(passCounter)
+    ? Math.max(0, Math.floor(passCounter))
+    : 0;
+  const passPrefix =
+    normalizedPassCounter > 0 ? `Pass #${normalizedPassCounter} • ` : '';
   const hintMessage = thinking
-    ? 'Waiting for the AI to finish thinking…'
-    : 'Press Enter to submit • Shift+Enter for newline • Esc to cancel';
+    ? `${passPrefix}Waiting for the AI to finish thinking…`
+    : `${passPrefix}Press Enter to submit • Shift+Enter for newline • Esc to cancel`;
 
   const footerHintProps = {
     dimColor: true,
