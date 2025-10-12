@@ -1,18 +1,177 @@
-// @ts-nocheck
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
+import type { BoxProps, Key, TextProps } from 'ink';
+
+type MaybePromise<T> = T | Promise<T>;
+
+type SlashCommandItem = {
+  id?: string | number;
+  label?: unknown;
+  title?: unknown;
+  name?: unknown;
+  key?: unknown;
+  description?: unknown;
+  keywords?: unknown;
+  insertValue?: unknown;
+  replacement?: unknown;
+  [key: string]: unknown;
+};
+
+type NormalizedSlashCommandItem = {
+  id: string | number;
+  label: string;
+  description?: string;
+  keywords: string[];
+  insertValue?: string;
+  source: SlashCommandItem;
+};
+
+type SlashCommandFilterContext = {
+  query: string;
+  normalizedQuery: string;
+  command: SlashCommandDefinition;
+  value: string;
+  caretIndex: number;
+};
+
+type SlashCommandActivationContext = {
+  value: string;
+  caretIndex: number;
+  triggerIndex: number;
+  query: string;
+  precedingChar: string;
+  command: SlashCommandDefinition;
+};
+
+type SlashCommandRange = {
+  startIndex: number;
+  endIndex: number;
+};
+
+type SlashCommandGetItemsContext = {
+  query: string;
+  command: SlashCommandDefinition;
+  value: string;
+  caretIndex: number;
+  range: SlashCommandRange;
+};
+
+type SlashCommandDefinition = {
+  id?: string;
+  trigger?: string;
+  allowNewlines?: boolean;
+  allowInline?: boolean;
+  items?: SlashCommandItem[];
+  getItems?: (context: SlashCommandGetItemsContext) => MaybePromise<SlashCommandItem[] | null | undefined>;
+  filterItem?: (
+    item: NormalizedSlashCommandItem,
+    context: SlashCommandFilterContext,
+  ) => boolean;
+  shouldActivate?: (context: SlashCommandActivationContext) => boolean;
+};
+
+type NormalizedSlashCommandDefinition = {
+  id: string;
+  trigger: string;
+  triggerLength: number;
+  allowNewlines: boolean;
+  allowInline: boolean;
+  shouldActivate: (context: SlashCommandActivationContext) => boolean;
+  filterItem: (item: NormalizedSlashCommandItem, context: SlashCommandFilterContext) => boolean;
+  getItems: ((context: SlashCommandGetItemsContext) => MaybePromise<SlashCommandItem[] | null | undefined>) | null;
+  staticItems: NormalizedSlashCommandItem[];
+  order: number;
+  source: SlashCommandDefinition;
+};
+
+type ActiveCommandMatch = {
+  command: NormalizedSlashCommandDefinition;
+  startIndex: number;
+  endIndex: number;
+  query: string;
+};
+
+type CommandMatch = {
+  item: NormalizedSlashCommandItem;
+  index: number;
+};
+
+type SlashCommandSelection = {
+  item: SlashCommandItem;
+  query: string;
+  command: SlashCommandDefinition;
+  range: SlashCommandRange;
+  replacement: string;
+  value: string;
+};
+
+type LastKeyEvent = {
+  rawInput: string;
+  printableInput: string;
+  specialKeys: string[];
+  shiftModifierActive: boolean;
+};
+
+type KeyEventState = {
+  printableInput: string;
+  wasReturnKey: boolean;
+  shiftModifierActive: boolean;
+};
+
+type TextRow = {
+  text: string;
+  startIndex: number;
+};
+
+type CaretPosition = {
+  rowIndex: number;
+  column: number;
+  row: TextRow;
+};
+
+type HorizontalPaddingOptions = Pick<
+  BoxProps,
+  'padding' | 'paddingX' | 'paddingLeft' | 'paddingRight'
+>;
+
+type TransformToRowsOptions = Pick<BoxProps, 'paddingLeft' | 'paddingRight'>;
+
+type ExtendedKey = Key & {
+  isShiftPressed?: boolean;
+  code?: string;
+  home?: boolean;
+  end?: boolean;
+  [key: string]: unknown;
+};
+
+type InkTextAreaProps = Omit<BoxProps, 'children'> &
+  Omit<TextProps, 'children'> & {
+    value?: string;
+    onChange?: (value: string) => void;
+    onSubmit?: (value: string) => void;
+    placeholder?: string;
+    width?: number;
+    isActive?: boolean;
+    isDisabled?: boolean;
+    slashMenuItems?: SlashCommandItem[];
+    commandMenus?: SlashCommandDefinition[];
+    onSlashCommandSelect?: (selection: SlashCommandSelection) => void;
+  };
 
 const h = React.createElement;
 const BLINK_INTERVAL_MS = 500;
 
-function isWhitespace(char) {
+function isWhitespace(char: string | undefined): boolean {
   if (!char) {
     return false;
   }
   return /\s/u.test(char);
 }
 
-function normalizeSlashItem(item, index) {
+function normalizeSlashItem(
+  item: SlashCommandItem | null | undefined,
+  index: number,
+): NormalizedSlashCommandItem | null {
   if (!item || typeof item !== 'object') {
     return null;
   }
@@ -25,7 +184,7 @@ function normalizeSlashItem(item, index) {
       ? item.description
       : undefined;
   const keywords = Array.isArray(item.keywords)
-    ? item.keywords.filter((keyword) => typeof keyword === 'string')
+    ? item.keywords.filter((keyword): keyword is string => typeof keyword === 'string')
     : [];
   const insertValue =
     typeof item.insertValue === 'string'
@@ -44,7 +203,10 @@ function normalizeSlashItem(item, index) {
   };
 }
 
-function defaultFilterItem(item, context) {
+function defaultFilterItem(
+  item: NormalizedSlashCommandItem,
+  context: SlashCommandFilterContext | null,
+): boolean {
   if (!context) {
     return true;
   }
@@ -73,7 +235,7 @@ function defaultFilterItem(item, context) {
     normalizedDescription,
     ...(item.keywords ?? []),
   ]
-    .filter((part) => typeof part === 'string' && part.length > 0)
+    .filter((part): part is string => typeof part === 'string' && part.length > 0)
     .map((part) => part.toLowerCase());
 
   if (haystackParts.length === 0) {
@@ -97,7 +259,10 @@ function defaultFilterItem(item, context) {
   return tokens.every((token) => haystackParts.some((part) => part.includes(token)));
 }
 
-function normalizeCommandDefinition(definition, index) {
+function normalizeCommandDefinition(
+  definition: SlashCommandDefinition | null | undefined,
+  index: number,
+): NormalizedSlashCommandDefinition | null {
   if (!definition || typeof definition !== 'object') {
     return null;
   }
@@ -111,13 +276,16 @@ function normalizeCommandDefinition(definition, index) {
   const shouldActivate =
     typeof definition.shouldActivate === 'function'
       ? definition.shouldActivate
-      : ({ precedingChar }) => allowInline || !precedingChar || isWhitespace(precedingChar);
+      : ({ precedingChar }: SlashCommandActivationContext) =>
+          allowInline || !precedingChar || isWhitespace(precedingChar);
 
   const filterItem =
     typeof definition.filterItem === 'function' ? definition.filterItem : defaultFilterItem;
 
   const staticItems = Array.isArray(definition.items)
-    ? definition.items.map((item, itemIndex) => normalizeSlashItem(item, itemIndex)).filter(Boolean)
+    ? definition.items
+        .map((item, itemIndex) => normalizeSlashItem(item, itemIndex))
+        .filter((value): value is NormalizedSlashCommandItem => Boolean(value))
     : [];
 
   const getItems = typeof definition.getItems === 'function' ? definition.getItems : null;
@@ -138,7 +306,11 @@ function normalizeCommandDefinition(definition, index) {
   };
 }
 
-function computeActiveCommand(value, caretIndex, commands) {
+function computeActiveCommand(
+  value: string,
+  caretIndex: number,
+  commands: NormalizedSlashCommandDefinition[],
+): ActiveCommandMatch | null {
   if (typeof value !== 'string' || value.length === 0) {
     return null;
   }
@@ -149,7 +321,7 @@ function computeActiveCommand(value, caretIndex, commands) {
 
   const clampedIndex = clamp(caretIndex ?? value.length, 0, value.length);
   const textToCaret = value.slice(0, clampedIndex);
-  let bestMatch = null;
+  let bestMatch: ActiveCommandMatch | null = null;
 
   for (const command of commands) {
     const triggerIndex = textToCaret.lastIndexOf(command.trigger);
@@ -206,27 +378,35 @@ function computeActiveCommand(value, caretIndex, commands) {
   return bestMatch;
 }
 
-function clamp(value, min, max) {
+function clamp(value: number, min: number, max: number): number {
   if (value < min) return min;
   if (value > max) return max;
   return value;
 }
 
-const ARROW_LABELS = {
+const ARROW_LABELS: Record<string, string> = {
   upArrow: 'up',
   downArrow: 'down',
   leftArrow: 'left',
   rightArrow: 'right',
 };
 
-function toNonNegativeInteger(value) {
+function toNonNegativeInteger(value: number | undefined): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return 0;
   }
   return Math.max(0, Math.floor(value));
 }
 
-function resolveHorizontalPadding({ padding, paddingX, paddingLeft, paddingRight }) {
+function resolveHorizontalPadding({
+  padding,
+  paddingX,
+  paddingLeft,
+  paddingRight,
+}: HorizontalPaddingOptions): {
+  paddingLeft: number;
+  paddingRight: number;
+} {
   const base = toNonNegativeInteger(padding);
   const horizontal = paddingX !== undefined ? toNonNegativeInteger(paddingX) : base;
   const left = paddingLeft !== undefined ? toNonNegativeInteger(paddingLeft) : horizontal;
@@ -234,14 +414,13 @@ function resolveHorizontalPadding({ padding, paddingX, paddingLeft, paddingRight
   return { paddingLeft: left, paddingRight: right };
 }
 
-function extractSpecialKeys(key) {
+function extractSpecialKeys(key: ExtendedKey | undefined): string[] {
   if (!key || typeof key !== 'object') {
     return [];
   }
 
   return Object.entries(key)
-    .filter((entry) => {
-      const [name, value] = entry;
+    .filter(([name, value]) => {
       return typeof value === 'boolean' && value && name !== 'isShiftPressed';
     })
     .map(([name]) => ARROW_LABELS[name] ?? name);
@@ -251,12 +430,16 @@ function extractSpecialKeys(key) {
  * Break a string into the visual rows rendered by the editor.
  * Rows end either because the terminal width was reached or a newline was encountered.
  */
-export function transformToRows(source, maxWidth, options = {}) {
+export function transformToRows(
+  source: string,
+  maxWidth: number,
+  options: TransformToRowsOptions = {},
+): TextRow[] {
   const { paddingLeft = 0, paddingRight = 0 } = options ?? {};
   const safeWidth = Math.max(1, Math.floor(maxWidth ?? 1));
   const horizontalPadding = toNonNegativeInteger(paddingLeft) + toNonNegativeInteger(paddingRight);
   const effectiveWidth = Math.max(1, safeWidth - horizontalPadding);
-  const rows = [];
+  const rows: TextRow[] = [];
 
   let rowStartIndex = 0;
   let column = 0;
@@ -307,7 +490,7 @@ export function transformToRows(source, maxWidth, options = {}) {
   return rows;
 }
 
-function computeCaretPosition(rows, caretIndex, totalLength) {
+function computeCaretPosition(rows: TextRow[], caretIndex: number, totalLength: number): CaretPosition {
   if (rows.length === 0) {
     return {
       rowIndex: 0,
@@ -354,7 +537,7 @@ export function InkTextArea({
   commandMenus = [],
   onSlashCommandSelect,
   ...rest
-}) {
+}: InkTextAreaProps): React.ReactElement {
   const {
     padding,
     paddingX,
@@ -376,27 +559,28 @@ export function InkTextArea({
     borderBottom,
     borderLeft,
     borderRight,
-    ...textProps
+    ...textPropsRest
   } = rest;
-  const [caretIndex, setCaretIndex] = useState(() => clamp(0, 0, value.length));
-  const [showCaret, setShowCaret] = useState(true);
-  const [lastKeyEvent, setLastKeyEvent] = useState(() => ({
+  const textProps: Partial<TextProps> = textPropsRest;
+  const [caretIndex, setCaretIndex] = useState<number>(() => clamp(0, 0, value.length));
+  const [showCaret, setShowCaret] = useState<boolean>(true);
+  const [lastKeyEvent, setLastKeyEvent] = useState<LastKeyEvent>(() => ({
     rawInput: '',
     printableInput: '',
     specialKeys: [],
     shiftModifierActive: false,
   }));
-  const lastKeyEventRef = useRef({
+  const lastKeyEventRef = useRef<KeyEventState>({
     printableInput: '',
     wasReturnKey: false,
     shiftModifierActive: false,
   });
-  const desiredColumnRef = useRef(null);
+  const desiredColumnRef = useRef<number | null>(null);
   const [commandHighlightIndex, setCommandHighlightIndex] = useState(0);
   const interactive = isActive && !isDisabled;
 
   const { stdout } = useStdout();
-  const [measuredWidth, setMeasuredWidth] = useState(() =>
+  const [measuredWidth, setMeasuredWidth] = useState<number | undefined>(() =>
     stdout && Number.isFinite(stdout.columns) ? Math.floor(stdout.columns) : undefined,
   );
 
@@ -474,7 +658,9 @@ export function InkTextArea({
   const caretLine = caretPosition.rowIndex;
   const caretColumn = caretPosition.column;
 
-  const [dynamicCommandItems, setDynamicCommandItems] = useState(() => ({}));
+  const [dynamicCommandItems, setDynamicCommandItems] = useState<
+    Record<string, { signature: string; items: NormalizedSlashCommandItem[] }>
+  >(() => ({}));
 
   const normalizedCommands = useMemo(() => {
     const legacyDefinitions =
@@ -492,7 +678,7 @@ export function InkTextArea({
 
     return [...legacyDefinitions, ...providedDefinitions]
       .map((definition, index) => normalizeCommandDefinition(definition, index))
-      .filter(Boolean);
+      .filter((definition): definition is NormalizedSlashCommandDefinition => Boolean(definition));
   }, [commandMenus, slashMenuItems]);
 
   const activeCommand = useMemo(
@@ -535,7 +721,7 @@ export function InkTextArea({
 
         const normalizedItems = items
           .map((item, index) => normalizeSlashItem(item, index))
-          .filter(Boolean);
+          .filter((value): value is NormalizedSlashCommandItem => Boolean(value));
 
         setDynamicCommandItems((prev) => {
           const previousEntry = prev[command.id];
@@ -559,7 +745,7 @@ export function InkTextArea({
     };
   }, [activeCommand, caretIndex, value]);
 
-  const commandMatches = useMemo(() => {
+  const commandMatches = useMemo<CommandMatch[]>(() => {
     if (!activeCommand) {
       return [];
     }
@@ -585,7 +771,7 @@ export function InkTextArea({
 
   const commandMenuVisible = Boolean(activeCommand) && commandMatches.length > 0;
 
-  const commandSignatureRef = useRef(null);
+  const commandSignatureRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!commandMenuVisible) {
@@ -593,6 +779,10 @@ export function InkTextArea({
       if (commandHighlightIndex !== 0) {
         setCommandHighlightIndex(0);
       }
+      return;
+    }
+
+    if (!activeCommand) {
       return;
     }
 
@@ -642,7 +832,7 @@ export function InkTextArea({
   }, [interactive]);
 
   const updateValue = useCallback(
-    (nextValue, nextCaretIndex) => {
+    (nextValue: string, nextCaretIndex: number) => {
       const clampedIndex = clamp(nextCaretIndex, 0, nextValue.length);
       resetDesiredColumn();
       onChange?.(nextValue);
@@ -651,7 +841,7 @@ export function InkTextArea({
     [onChange, resetDesiredColumn],
   );
 
-  const handleCommandSelection = useCallback(() => {
+  const handleCommandSelection = useCallback((): boolean => {
     if (!commandMenuVisible || !selectedCommandMatch || !activeCommand) {
       return false;
     }
@@ -688,7 +878,7 @@ export function InkTextArea({
   ]);
 
   const handleInput = useCallback(
-    (input, key) => {
+    (input: string, key: ExtendedKey) => {
       if (!interactive) {
         return;
       }
@@ -898,7 +1088,7 @@ export function InkTextArea({
 
   const caretVisible = interactive && showCaret;
   const hasValue = value.length > 0;
-  const displayRows = useMemo(() => {
+  const displayRows = useMemo<TextRow[]>(() => {
     if (hasValue) {
       return rows;
     }
@@ -940,7 +1130,9 @@ export function InkTextArea({
     }
 
     if (!hasValue) {
-      const placeholderSegments = [h(Text, { inverse: true, key: 'caret-highlight' }, ' ')];
+      const placeholderSegments: Array<string | React.ReactElement> = [
+        h(Text, { inverse: true, key: 'caret-highlight' }, ' '),
+      ];
       if (row.text.length > 0) {
         placeholderSegments.push(row.text);
       }
@@ -953,7 +1145,7 @@ export function InkTextArea({
     const caretDisplay = caretChar ?? ' ';
     const afterStart = caretChar ? caretColumnIndex + 1 : caretColumnIndex;
     const afterCaret = row.text.slice(afterStart);
-    const segments = [];
+    const segments: Array<string | React.ReactElement> = [];
 
     if (beforeCaret.length > 0) {
       segments.push(beforeCaret);
@@ -990,7 +1182,7 @@ export function InkTextArea({
     [lastKeyEvent.specialKeys],
   );
 
-  const commandMenuElement = useMemo(() => {
+  const commandMenuElement = useMemo<React.ReactNode>(() => {
     if (!commandMenuVisible) {
       return null;
     }
@@ -1057,7 +1249,7 @@ export function InkTextArea({
 
   const shouldRenderDebug = process.env.NODE_ENV === 'test';
 
-  const debugElement = useMemo(() => {
+  const debugElement = useMemo<React.ReactNode>(() => {
     if (!shouldRenderDebug) {
       return null;
     }
@@ -1096,43 +1288,36 @@ export function InkTextArea({
     widthPropDisplay,
   ]);
 
-  const containerProps = useMemo(() => {
-    const style = {
-      flexDirection: 'column',
-      width: '100%',
-      alignSelf: 'stretch',
+  const containerProps = useMemo<BoxProps>(() => {
+    const baseStyle = {
+      flexDirection: 'column' as const,
+      width: '100%' as const,
+      alignSelf: 'stretch' as unknown as BoxProps['alignSelf'],
     };
 
-    const boxOptions = {
-      padding,
-      paddingX,
-      paddingY,
-      paddingLeft,
-      paddingRight,
-      paddingTop,
-      paddingBottom,
-      margin,
-      marginX,
-      marginY,
-      marginLeft,
-      marginRight,
-      marginTop,
-      marginBottom,
-      borderColor,
-      borderStyle,
-      borderTop,
-      borderBottom,
-      borderLeft,
-      borderRight,
-    };
-
-    for (const [key, value] of Object.entries(boxOptions)) {
-      if (value !== undefined) {
-        style[key] = value;
-      }
-    }
-
-    return style;
+    return {
+      ...baseStyle,
+      ...(padding !== undefined ? { padding } : {}),
+      ...(paddingX !== undefined ? { paddingX } : {}),
+      ...(paddingY !== undefined ? { paddingY } : {}),
+      ...(paddingLeft !== undefined ? { paddingLeft } : {}),
+      ...(paddingRight !== undefined ? { paddingRight } : {}),
+      ...(paddingTop !== undefined ? { paddingTop } : {}),
+      ...(paddingBottom !== undefined ? { paddingBottom } : {}),
+      ...(margin !== undefined ? { margin } : {}),
+      ...(marginX !== undefined ? { marginX } : {}),
+      ...(marginY !== undefined ? { marginY } : {}),
+      ...(marginLeft !== undefined ? { marginLeft } : {}),
+      ...(marginRight !== undefined ? { marginRight } : {}),
+      ...(marginTop !== undefined ? { marginTop } : {}),
+      ...(marginBottom !== undefined ? { marginBottom } : {}),
+      ...(borderColor !== undefined ? { borderColor } : {}),
+      ...(borderStyle !== undefined ? { borderStyle } : {}),
+      ...(borderTop !== undefined ? { borderTop } : {}),
+      ...(borderBottom !== undefined ? { borderBottom } : {}),
+      ...(borderLeft !== undefined ? { borderLeft } : {}),
+      ...(borderRight !== undefined ? { borderRight } : {}),
+    } satisfies BoxProps;
   }, [
     borderBottom,
     borderColor,
