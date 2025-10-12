@@ -2,7 +2,7 @@
 import React from 'react';
 import { describe, expect, jest, test } from '@jest/globals';
 import { render } from 'ink-testing-library';
-import InkTextArea, { transformToRows } from '../InkTextArea.js';
+import InkTextArea, { transformToRows } from '../InkTextArea.ts';
 
 const ESC = String.fromCharCode(27);
 const ANSI_ESCAPE_PATTERN = new RegExp(`${ESC}\\[[0-9;]*m`, 'g');

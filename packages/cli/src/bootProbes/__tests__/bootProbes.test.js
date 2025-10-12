@@ -3,13 +3,13 @@ import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { formatBootProbeSummary, runBootProbes } from '../index.js';
-import PythonBootProbe from '../pythonProbe.js';
-import NodeBootProbe from '../nodeProbe.js';
-import GoBootProbe from '../goProbe.js';
-import RustBootProbe from '../rustProbe.js';
-import JvmBootProbe from '../jvmProbe.js';
-import ContainerBootProbe from '../containerProbe.js';
+import { formatBootProbeSummary, runBootProbes } from '../index.ts';
+import PythonBootProbe from '../pythonProbe.ts';
+import NodeBootProbe from '../nodeProbe.ts';
+import GoBootProbe from '../goProbe.ts';
+import RustBootProbe from '../rustProbe.ts';
+import JvmBootProbe from '../jvmProbe.ts';
+import ContainerBootProbe from '../containerProbe.ts';
 
 async function createTempDir(prefix = 'boot-probe-test-') {
   return mkdtemp(join(tmpdir(), prefix));

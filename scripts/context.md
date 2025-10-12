@@ -10,6 +10,9 @@
 - `start.js` — orchestrates `npm start` modes. Defaults to the CLI but adds a `web` target that builds the frontend bundle before launching the web backend.
 - `validate-json-assets.js` — validates prompt JSON against `schemas/prompts.schema.json`.
 - `verify-release-tag.js` — ensures release tags align with package metadata before publishing.
+- `babel/plugins/replaceJsExtensions.cjs` — Babel helper used by Jest to rewrite the CLI's `.js`
+  import specifiers to `.ts` during test transforms so the TypeScript sources load without
+  bundling.
 - `README.md` & `patchexample.md` — documentation for the helper scripts (with updated paths pointing to `packages/core/scripts/`).
 
 ## Positive Signals

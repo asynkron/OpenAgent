@@ -1,13 +1,10 @@
-import tsJestPresets from 'ts-jest/presets/default-esm/jest-preset.js';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const tsJestTransform = Object.fromEntries(
-  Object.entries(tsJestPresets.transform).map(([pattern, transformer]) => {
-    if (Array.isArray(transformer)) {
-      const [module, options] = transformer;
-      return [pattern, [module, { ...options, tsconfig: '<rootDir>/tsconfig.json' }]];
-    }
-    return [pattern, transformer];
-  }),
+const configDir = path.dirname(fileURLToPath(import.meta.url));
+const replaceJsExtensionsPlugin = path.join(
+  configDir,
+  'scripts/babel/plugins/replaceJsExtensions.cjs',
 );
 
 export default {
@@ -19,6 +16,18 @@ export default {
   moduleNameMapper: {
     '^@asynkron/openagent-core$': '<rootDir>/packages/core/dist/index.js',
   },
-  moduleFileExtensions: ['ts', 'js', 'mjs', 'cjs', 'json'],
-  resolver: '<rootDir>/jest.resolver.cjs',
+  transform: {
+    '^.+\\.(ts|tsx)$': [
+      'babel-jest',
+      {
+        presets: [
+          ['@babel/preset-env', { targets: { node: 'current' }, modules: false }],
+          ['@babel/preset-typescript', { allowDeclareFields: true }],
+        ],
+        plugins: [replaceJsExtensionsPlugin],
+      },
+    ],
+  },
+  extensionsToTreatAsEsm: ['.ts'],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'json', 'node'],
 };

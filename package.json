@@ -19,7 +19,7 @@
     "preformat": "",
     "preformat:check": "",
     "prelint": "",
-    "pretest": "",
+    "pretest": "npm run build --workspace @asynkron/openagent",
     "prepare": "",
     "postinstall": "",
     "release:verify-tag": "node ./scripts/verify-release-tag.js"
@@ -29,7 +29,12 @@
   "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^9.37.0",
+    "@babel/core": "^7.26.0",
+    "@babel/preset-env": "^7.26.0",
+    "@babel/preset-typescript": "^7.26.0",
     "@types/node": "^22.9.3",
+    "@types/react": "^19.0.1",
+    "babel-jest": "^29.7.0",
     "@typescript-eslint/eslint-plugin": "^8.16.0",
     "@typescript-eslint/parser": "^8.16.0",
     "acorn": "^8.15.0",

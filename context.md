@@ -34,6 +34,8 @@
 - Whenever code, docs, or prompts change, update the nearest `context.md` (and parent summaries) so the index remains trustworthy.
 - README now opens with `![Screenshot](./screenshot.png)` to preview the CLI.
 - Cross-reference sibling directories if behavior spans subsystems (e.g., CLI rendering ↔ agent runtime).
+- TypeScript scaffolding now lives at the workspace root via `tsconfig.json` plus `npm run typecheck` for incremental adoption; compiled JavaScript still ships from package directories until the build pipeline is fully converted.
+- The CLI package (`packages/cli`) now compiles TypeScript sources into `dist/` on demand via `npm run build --workspace @asynkron/openagent` and `npm run start` builds automatically through its `prestart` script.
 - TypeScript scaffolding now lives at the workspace root via `tsconfig.json` plus `npm run typecheck`; `packages/core` now compiles its `src/**/*.ts` sources into `dist/` via `npm run build --workspace @asynkron/openagent-core` before publishing.
 
 ## Related Context

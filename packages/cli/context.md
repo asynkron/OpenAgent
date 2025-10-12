@@ -7,11 +7,15 @@
 
 ## Key Files
 
-- `package.json` — CLI manifest declaring the workspace dependency on the core runtime and binary entry.
-- `index.js` — package entry that re-exports the core runtime and surfaces CLI-specific helpers.
-- `bin/openagent.js` — executable shim invoked by `npx openagent` or global installs.
-- `src/` — Ink components, boot probes, runtime wiring, and readline helpers. See [`src/context.md`](src/context.md).
-- `src/loadCoreModule.js` — resolves the core runtime dependency with a local fallback when the workspace link is missing.
+- `package.json` — CLI manifest declaring the workspace dependency on the core runtime and binary entry. Now builds TypeScript s
+  ources to `dist/` before executing.
+- `tsconfig.json` — package-level compiler configuration that emits ESM output into `dist/` while preserving `.js` extensions fo
+  r runtime interoperability.
+- `index.ts` — package entry that re-exports the core runtime and surfaces CLI-specific helpers.
+- `bin/openagent.ts` — executable shim invoked by `npx openagent` or global installs.
+- `src/` — Ink components, boot probes, runtime wiring, and readline helpers written in TypeScript. See [`src/context.md`](src/c
+  ontext.md).
+- `src/loadCoreModule.ts` — resolves the core runtime dependency with a local fallback when the workspace link is missing.
 
 ## Related Context
 
