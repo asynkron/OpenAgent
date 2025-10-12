@@ -20,7 +20,7 @@ const REFUSAL_STATUS_MESSAGE =
   'Assistant declined to help; auto-responding with "continue" to prompt another attempt.';
 const REFUSAL_MESSAGE_MAX_LENGTH = 160;
 const PLAN_REMINDER_AUTO_RESPONSE_LIMIT = 3;
-const TERMINAL_PLAN_STATUSES = new Set(['completed', 'failed']);
+const TERMINAL_PLAN_STATUSES = new Set(['completed', 'failed', 'abandoned']);
 const ensurePlanStepAge = (node) => {
   if (!node) {
     return;
@@ -130,6 +130,19 @@ const buildExecutableStepKey = (step, fallbackIndex = 0) => {
   }
 
   return `index:${fallbackIndex}`;
+};
+
+const getPriorityScore = (step) => {
+  if (!step || typeof step !== 'object') {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const numericPriority = Number(step.priority);
+  if (Number.isFinite(numericPriority)) {
+    return numericPriority;
+  }
+
+  return Number.POSITIVE_INFINITY;
 };
 
 const rebuildExecutableStepMap = (entries, targetMap = new Map()) => {
@@ -552,12 +565,43 @@ export async function executeAgentPass({
   };
 
   const planForExecution = clonePlanForExecution(activePlan);
-  const executableSteps = collectExecutablePlanSteps(planForExecution);
   let activePlanExecutableSteps = collectExecutablePlanSteps(activePlan);
   const activePlanStepMap = rebuildExecutableStepMap(activePlanExecutableSteps, new Map());
   let planMutatedDuringExecution = false;
 
-  if (executableSteps.length === 0) {
+  const selectNextExecutableEntry = () => {
+    const candidates = collectExecutablePlanSteps(planForExecution).map((entry, index) => ({
+      ...entry,
+      index,
+      key: buildExecutableStepKey(entry.step, index),
+      priority: getPriorityScore(entry.step),
+    }));
+
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    candidates.sort((a, b) => {
+      if (a.priority === b.priority) {
+        return a.index - b.index;
+      }
+
+      return a.priority - b.priority;
+    });
+
+    return candidates[0] ?? null;
+  };
+
+  const refreshActivePlanExecutableSteps = () => {
+    activePlanExecutableSteps = collectExecutablePlanSteps(activePlan);
+    rebuildExecutableStepMap(activePlanExecutableSteps, activePlanStepMap);
+  };
+
+  refreshActivePlanExecutableSteps();
+
+  let nextExecutable = selectNextExecutableEntry();
+
+  if (!nextExecutable) {
     if (
       typeof getNoHumanFlag === 'function' &&
       typeof setNoHumanFlag === 'function' &&
@@ -639,13 +683,16 @@ export async function executeAgentPass({
 
   resetPlanReminder();
 
-  for (let index = 0; index < executableSteps.length; index += 1) {
-    const { step, command } = executableSteps[index];
-    const stepKey = buildExecutableStepKey(step, index);
+  while (nextExecutable) {
+    const { step, command, index: snapshotIndex, key: stepKey } = nextExecutable;
     let activePlanStep = activePlanStepMap.get(stepKey) ?? null;
 
-    if (!activePlanStep && Array.isArray(activePlanExecutableSteps) && index < activePlanExecutableSteps.length) {
-      activePlanStep = activePlanExecutableSteps[index]?.step ?? null;
+    if (
+      !activePlanStep &&
+      Array.isArray(activePlanExecutableSteps) &&
+      snapshotIndex < activePlanExecutableSteps.length
+    ) {
+      activePlanStep = activePlanExecutableSteps[snapshotIndex]?.step ?? null;
     }
 
     const normalizedRun = typeof command.run === 'string' ? command.run.trim() : '';
@@ -732,12 +779,14 @@ export async function executeAgentPass({
 
     const persistedBeforeExecution = await persistPlanState(activePlan);
     planMutatedDuringExecution ||= persistedBeforeExecution;
-
-    if (Array.isArray(activePlan)) {
-      activePlanExecutableSteps = collectExecutablePlanSteps(activePlan);
-      if (index < activePlanExecutableSteps.length) {
-        activePlanStep = activePlanExecutableSteps[index]?.step ?? activePlanStep;
-      }
+    refreshActivePlanExecutableSteps();
+    activePlanStep = activePlanStepMap.get(stepKey) ?? activePlanStep;
+    if (
+      !activePlanStep &&
+      Array.isArray(activePlanExecutableSteps) &&
+      snapshotIndex < activePlanExecutableSteps.length
+    ) {
+      activePlanStep = activePlanExecutableSteps[snapshotIndex]?.step ?? activePlanStep;
     }
 
     const { result, executionDetails } = await executeAgentCommand({
@@ -818,11 +867,9 @@ export async function executeAgentPass({
 
     const persistedAfterExecution = await persistPlanState(activePlan);
     planMutatedDuringExecution ||= persistedAfterExecution;
+    refreshActivePlanExecutableSteps();
 
-    if (Array.isArray(activePlan)) {
-      activePlanExecutableSteps = collectExecutablePlanSteps(activePlan);
-      rebuildExecutableStepMap(activePlanExecutableSteps, activePlanStepMap);
-    }
+    nextExecutable = selectNextExecutableEntry();
   }
 
   if (planMutatedDuringExecution && Array.isArray(activePlan)) {
