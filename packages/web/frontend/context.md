@@ -22,3 +22,5 @@
 - Migrated all JavaScript sources to TypeScript and now bundle from `src/js/unified_index.ts`.
 - Replaced legacy global Markdown/highlight wiring with direct module imports for `marked` and `highlight.js`.
 - Added richer type definitions across chat services, viewer helpers, and bootstrap routines to improve safety under strict TypeScript settings.
+- Split shared chat and plan logic into `src/js/services/chat_model.ts` and `src/js/components/plan_model.ts` so DOM wiring stays lean and unit tests can target the pure helpers.
+- Added Jest suites under `src/js/**/__tests__` to cover plan aggregation and chat payload normalisation utilities.

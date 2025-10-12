@@ -6,41 +6,17 @@ import {
   type MarkdownDisplayApi,
 } from '../components/markdown_display.js';
 import { createPlanDisplay, type PlanStep } from '../components/plan_display.js';
-
-type AgentRole = 'agent' | 'user';
-
-type AgentEventPayload = Record<string, unknown> & {
-  eventType?: string;
-  text?: string;
-  title?: string;
-  subtitle?: string;
-  description?: string;
-  details?: string;
-  level?: string;
-  metadata?: Record<string, unknown> & { scope?: string };
-};
-
-type AgentCommandPayload = AgentEventPayload & {
-  command?: Record<string, unknown> & {
-    run?: string;
-    description?: string;
-    shell?: string;
-    preview?: Record<string, unknown> & {
-      code?: string;
-      language?: string;
-      classNames?: string[] | string;
-    };
-    workingDirectory?: string;
-  };
-};
-
-type AgentMessagePayload = AgentEventPayload & {
-  state?: string;
-  prompt?: string;
-  plan?: PlanStep[] | null;
-  message?: string;
-  details?: string;
-};
+import {
+  isApprovalNotification,
+  isApprovalText,
+  normaliseClassList,
+  normalisePreview,
+  normaliseText,
+  type AgentCommandPayload,
+  type AgentEventPayload,
+  type AgentMessagePayload,
+  type AgentRole,
+} from './chat_model.js';
 
 type CleanupFn = () => void;
 
@@ -68,77 +44,6 @@ export interface ChatServiceOptions {
 export interface ChatServiceApi {
   connect(): void;
   dispose(): void;
-}
-
-const APPROVAL_SUPPRESSION_PHRASES = [
-  'approve running this command?',
-  'approved and added to session approvals.',
-  'command approved for the remainder of the session.',
-];
-
-function normaliseText(value: unknown): string {
-  if (typeof value === 'string') {
-    return value;
-  }
-  if (value == null) {
-    return '';
-  }
-  try {
-    return String(value);
-  } catch (error) {
-    console.warn('Failed to normalise agent text', error);
-    return '';
-  }
-}
-
-function toComparableText(value: unknown): string {
-  const normalised = normaliseText(value);
-  if (!normalised) {
-    return '';
-  }
-  return normalised.replace(/\s+/g, ' ').trim().toLowerCase();
-}
-
-function isApprovalText(value: unknown): boolean {
-  const comparable = toComparableText(value);
-  if (!comparable) {
-    return false;
-  }
-  return APPROVAL_SUPPRESSION_PHRASES.some((phrase) => comparable.includes(phrase));
-}
-
-function isApprovalNotification(payload: AgentEventPayload | null | undefined): boolean {
-  if (!payload || typeof payload !== 'object') {
-    return false;
-  }
-
-  const fields: Array<unknown> = [
-    payload.text,
-    payload.title,
-    payload.subtitle,
-    payload.description,
-    payload.details,
-    payload.prompt,
-  ];
-
-  if (payload.metadata && typeof payload.metadata === 'object') {
-    fields.push(payload.metadata.scope);
-  }
-
-  return fields.some((value) => isApprovalText(value));
-}
-
-function normaliseClassList(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
-  }
-  if (typeof value === 'string') {
-    return value
-      .split(/\s+/)
-      .map((part) => part.trim())
-      .filter((part) => part.length > 0);
-  }
-  return [];
 }
 
 function createHighlightedCodeBlock(
@@ -595,19 +500,12 @@ export function createChatService({
       return;
     }
 
-    const command =
-      payload.command && typeof payload.command === 'object' ? (payload.command as Record<string, unknown>) : {};
-    const runText = normaliseText(command.run);
-    const description = normaliseText(command.description).trim();
-    const shellText = typeof command.shell === 'string' ? normaliseText(command.shell).trim() : '';
-    const preview =
-      command.preview && typeof command.preview === 'object'
-        ? (command.preview as { code?: string; language?: string; classNames?: string[] | string })
-        : null;
-    const previewCode = typeof preview?.code === 'string' ? preview.code : '';
-    const previewLanguage = typeof preview?.language === 'string' ? preview.language : '';
-    const previewClassNames = preview?.classNames ?? [];
-    const workingDirectory = normaliseText(command.workingDirectory).trim();
+    const command = payload.command ?? null;
+    const runText = normaliseText(command?.run);
+    const description = normaliseText(command?.description).trim();
+    const shellText = normaliseText(command?.shell).trim();
+    const preview = normalisePreview(command?.preview);
+    const workingDirectory = normaliseText(command?.workingDirectory).trim();
 
     ensureConversationStarted();
 
@@ -644,10 +542,10 @@ export function createChatService({
       }
     }
 
-    if (typeof previewCode === 'string' && previewCode.trim().length > 0) {
-      const previewBlock = createHighlightedCodeBlock(previewCode, {
-        language: previewLanguage,
-        classNames: previewClassNames,
+    if (preview.code.trim().length > 0) {
+      const previewBlock = createHighlightedCodeBlock(preview.code, {
+        language: preview.language,
+        classNames: preview.classNames,
       });
       if (previewBlock) {
         previewBlock.classList.add('agent-command-preview');
