@@ -9,14 +9,14 @@ function deepCloneValue(value) {
   if (hasStructuredClone) {
     try {
       return globalThis.structuredClone(value);
-    } catch (error) {
+    } catch (_error) {
       // Fall through to JSON fallback.
     }
   }
 
   try {
     return JSON.parse(JSON.stringify(value));
-  } catch (error) {
+  } catch (_error) {
     // As a last resort return the original reference.
     return value;
   }

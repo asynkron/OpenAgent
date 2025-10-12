@@ -26,7 +26,7 @@ function detectWorkspaceRoot(startDir = process.cwd()) {
     if (candidate) {
       return { root: path.resolve(candidate), source: 'git' };
     }
-  } catch (err) {
+  } catch (_error) {
     // ignored
   }
   return { root: path.resolve(startDir), source: 'cwd' };
@@ -52,7 +52,7 @@ function resolvePromptDirectories(rootDir) {
       if (fs.statSync(resolved).isDirectory()) {
         directories.push(resolved);
       }
-    } catch (error) {
+    } catch (_error) {
       // Ignore missing directories.
     }
   }
@@ -67,7 +67,7 @@ export function findAgentFiles(rootDir) {
     let entries = [];
     try {
       entries = fs.readdirSync(current, { withFileTypes: true });
-    } catch (err) {
+    } catch (_error) {
       return;
     }
 
@@ -107,7 +107,7 @@ export function buildAgentsPrompt(rootDir) {
           return '';
         }
         return `File: ${path.relative(rootDir, filePath)}\n${content}`;
-      } catch (err) {
+      } catch (_error) {
         return '';
       }
     })
@@ -124,7 +124,7 @@ function readFileIfExists(filePath) {
   try {
     const content = fs.readFileSync(filePath, 'utf8').trim();
     return content ? content : '';
-  } catch (err) {
+  } catch (_error) {
     return '';
   }
 }
@@ -159,7 +159,7 @@ export function buildBaseSystemPrompt(rootDir) {
       .readdirSync(brainDir)
       .filter((fileName) => fileName.toLowerCase().endsWith('.md'))
       .sort();
-  } catch (err) {
+  } catch (_error) {
     brainFiles = [];
   }
 

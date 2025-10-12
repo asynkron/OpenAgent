@@ -7,7 +7,7 @@ function normalizeArguments(args) {
   if (args && typeof args === 'object') {
     try {
       return JSON.stringify(args);
-    } catch (error) {
+    } catch (_error) {
       return '';
     }
   }

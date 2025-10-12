@@ -84,7 +84,7 @@ function flattenContent(content: unknown): string {
   if (content && typeof content === 'object') {
     try {
       return JSON.stringify(content);
-    } catch (err) {
+    } catch (_error) {
       return '';
     }
   }
