@@ -61,6 +61,12 @@ function parsePatch(input) {
         currentOp = { type: 'update', path: updateMatch[1], hunks: [] };
         continue;
       }
+      const addMatch = line.match(/^\*\*\* Add File:\s*(.+)$/);
+      if (addMatch) {
+        // Support creating brand new files alongside updates.
+        currentOp = { type: 'add', path: addMatch[1], hunks: [] };
+        continue;
+      }
       throw new Error(`Unsupported patch directive: ${line}`);
     }
 
@@ -162,10 +168,35 @@ function applyHunk(state, hunk) {
 async function applyOperations(operations) {
   const fileStates = new Map();
 
-  const ensureFileState = async (relativePath) => {
+  const ensureFileState = async (relativePath, options = {}) => {
     const absolutePath = path.resolve(relativePath);
     if (fileStates.has(absolutePath)) {
       return fileStates.get(absolutePath);
+    }
+    const { create = false } = options;
+    if (create) {
+      // Adding a file should fail fast if the destination already exists.
+      try {
+        await fs.access(absolutePath);
+        throw new Error(`Cannot add ${relativePath} because it already exists.`);
+      } catch (error) {
+        if (error && error.code !== 'ENOENT') {
+          throw new Error(`Failed to stat ${relativePath}: ${error.message}`);
+        }
+      }
+      const state = {
+        path: absolutePath,
+        relativePath,
+        lines: [],
+        originalContent: '',
+        originalEndsWithNewline: null,
+        touched: false,
+        cursor: 0,
+        hunkStatuses: [],
+        isNew: true,
+      };
+      fileStates.set(absolutePath, state);
+      return state;
     }
     let content;
     try {
@@ -184,16 +215,17 @@ async function applyOperations(operations) {
       touched: false,
       cursor: 0,
       hunkStatuses: [],
+      isNew: false,
     };
     fileStates.set(absolutePath, state);
     return state;
   };
 
   for (const op of operations) {
-    if (op.type !== 'update') {
+    if (op.type !== 'update' && op.type !== 'add') {
       throw new Error(`Unsupported patch operation for ${op.path}: ${op.type}`);
     }
-    const state = await ensureFileState(op.path);
+    const state = await ensureFileState(op.path, { create: op.type === 'add' });
     state.cursor = 0;
     state.hunkStatuses = [];
     for (let index = 0; index < op.hunks.length; index += 1) {
@@ -215,13 +247,15 @@ async function applyOperations(operations) {
       continue;
     }
     let newContent = state.lines.join('\n');
-    if (state.originalEndsWithNewline && !newContent.endsWith('\n')) {
+    if (state.originalEndsWithNewline === true && !newContent.endsWith('\n')) {
       newContent += '\n';
-    } else if (!state.originalEndsWithNewline && newContent.endsWith('\n')) {
+    } else if (state.originalEndsWithNewline === false && newContent.endsWith('\n')) {
       newContent = newContent.slice(0, -1);
     }
+    await fs.mkdir(path.dirname(state.path), { recursive: true });
     await fs.writeFile(state.path, newContent, 'utf8');
-    results.push({ status: 'M', path: state.relativePath });
+    const status = state.isNew ? 'A' : 'M';
+    results.push({ status, path: state.relativePath });
   }
 
   return results;
