@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { jest } from '@jest/globals';
 
-const loaderPath = '../loadCoreModule.js';
+const loaderPath = '../loadCoreModule.ts';
 const loaderUrl = new URL(loaderPath, import.meta.url);
 const fallbackSpecifier = new URL('../../core/index.js', loaderUrl).href;
 

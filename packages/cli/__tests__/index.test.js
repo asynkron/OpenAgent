@@ -63,7 +63,7 @@ async function loadModule(
     }));
   }
 
-  const imported = await import('../index.js');
+  const imported = await import('../index.ts');
   return {
     mod: imported.default,
     MockOpenAI,

@@ -7,7 +7,7 @@ async function loadRenderer() {
   jest.resetModules();
   process.env = { ...defaultEnv, FORCE_COLOR: '0' };
   jest.unstable_mockModule('dotenv/config', () => ({}));
-  const imported = await import('../../index.js');
+  const imported = await import('../../index.ts');
   return imported.renderCommand;
 }
 

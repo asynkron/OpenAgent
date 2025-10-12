@@ -50,7 +50,7 @@ describe('esm entry point', () => {
   });
 
   test('direct import of index.js exposes public surface', async () => {
-    const module = await import('../index.js');
+    const module = await import('../index.ts');
     const entry = module.default ?? module;
 
     expect(typeof entry.agentLoop).toBe('function');

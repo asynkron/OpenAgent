@@ -3,17 +3,20 @@
   "version": "2.13.12",
   "description": "Simple Node.JS based AI agent",
   "type": "module",
-  "main": "./index.js",
+  "main": "./dist/index.js",
   "bin": {
-    "openagent": "./bin/openagent.js"
+    "openagent": "./dist/bin/openagent.js"
   },
   "scripts": {
-    "start": "node ./bin/openagent.js"
+    "build": "tsc -p ./tsconfig.json",
+    "clean": "rm -rf dist",
+    "prestart": "npm run build",
+    "start": "node ./dist/bin/openagent.js"
   },
   "exports": {
     ".": {
-      "import": "./index.js",
-      "default": "./index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
   },
