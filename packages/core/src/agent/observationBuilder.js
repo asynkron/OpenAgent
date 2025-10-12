@@ -60,35 +60,49 @@ export class ObservationBuilder {
     const originalStderr = typeof result.stderr === 'string' ? result.stderr : '';
 
     const combined = this.combineStdStreams(originalStdout, originalStderr, exitCode);
+    const combinedLineCount = this.lineCount(combined.stdout) + this.lineCount(combined.stderr);
+    // Guard against runaway commands bloating the transcript.
+    const exceedsOutputLimit = combinedLineCount > 6000;
+    const corruptMessage = '!!!corrupt command, excessive output!!!';
+
     let filteredStdout = combined.stdout;
     let filteredStderr = combined.stderr;
 
-    if (command.filter_regex) {
-      filteredStdout = this.applyFilter(filteredStdout, command.filter_regex);
-      filteredStderr = this.applyFilter(filteredStderr, command.filter_regex);
-    }
+    if (exceedsOutputLimit) {
+      filteredStdout = corruptMessage;
+      filteredStderr = corruptMessage;
+    } else {
+      if (command.filter_regex) {
+        filteredStdout = this.applyFilter(filteredStdout, command.filter_regex);
+        filteredStderr = this.applyFilter(filteredStderr, command.filter_regex);
+      }
 
-    if (command.tail_lines) {
-      filteredStdout = this.tailLines(filteredStdout, command.tail_lines);
-      filteredStderr = this.tailLines(filteredStderr, command.tail_lines);
+      if (command.tail_lines) {
+        filteredStdout = this.tailLines(filteredStdout, command.tail_lines);
+        filteredStderr = this.tailLines(filteredStderr, command.tail_lines);
+      }
     }
 
     const stdoutPreview = this.buildPreview(filteredStdout);
     const stderrPreview = this.buildPreview(filteredStderr);
 
-    const truncated = Boolean(
-      (command.filter_regex &&
-        (combined.stdout !== filteredStdout || combined.stderr !== filteredStderr)) ||
-        (command.tail_lines &&
-          (this.lineCount(originalStdout) > command.tail_lines ||
-            this.lineCount(originalStderr) > command.tail_lines)),
-    );
+    const truncated = exceedsOutputLimit
+      ? true
+      : Boolean(
+          (command.filter_regex &&
+            (combined.stdout !== filteredStdout || combined.stderr !== filteredStderr)) ||
+            (command.tail_lines &&
+              (this.lineCount(originalStdout) > command.tail_lines ||
+                this.lineCount(originalStderr) > command.tail_lines)),
+        );
+
+    const observationExitCode = exceedsOutputLimit ? 1 : result.exit_code;
 
     const observation = {
       observation_for_llm: {
         stdout: filteredStdout,
         stderr: filteredStderr,
-        exit_code: result.exit_code,
+        exit_code: observationExitCode,
         truncated,
       },
       observation_metadata: {
