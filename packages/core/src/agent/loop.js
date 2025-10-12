@@ -3,6 +3,9 @@
  * writing directly to the CLI.
  */
 
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
 import { SYSTEM_PROMPT } from '../config/systemPrompt.js';
 import { getOpenAIClient, MODEL } from '../openai/client.js';
 import { runCommand } from '../commands/run.js';
@@ -143,6 +146,17 @@ export function createAgentRuntime({
     }
   };
 
+  const historyDumpDirectory = join(process.cwd(), '.openagent', 'failsafe-history');
+
+  const dumpHistorySnapshot = async ({ historyEntries = [], passIndex }) => {
+    await mkdir(historyDumpDirectory, { recursive: true });
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const prefix = Number.isFinite(passIndex) ? `pass-${passIndex}-` : 'pass-unknown-';
+    const filePath = join(historyDumpDirectory, `${prefix}${timestamp}.json`);
+    await writeFile(filePath, JSON.stringify(historyEntries, null, 2), 'utf8');
+    return filePath;
+  };
+
   const estimateRequestPayloadSize = (historySnapshot, modelName) => {
     try {
       const payload = {
@@ -162,15 +176,31 @@ export function createAgentRuntime({
 
   const buildGuardedRequestModelCompletion = (delegate) => {
     const requestFn = typeof delegate === 'function' ? delegate : defaultRequestModelCompletion;
-    return async (options) => {
+
+    const guardRequestPayloadSize = async (options) => {
       const payloadSize = estimateRequestPayloadSize(options?.history, options?.model);
       if (Number.isFinite(previousRequestPayloadSize) && Number.isFinite(payloadSize)) {
         const growthFactor = payloadSize / previousRequestPayloadSize;
         // Only treat this as runaway growth if the payload both jumps by ~5x and
         // adds at least 1 KiB of new content—this avoids tripping on tiny histories.
         if (growthFactor >= MAX_REQUEST_GROWTH_FACTOR && payloadSize - previousRequestPayloadSize > 1024) {
-          logWithFallback('error',
-            `[failsafe] OpenAI request ballooned from ${previousRequestPayloadSize}B to ${payloadSize}B on pass ${options?.passIndex ?? 'unknown'}.`);
+          logWithFallback(
+            'error',
+            `[failsafe] OpenAI request ballooned from ${previousRequestPayloadSize}B to ${payloadSize}B on pass ${options?.passIndex ?? 'unknown'}.`,
+          );
+          try {
+            const dumpPath = await dumpHistorySnapshot({
+              historyEntries: Array.isArray(options?.history) ? options.history : [],
+              passIndex: options?.passIndex,
+            });
+            if (dumpPath) {
+              logWithFallback('error', `[failsafe] Dumped history snapshot to ${dumpPath}.`);
+            }
+          } catch (dumpError) {
+            logWithFallback('error', '[failsafe] Failed to persist history snapshot.', {
+              error: dumpError instanceof Error ? dumpError.message : String(dumpError),
+            });
+          }
           logWithFallback('error', '[failsafe] Exiting to prevent excessive API charges.');
           process.exit(1);
         }
@@ -180,8 +210,17 @@ export function createAgentRuntime({
         previousRequestPayloadSize = payloadSize;
       }
 
+      return payloadSize;
+    };
+
+    const guardedRequest = async (options) => {
+      await guardRequestPayloadSize(options);
       return requestFn(options);
     };
+
+    guardedRequest.guardRequestPayloadSize = guardRequestPayloadSize;
+
+    return guardedRequest;
   };
   const nextId = () => {
     try {
@@ -295,6 +334,13 @@ export function createAgentRuntime({
   normalizedPassExecutorDeps.requestModelCompletionFn = buildGuardedRequestModelCompletion(
     normalizedPassExecutorDeps.requestModelCompletionFn,
   );
+  if (
+    normalizedPassExecutorDeps.requestModelCompletionFn &&
+    typeof normalizedPassExecutorDeps.requestModelCompletionFn.guardRequestPayloadSize === 'function'
+  ) {
+    normalizedPassExecutorDeps.guardRequestPayloadSizeFn =
+      normalizedPassExecutorDeps.requestModelCompletionFn.guardRequestPayloadSize;
+  }
 
   const fallbackEscController = createEscState();
   let escController = fallbackEscController;

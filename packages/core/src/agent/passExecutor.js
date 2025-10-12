@@ -239,6 +239,7 @@ export async function executeAgentPass({
   extractOpenAgentToolCallFn = defaultExtractOpenAgentToolCall,
   summarizeContextUsageFn = defaultSummarizeContextUsage,
   incrementCommandCountFn = defaultIncrementCommandCount,
+  guardRequestPayloadSizeFn = null,
 }) {
   if (typeof passIndex !== 'number') {
     throw new Error('executeAgentPass requires a numeric passIndex.');
@@ -281,6 +282,19 @@ export async function executeAgentPass({
       ? (method, ...args) =>
           typeof method === 'function' ? method.call(planManager, ...args) : undefined
       : null;
+
+  if (typeof guardRequestPayloadSizeFn === 'function') {
+    try {
+      await guardRequestPayloadSizeFn({ history, model, passIndex: activePass });
+    } catch (error) {
+      emitEvent({
+        type: 'status',
+        level: 'warn',
+        message: '[failsafe] Unable to evaluate request payload size before history compaction.',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
 
   if (historyCompactor && typeof historyCompactor.compactIfNeeded === 'function') {
     try {
