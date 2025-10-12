@@ -229,7 +229,7 @@ export function planStepIsBlocked(step, planOrLookup) {
     }
 
     const dependency = lookup.get(dependencyId);
-    if (!dependency || !isTerminalStatus(dependency.status)) {
+    if (!dependency || !isCompletedStatus(dependency.status)) {
       return true;
     }
   }
