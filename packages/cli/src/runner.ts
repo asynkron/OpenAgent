@@ -11,6 +11,8 @@ import { formatBootProbeSummary, runBootProbes } from './bootProbes/index.js';
 import { agentLoop } from './runtime.js';
 import { loadCoreModule } from './loadCoreModule.js';
 
+type LoadedCoreModule = Awaited<ReturnType<typeof loadCoreModule>>;
+
 type CliIo = {
   stdout?: (message: string) => void;
   stderr?: (message: string) => void;
@@ -40,6 +42,16 @@ const MISSING_OPENAI_API_KEY_STEPS = [
 const MISSING_OPENAI_API_KEY_DOCS =
   'Need help finding your key? https://platform.openai.com/api-keys';
 
+function assertHasStartupFlagApplicator(
+  module: LoadedCoreModule,
+): asserts module is LoadedCoreModule & {
+  applyStartupFlagsFromArgv: (argv: string[]) => void;
+} {
+  if (typeof module.applyStartupFlagsFromArgv !== 'function') {
+    throw new TypeError('Core module is missing applyStartupFlagsFromArgv');
+  }
+}
+
 export async function runCli(argv: string[] = process.argv, io?: CliIo): Promise<void> {
   const { stdout, stderr } = resolveIo(io);
   if (!process.env.OPENAI_API_KEY) {
@@ -56,17 +68,14 @@ export async function runCli(argv: string[] = process.argv, io?: CliIo): Promise
   }
 
   const coreModule = await loadCoreModule();
-  const { applyStartupFlagsFromArgv } = coreModule;
-  if (typeof applyStartupFlagsFromArgv !== 'function') {
-    throw new TypeError('Core module is missing applyStartupFlagsFromArgv');
-  }
+  assertHasStartupFlagApplicator(coreModule);
   const bootProbeResults = await runBootProbes({ cwd: process.cwd() });
   const bootProbeSummary = formatBootProbeSummary(bootProbeResults).trim();
   const systemPromptAugmentation = bootProbeSummary
     ? `Environment information discovered during CLI boot:\n${bootProbeSummary}`
     : '';
 
-  applyStartupFlagsFromArgv(argv);
+  coreModule.applyStartupFlagsFromArgv(argv);
 
   try {
     await agentLoop({ systemPromptAugmentation });

@@ -1,8 +1,11 @@
 const CORE_PACKAGE_ID = '@asynkron/openagent-core';
 const LOCAL_CORE_ENTRY_URL = new URL('../../core/index.js', import.meta.url);
 
-type CoreModule = Record<string, unknown> & {
-  applyStartupFlagsFromArgv?: (argv: string[]) => void;
+type CoreModule = typeof import('@asynkron/openagent-core');
+
+type CoreModuleContract = CoreModule & {
+  createAgentRuntime: NonNullable<CoreModule['createAgentRuntime']>;
+  applyStartupFlagsFromArgv: NonNullable<CoreModule['applyStartupFlagsFromArgv']>;
 };
 
 type Importer = (specifier: string) => Promise<CoreModule>;
@@ -14,7 +17,7 @@ type LoadCoreModuleOptions = {
 
 const defaultImporter: Importer = (specifier) => import(specifier) as Promise<CoreModule>;
 
-let cachedModule: CoreModule | undefined;
+let cachedModule: CoreModuleContract | undefined;
 
 /**
  * Loads the core runtime dependency used by the CLI.
@@ -28,7 +31,7 @@ let cachedModule: CoreModule | undefined;
 export async function loadCoreModule({
   importer,
   fallbackSpecifier,
-}: LoadCoreModuleOptions = {}): Promise<CoreModule> {
+}: LoadCoreModuleOptions = {}): Promise<CoreModuleContract> {
   if (cachedModule) {
     return cachedModule;
   }
@@ -37,10 +40,10 @@ export async function loadCoreModule({
   const fallbackTarget = resolveFallbackTarget(fallbackSpecifier);
 
   try {
-    cachedModule = await importModule(CORE_PACKAGE_ID);
+    cachedModule = ensureCoreModule(await importModule(CORE_PACKAGE_ID));
   } catch (error: unknown) {
     if (isModuleNotFoundError(error)) {
-      cachedModule = await importModule(fallbackTarget);
+      cachedModule = ensureCoreModule(await importModule(fallbackTarget));
     } else {
       throw error;
     }
@@ -58,25 +61,23 @@ function resolveFallbackTarget(fallbackSpecifier?: string | URL): string {
     return LOCAL_CORE_ENTRY_URL.href;
   }
 
-  if (typeof fallbackSpecifier === 'string') {
-    return fallbackSpecifier;
-  }
-
-  return fallbackSpecifier.href;
+  return typeof fallbackSpecifier === 'string' ? fallbackSpecifier : fallbackSpecifier.href;
 }
 
-function isModuleNotFoundError(error: unknown): boolean {
+type ModuleNotFoundError = Error & { code?: string };
+
+function isModuleNotFoundError(error: unknown): error is ModuleNotFoundError {
   if (!(error instanceof Error)) {
     return false;
   }
 
-  const code = (error as { code?: unknown }).code;
+  const code = (error as ModuleNotFoundError).code;
   const message = typeof error.message === 'string' ? error.message : '';
 
   return (
     code === 'ERR_MODULE_NOT_FOUND' ||
     code === 'MODULE_NOT_FOUND' ||
-    /Cannot find (module|package)/i.test(message)
+    /Cannot find (module|package)/iu.test(message)
   );
 }
 
@@ -85,4 +86,18 @@ function isModuleNotFoundError(error: unknown): boolean {
  */
 export function __clearCoreModuleCacheForTesting(): void {
   cachedModule = undefined;
+}
+
+function ensureCoreModule(module: CoreModule): CoreModuleContract {
+  if (
+    !module ||
+    typeof module.createAgentRuntime !== 'function' ||
+    typeof module.applyStartupFlagsFromArgv !== 'function'
+  ) {
+    throw new TypeError(
+      `Module loaded from ${CORE_PACKAGE_ID} is missing required exports for the CLI runtime.`,
+    );
+  }
+
+  return module as CoreModuleContract;
 }
