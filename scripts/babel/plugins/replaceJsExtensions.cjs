@@ -49,6 +49,14 @@ module.exports = function replaceJsExtensions({ types: t }) {
       ImportDeclaration(path, state) {
         rewriteSource(path.get('source'), state);
       },
+      CallExpression(path, state) {
+        if (path.get('callee').isImport()) {
+          const [firstArg] = path.get('arguments');
+          if (firstArg && firstArg.isStringLiteral()) {
+            rewriteSource(firstArg, state);
+          }
+        }
+      },
       ExportNamedDeclaration(path, state) {
         if (path.node.source) {
           rewriteSource(path.get('source'), state);
