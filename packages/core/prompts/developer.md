@@ -121,7 +121,7 @@ Purple: #5B2CD2
 read and follow the instructions in `packages/core/prompts/memoryleaks.md` when investigating memory leaks.
 
 
-## Running commands
+## Avoid large outputs
 
 ALWAYS make sure you run formatters or tests with as little output as possible, e.g. `--quiet` or `--silent` flags.
 
@@ -132,3 +132,13 @@ Large outputs kill the context window and everything stops working.
 This applies to all commands, languages and tools.
 
 If no such flag exists, ensure you limit the output with `head -n 20` or similar.
+
+Never run commands like this:
+
+```bash
+set -euo pipefail; files=$(fd -a --strip-cwd-prefix -e js -e ts -e tsx -e mjs -E node_modules -E .git -E .idea -E .cache | xargs -I{} sh -c 'wc -l "{}"' | sort -nr | head -n 5 | awk '{print $2}'); for f in $files; do echo "===== FILE: $f ====="; sed -n '1, 1200p' "$f"; echo; done
+```
+
+This is non-deterministic, it might work or it might not depending on the size of the files.
+You can read 1 file with 1200 lines, but not 5 files with 1200 lines each.
+always limit the total output, not just per file.
