@@ -19,6 +19,7 @@
   - Assistant-provided statuses are ignored (except `abandoned`) so the runtime owns status transitions, and any newly merged steps start in `pending`.
   - Deep-clone helper ensures persisted plans round-trip without clearing locally managed status/observation fields.
   - Merge keys normalize `id` values case-insensitively so assistant resends with different casing still hit the same step.
+  - Dependency checks treat any terminal status (completed/failed/abandoned) as satisfied so downstream steps remain runnable even if an upstream task fails.
 - `text.js` — string helpers (filters, tailing, shell splitting).
 
 ## Positive Signals

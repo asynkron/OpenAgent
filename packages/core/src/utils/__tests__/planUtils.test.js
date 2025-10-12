@@ -55,14 +55,14 @@ describe('planStepIsBlocked', () => {
     expect(planStepIsBlocked(plan[1], lookup)).toBe(false);
   });
 
-  test('treats failed dependency as blocked', () => {
+  test('treats failed dependency as satisfied', () => {
     const plan = [
       { id: 'a', title: 'Prepare', status: 'failed' },
       { id: 'b', title: 'Execute', status: 'pending', waitingForId: ['a'] },
     ];
     const lookup = buildPlanLookup(plan);
 
-    expect(planStepIsBlocked(plan[1], lookup)).toBe(true);
+    expect(planStepIsBlocked(plan[1], lookup)).toBe(false);
   });
 
   test('treats missing dependency as blocked', () => {
