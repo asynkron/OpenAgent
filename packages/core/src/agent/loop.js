@@ -23,7 +23,8 @@ import { cancel as cancelActive } from '../utils/cancellation.js';
 import { PromptCoordinator } from './promptCoordinator.js';
 import { createPlanManager } from './planManager.js';
 import { AmnesiaManager, applyDementiaPolicy } from './amnesiaManager.js';
-import { createChatMessageEntry } from './historyEntry.js';
+import { createChatMessageEntry, mapHistoryToOpenAIMessages } from './historyEntry.js';
+import { requestModelCompletion as defaultRequestModelCompletion } from './openaiRequest.js';
 
 function cloneEventPayload(event) {
   if (event === null || typeof event !== 'object') {
@@ -55,6 +56,9 @@ function cloneEventPayload(event) {
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 const PLAN_PENDING_REMINDER =
   'The plan is not completed, either send a command to continue, update the plan, take a deep breath and reanalyze the situation, add/remove steps or sub-steps, or abandon the plan if we don´t know how to continue';
+
+// Guardrail used to detect runaway payload growth between consecutive model calls.
+const MAX_REQUEST_GROWTH_FACTOR = 5;
 
 export function createAgentRuntime({
   systemPrompt = SYSTEM_PROMPT,
@@ -127,6 +131,58 @@ export function createAgentRuntime({
   }
   let counter = 0;
   let passCounter = 0;
+  let previousRequestPayloadSize = null;
+
+  const logWithFallback = (level, message, details = null) => {
+    const sink = logger ?? console;
+    const fn = sink && typeof sink[level] === 'function' ? sink[level].bind(sink) : null;
+    if (fn) {
+      fn(message, details);
+    } else if (sink && typeof sink.log === 'function') {
+      sink.log(message, details);
+    }
+  };
+
+  const estimateRequestPayloadSize = (historySnapshot, modelName) => {
+    try {
+      const payload = {
+        model: modelName,
+        input: mapHistoryToOpenAIMessages(historySnapshot),
+        tool_choice: { type: 'function', name: 'open-agent' },
+      };
+      const serialized = JSON.stringify(payload);
+      return typeof serialized === 'string' ? Buffer.byteLength(serialized, 'utf8') : null;
+    } catch (error) {
+      logWithFallback('warn', '[failsafe] Unable to estimate OpenAI payload size before request.', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
+  };
+
+  const buildGuardedRequestModelCompletion = (delegate) => {
+    const requestFn = typeof delegate === 'function' ? delegate : defaultRequestModelCompletion;
+    return async (options) => {
+      const payloadSize = estimateRequestPayloadSize(options?.history, options?.model);
+      if (Number.isFinite(previousRequestPayloadSize) && Number.isFinite(payloadSize)) {
+        const growthFactor = payloadSize / previousRequestPayloadSize;
+        // Only treat this as runaway growth if the payload both jumps by ~5x and
+        // adds at least 1 KiB of new content—this avoids tripping on tiny histories.
+        if (growthFactor >= MAX_REQUEST_GROWTH_FACTOR && payloadSize - previousRequestPayloadSize > 1024) {
+          logWithFallback('error',
+            `[failsafe] OpenAI request ballooned from ${previousRequestPayloadSize}B to ${payloadSize}B on pass ${options?.passIndex ?? 'unknown'}.`);
+          logWithFallback('error', '[failsafe] Exiting to prevent excessive API charges.');
+          process.exit(1);
+        }
+      }
+
+      if (Number.isFinite(payloadSize)) {
+        previousRequestPayloadSize = payloadSize;
+      }
+
+      return requestFn(options);
+    };
+  };
   const nextId = () => {
     try {
       if (typeof idGeneratorFn === 'function') {
@@ -233,6 +289,12 @@ export function createAgentRuntime({
   const planAutoResponseTracker =
     (typeof createPlanAutoResponseTrackerFn === 'function' &&
       createPlanAutoResponseTrackerFn()) || defaultPlanAutoResponseTracker();
+
+  const normalizedPassExecutorDeps =
+    passExecutorDeps && typeof passExecutorDeps === 'object' ? { ...passExecutorDeps } : {};
+  normalizedPassExecutorDeps.requestModelCompletionFn = buildGuardedRequestModelCompletion(
+    normalizedPassExecutorDeps.requestModelCompletionFn,
+  );
 
   const fallbackEscController = createEscState();
   let escController = fallbackEscController;
@@ -564,7 +626,7 @@ export function createAgentRuntime({
               planAutoResponseTracker,
               emitAutoApproveStatus,
               passIndex: currentPass,
-              ...(passExecutorDeps && typeof passExecutorDeps === 'object' ? passExecutorDeps : {}),
+              ...normalizedPassExecutorDeps,
             });
 
             enforceMemoryPolicies(currentPass);
