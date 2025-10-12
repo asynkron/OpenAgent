@@ -57,7 +57,7 @@ export class CommandApprovalService {
   isSessionApproved(command) {
     try {
       return this.sessionApprovals.has(CommandApprovalService.commandSignature(command));
-    } catch (err) {
+    } catch (_err) {
       return false;
     }
   }
@@ -69,7 +69,7 @@ export class CommandApprovalService {
   approveForSession(command) {
     try {
       this.sessionApprovals.add(CommandApprovalService.commandSignature(command));
-    } catch (err) {
+    } catch (_err) {
       // ignore
     }
   }
@@ -261,7 +261,7 @@ export class CommandApprovalService {
       }
 
       return true;
-    } catch (err) {
+    } catch (_err) {
       return false;
     }
   }
