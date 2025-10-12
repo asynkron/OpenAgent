@@ -150,9 +150,7 @@ function validatePlanItem(item, path, state, errors) {
   if (!normalizedStatus) {
     errors.push(`${path} is missing a valid "status".`);
   } else if (!ALLOWED_STATUSES.has(normalizedStatus)) {
-    errors.push(
-      `${path}.status must be one of: ${Array.from(ALLOWED_STATUSES).join(', ')}.`,
-    );
+    errors.push(`${path}.status must be one of: ${Array.from(ALLOWED_STATUSES).join(', ')}.`);
   }
 
   if (!state.firstOpenStatus && normalizedStatus !== 'completed') {
@@ -214,7 +212,6 @@ export function validateAssistantResponse(payload) {
     plan.forEach((item, index) => {
       validatePlanItem(item, `plan[${index}]`, state, errors);
     });
-
   }
 
   return {
