@@ -23,6 +23,8 @@ export class ApprovalManager {
    * @param {(message: string) => void} [options.logInfo]
    * @param {(message: string) => void} [options.logWarn]
    * @param {(message: string) => void} [options.logSuccess]
+   * @param {(command: Object, cfg: Object) => string} [options.buildPromptFn] - customize the human prompt text
+   * @param {(raw: string) => 'approve_once'|'approve_session'|'reject'|null} [options.parseDecisionFn] - parse user input
    */
   constructor({
     isPreapprovedCommand,
@@ -34,6 +36,8 @@ export class ApprovalManager {
     logInfo,
     logWarn,
     logSuccess,
+    buildPromptFn,
+    parseDecisionFn,
   }) {
     const noop = () => {};
 
@@ -47,6 +51,8 @@ export class ApprovalManager {
     this.logInfo = typeof logInfo === 'function' ? logInfo : noop;
     this.logWarn = typeof logWarn === 'function' ? logWarn : noop;
     this.logSuccess = typeof logSuccess === 'function' ? logSuccess : noop;
+    this.buildPromptFn = typeof buildPromptFn === 'function' ? buildPromptFn : null;
+    this.parseDecisionFn = typeof parseDecisionFn === 'function' ? parseDecisionFn : null;
   }
 
   /**
@@ -81,17 +87,38 @@ export class ApprovalManager {
    * @returns {Promise<ApprovalOutcome>}
    */
   async requestHumanDecision({ command }) {
-    const prompt = [
-      'Approve running this command?',
-      '  1) Yes (run once)',
-      '  2) Yes, for entire session (add to in-memory approvals)',
-      '  3) No, tell the AI to do something else',
-      'Select 1, 2, or 3: ',
-    ].join('\n');
+    const prompt =
+      this.buildPromptFn?.(command, this.preapprovedCfg) ||
+      [
+        'Approve running this command?',
+        '  1) Yes (run once)',
+        '  2) Yes, for entire session (add to in-memory approvals)',
+        '  3) No, tell the AI to do something else',
+        'Select 1, 2, or 3: ',
+      ].join('\n');
 
     while (true) {
       const raw = (await this.askHuman?.(prompt)) ?? '';
       const input = String(raw).trim().toLowerCase();
+
+      // Allow custom parsing when provided
+      if (this.parseDecisionFn) {
+        const interpreted = this.parseDecisionFn(input);
+        if (interpreted === 'approve_once') {
+          this.logSuccess('Approved (run once).');
+          return { decision: 'approve_once' };
+        }
+        if (interpreted === 'approve_session') {
+          this.recordSessionApproval(command);
+          this.logSuccess('Approved and added to session approvals.');
+          return { decision: 'approve_session' };
+        }
+        if (interpreted === 'reject') {
+          this.logWarn('Command execution canceled by human (requested alternative).');
+          return { decision: 'reject', reason: 'human_declined' };
+        }
+        // fall through to defaults if null/unsupported
+      }
 
       if (input === '1' || input === 'y' || input === 'yes') {
         this.logSuccess('Approved (run once).');

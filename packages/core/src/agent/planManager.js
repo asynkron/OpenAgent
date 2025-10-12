@@ -26,6 +26,8 @@ export function createPlanManager({
   readFileFn = readFile,
   writeFileFn = writeFile,
   computeProgress = computePlanProgress,
+  serializePlanFn = (plan) => `${JSON.stringify(plan, null, 2)}\n`,
+  deserializePlanFn = (raw) => JSON.parse(raw),
 } = {}) {
   if (typeof emit !== 'function') {
     throw new TypeError('createPlanManager requires an emit function.');
@@ -62,7 +64,7 @@ export function createPlanManager({
   const persistPlanSnapshot = async () => {
     try {
       await mkdirFn(planDirectoryPath, { recursive: true });
-      const snapshot = `${JSON.stringify(activePlan, null, 2)}\n`;
+      const snapshot = serializePlanFn(activePlan);
       await writeFileFn(planFilePath, snapshot, 'utf8');
     } catch (error) {
       emitStatus(
@@ -83,7 +85,7 @@ export function createPlanManager({
         return;
       }
 
-      const parsed = JSON.parse(raw);
+      const parsed = deserializePlanFn(raw);
       activePlan = clonePlan(parsed);
     } catch (error) {
       if (error && typeof error === 'object' && error.code === 'ENOENT') {

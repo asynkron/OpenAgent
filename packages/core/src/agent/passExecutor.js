@@ -1,14 +1,17 @@
 import { buildPlanLookup, planHasOpenSteps, planStepIsBlocked } from '../utils/plan.js';
-import { incrementCommandCount } from '../services/commandStatsService.js';
-import { combineStdStreams, buildPreview } from '../utils/output.js';
+import { incrementCommandCount as defaultIncrementCommandCount } from '../services/commandStatsService.js';
+import { combineStdStreams as defaultCombineStdStreams, buildPreview as defaultBuildPreview } from '../utils/output.js';
 import ObservationBuilder from './observationBuilder.js';
-import { parseAssistantResponse } from './responseParser.js';
-import { requestModelCompletion } from './openaiRequest.js';
-import { executeAgentCommand } from './commandExecution.js';
-import { summarizeContextUsage } from '../utils/contextUsage.js';
-import { extractOpenAgentToolCall } from '../openai/responseUtils.js';
-import { validateAssistantResponseSchema, validateAssistantResponse } from './responseValidator.js';
-import { createChatMessageEntry } from './historyEntry.js';
+import { parseAssistantResponse as defaultParseAssistantResponse } from './responseParser.js';
+import { requestModelCompletion as defaultRequestModelCompletion } from './openaiRequest.js';
+import { executeAgentCommand as defaultExecuteAgentCommand } from './commandExecution.js';
+import { summarizeContextUsage as defaultSummarizeContextUsage } from '../utils/contextUsage.js';
+import { extractOpenAgentToolCall as defaultExtractOpenAgentToolCall } from '../openai/responseUtils.js';
+import {
+  validateAssistantResponseSchema as defaultValidateAssistantResponseSchema,
+  validateAssistantResponse as defaultValidateAssistantResponse,
+} from './responseValidator.js';
+import { createChatMessageEntry as defaultCreateChatMessageEntry } from './historyEntry.js';
 import {
   createObservationHistoryEntry,
   createPlanReminderEntry,
@@ -223,6 +226,19 @@ export async function executeAgentPass({
   emitAutoApproveStatus = false,
   planAutoResponseTracker = null,
   passIndex,
+  // New DI hooks (all optional, defaults preserve current behaviour)
+  requestModelCompletionFn = defaultRequestModelCompletion,
+  executeAgentCommandFn = defaultExecuteAgentCommand,
+  createObservationBuilderFn = (deps) => new ObservationBuilder(deps),
+  combineStdStreamsFn = defaultCombineStdStreams,
+  buildPreviewFn = defaultBuildPreview,
+  parseAssistantResponseFn = defaultParseAssistantResponse,
+  validateAssistantResponseSchemaFn = defaultValidateAssistantResponseSchema,
+  validateAssistantResponseFn = defaultValidateAssistantResponse,
+  createChatMessageEntryFn = defaultCreateChatMessageEntry,
+  extractOpenAgentToolCallFn = defaultExtractOpenAgentToolCall,
+  summarizeContextUsageFn = defaultSummarizeContextUsage,
+  incrementCommandCountFn = defaultIncrementCommandCount,
 }) {
   if (typeof passIndex !== 'number') {
     throw new Error('executeAgentPass requires a numeric passIndex.');
@@ -253,11 +269,11 @@ export async function executeAgentPass({
     debugFn(payload);
   };
 
-  const observationBuilder = new ObservationBuilder({
-    combineStdStreams,
+  const observationBuilder = createObservationBuilderFn({
+    combineStdStreams: combineStdStreamsFn,
     applyFilter: applyFilterFn,
     tailLines: tailLinesFn,
-    buildPreview,
+    buildPreview: buildPreviewFn,
   });
 
   const invokePlanManager =
@@ -280,7 +296,7 @@ export async function executeAgentPass({
   }
 
   try {
-    const usage = summarizeContextUsage({ history, model });
+    const usage = summarizeContextUsageFn({ history, model });
     if (usage && usage.total) {
       emitEvent({ type: 'context-usage', usage });
     }
@@ -293,7 +309,7 @@ export async function executeAgentPass({
     });
   }
 
-  const completionResult = await requestModelCompletion({
+  const completionResult = await requestModelCompletionFn({
     openai,
     model,
     history,
@@ -311,7 +327,7 @@ export async function executeAgentPass({
   }
 
   const { completion } = completionResult;
-  const toolCall = extractOpenAgentToolCall(completion);
+  const toolCall = extractOpenAgentToolCallFn(completion);
   const responseContent =
     toolCall && typeof toolCall.arguments === 'string' ? toolCall.arguments : '';
 
@@ -329,7 +345,7 @@ export async function executeAgentPass({
   }
 
   history.push(
-    createChatMessageEntry({
+    createChatMessageEntryFn({
       eventType: 'chat-message',
       role: 'assistant',
       pass: activePass,
@@ -337,7 +353,7 @@ export async function executeAgentPass({
     }),
   );
 
-  const parseResult = parseAssistantResponse(responseContent);
+  const parseResult = parseAssistantResponseFn(responseContent);
 
   if (!parseResult.ok) {
     const attempts = Array.isArray(parseResult.attempts)
@@ -415,7 +431,7 @@ export async function executeAgentPass({
     });
   }
 
-  const schemaValidation = validateAssistantResponseSchema(parsed);
+  const schemaValidation = validateAssistantResponseSchemaFn(parsed);
   if (!schemaValidation.valid) {
     emitDebug(() => ({
       stage: 'assistant-response-schema-validation-error',
@@ -459,7 +475,7 @@ export async function executeAgentPass({
     return true;
   }
 
-  const validation = validateAssistantResponse(parsed);
+  const validation = validateAssistantResponseFn(parsed);
   if (!validation.valid) {
     const details = validation.errors.join(' ');
     emitDebug(() => ({
@@ -799,7 +815,7 @@ export async function executeAgentPass({
       activePlanStep = activePlanExecutableSteps[snapshotIndex]?.step ?? activePlanStep;
     }
 
-    const { result, executionDetails } = await executeAgentCommand({
+    const { result, executionDetails } = await executeAgentCommandFn({
       command,
       runCommandFn,
     });
@@ -810,7 +826,7 @@ export async function executeAgentPass({
     }
 
     try {
-      await incrementCommandCount(key);
+      await incrementCommandCountFn(key);
     } catch (error) {
       emitEvent({
         type: 'status',

@@ -103,6 +103,8 @@ export function createAgentRuntime({
   transformEmittedEventFns = null,
   eventObservers = null,
   idPrefix = 'key',
+  // Dependency bag forwarded to executeAgentPass for deeper DI customization
+  passExecutorDeps = null,
 } = {}) {
   const outputs = createOutputsQueueFn();
   if (
@@ -562,6 +564,7 @@ export function createAgentRuntime({
               planAutoResponseTracker,
               emitAutoApproveStatus,
               passIndex: currentPass,
+              ...(passExecutorDeps && typeof passExecutorDeps === 'object' ? passExecutorDeps : {}),
             });
 
             enforceMemoryPolicies(currentPass);

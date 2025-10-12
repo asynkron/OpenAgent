@@ -35,6 +35,19 @@
    - `idPrefix` — customize the prefix used for emitted event `__id`s.
    - `transformEmittedEventFns[]` — optional chain of event transformers applied after `transformEmittedEventFn`.
    - `eventObservers[]` — optional observers invoked after an event has been enqueued.
+   - `passExecutorDeps` — object bag forwarded to `executeAgentPass` so hosts can override deeper dependencies (e.g., `requestModelCompletionFn`, `executeAgentCommandFn`, `createObservationBuilderFn`, `parseAssistantResponseFn`, `validateAssistantResponseFn`, `validateAssistantResponseSchemaFn`, `createChatMessageEntryFn`, `extractOpenAgentToolCallFn`, `summarizeContextUsageFn`, `incrementCommandCountFn`, `combineStdStreamsFn`, `buildPreviewFn`).
+
+ - `passExecutor.js` — now supports additional DI hooks without changing defaults:
+   - `requestModelCompletionFn`, `executeAgentCommandFn`, `createObservationBuilderFn`.
+   - `parseAssistantResponseFn`, `validateAssistantResponseFn`, `validateAssistantResponseSchemaFn`.
+   - `createChatMessageEntryFn`, `extractOpenAgentToolCallFn`.
+   - `summarizeContextUsageFn`, `incrementCommandCountFn`.
+   - `combineStdStreamsFn`, `buildPreviewFn`.
+   Provide any subset via `passExecutorDeps` on `createAgentRuntime`.
+
+ - `approvalManager.js` — constructor accepts optional `buildPromptFn(command, cfg)` and `parseDecisionFn(raw)` to customize the human approval UX while keeping the default CLI prompt.
+
+ - `planManager.js` — accepts `serializePlanFn(plan)` and `deserializePlanFn(raw)` to customize persistence format (defaults to pretty JSON).
 - `approvalManager.js` — centralizes auto-approval checks (allowlist/session flags) and human prompts; the constructor normalizes optional collaborators once so runtime logic can invoke them without repetitive type guards.
 - `commandExecution.js` — normalizes assistant commands before dispatching to the default executor and tracks runtime metadata.
 - `commands/` subdirectory — houses the default execute strategy used for all shell invocations.
