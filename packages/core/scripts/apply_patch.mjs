@@ -4,6 +4,52 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 
+function parseArgs(argv) {
+  const options = {
+    ignoreWhitespace: true,
+  };
+
+  for (const arg of argv) {
+    if (arg === '--ignore-whitespace' || arg === '-w') {
+      options.ignoreWhitespace = true;
+      continue;
+    }
+    if (
+      arg === '--respect-whitespace' ||
+      arg === '-W' ||
+      arg === '--no-ignore-whitespace'
+    ) {
+      options.ignoreWhitespace = false;
+      continue;
+    }
+    if (arg === '--help' || arg === '-h') {
+      const lines = [
+        'Usage: apply_patch [--respect-whitespace]',
+        '',
+        'Reads a *** Begin Patch block from stdin and applies it to the workspace.',
+        '  --ignore-whitespace, -w   Match hunks without considering whitespace differences (default).',
+        '  --respect-whitespace, -W  Require whitespace to match before applying hunks.',
+      ];
+      console.log(lines.join('\n'));
+      process.exit(0);
+    }
+    exitWithError(`Unknown option: ${arg}`);
+  }
+
+  return options;
+}
+
+function normalizeLine(line, { ignoreWhitespace }) {
+  if (!ignoreWhitespace) {
+    return line;
+  }
+  // Match Git's "ignore whitespace" behaviour by stripping all whitespace
+  // characters from the comparison buffer. The raw lines are still used when
+  // rewriting the file so formatting changes emitted by the patch remain
+  // intact.
+  return line.replace(/\s+/g, '');
+}
+
 async function readStdin() {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -137,14 +183,38 @@ function findSubsequence(haystack, needle, startIndex = 0) {
   return -1;
 }
 
+function ensureNormalizedLines(state) {
+  if (!state.options.ignoreWhitespace) {
+    return state.lines;
+  }
+  if (!state.normalizedLines) {
+    state.normalizedLines = state.lines.map((line) => normalizeLine(line, state.options));
+  }
+  return state.normalizedLines;
+}
+
+function updateNormalizedLines(state, { index, deleteCount, replacement }) {
+  if (!state.options.ignoreWhitespace) {
+    return;
+  }
+  const normalized = ensureNormalizedLines(state);
+  const normalizedReplacement = replacement.map((line) => normalizeLine(line, state.options));
+  normalized.splice(index, deleteCount, ...normalizedReplacement);
+}
+
 function applyHunk(state, hunk) {
   const { before, after } = hunk;
-  const { lines } = state;
+  const { lines, options } = state;
 
   if (before.length === 0) {
     const endsWithEmpty = lines.length > 0 && lines[lines.length - 1] === '';
     const insertionIndex = endsWithEmpty ? lines.length - 1 : lines.length;
     lines.splice(insertionIndex, 0, ...after);
+    updateNormalizedLines(state, {
+      index: insertionIndex,
+      deleteCount: 0,
+      replacement: after,
+    });
     state.cursor = insertionIndex + after.length;
     return;
   }
@@ -152,6 +222,15 @@ function applyHunk(state, hunk) {
   let matchIndex = findSubsequence(lines, before, state.cursor);
   if (matchIndex === -1) {
     matchIndex = findSubsequence(lines, before, 0);
+  }
+
+  if (matchIndex === -1 && options.ignoreWhitespace) {
+    const normalizedBefore = before.map((line) => normalizeLine(line, options));
+    const normalizedLines = ensureNormalizedLines(state);
+    matchIndex = findSubsequence(normalizedLines, normalizedBefore, state.cursor);
+    if (matchIndex === -1) {
+      matchIndex = findSubsequence(normalizedLines, normalizedBefore, 0);
+    }
   }
   if (matchIndex === -1) {
     const error = new Error(`Hunk not found in ${state.relativePath}.`);
@@ -162,18 +241,30 @@ function applyHunk(state, hunk) {
   }
 
   lines.splice(matchIndex, before.length, ...after);
+  updateNormalizedLines(state, {
+    index: matchIndex,
+    deleteCount: before.length,
+    replacement: after,
+  });
   state.cursor = matchIndex + after.length;
 }
 
-async function applyOperations(operations) {
+async function applyOperations(operations, options = {}) {
   const fileStates = new Map();
 
-  const ensureFileState = async (relativePath, options = {}) => {
+  const ensureFileState = async (relativePath, ensureOptions = {}) => {
     const absolutePath = path.resolve(relativePath);
     if (fileStates.has(absolutePath)) {
-      return fileStates.get(absolutePath);
+      const cached = fileStates.get(absolutePath);
+      cached.options = options;
+      if (options.ignoreWhitespace) {
+        cached.normalizedLines = cached.lines.map((line) => normalizeLine(line, options));
+      } else {
+        cached.normalizedLines = null;
+      }
+      return cached;
     }
-    const { create = false } = options;
+    const { create = false } = ensureOptions;
     if (create) {
       // Adding a file should fail fast if the destination already exists.
       try {
@@ -188,12 +279,14 @@ async function applyOperations(operations) {
         path: absolutePath,
         relativePath,
         lines: [],
+        normalizedLines: options.ignoreWhitespace ? [] : null,
         originalContent: '',
         originalEndsWithNewline: null,
         touched: false,
         cursor: 0,
         hunkStatuses: [],
         isNew: true,
+        options,
       };
       fileStates.set(absolutePath, state);
       return state;
@@ -210,12 +303,16 @@ async function applyOperations(operations) {
       path: absolutePath,
       relativePath,
       lines,
+      normalizedLines: options.ignoreWhitespace
+        ? lines.map((line) => normalizeLine(line, options))
+        : null,
       originalContent: content,
       originalEndsWithNewline: normalized.endsWith('\n'),
       touched: false,
       cursor: 0,
       hunkStatuses: [],
       isNew: false,
+      options,
     };
     fileStates.set(absolutePath, state);
     return state;
@@ -287,6 +384,9 @@ function exitWithError(message) {
 }
 
 async function main() {
+  const args = process.argv.slice(2);
+  const options = parseArgs(args);
+
   const input = await readStdin();
   if (!input.trim()) {
     exitWithError('No patch provided via stdin.');
@@ -304,7 +404,7 @@ async function main() {
   }
 
   try {
-    const results = await applyOperations(operations);
+    const results = await applyOperations(operations, options);
     if (results.length === 0) {
       console.log('No changes applied.');
       return;
