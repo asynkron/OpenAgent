@@ -306,6 +306,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
   const [commandLog, setCommandLog] = useState([]);
   const [commandInspector, setCommandInspector] = useState(null);
   const [exitState, setExitState] = useState(null);
+  const [passCounter, setPassCounter] = useState(0);
 
   const appendEntry = useCallback((type, payload) => {
     entryIdRef.current += 1;
@@ -579,6 +580,17 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
         case 'status':
           handleStatusEvent(event);
           break;
+        case 'pass': {
+          const numericPass = Number.isFinite(event.pass)
+            ? event.pass
+            : Number.isFinite(event.index)
+              ? event.index
+              : Number.isFinite(event.value)
+                ? event.value
+                : null;
+          setPassCounter(numericPass && numericPass > 0 ? Math.floor(numericPass) : 0);
+          break;
+        }
         case 'thinking':
           setThinking(event.state === 'start');
           break;
@@ -750,6 +762,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
       onSubmit: inputRequest ? handleSubmitPrompt : undefined,
       thinking,
       contextUsage,
+      passCounter,
       key: 'ask-human',
     }),
   );

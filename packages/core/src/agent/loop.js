@@ -120,6 +120,7 @@ export function createAgentRuntime({
 
   const nextPass = () => {
     passCounter += 1;
+    emit({ type: 'pass', pass: passCounter });
     return passCounter;
   };
 
