@@ -13,7 +13,7 @@
     "build": "npm run build --workspace @asynkron/openagent-core && npm run build --workspaces --if-present",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "pretest": "npm run build",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
