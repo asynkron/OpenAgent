@@ -7,8 +7,8 @@
 
 ## Key Files
 
-- `index.js` — imports runtime modules (agent loop, OpenAI client, services, utilities) and re-exports them as named exports plus a default aggregate object. Loads environment variables via `dotenv/config`.
-- `startupFlags.js` — parses CLI flags, tracks toggles (auto-approve, plan merging, debug), and exposes setters/getters shared between CLI and programmatic consumers.
+- `index.ts` — imports runtime modules (agent loop, OpenAI client, services, utilities) and re-exports them as named exports plus a default aggregate object. Loads environment variables via `dotenv/config`.
+- `startupFlags.ts` — parses CLI flags, tracks toggles (auto-approve, plan merging, debug), and exposes setters/getters shared between CLI and programmatic consumers.
 
 ## Positive Signals
 
@@ -19,6 +19,7 @@
 
 - Import side effects (loading `.env`) occur on module load; ensure this is acceptable when bundling or embedding.
 - Changes to export names must remain semver-safe; coordinate with `package.json` entry fields.
+- The entrypoint now type-checks without `@ts-nocheck`, so regressions will surface during `npm run typecheck`.
 
 ## Related Context
 

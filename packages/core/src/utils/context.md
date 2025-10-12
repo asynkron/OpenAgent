@@ -6,13 +6,13 @@
 
 ## Key Modules
 
-- `asyncQueue.js` — async iterator/queue abstraction used by the agent runtime for event pipelines.
-- `cancellation.js` — cooperative cancellation registry (`register`, `cancel`) for long-running commands.
-- `contextUsage.js` — tracks token usage metrics for display in the CLI.
-- `fetch.js` — thin wrapper around `undici`/`node-fetch` semantics with timeout & error normalization.
-- `jsonAssetValidator.js` — validates JSON files against provided schemas; leveraged by scripts/tests.
-- `output.js` — formatting helpers for CLI output and logs.
-- `plan.js` — plan tree clone/merge/progress utilities used by agent runtime & UI.
+- `asyncQueue.ts` — generic async iterator/queue abstraction used by the agent runtime for event pipelines.
+- `cancellation.ts` — cooperative cancellation registry (`register`, `cancel`) for long-running commands.
+- `contextUsage.ts` — tracks token usage metrics for display in the CLI.
+- `fetch.ts` — thin wrapper around `undici`/`node-fetch` semantics with timeout & error normalization.
+- `jsonAssetValidator.ts` — validates JSON files against provided schemas; leveraged by scripts/tests.
+- `output.ts` — formatting helpers for CLI output and logs.
+- `plan.ts` — plan tree clone/merge/progress utilities used by agent runtime & UI.
   - Incoming items with `status: 'abandoned'` now remove the matching plan branch during merge.
   - Steps waiting on dependencies now remain blocked if any dependency failed instead of treating failure as completion.
   - Merging no longer downgrades locally completed/failed steps when the assistant resends them as pending, preventing command replays.
@@ -21,6 +21,9 @@
   - Merge keys normalize `id` values case-insensitively so assistant resends with different casing still hit the same step.
   - Progress helpers only treat canonical terminal statuses (`completed`, `failed`) as finished; tests assert unrecognized values like `done` remain pending.
 - `text.ts` (emits `text.js` for runtime consumption) — string helpers (filters, tailing, shell splitting).
+
+Recent migrations tightened the TypeScript coverage for `asyncQueue`, `contextUsage`, and `jsonAssetValidator`, replacing `@ts-nocheck`
+annotations with explicit types to surface errors during compilation.
 
 ## Positive Signals
 

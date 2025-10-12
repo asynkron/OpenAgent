@@ -1,24 +1,27 @@
-// @ts-nocheck
 const DEFAULT_CONTEXT_WINDOW = 256_000;
 
-const MODEL_CONTEXT_WINDOWS = new Map(
-  [
-    ['gpt-4.1', 128_000],
-    ['gpt-4.1-mini', 128_000],
-    ['gpt-4.1-nano', 128_000],
-    ['gpt-4o', 128_000],
-    ['gpt-4o-mini', 128_000],
-    ['gpt-4o-realtime-preview', 128_000],
-    ['gpt-4o-realtime-preview-mini', 128_000],
-    ['gpt-4o-audio-preview', 128_000],
-    ['gpt-4.1-preview', 128_000],
-    ['gpt-4o-mini-2024-07-18', 128_000],
-    ['o4-mini', 128_000],
-    ['gpt-5-codex', 256_000],
-  ].map(([key, value]) => [key.toLowerCase(), value]),
+const MODEL_CONTEXT_ENTRIES = [
+  ['gpt-4.1', 128_000],
+  ['gpt-4.1-mini', 128_000],
+  ['gpt-4.1-nano', 128_000],
+  ['gpt-4o', 128_000],
+  ['gpt-4o-mini', 128_000],
+  ['gpt-4o-realtime-preview', 128_000],
+  ['gpt-4o-realtime-preview-mini', 128_000],
+  ['gpt-4o-audio-preview', 128_000],
+  ['gpt-4.1-preview', 128_000],
+  ['gpt-4o-mini-2024-07-18', 128_000],
+  ['o4-mini', 128_000],
+  ['gpt-5-codex', 256_000],
+] as const satisfies ReadonlyArray<readonly [string, number]>;
+
+const MODEL_CONTEXT_WINDOWS = new Map<string, number>(
+  MODEL_CONTEXT_ENTRIES.map(([key, value]) => [key.toLowerCase(), value] as const),
 );
 
-function parsePositiveInteger(value) {
+type MaybeNullish<T> = T | null | undefined;
+
+function parsePositiveInteger(value: MaybeNullish<unknown>): number | null {
   if (value === undefined || value === null) {
     return null;
   }
@@ -37,7 +40,11 @@ function parsePositiveInteger(value) {
   return null;
 }
 
-export function getContextWindow({ model } = {}) {
+export type ContextWindowOptions = {
+  model?: MaybeNullish<string>;
+};
+
+export function getContextWindow({ model }: ContextWindowOptions = {}): number | null {
   const rawOverride = process.env.OPENAI_CONTEXT_WINDOW;
   const envOverride = parsePositiveInteger(rawOverride);
   if (envOverride) {
@@ -53,14 +60,19 @@ export function getContextWindow({ model } = {}) {
   }
 
   const normalized = model.toLowerCase();
-  if (MODEL_CONTEXT_WINDOWS.has(normalized)) {
-    return MODEL_CONTEXT_WINDOWS.get(normalized);
+  const windowSize = MODEL_CONTEXT_WINDOWS.get(normalized);
+  if (windowSize) {
+    return windowSize;
   }
 
   return DEFAULT_CONTEXT_WINDOW;
 }
 
-function flattenContent(content) {
+type MessageLike = MaybeNullish<{
+  content?: unknown;
+}>;
+
+function flattenContent(content: unknown): string {
   if (typeof content === 'string') {
     return content;
   }
@@ -80,7 +92,7 @@ function flattenContent(content) {
   return '';
 }
 
-export function estimateTokensForHistory(history) {
+export function estimateTokensForHistory(history: MaybeNullish<readonly MessageLike[]>): number {
   if (!Array.isArray(history) || history.length === 0) {
     return 0;
   }
@@ -107,7 +119,19 @@ export function estimateTokensForHistory(history) {
   return tokensFromCharacters + structuralTokens;
 }
 
-export function summarizeContextUsage({ history, model } = {}) {
+export type ContextUsageSummary = {
+  total: number | null;
+  used: number;
+  remaining: number | null;
+  percentRemaining: number | null;
+};
+
+export type SummarizeContextUsageOptions = {
+  history?: MaybeNullish<readonly MessageLike[]>;
+  model?: MaybeNullish<string>;
+};
+
+export function summarizeContextUsage({ history, model }: SummarizeContextUsageOptions = {}): ContextUsageSummary {
   const total = getContextWindow({ model });
   const used = estimateTokensForHistory(history);
 
