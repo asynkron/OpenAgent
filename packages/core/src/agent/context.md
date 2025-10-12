@@ -6,54 +6,18 @@
 
 ## Key Modules
 
-- `loop.js` — orchestrates the event-driven runtime: manages plan snapshots, queues inputs/outputs, handles OpenAI calls, applies filters, coordinates cancellation, and now JSON-clones every emitted event so subscribers observe immutable snapshots. The runtime exposes factory hooks (`createOutputsQueueFn`, `createInputsQueueFn`, `createPlanManagerFn`, `createEscStateFn`, `createPromptCoordinatorFn`, `createApprovalManagerFn`) so hosts can inject alternative implementations without patching the core loop, emits a `pass` event whenever a new reasoning pass begins so UIs can surface the active counter, and now enforces a payload-growth failsafe that terminates the process if the estimated OpenAI request swells by roughly fivefold between passes, dumping the offending history to `.openagent/failsafe-history/` before exiting and letting callers invoke the guard ahead of any history compaction to avoid unnecessary API calls.
-
-  Additional DI hooks available in `createAgentRuntime`:
-  - `logger` — console-like sink used by default `createHistoryCompactorFn`.
-  - `idGeneratorFn` — generate deterministic `__id`s for emitted events (useful for tests).
-  - `applyDementiaPolicyFn` — override the default dementia pruning behavior.
-  - `createChatMessageEntryFn` — customize chat message envelope creation.
-  - `executeAgentPassFn` — replace the default pass executor implementation.
-  - `createPlanAutoResponseTrackerFn` — supply a custom plan reminder counter implementation.
-
-- `loop.js` — orchestrates the event-driven runtime: manages plan snapshots, queues inputs/outputs, handles OpenAI calls, applies filters, coordinates cancellation, and now JSON-clones every emitted event so subscribers observe immutable snapshots. The runtime exposes factory hooks (`createOutputsQueueFn`, `createInputsQueueFn`, `createPlanManagerFn`, `createEscStateFn`, `createPromptCoordinatorFn`, `createApprovalManagerFn`) so hosts can inject alternative implementations without patching the core loop, emits a `pass` event whenever a new reasoning pass begins so UIs can surface the active counter, and now enforces a payload-growth failsafe that terminates the process if the estimated OpenAI request swells by roughly fivefold between passes.
-
-  New DI hooks in `createAgentRuntime`:
-  - `logger` — console-like sink used by default `createHistoryCompactorFn`.
-  - `idGeneratorFn` — generate deterministic `__id`s for emitted events (useful in tests).
-  - `applyDementiaPolicyFn` — override default dementia pruning behavior.
-  - `createChatMessageEntryFn` — customize chat message envelope creation.
-  - `executeAgentPassFn` — replace the default pass executor implementation.
-  - `createPlanAutoResponseTrackerFn` — supply a custom plan reminder counter implementation.
-  - `cancelFn` — provide a custom cancellation function passed to the prompt coordinator.
-  - `planReminderMessage` — customize the reminder text when the plan is pending.
-  - `userInputPrompt` — customize the prompt label shown for user input.
-  - `noHumanAutoMessage` — customize the auto-message used in no-human mode.
-  - `idPrefix` — customize the prefix used for emitted event `__id`s.
-  - `eventObservers[]` — optional observers invoked after an event has been enqueued.
-  - `passExecutorDeps` — object bag forwarded to `executeAgentPass` so hosts can override deeper dependencies (e.g., `requestModelCompletionFn`, `executeAgentCommandFn`, `createObservationBuilderFn`, `parseAssistantResponseFn`, `validateAssistantResponseFn`, `validateAssistantResponseSchemaFn`, `createChatMessageEntryFn`, `extractOpenAgentToolCallFn`, `summarizeContextUsageFn`, `incrementCommandCountFn`, `combineStdStreamsFn`, `buildPreviewFn`).
-
-- `passExecutor.js` — now supports additional DI hooks without changing defaults:
-  - `requestModelCompletionFn`, `executeAgentCommandFn`, `createObservationBuilderFn`.
-  - `parseAssistantResponseFn`, `validateAssistantResponseFn`, `validateAssistantResponseSchemaFn`.
-  - `createChatMessageEntryFn`, `extractOpenAgentToolCallFn`.
-  - `summarizeContextUsageFn`, `incrementCommandCountFn`.
-  - `combineStdStreamsFn`, `buildPreviewFn`.
-    Provide any subset via `passExecutorDeps` on `createAgentRuntime`.
-
-- `approvalManager.js` — constructor accepts optional `buildPromptFn(command, cfg)` and `parseDecisionFn(raw)` to customize the human approval UX while keeping the default CLI prompt.
-
-- `planManager.js` — accepts `serializePlanFn(plan)` and `deserializePlanFn(raw)` to customize persistence format (defaults to pretty JSON).
-- `approvalManager.js` — centralizes auto-approval checks (allowlist/session flags) and human prompts; the constructor normalizes optional collaborators once so runtime logic can invoke them without repetitive type guards.
-- `commandExecution.js` — normalizes assistant commands before dispatching to the default executor and tracks runtime metadata.
-- `commands/` subdirectory — houses the default execute strategy used for all shell invocations.
-- `historyCompactor.ts` (emits `historyCompactor.js`), `observationBuilder.js`, `historyMessageBuilder.ts` (emits `historyMessageBuilder.js`), `historyEntry.ts` (emits `historyEntry.js`), `responseParser.js`, `responseValidator.js`, `responseToolSchema.js` — manage conversation state, define the response envelope schema (including the named OpenAI tool contract with inline command validation), normalize nested plan step commands and observations, format observation/auto-response history entries, centralize chat entry envelopes (including the OpenAI-safe payload), parse Responses API payloads, normalize assistant command payloads (including newline sanitization and mapping `cmd`/`command_line` aliases back to `run`), enforce JSON schema compliance, and validate protocol guardrails. The observation builder now enforces a 50 KB stdout/stderr failsafe that replaces the payload with a corruption marker and forces a non-zero exit so runaway commands cannot bloat the transcript. History messages now carry explicit `type` discriminators with JSON-serialized bodies and a numeric `pass` index so every payload sent to the model is machine-readable and associated with the reasoning turn that produced it, and observation entries are serialized as `role: user` messages so the next pass treats them as external updates. The schema continues to require stable `id` labels on plan steps plus full shell/run command objects, and the corresponding unit/integration suites exercise those constraints while permitting more than three top-level steps when the assistant proposes a larger plan.
-- `amnesiaManager.js` — applies pass-aware "amnesia" filters that redact or drop bulky JSON payloads once they age beyond ten passes and exposes a shared dementia policy helper that prunes entries older than the configured hard limit.
-- `openaiRequest.js` — builds structured responses requests with retries and timeout handling.
-- `promptCoordinator.js`, `escState.js` — route human prompts, handle ESC cancellations, and guard against idle ESC presses latching cancellations.
-- `passExecutor.js` — orchestrates multi-pass reasoning loops (execute/reflect cycles) when the model requests continuations, skips blank run/shell fields so empty commands fall back to the message-only path, funnels plan manager calls through a single helper to keep optional method checks centralized, caps plan reminder auto-responses to three consecutive attempts so humans can step in before the loop stalls, walks the in-memory plan to pick the next executable step (no clone/merge bookkeeping) while embedding command results straight back into the live plan before returning control to the model, marks any running command as `running` and later `completed`/`failed`, re-emits updated plan snapshots to UIs without re-persisting, clears fully completed plans before the next user prompt, wraps multi-command execution inside a single thinking event span so front-ends keep the spinner active until the final command finishes, now accepts a request-payload guard so the failsafe can fire before history compaction runs, and catches exceptions from command executors so the plan marks the step as failed, emits an error status, and continues executing remaining ready steps.
-- `planManager.js` — persists normalized plans to `.openagent/plan.json`, merges assistant updates into the active plan when plan-merge mode is enabled, deep-clones snapshots so local statuses survive round-trips, exposes a `sync` helper for hosts that need to flush runtime mutations, retains the previous plan when the assistant omits the plan payload, and is now only invoked during assistant-plan ingestion while post-execution updates stay confined to the in-memory snapshot.
-  - Runtime now keeps control over plan step statuses when merging assistant updates, only honoring `abandoned` markers and defaulting newly merged steps to `pending` while snapshots preserve existing statuses.
+- `loop.ts` (emits `loop.js`) — orchestrates the event-driven runtime: manages plan snapshots, queues inputs/outputs, handles OpenAI calls, applies filters, coordinates cancellation, and enforces a payload-growth failsafe that dumps runaway histories before retrying. The runtime exposes factory hooks (`createOutputsQueueFn`, `createInputsQueueFn`, `createPlanManagerFn`, `createEscStateFn`, `createPromptCoordinatorFn`, `createApprovalManagerFn`) so hosts can inject alternatives without patching the core loop. Additional DI knobs let callers override logging, request cancellation, prompt phrasing, auto-response limits, and downstream pass executor dependencies.
+- `passExecutor.ts` (emits `passExecutor.js`) — coordinates multi-pass reasoning. It requests model completions, parses and validates assistant responses, merges incoming plan data, dispatches shell commands, records observations, nudges the model when plans stall, and syncs plan snapshots back to disk. The helper accepts overridable collaborators for OpenAI calls, command execution, history compaction, observation building, context usage summaries, and schema validation.
+- `approvalManager.ts` (emits `approvalManager.js`) — normalizes the approval policy: checks allowlists/session approvals, optionally prompts the human, and records session grants.
+- `amnesiaManager.ts` (emits `amnesiaManager.js`) — prunes stale history entries and exposes a dementia policy helper that drops messages older than the configured pass threshold.
+- `commandExecution.ts` (emits `commandExecution.js`) and `commands/ExecuteCommand.ts` — normalize assistant command payloads and delegate to the injected shell runner.
+- `escState.ts` (emits `escState.js`) — tracks ESC-triggered cancellations and lets consumers await the next cancellation event.
+- `observationBuilder.ts` (emits `observationBuilder.js`) — formats command results into preview payloads and observation envelopes while guarding against oversized outputs.
+- `openaiRequest.ts` (emits `openaiRequest.js`) — wraps the OpenAI Responses API with ESC cancellation support and emits cancellation observations when humans abort requests.
+- `planManager.ts` (emits `planManager.js`) — persists plan snapshots to `.openagent/plan.json`, merges assistant updates, and emits plan progress events.
+- `promptCoordinator.ts` (emits `promptCoordinator.js`) — buffers prompt responses from the UI and relays cancellation signals through the shared ESC state.
+- `responseParser.ts`, `responseValidator.ts`, and `responseToolSchema.ts` (emit their `.js` companions) — parse assistant JSON, normalize plan/command payloads, and enforce schema plus semantic validations for the OpenAgent tool response.
+- `historyEntry.ts`, `historyMessageBuilder.ts`, and `historyCompactor.ts` — previously migrated helpers that the runtime still imports via their compiled `.js` outputs.
 
 ## Positive Signals
 
