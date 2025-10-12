@@ -6,15 +6,11 @@ import {
   formatAgentEvent,
   isWebSocketOpen,
   normaliseAgentText,
+  type AgentPayload,
 } from './utils.js';
 
 export interface AgentConfig {
   autoApprove: boolean;
-}
-
-export interface AgentPayload {
-  type: string;
-  [key: string]: unknown;
 }
 
 export interface AgentSocketManagerOptions {
@@ -26,6 +22,68 @@ interface AgentSocketRecord {
   binding: WebSocketBinding;
   cleaned: boolean;
   cleanup: ((reason?: string) => Promise<void>) | null;
+}
+
+interface AgentPromptMessage {
+  type: string;
+  prompt?: unknown;
+  text?: unknown;
+  value?: unknown;
+  message?: unknown;
+}
+
+function serialiseIncomingMessage(raw: RawData, isBinary: boolean): string | undefined {
+  if (typeof raw === 'string') {
+    return raw;
+  }
+
+  if (Buffer.isBuffer(raw)) {
+    return raw.toString('utf8');
+  }
+
+  if (Array.isArray(raw)) {
+    return Buffer.concat(raw).toString('utf8');
+  }
+
+  if (!isBinary && raw instanceof ArrayBuffer) {
+    return Buffer.from(raw).toString('utf8');
+  }
+
+  return undefined;
+}
+
+function isAgentPromptMessage(value: unknown): value is AgentPromptMessage {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const type = (value as { type?: unknown }).type;
+  if (typeof type !== 'string') {
+    return false;
+  }
+
+  const normalizedType = type.toLowerCase();
+  if (normalizedType !== 'chat' && normalizedType !== 'prompt') {
+    return false;
+  }
+
+  return true;
+}
+
+function resolvePrompt(message: AgentPromptMessage): string | undefined {
+  const promptSource =
+    message.prompt ??
+    message.text ??
+    message.value ??
+    message.message;
+
+  if (typeof promptSource === 'string') {
+    const trimmed = promptSource.trim();
+    return trimmed ? trimmed : undefined;
+  }
+
+  const normalised = normaliseAgentText(promptSource).trim();
+  return normalised ? normalised : undefined;
 }
 
 export class AgentSocketManager {
@@ -61,7 +119,8 @@ export class AgentSocketManager {
         autoStart: false,
         formatOutgoing: (event) => {
           console.log('Agent runtime emitted event', event);
-          return formatAgentEvent(event);
+          const payload = formatAgentEvent(event);
+          return payload ? JSON.stringify(payload) : undefined;
         },
       };
 
@@ -75,7 +134,7 @@ export class AgentSocketManager {
       this.sendPayload(ws, {
         type: 'agent_error',
         message: 'Failed to initialize the agent runtime.',
-        details,
+        ...(details ? { details } : {}),
       });
       try {
         ws.close(1011, 'Agent runtime unavailable');
@@ -139,18 +198,8 @@ export class AgentSocketManager {
     ws.on('error', handleError);
 
     ws.on('message', (raw: RawData, isBinary: boolean) => {
-      let serialized = '';
-      if (typeof raw === 'string') {
-        serialized = raw;
-      } else if (Buffer.isBuffer(raw)) {
-        serialized = raw.toString('utf8');
-      } else if (Array.isArray(raw)) {
-        serialized = Buffer.concat(raw).toString('utf8');
-      } else if (!isBinary && raw instanceof ArrayBuffer) {
-        serialized = Buffer.from(raw).toString('utf8');
-      }
-
-      console.log('Agent websocket received payload', serialized || raw);
+      const serialized = serialiseIncomingMessage(raw, isBinary);
+      console.log('Agent websocket received payload', serialized ?? raw);
 
       const runtime = binding.runtime;
       if (!serialized || !runtime?.submitPrompt) {
@@ -164,33 +213,11 @@ export class AgentSocketManager {
         return;
       }
 
-      if (!parsed || typeof parsed !== 'object') {
+      if (!isAgentPromptMessage(parsed)) {
         return;
       }
 
-      const type = typeof (parsed as { type?: unknown }).type === 'string'
-        ? ((parsed as { type: string }).type.toLowerCase())
-        : undefined;
-      if (type !== 'chat' && type !== 'prompt') {
-        return;
-      }
-
-      const source = parsed as Record<string, unknown>;
-      const promptSource =
-        source.prompt ??
-        source.text ??
-        source.value ??
-        source.message;
-
-      if (typeof promptSource === 'undefined') {
-        return;
-      }
-
-      const prompt =
-        typeof promptSource === 'string'
-          ? promptSource.trim()
-          : normaliseAgentText(promptSource).trim();
-
+      const prompt = resolvePrompt(parsed);
       if (!prompt) {
         return;
       }
@@ -215,7 +242,7 @@ export class AgentSocketManager {
             this.sendPayload(ws, {
               type: 'agent_error',
               message: 'Agent runtime failed to start.',
-              details,
+              ...(details ? { details } : {}),
             });
             await cleanup?.('runtime-error');
             try {
@@ -232,7 +259,7 @@ export class AgentSocketManager {
       this.sendPayload(ws, {
         type: 'agent_error',
         message: 'Agent runtime failed to start.',
-        details,
+        ...(details ? { details } : {}),
       });
       void cleanup?.('runtime-error');
       try {
