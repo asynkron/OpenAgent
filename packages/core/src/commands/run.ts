@@ -63,7 +63,7 @@ function safeClose(fd) {
   }
   try {
     closeSync(fd);
-  } catch (error) {
+  } catch (_error) {
     // Ignore close errors.
   }
 }
@@ -86,7 +86,7 @@ function cleanupTempDir(tempDir) {
   }
   try {
     rmSync(tempDir, { recursive: true, force: true });
-  } catch (error) {
+  } catch (_error) {
     // Ignore cleanup errors.
   }
 }
@@ -226,7 +226,7 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
       if (unregisterCancellation && typeof unregisterCancellation === 'function') {
         try {
           unregisterCancellation();
-        } catch (error) {
+        } catch (_error) {
           // Ignore unregister errors.
         }
       }
@@ -274,14 +274,14 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
       if (child) {
         try {
           child.kill('SIGTERM');
-        } catch (err) {
+        } catch (_error) {
           // Ignore kill errors.
         }
         forceKillHandle = setTimeout(() => {
           if (!settled) {
             try {
               child.kill('SIGKILL');
-            } catch (err) {
+            } catch (_error) {
               // Ignore kill errors.
             }
           }
@@ -364,14 +364,14 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
         timedOut = true;
         try {
           child.kill('SIGTERM');
-        } catch (err) {
+        } catch (_error) {
           // Ignore kill errors.
         }
         forceKillHandle = setTimeout(() => {
           if (!settled) {
             try {
               child.kill('SIGKILL');
-            } catch (err) {
+            } catch (_error) {
               // Ignore kill errors.
             }
           }

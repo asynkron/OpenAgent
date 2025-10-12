@@ -80,7 +80,7 @@ function safeParse(value: unknown): ParseResult {
 
   try {
     return { parsed: true, value: JSON.parse(value) };
-  } catch (error) {
+  } catch (_error) {
     return { parsed: false, value: null };
   }
 }
@@ -92,7 +92,7 @@ function stringifyContent(value: unknown, fallback: string | undefined): string 
 
   try {
     return JSON.stringify(value, null, JSON_INDENT);
-  } catch (error) {
+  } catch (_error) {
     return fallback;
   }
 }
@@ -198,7 +198,7 @@ export class AmnesiaManager {
 
         try {
           rule(context);
-        } catch (error) {
+        } catch (_error) {
           // Intentionally swallow rule errors so a single faulty rule does not
           // destabilize the agent loop. Debug logging is handled by the caller.
         }

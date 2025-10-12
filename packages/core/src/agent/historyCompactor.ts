@@ -68,7 +68,7 @@ const stringifyContent = (content: unknown): string => {
   if (content && typeof content === 'object') {
     try {
       return JSON.stringify(content, null, 2);
-    } catch (error) {
+    } catch (_error) {
       return '';
     }
   }
