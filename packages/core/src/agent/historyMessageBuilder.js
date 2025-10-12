@@ -4,29 +4,32 @@ const JSON_INDENT = 2;
 
 const stringify = (value) => JSON.stringify(value, null, JSON_INDENT);
 
+const isNonEmptyString = (value) => typeof value === 'string' && value.trim().length > 0;
+
 const describeCommand = (command) => {
   if (!command || typeof command !== 'object') {
     return '';
   }
 
-  const run = typeof command.run === 'string' ? command.run.trim() : '';
+  const run = isNonEmptyString(command.run) ? command.run.trim() : '';
   if (run) {
     return run;
   }
 
-  const shell = typeof command.shell === 'string' ? command.shell.trim() : '';
+  const shell = isNonEmptyString(command.shell) ? command.shell.trim() : '';
   if (shell) {
     return shell;
   }
 
-  if (typeof command.key === 'string' && command.key.trim()) {
+  if (isNonEmptyString(command.key)) {
     return command.key.trim();
   }
 
   return '';
 };
 
-const hasKeys = (value) => value && typeof value === 'object' && Object.keys(value).length > 0;
+const hasKeys = (value) =>
+  Boolean(value) && typeof value === 'object' && Object.keys(value).length > 0;
 
 const PLAN_UPDATE_MESSAGE = 'Here is the updated plan with the latest command observations.';
 
@@ -94,7 +97,7 @@ const buildObservationContent = ({ observation, command }) => {
       payload.canceled_by_human ||
       payload.operation_canceled)
   ) {
-    content.details = payload.message;
+    content.details = String(payload.message);
   }
 
   if (hasKeys(metadata)) {
@@ -122,7 +125,7 @@ export const createPlanReminderEntry = ({ planReminderMessage, pass }) => {
       'I still have unfinished steps in the active plan. I am reminding myself to keep working on them.',
   };
 
-  if (planReminderMessage && planReminderMessage.trim()) {
+  if (isNonEmptyString(planReminderMessage)) {
     content.auto_response = planReminderMessage.trim();
   }
 
@@ -140,7 +143,7 @@ export const createRefusalAutoResponseEntry = ({ autoResponseMessage, pass }) =>
     message: 'The previous response appeared to be a refusal, so I nudged myself to continue.',
   };
 
-  if (autoResponseMessage && autoResponseMessage.trim()) {
+  if (isNonEmptyString(autoResponseMessage)) {
     content.auto_response = autoResponseMessage.trim();
   }
 
