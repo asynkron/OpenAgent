@@ -62,6 +62,32 @@ describe('packages/core/scripts/apply_patch.mjs', () => {
       cleanup();
     }
   });
+
+  test('adds a brand new file when requested', () => {
+    const { dir, cleanup } = createWorkspace();
+    try {
+      const patch = [
+        '*** Begin Patch',
+        '*** Add File: notes/new-file.txt',
+        '+first line',
+        '+second line',
+        '*** End Patch',
+        '',
+      ].join('\n');
+
+      const result = runScript([path.join(SCRIPTS_DIR, 'apply_patch.mjs')], {
+        cwd: dir,
+        input: patch,
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('Success. Updated the following files:');
+      const createdPath = path.join(dir, 'notes/new-file.txt');
+      expect(readFileSync(createdPath, 'utf8')).toBe('first line\nsecond line');
+    } finally {
+      cleanup();
+    }
+  });
 });
 
 describe('packages/core/scripts/rename-identifier.mjs', () => {
