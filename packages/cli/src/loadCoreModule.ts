@@ -3,6 +3,11 @@ const LOCAL_CORE_ENTRY_URL = new URL('../../core/index.js', import.meta.url);
 
 type CoreModule = typeof import('@asynkron/openagent-core');
 
+type CoreModuleContract = CoreModule & {
+  createAgentRuntime: NonNullable<CoreModule['createAgentRuntime']>;
+  applyStartupFlagsFromArgv: NonNullable<CoreModule['applyStartupFlagsFromArgv']>;
+};
+
 type Importer = (specifier: string) => Promise<CoreModule>;
 
 type LoadCoreModuleOptions = {
@@ -12,7 +17,7 @@ type LoadCoreModuleOptions = {
 
 const defaultImporter: Importer = (specifier) => import(specifier) as Promise<CoreModule>;
 
-let cachedModule: CoreModule | undefined;
+let cachedModule: CoreModuleContract | undefined;
 
 /**
  * Loads the core runtime dependency used by the CLI.
@@ -26,7 +31,7 @@ let cachedModule: CoreModule | undefined;
 export async function loadCoreModule({
   importer,
   fallbackSpecifier,
-}: LoadCoreModuleOptions = {}): Promise<CoreModule> {
+}: LoadCoreModuleOptions = {}): Promise<CoreModuleContract> {
   if (cachedModule) {
     return cachedModule;
   }
@@ -35,10 +40,10 @@ export async function loadCoreModule({
   const fallbackTarget = resolveFallbackTarget(fallbackSpecifier);
 
   try {
-    cachedModule = await importModule(CORE_PACKAGE_ID);
+    cachedModule = ensureCoreModule(await importModule(CORE_PACKAGE_ID));
   } catch (error: unknown) {
     if (isModuleNotFoundError(error)) {
-      cachedModule = await importModule(fallbackTarget);
+      cachedModule = ensureCoreModule(await importModule(fallbackTarget));
     } else {
       throw error;
     }
@@ -81,4 +86,18 @@ function isModuleNotFoundError(error: unknown): error is ModuleNotFoundError {
  */
 export function __clearCoreModuleCacheForTesting(): void {
   cachedModule = undefined;
+}
+
+function ensureCoreModule(module: CoreModule): CoreModuleContract {
+  if (
+    !module ||
+    typeof module.createAgentRuntime !== 'function' ||
+    typeof module.applyStartupFlagsFromArgv !== 'function'
+  ) {
+    throw new TypeError(
+      `Module loaded from ${CORE_PACKAGE_ID} is missing required exports for the CLI runtime.`,
+    );
+  }
+
+  return module as CoreModuleContract;
 }

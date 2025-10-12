@@ -14,7 +14,11 @@ describe('loadCoreModule', () => {
   });
 
   test('returns the workspace dependency when available', async () => {
-    const coreExports = { sentinel: 'workspace' };
+    const coreExports = {
+      sentinel: 'workspace',
+      createAgentRuntime: jest.fn(),
+      applyStartupFlagsFromArgv: jest.fn(),
+    };
     const importer = jest.fn(async (specifier) => {
       if (specifier === '@asynkron/openagent-core') {
         return coreExports;
@@ -33,7 +37,11 @@ describe('loadCoreModule', () => {
     const notFoundError = new Error("Cannot find module '@asynkron/openagent-core'");
     (notFoundError as NodeJS.ErrnoException).code = 'ERR_MODULE_NOT_FOUND';
 
-    const fallbackExports = { sentinel: 'fallback' };
+    const fallbackExports = {
+      sentinel: 'fallback',
+      createAgentRuntime: jest.fn(),
+      applyStartupFlagsFromArgv: jest.fn(),
+    };
     const importer = jest.fn(async (specifier) => {
       if (specifier === '@asynkron/openagent-core') {
         throw notFoundError;
@@ -65,8 +73,27 @@ describe('loadCoreModule', () => {
     await expect(loadCoreModule({ importer })).rejects.toBe(unexpected);
   });
 
+  test('throws a descriptive error when required exports are missing', async () => {
+    const importer = jest.fn(async (specifier) => {
+      if (specifier === '@asynkron/openagent-core') {
+        return { sentinel: 'invalid' };
+      }
+      throw new Error(`Unexpected specifier: ${specifier}`);
+    });
+
+    const { loadCoreModule } = await importLoader();
+
+    await expect(loadCoreModule({ importer })).rejects.toThrow(
+      /missing required exports/i,
+    );
+  });
+
   test('memoizes the resolved module between calls', async () => {
-    const coreExports = { sentinel: 'workspace' };
+    const coreExports = {
+      sentinel: 'workspace',
+      createAgentRuntime: jest.fn(),
+      applyStartupFlagsFromArgv: jest.fn(),
+    };
     const importer = jest.fn(async (specifier) => {
       if (specifier === '@asynkron/openagent-core') {
         return coreExports;

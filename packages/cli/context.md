@@ -13,7 +13,8 @@
 - `bin/openagent.ts` — executable shim invoked by `npx openagent` or global installs; now type-checked instead of relying on `@ts-nocheck`.
 - `src/runner.ts` — CLI bootstrap that validates environment configuration and launches the agent loop with guardrails around the core module exports.
 - `src/` — Ink components, boot probes, runtime wiring, and readline helpers written in TypeScript. See [`src/context.md`](src/context.md).
-- `src/loadCoreModule.ts` — resolves the core runtime dependency with a local fallback when the workspace link is missing, including runtime guards for missing exports and a typed module interface used across the CLI.
+- `src/runtime.ts` — orchestrates dependency injection for the agent loop, memoizes Ink rendering, and tracks command usage stats for analytics. The runtime now consumes strongly typed core bindings to normalize dependencies before booting the Ink app.
+- `src/loadCoreModule.ts` — resolves the core runtime dependency with a local fallback when the workspace link is missing, including runtime guards for missing exports and the shape assertions that back the shared type definitions in `types/openagent-core.d.ts`.
 - `src/render.ts`, `src/status.ts`, `src/thinking.ts`, `src/io.ts` — legacy console helpers and readline utilities that continue to underpin tests and non-Ink integrations, now fully typed.
 - `src/bootProbes/` — environment detection suite now type-checked end-to-end (context helpers, registry, and individual probes).
 

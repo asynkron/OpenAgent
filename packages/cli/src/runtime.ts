@@ -16,40 +16,36 @@ import {
   runCommand as coreRunCommand,
   setNoHumanFlag,
   tailLines,
+  type AgentRuntimeConfig,
+  type CommandResult,
 } from '@asynkron/openagent-core';
 
 import CliApp from './components/CliApp.js';
 
 type RunCommandInput = string | readonly string[];
 
-type AgentRuntimeConfig = Parameters<typeof createAgentRuntime>[0];
-
-type AgentRuntimeDependencies = Required<
-  Pick<
-    AgentRuntimeConfig,
-    | 'getAutoApproveFlag'
-    | 'getNoHumanFlag'
-    | 'getPlanMergeFlag'
-    | 'getDebugFlag'
-    | 'setNoHumanFlag'
-    | 'runCommandFn'
-    | 'applyFilterFn'
-    | 'tailLinesFn'
-    | 'isPreapprovedCommandFn'
-    | 'isSessionApprovedFn'
-    | 'approveForSessionFn'
-    | 'preapprovedCfg'
-  >
->;
+type CliAgentRuntimeDependencies = {
+  getAutoApproveFlag: NonNullable<AgentRuntimeConfig['getAutoApproveFlag']>;
+  getNoHumanFlag: NonNullable<AgentRuntimeConfig['getNoHumanFlag']>;
+  getPlanMergeFlag: NonNullable<AgentRuntimeConfig['getPlanMergeFlag']>;
+  getDebugFlag: NonNullable<AgentRuntimeConfig['getDebugFlag']>;
+  setNoHumanFlag: NonNullable<AgentRuntimeConfig['setNoHumanFlag']>;
+  runCommandFn: NonNullable<AgentRuntimeConfig['runCommandFn']>;
+  applyFilterFn: NonNullable<AgentRuntimeConfig['applyFilterFn']>;
+  tailLinesFn: NonNullable<AgentRuntimeConfig['tailLinesFn']>;
+  isPreapprovedCommandFn: NonNullable<AgentRuntimeConfig['isPreapprovedCommandFn']>;
+  isSessionApprovedFn: NonNullable<AgentRuntimeConfig['isSessionApprovedFn']>;
+  approveForSessionFn: NonNullable<AgentRuntimeConfig['approveForSessionFn']>;
+  preapprovedCfg: NonNullable<AgentRuntimeConfig['preapprovedCfg']>;
+};
 
 type RuntimeOptions = AgentRuntimeConfig;
 
 function determineCommandKey(command: RunCommandInput): string {
   if (Array.isArray(command)) {
     const [firstSegment] = command;
-    return typeof firstSegment === 'string' && firstSegment.trim().length > 0
-      ? firstSegment.trim()
-      : 'unknown';
+    const first = typeof firstSegment === 'string' ? firstSegment.trim() : '';
+    return first.length > 0 ? first : 'unknown';
   }
 
   if (typeof command === 'string') {
@@ -63,14 +59,15 @@ function determineCommandKey(command: RunCommandInput): string {
   return 'unknown';
 }
 
-function normalizeRuntimeOptions(overrides: RuntimeOptions = {} as RuntimeOptions): AgentRuntimeConfig {
-  const baseDependencies = {
+function normalizeRuntimeOptions(
+  overrides: RuntimeOptions = {},
+): AgentRuntimeConfig & CliAgentRuntimeDependencies {
+  const baseDependencies: CliAgentRuntimeDependencies = {
     getAutoApproveFlag,
     getNoHumanFlag,
     getPlanMergeFlag,
     getDebugFlag,
-    setNoHumanFlag: ((value?: Parameters<typeof setNoHumanFlag>[0]) =>
-      setNoHumanFlag(value)) as AgentRuntimeDependencies['setNoHumanFlag'],
+    setNoHumanFlag,
     runCommandFn: coreRunCommand,
     applyFilterFn: applyFilter,
     tailLinesFn: tailLines,
@@ -78,24 +75,33 @@ function normalizeRuntimeOptions(overrides: RuntimeOptions = {} as RuntimeOption
     isSessionApprovedFn: isSessionApproved,
     approveForSessionFn: approveForSession,
     preapprovedCfg: PREAPPROVED_CFG,
-  } satisfies AgentRuntimeDependencies;
+  };
 
-  return { ...baseDependencies, ...overrides };
+  const normalized: AgentRuntimeConfig & CliAgentRuntimeDependencies = {
+    ...baseDependencies,
+    ...overrides,
+  };
+
+  return normalized;
 }
 
 export async function runCommandAndTrack(
   run: RunCommandInput,
   cwd: string = '.',
   timeoutSec: number = 60,
-): Promise<Awaited<ReturnType<typeof coreRunCommand>>> {
+): Promise<CommandResult> {
   const result = await coreRunCommand(run, cwd, timeoutSec, undefined);
-  try {
-    const key = determineCommandKey(run);
-    await incrementCommandCount(key).catch(() => {});
-  } catch (err) {
-    // Ignore stats failures intentionally.
-  }
+  const key = determineCommandKey(run);
+  await recordCommandStat(key);
   return result;
+}
+
+async function recordCommandStat(commandKey: string): Promise<void> {
+  try {
+    await incrementCommandCount(commandKey);
+  } catch {
+    // Swallow stat persistence errors to avoid blocking the CLI.
+  }
 }
 
 async function runAgentLoopWithCurrentDependencies(options: RuntimeOptions = {} as RuntimeOptions): Promise<void> {
