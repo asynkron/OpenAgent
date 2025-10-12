@@ -7,13 +7,12 @@
 ## Key Modules
 
 - `loop.js` — orchestrates the event-driven runtime: manages plan snapshots, queues inputs/outputs, handles OpenAI calls, applies filters, coordinates cancellation, and now JSON-clones every emitted event so subscribers observe immutable snapshots. The runtime exposes factory hooks (`createOutputsQueueFn`, `createInputsQueueFn`, `createPlanManagerFn`, `createEscStateFn`, `createPromptCoordinatorFn`, `createApprovalManagerFn`) so hosts can inject alternative implementations without patching the core loop, emits a `pass` event whenever a new reasoning pass begins so UIs can surface the active counter, and now enforces a payload-growth failsafe that terminates the process if the estimated OpenAI request swells by roughly fivefold between passes, dumping the offending history to `.openagent/failsafe-history/` before exiting and letting callers invoke the guard ahead of any history compaction to avoid unnecessary API calls.
-- `loop.js` — orchestrates the event-driven runtime: manages plan snapshots, queues inputs/outputs, handles OpenAI calls, applies filters, coordinates cancellation, and now JSON-clones every emitted event so subscribers observe immutable snapshots. The runtime exposes factory hooks (`createOutputsQueueFn`, `createInputsQueueFn`, `createPlanManagerFn`, `createEscStateFn`, `createPromptCoordinatorFn`, `createApprovalManagerFn`) so hosts can inject alternative implementations without patching the core loop, emits a `pass` event whenever a new reasoning pass begins so UIs can surface the active counter, and now enforces a payload-growth failsafe that terminates the process if the estimated OpenAI request swells by roughly fivefold between passes.
+- `loop.js` — orchestrates the event-driven runtime: manages plan snapshots, queues inputs/outputs, handles OpenAI calls, applies filters, coordinates cancellation, and now JSON-clones every emitted event so subscribers observe immutable snapshots. The runtime exposes factory hooks (`createOutputsQueueFn`, `createInputsQueueFn`, `createPlanManagerFn`, `createEscStateFn`, `createPromptCoordinatorFn`, `createApprovalManagerFn`) so hosts can inject alternative implementations without patching the core loop, emits a `pass` event whenever a new reasoning pass begins so UIs can surface the active counter, and now enforces a payload-growth failsafe that terminates the process if the estimated OpenAI request swells by roughly fivefold between passes. Event payloads are forwarded to outputs as emitted without transformation hooks, so callers must shape them before invoking `emit`.
 - `loop.js` — orchestrates the event-driven runtime: manages plan snapshots, queues inputs/outputs, handles OpenAI calls, applies filters, coordinates cancellation, and now JSON-clones every emitted event so subscribers observe immutable snapshots. The runtime exposes factory hooks (`createOutputsQueueFn`, `createInputsQueueFn`, `createPlanManagerFn`, `createEscStateFn`, `createPromptCoordinatorFn`, `createApprovalManagerFn`) so hosts can inject alternative implementations without patching the core loop, emits a `pass` event whenever a new reasoning pass begins so UIs can surface the active counter, and now enforces a payload-growth failsafe that terminates the process if the estimated OpenAI request swells by roughly fivefold between passes.
 
   Additional DI hooks available in `createAgentRuntime`:
   - `logger` — console-like sink used by default `createHistoryCompactorFn`.
   - `idGeneratorFn` — generate deterministic `__id`s for emitted events (useful for tests).
-  - `transformEmittedEventFn(event)` — transform or drop events before they reach the outputs queue.
   - `applyDementiaPolicyFn` — override the default dementia pruning behavior.
   - `createChatMessageEntryFn` — customize chat message envelope creation.
   - `executeAgentPassFn` — replace the default pass executor implementation.
@@ -24,7 +23,6 @@
   New DI hooks in `createAgentRuntime`:
   - `logger` — console-like sink used by default `createHistoryCompactorFn`.
   - `idGeneratorFn` — generate deterministic `__id`s for emitted events (useful in tests).
-  - `transformEmittedEventFn(event)` — transform or drop events before they reach the outputs queue.
   - `applyDementiaPolicyFn` — override default dementia pruning behavior.
   - `createChatMessageEntryFn` — customize chat message envelope creation.
   - `executeAgentPassFn` — replace the default pass executor implementation.
@@ -35,7 +33,6 @@
   - `userInputPrompt` — customize the prompt label shown for user input.
   - `noHumanAutoMessage` — customize the auto-message used in no-human mode.
   - `idPrefix` — customize the prefix used for emitted event `__id`s.
-  - `transformEmittedEventFns[]` — optional chain of event transformers applied after `transformEmittedEventFn`.
   - `eventObservers[]` — optional observers invoked after an event has been enqueued.
   - `passExecutorDeps` — object bag forwarded to `executeAgentPass` so hosts can override deeper dependencies (e.g., `requestModelCompletionFn`, `executeAgentCommandFn`, `createObservationBuilderFn`, `parseAssistantResponseFn`, `validateAssistantResponseFn`, `validateAssistantResponseSchemaFn`, `createChatMessageEntryFn`, `extractOpenAgentToolCallFn`, `summarizeContextUsageFn`, `incrementCommandCountFn`, `combineStdStreamsFn`, `buildPreviewFn`).
 

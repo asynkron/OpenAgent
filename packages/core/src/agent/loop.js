@@ -95,7 +95,6 @@ export function createAgentRuntime({
   // New DI hooks
   logger = console,
   idGeneratorFn = null,
-  transformEmittedEventFn = null,
   applyDementiaPolicyFn = applyDementiaPolicy,
   createChatMessageEntryFn = createChatMessageEntry,
   executeAgentPassFn = executeAgentPass,
@@ -107,7 +106,6 @@ export function createAgentRuntime({
   userInputPrompt = '\n ▷ ',
   noHumanAutoMessage = NO_HUMAN_AUTO_MESSAGE,
   // New additions
-  transformEmittedEventFns = null,
   eventObservers = null,
   idPrefix = 'key',
   // Dependency bag forwarded to executeAgentPass for deeper DI customization
@@ -243,46 +241,12 @@ export function createAgentRuntime({
       throw new TypeError('Agent emit expected event to be an object.');
     }
     clonedEvent.__id = nextId();
-    let finalEvent = clonedEvent;
-    if (typeof transformEmittedEventFn === 'function') {
-      try {
-        const transformed = transformEmittedEventFn(finalEvent);
-        if (!transformed) {
-          return; // drop event
-        }
-        finalEvent = transformed;
-      } catch (e) {
-        outputs.push({
-          type: 'status',
-          level: 'warn',
-          message: 'transformEmittedEventFn threw. Emitting original event.',
-        });
-      }
-    }
-    if (Array.isArray(transformEmittedEventFns)) {
-      for (const fn of transformEmittedEventFns) {
-        if (typeof fn !== 'function') continue;
-        try {
-          const transformed = fn(finalEvent);
-          if (!transformed) {
-            return; // drop event
-          }
-          finalEvent = transformed;
-        } catch (e) {
-          outputs.push({
-            type: 'status',
-            level: 'warn',
-            message: 'transformEmittedEventFns item threw. Continuing with current event.',
-          });
-        }
-      }
-    }
-    outputs.push(finalEvent);
+    outputs.push(clonedEvent);
     if (Array.isArray(eventObservers)) {
       for (const obs of eventObservers) {
         if (typeof obs !== 'function') continue;
         try {
-          obs(finalEvent);
+          obs(clonedEvent);
         } catch (e) {
           outputs.push({ type: 'status', level: 'warn', message: 'eventObservers item threw.' });
         }
