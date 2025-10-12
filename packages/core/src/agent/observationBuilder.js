@@ -60,8 +60,7 @@ export class ObservationBuilder {
     const originalStderr = typeof result.stderr === 'string' ? result.stderr : '';
 
     const combined = this.combineStdStreams(originalStdout, originalStderr, exitCode);
-    const combinedByteSize =
-      this.byteLength(combined.stdout) + this.byteLength(combined.stderr);
+    const combinedByteSize = this.byteLength(combined.stdout) + this.byteLength(combined.stderr);
     // Guard against runaway commands bloating the transcript.
     const exceedsOutputLimit = combinedByteSize > 50 * 1024;
     const corruptMessage = '!!!corrupt command, excessive output!!!';

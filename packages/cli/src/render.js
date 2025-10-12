@@ -71,7 +71,9 @@ export function renderPlan(plan) {
     }
     metaDetails.push(`age ${node.age ?? 0}`);
     const metaPart = metaDetails.length > 0 ? ` ${chalk.dim(`(${metaDetails.join(', ')})`)}` : '';
-    const commandPart = node.commandPreview ? ` ${chalk.gray('—')} ${chalk.white(node.commandPreview)}` : '';
+    const commandPart = node.commandPreview
+      ? ` ${chalk.gray('—')} ${chalk.white(node.commandPreview)}`
+      : '';
     return `${indent}${symbol} ${label}${dot}${title}${statusPart}${metaPart}${commandPart}`.trimEnd();
   });
 

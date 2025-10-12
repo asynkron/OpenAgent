@@ -12,7 +12,8 @@ export function PlanDetail({ node }) {
   }
 
   const age = typeof node.age === 'number' && Number.isFinite(node.age) ? node.age : 0;
-  const hasCommandPreview = typeof node.commandPreview === 'string' && node.commandPreview.length > 0;
+  const hasCommandPreview =
+    typeof node.commandPreview === 'string' && node.commandPreview.length > 0;
   const metaParts = [];
   if (node.status) {
     metaParts.push(node.status);
@@ -39,12 +40,7 @@ export function PlanDetail({ node }) {
     ),
     hasMeta ? h(Text, { color: 'gray' }, `    ${metaParts.join(' • ')}`) : null,
     hasCommandPreview
-      ? h(
-          Text,
-          { color: 'gray' },
-          '  ↳ ',
-          h(Text, { color: 'white' }, node.commandPreview),
-        )
+      ? h(Text, { color: 'gray' }, '  ↳ ', h(Text, { color: 'white' }, node.commandPreview))
       : null,
   );
 }

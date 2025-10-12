@@ -141,8 +141,7 @@ export function AskHuman({ onSubmit, thinking = false, contextUsage = null, pass
   const normalizedPassCounter = Number.isFinite(passCounter)
     ? Math.max(0, Math.floor(passCounter))
     : 0;
-  const passPrefix =
-    normalizedPassCounter > 0 ? `Pass #${normalizedPassCounter} • ` : '';
+  const passPrefix = normalizedPassCounter > 0 ? `Pass #${normalizedPassCounter} • ` : '';
   const hintMessage = thinking
     ? `${passPrefix}Waiting for the AI to finish thinking…`
     : `${passPrefix}Press Enter to submit • Shift+Enter for newline • Esc to cancel`;

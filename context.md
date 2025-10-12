@@ -47,5 +47,6 @@
 - Minimal test scaffolding (console spies, Ink mock) stayed stable, pointing at boot flows in `runCli()` or its dependencies as the source of heavy allocations.
 
 ### Status Update (2025-10-11)
+
 - Re-ran `npm test -- packages/cli/src/__tests__/runner.test.js`; the suite now passes in ~0.22 s with no OOM behavior.
 - Keep profiling hooks handy (e.g., `node --inspect`, targeted logging) if the leak resurfaces during full CLI sessions outside the test harness.

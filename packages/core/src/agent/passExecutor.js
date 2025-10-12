@@ -1,6 +1,9 @@
 import { buildPlanLookup, planHasOpenSteps, planStepIsBlocked } from '../utils/plan.js';
 import { incrementCommandCount as defaultIncrementCommandCount } from '../services/commandStatsService.js';
-import { combineStdStreams as defaultCombineStdStreams, buildPreview as defaultBuildPreview } from '../utils/output.js';
+import {
+  combineStdStreams as defaultCombineStdStreams,
+  buildPreview as defaultBuildPreview,
+} from '../utils/output.js';
 import ObservationBuilder from './observationBuilder.js';
 import { parseAssistantResponse as defaultParseAssistantResponse } from './responseParser.js';
 import { requestModelCompletion as defaultRequestModelCompletion } from './openaiRequest.js';
@@ -663,7 +666,8 @@ export async function executeAgentPass({
       return true;
     }
 
-    const hasOpenSteps = Array.isArray(activePlan) && activePlan.length > 0 && planHasOpenSteps(activePlan);
+    const hasOpenSteps =
+      Array.isArray(activePlan) && activePlan.length > 0 && planHasOpenSteps(activePlan);
 
     if (hasOpenSteps) {
       const attempt = incrementPlanReminder();
@@ -727,201 +731,201 @@ export async function executeAgentPass({
       const { step, command, index: snapshotIndex, key: stepKey } = nextExecutable;
       let activePlanStep = activePlanStepMap.get(stepKey) ?? null;
 
-    if (
-      !activePlanStep &&
-      Array.isArray(activePlanExecutableSteps) &&
-      snapshotIndex < activePlanExecutableSteps.length
-    ) {
-      activePlanStep = activePlanExecutableSteps[snapshotIndex]?.step ?? null;
-    }
+      if (
+        !activePlanStep &&
+        Array.isArray(activePlanExecutableSteps) &&
+        snapshotIndex < activePlanExecutableSteps.length
+      ) {
+        activePlanStep = activePlanExecutableSteps[snapshotIndex]?.step ?? null;
+      }
 
-    const normalizedRun = typeof command.run === 'string' ? command.run.trim() : '';
-    if (normalizedRun && command.run !== normalizedRun) {
-      command.run = normalizedRun;
-    }
+      const normalizedRun = typeof command.run === 'string' ? command.run.trim() : '';
+      if (normalizedRun && command.run !== normalizedRun) {
+        command.run = normalizedRun;
+      }
 
-    if (approvalManager) {
-      const autoApproval = approvalManager.shouldAutoApprove(command);
+      if (approvalManager) {
+        const autoApproval = approvalManager.shouldAutoApprove(command);
 
-      if (!autoApproval.approved) {
-        const outcome = await approvalManager.requestHumanDecision({ command });
+        if (!autoApproval.approved) {
+          const outcome = await approvalManager.requestHumanDecision({ command });
 
-        if (outcome.decision === 'reject') {
-          emitEvent({
-            type: 'status',
-            level: 'warn',
-            message: 'Command execution canceled by human request.',
-          });
+          if (outcome.decision === 'reject') {
+            emitEvent({
+              type: 'status',
+              level: 'warn',
+              message: 'Command execution canceled by human request.',
+            });
 
-          const observation = {
-            observation_for_llm: {
-              canceled_by_human: true,
-              message:
-                'Human declined to execute the proposed command and asked the AI to propose an alternative approach without executing a command.',
-            },
-            observation_metadata: {
-              timestamp: new Date().toISOString(),
-            },
-          };
+            const observation = {
+              observation_for_llm: {
+                canceled_by_human: true,
+                message:
+                  'Human declined to execute the proposed command and asked the AI to propose an alternative approach without executing a command.',
+              },
+              observation_metadata: {
+                timestamp: new Date().toISOString(),
+              },
+            };
 
-          step.observation = observation;
+            step.observation = observation;
 
-          const planObservation = {
-            observation_for_llm: {
-              plan: planForExecution,
-            },
-            observation_metadata: {
-              timestamp: new Date().toISOString(),
-            },
-          };
+            const planObservation = {
+              observation_for_llm: {
+                plan: planForExecution,
+              },
+              observation_metadata: {
+                timestamp: new Date().toISOString(),
+              },
+            };
 
-          history.push(
-            createObservationHistoryEntry({ observation: planObservation, pass: activePass }),
-          );
-          return true;
-        }
+            history.push(
+              createObservationHistoryEntry({ observation: planObservation, pass: activePass }),
+            );
+            return true;
+          }
 
-        if (outcome.decision === 'approve_session') {
+          if (outcome.decision === 'approve_session') {
+            emitEvent({
+              type: 'status',
+              level: 'info',
+              message: 'Command approved for the remainder of the session.',
+            });
+          } else {
+            emitEvent({
+              type: 'status',
+              level: 'info',
+              message: 'Command approved for single execution.',
+            });
+          }
+        } else if (autoApproval.source === 'flag' && emitAutoApproveStatus) {
           emitEvent({
             type: 'status',
             level: 'info',
-            message: 'Command approved for the remainder of the session.',
-          });
-        } else {
-          emitEvent({
-            type: 'status',
-            level: 'info',
-            message: 'Command approved for single execution.',
+            message: 'Command auto-approved via flag.',
           });
         }
-      } else if (autoApproval.source === 'flag' && emitAutoApproveStatus) {
+      }
+
+      if (activePlanStep && typeof activePlanStep === 'object') {
+        // Surface that execution has started even if the model forgot to update the status.
+        activePlanStep.status = 'running';
+        planMutatedDuringExecution = true;
+      }
+
+      if (step && typeof step === 'object') {
+        step.status = 'running';
+      }
+
+      if (Array.isArray(activePlan)) {
+        emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
+      }
+
+      const persistedBeforeExecution = await persistPlanState(activePlan);
+      planMutatedDuringExecution ||= persistedBeforeExecution;
+      refreshActivePlanExecutableSteps();
+      activePlanStep = activePlanStepMap.get(stepKey) ?? activePlanStep;
+      if (
+        !activePlanStep &&
+        Array.isArray(activePlanExecutableSteps) &&
+        snapshotIndex < activePlanExecutableSteps.length
+      ) {
+        activePlanStep = activePlanExecutableSteps[snapshotIndex]?.step ?? activePlanStep;
+      }
+
+      const { result, executionDetails } = await executeAgentCommandFn({
+        command,
+        runCommandFn,
+      });
+
+      let key = typeof command.key === 'string' && command.key.trim() ? command.key.trim() : '';
+      if (!key) {
+        key = normalizedRun ? normalizedRun.split(/\s+/)[0] || 'unknown' : 'unknown';
+      }
+
+      try {
+        await incrementCommandCountFn(key);
+      } catch (error) {
         emitEvent({
           type: 'status',
-          level: 'info',
-          message: 'Command auto-approved via flag.',
+          level: 'warn',
+          message: 'Failed to record command usage statistics.',
+          details: error instanceof Error ? error.message : String(error),
         });
       }
-    }
 
-    if (activePlanStep && typeof activePlanStep === 'object') {
-      // Surface that execution has started even if the model forgot to update the status.
-      activePlanStep.status = 'running';
-      planMutatedDuringExecution = true;
-    }
-
-    if (step && typeof step === 'object') {
-      step.status = 'running';
-    }
-
-    if (Array.isArray(activePlan)) {
-      emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
-    }
-
-    const persistedBeforeExecution = await persistPlanState(activePlan);
-    planMutatedDuringExecution ||= persistedBeforeExecution;
-    refreshActivePlanExecutableSteps();
-    activePlanStep = activePlanStepMap.get(stepKey) ?? activePlanStep;
-    if (
-      !activePlanStep &&
-      Array.isArray(activePlanExecutableSteps) &&
-      snapshotIndex < activePlanExecutableSteps.length
-    ) {
-      activePlanStep = activePlanExecutableSteps[snapshotIndex]?.step ?? activePlanStep;
-    }
-
-    const { result, executionDetails } = await executeAgentCommandFn({
-      command,
-      runCommandFn,
-    });
-
-    let key = typeof command.key === 'string' && command.key.trim() ? command.key.trim() : '';
-    if (!key) {
-      key = normalizedRun ? normalizedRun.split(/\s+/)[0] || 'unknown' : 'unknown';
-    }
-
-    try {
-      await incrementCommandCountFn(key);
-    } catch (error) {
-      emitEvent({
-        type: 'status',
-        level: 'warn',
-        message: 'Failed to record command usage statistics.',
-        details: error instanceof Error ? error.message : String(error),
+      const { renderPayload, observation } = observationBuilder.build({
+        command,
+        result,
       });
-    }
 
-    const { renderPayload, observation } = observationBuilder.build({
-      command,
-      result,
-    });
-
-    step.observation = observation;
-    if (activePlanStep && typeof activePlanStep === 'object') {
-      activePlanStep.observation = observation;
-      planMutatedDuringExecution = true;
-    }
-
-    const exitCode =
-      typeof result?.exit_code === 'number'
-        ? result.exit_code
-        : typeof result?.exitCode === 'number'
-          ? result.exitCode
-          : null;
-    if (exitCode === 0) {
+      step.observation = observation;
       if (activePlanStep && typeof activePlanStep === 'object') {
-        activePlanStep.status = 'completed';
+        activePlanStep.observation = observation;
         planMutatedDuringExecution = true;
       }
-      if (step && typeof step === 'object') {
-        step.status = 'completed';
-      }
-    } else if (exitCode !== null) {
-      if (activePlanStep && typeof activePlanStep === 'object') {
-        activePlanStep.status = 'failed';
-        planMutatedDuringExecution = true;
-      }
-      if (step && typeof step === 'object') {
-        step.status = 'failed';
-      }
-    }
 
-    if (result && result.killed) {
-      // When a command is canceled we drop the executable payload so the agent
-      // waits for the model to acknowledge the interruption instead of
-      // immediately retrying the same command in a tight loop.
-      if (activePlanStep && typeof activePlanStep === 'object') {
-        delete activePlanStep.command;
-        planMutatedDuringExecution = true;
+      const exitCode =
+        typeof result?.exit_code === 'number'
+          ? result.exit_code
+          : typeof result?.exitCode === 'number'
+            ? result.exitCode
+            : null;
+      if (exitCode === 0) {
+        if (activePlanStep && typeof activePlanStep === 'object') {
+          activePlanStep.status = 'completed';
+          planMutatedDuringExecution = true;
+        }
+        if (step && typeof step === 'object') {
+          step.status = 'completed';
+        }
+      } else if (exitCode !== null) {
+        if (activePlanStep && typeof activePlanStep === 'object') {
+          activePlanStep.status = 'failed';
+          planMutatedDuringExecution = true;
+        }
+        if (step && typeof step === 'object') {
+          step.status = 'failed';
+        }
       }
-      if (step && typeof step === 'object') {
-        delete step.command;
+
+      if (result && result.killed) {
+        // When a command is canceled we drop the executable payload so the agent
+        // waits for the model to acknowledge the interruption instead of
+        // immediately retrying the same command in a tight loop.
+        if (activePlanStep && typeof activePlanStep === 'object') {
+          delete activePlanStep.command;
+          planMutatedDuringExecution = true;
+        }
+        if (step && typeof step === 'object') {
+          delete step.command;
+        }
       }
-    }
 
-    emitDebug(() => ({
-      stage: 'command-execution',
-      command,
-      result,
-      execution: executionDetails,
-      observation,
-    }));
+      emitDebug(() => ({
+        stage: 'command-execution',
+        command,
+        result,
+        execution: executionDetails,
+        observation,
+      }));
 
-    emitEvent({
-      type: 'command-result',
-      command,
-      result,
-      preview: renderPayload,
-      execution: executionDetails,
-    });
+      emitEvent({
+        type: 'command-result',
+        command,
+        result,
+        preview: renderPayload,
+        execution: executionDetails,
+      });
 
-    if (Array.isArray(activePlan)) {
-      emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
-    }
+      if (Array.isArray(activePlan)) {
+        emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
+      }
 
-    const persistedAfterExecution = await persistPlanState(activePlan);
-    planMutatedDuringExecution ||= persistedAfterExecution;
-    refreshActivePlanExecutableSteps();
-    nextExecutable = selectNextExecutableEntry();
+      const persistedAfterExecution = await persistPlanState(activePlan);
+      planMutatedDuringExecution ||= persistedAfterExecution;
+      refreshActivePlanExecutableSteps();
+      nextExecutable = selectNextExecutableEntry();
     }
   } finally {
     if (manageCommandThinking) {

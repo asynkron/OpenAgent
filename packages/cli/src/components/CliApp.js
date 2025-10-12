@@ -679,7 +679,8 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
 
   const sections = [
     h(Timeline, { entries, key: `timeline-${timelineKey}` }),
-    debugEvents.length > 0 && h(MemoDebugPanel, { events: debugEvents, heading: 'Debug', key: 'debug' }),
+    debugEvents.length > 0 &&
+      h(MemoDebugPanel, { events: debugEvents, heading: 'Debug', key: 'debug' }),
     commandPanelEvents.length > 0 &&
       h(MemoDebugPanel, {
         events: commandPanelEvents,

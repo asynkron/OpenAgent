@@ -1,12 +1,7 @@
 /* eslint-env jest */
 import { describe, expect, test } from '@jest/globals';
 
-import {
-  mergePlanTrees,
-  planHasOpenSteps,
-  planToMarkdown,
-  computePlanProgress,
-} from '../plan.js';
+import { mergePlanTrees, planHasOpenSteps, planToMarkdown, computePlanProgress } from '../plan.js';
 
 describe('plan utilities', () => {
   test('mergePlanTrees updates matching steps and preserves existing ones', () => {

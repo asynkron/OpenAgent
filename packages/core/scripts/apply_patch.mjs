@@ -356,7 +356,11 @@ function formatError(error) {
       parts.push('', hunkSummary);
     }
     const failedHunk = error.failedHunk;
-    if (failedHunk && Array.isArray(failedHunk.rawPatchLines) && failedHunk.rawPatchLines.length > 0) {
+    if (
+      failedHunk &&
+      Array.isArray(failedHunk.rawPatchLines) &&
+      failedHunk.rawPatchLines.length > 0
+    ) {
       parts.push('', 'Offending hunk:');
       parts.push(failedHunk.rawPatchLines.join('\n'));
     }

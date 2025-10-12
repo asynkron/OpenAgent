@@ -147,7 +147,9 @@ describe('CliApp debug event handling', () => {
       await flush();
 
       const frame = lastFrame();
-      expect(frame).toContain('Auto-response triggered: Assistant response failed protocol validation.');
+      expect(frame).toContain(
+        'Auto-response triggered: Assistant response failed protocol validation.',
+      );
     } finally {
       unmount();
       runtime.close();

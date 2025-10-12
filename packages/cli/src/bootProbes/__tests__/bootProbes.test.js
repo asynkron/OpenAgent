@@ -15,7 +15,6 @@ async function createTempDir(prefix = 'boot-probe-test-') {
   return mkdtemp(join(tmpdir(), prefix));
 }
 
-// eslint-disable-next-line no-control-regex
 function normalizeLine(value) {
   // eslint-disable-next-line no-control-regex
   return (value || '').replace(/\u001B\[[0-9;]*m/g, '').trim();

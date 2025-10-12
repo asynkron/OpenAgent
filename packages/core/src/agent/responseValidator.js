@@ -87,14 +87,14 @@ export function validateAssistantResponseSchema(payload) {
   const errors = Array.isArray(schemaValidator.errors)
     ? schemaValidator.errors.map((error) => describeSchemaError(error))
     : [
-      {
-        path: 'response',
-        message: 'Schema validation failed for assistant response.',
-        keyword: 'unknown',
-        instancePath: '',
-        params: {},
-      },
-    ];
+        {
+          path: 'response',
+          message: 'Schema validation failed for assistant response.',
+          keyword: 'unknown',
+          instancePath: '',
+          params: {},
+        },
+      ];
 
   return {
     valid: false,

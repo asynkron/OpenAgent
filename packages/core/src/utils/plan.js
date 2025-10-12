@@ -291,12 +291,12 @@ export function planToMarkdown(plan) {
         ? item.title.trim()
         : `Task ${index + 1}`;
     const status =
-      typeof item.status === 'string' && item.status.trim().length > 0
-        ? item.status.trim()
-        : '';
+      typeof item.status === 'string' && item.status.trim().length > 0 ? item.status.trim() : '';
     const priority = Number.isFinite(Number(item.priority)) ? Number(item.priority) : null;
     const dependencies = Array.isArray(item.waitingForId)
-      ? item.waitingForId.filter((value) => normalizePlanIdentifier(value)).map((value) => value.trim())
+      ? item.waitingForId
+          .filter((value) => normalizePlanIdentifier(value))
+          .map((value) => value.trim())
       : [];
 
     const details = [];

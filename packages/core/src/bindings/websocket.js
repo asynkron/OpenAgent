@@ -266,7 +266,6 @@ export function createWebSocketBinding({
         ? {
             async *[Symbol.asyncIterator]() {
               while (true) {
-                // eslint-disable-next-line no-await-in-loop
                 const value = await runtime.outputs.next();
                 if (value === undefined || value === null) {
                   continue;

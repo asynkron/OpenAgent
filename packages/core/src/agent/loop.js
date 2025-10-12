@@ -183,7 +183,10 @@ export function createAgentRuntime({
         const growthFactor = payloadSize / previousRequestPayloadSize;
         // Only treat this as runaway growth if the payload both jumps by ~5x and
         // adds at least 1 KiB of new content—this avoids tripping on tiny histories.
-        if (growthFactor >= MAX_REQUEST_GROWTH_FACTOR && payloadSize - previousRequestPayloadSize > 1024) {
+        if (
+          growthFactor >= MAX_REQUEST_GROWTH_FACTOR &&
+          payloadSize - previousRequestPayloadSize > 1024
+        ) {
           logWithFallback(
             'error',
             `[failsafe] OpenAI request ballooned from ${previousRequestPayloadSize}B to ${payloadSize}B on pass ${options?.passIndex ?? 'unknown'}.`,
@@ -249,7 +252,11 @@ export function createAgentRuntime({
         }
         finalEvent = transformed;
       } catch (e) {
-        outputs.push({ type: 'status', level: 'warn', message: 'transformEmittedEventFn threw. Emitting original event.' });
+        outputs.push({
+          type: 'status',
+          level: 'warn',
+          message: 'transformEmittedEventFn threw. Emitting original event.',
+        });
       }
     }
     if (Array.isArray(transformEmittedEventFns)) {
@@ -262,7 +269,11 @@ export function createAgentRuntime({
           }
           finalEvent = transformed;
         } catch (e) {
-          outputs.push({ type: 'status', level: 'warn', message: 'transformEmittedEventFns item threw. Continuing with current event.' });
+          outputs.push({
+            type: 'status',
+            level: 'warn',
+            message: 'transformEmittedEventFns item threw. Continuing with current event.',
+          });
         }
       }
     }
@@ -326,8 +337,8 @@ export function createAgentRuntime({
   };
 
   const planAutoResponseTracker =
-    (typeof createPlanAutoResponseTrackerFn === 'function' &&
-      createPlanAutoResponseTrackerFn()) || defaultPlanAutoResponseTracker();
+    (typeof createPlanAutoResponseTrackerFn === 'function' && createPlanAutoResponseTrackerFn()) ||
+    defaultPlanAutoResponseTracker();
 
   const normalizedPassExecutorDeps =
     passExecutorDeps && typeof passExecutorDeps === 'object' ? { ...passExecutorDeps } : {};
@@ -336,7 +347,8 @@ export function createAgentRuntime({
   );
   if (
     normalizedPassExecutorDeps.requestModelCompletionFn &&
-    typeof normalizedPassExecutorDeps.requestModelCompletionFn.guardRequestPayloadSize === 'function'
+    typeof normalizedPassExecutorDeps.requestModelCompletionFn.guardRequestPayloadSize ===
+      'function'
   ) {
     normalizedPassExecutorDeps.guardRequestPayloadSizeFn =
       normalizedPassExecutorDeps.requestModelCompletionFn.guardRequestPayloadSize;
@@ -356,9 +368,7 @@ export function createAgentRuntime({
             ? candidate.trigger
             : fallbackEscController.trigger,
         detach:
-          typeof candidate.detach === 'function'
-            ? candidate.detach
-            : fallbackEscController.detach,
+          typeof candidate.detach === 'function' ? candidate.detach : fallbackEscController.detach,
       };
     }
   } catch (error) {

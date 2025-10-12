@@ -230,17 +230,13 @@ describe('executeAgentPass', () => {
   });
 
   test('marks executing plan steps as running', async () => {
-    const {
-      executeAgentPass,
-      parseAssistantResponse,
-      executeAgentCommand,
-      planHasOpenSteps,
-    } = await setupPassExecutor({
-      executeAgentCommandImpl: () => ({
-        result: { stdout: 'ready', stderr: '', exitCode: 0 },
-        executionDetails: { code: 0 },
-      }),
-    });
+    const { executeAgentPass, parseAssistantResponse, executeAgentCommand, planHasOpenSteps } =
+      await setupPassExecutor({
+        executeAgentCommandImpl: () => ({
+          result: { stdout: 'ready', stderr: '', exitCode: 0 },
+          executionDetails: { code: 0 },
+        }),
+      });
 
     planHasOpenSteps.mockReturnValue(true);
 
@@ -305,17 +301,13 @@ describe('executeAgentPass', () => {
   });
 
   test('marks plan steps as failed when command exits non-zero', async () => {
-    const {
-      executeAgentPass,
-      parseAssistantResponse,
-      executeAgentCommand,
-      planHasOpenSteps,
-    } = await setupPassExecutor({
-      executeAgentCommandImpl: () => ({
-        result: { stdout: '', stderr: 'boom', exit_code: 2 },
-        executionDetails: { code: 2 },
-      }),
-    });
+    const { executeAgentPass, parseAssistantResponse, executeAgentCommand, planHasOpenSteps } =
+      await setupPassExecutor({
+        executeAgentCommandImpl: () => ({
+          result: { stdout: '', stderr: 'boom', exit_code: 2 },
+          executionDetails: { code: 2 },
+        }),
+      });
 
     planHasOpenSteps.mockReturnValue(true);
 
@@ -403,7 +395,8 @@ describe('executeAgentPass', () => {
           return;
         }
 
-        const key = typeof item.id === 'string' && item.id.trim() ? item.id.trim() : `index:${index}`;
+        const key =
+          typeof item.id === 'string' && item.id.trim() ? item.id.trim() : `index:${index}`;
         if (!lookup.has(key)) {
           lookup.set(key, item);
         }
@@ -506,17 +499,13 @@ describe('executeAgentPass', () => {
   });
 
   test('persists merged plans and marks successful commands as completed', async () => {
-    const {
-      executeAgentPass,
-      parseAssistantResponse,
-      executeAgentCommand,
-      planHasOpenSteps,
-    } = await setupPassExecutor({
-      executeAgentCommandImpl: () => ({
-        result: { stdout: 'ready', stderr: '', exit_code: 0 },
-        executionDetails: { code: 0 },
-      }),
-    });
+    const { executeAgentPass, parseAssistantResponse, executeAgentCommand, planHasOpenSteps } =
+      await setupPassExecutor({
+        executeAgentCommandImpl: () => ({
+          result: { stdout: 'ready', stderr: '', exit_code: 0 },
+          executionDetails: { code: 0 },
+        }),
+      });
 
     planHasOpenSteps.mockReturnValue(true);
 
@@ -591,20 +580,16 @@ describe('executeAgentPass', () => {
 
   test('marks every executed plan step as completed even when later steps reorder', async () => {
     const executedRuns = [];
-    const {
-      executeAgentPass,
-      parseAssistantResponse,
-      executeAgentCommand,
-      planHasOpenSteps,
-    } = await setupPassExecutor({
-      executeAgentCommandImpl: ({ command }) => {
-        executedRuns.push(command?.run ?? '');
-        return {
-          result: { stdout: 'ready', stderr: '', exit_code: 0 },
-          executionDetails: { code: 0 },
-        };
-      },
-    });
+    const { executeAgentPass, parseAssistantResponse, executeAgentCommand, planHasOpenSteps } =
+      await setupPassExecutor({
+        executeAgentCommandImpl: ({ command }) => {
+          executedRuns.push(command?.run ?? '');
+          return {
+            result: { stdout: 'ready', stderr: '', exit_code: 0 },
+            executionDetails: { code: 0 },
+          };
+        },
+      });
 
     planHasOpenSteps.mockReturnValue(true);
 
@@ -669,17 +654,13 @@ describe('executeAgentPass', () => {
   });
 
   test('re-emits plan events with persisted updates after execution finishes', async () => {
-    const {
-      executeAgentPass,
-      parseAssistantResponse,
-      executeAgentCommand,
-      planHasOpenSteps,
-    } = await setupPassExecutor({
-      executeAgentCommandImpl: () => ({
-        result: { stdout: 'oops', stderr: 'fail', exit_code: 1 },
-        executionDetails: { code: 1 },
-      }),
-    });
+    const { executeAgentPass, parseAssistantResponse, executeAgentCommand, planHasOpenSteps } =
+      await setupPassExecutor({
+        executeAgentCommandImpl: () => ({
+          result: { stdout: 'oops', stderr: 'fail', exit_code: 1 },
+          executionDetails: { code: 1 },
+        }),
+      });
 
     planHasOpenSteps.mockReturnValue(true);
 
@@ -844,12 +825,8 @@ describe('executeAgentPass', () => {
   });
 
   test('clears completed plans when no steps remain open', async () => {
-    const {
-      executeAgentPass,
-      parseAssistantResponse,
-      planHasOpenSteps,
-      executeAgentCommand,
-    } = await setupPassExecutor();
+    const { executeAgentPass, parseAssistantResponse, planHasOpenSteps, executeAgentCommand } =
+      await setupPassExecutor();
 
     planHasOpenSteps.mockReturnValue(false);
 
@@ -1069,12 +1046,8 @@ describe('executeAgentPass', () => {
       executionDetails: { code: 0 },
     }));
 
-    const {
-      executeAgentPass,
-      parseAssistantResponse,
-      extractOpenAgentToolCall,
-      planHasOpenSteps,
-    } = await setupPassExecutor({ executeAgentCommandImpl });
+    const { executeAgentPass, parseAssistantResponse, extractOpenAgentToolCall, planHasOpenSteps } =
+      await setupPassExecutor({ executeAgentCommandImpl });
 
     planHasOpenSteps.mockReturnValue(true);
 

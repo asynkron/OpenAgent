@@ -65,9 +65,7 @@ function dependenciesFor(step) {
     return [];
   }
 
-  return step.waitingForId
-    .map((value) => normalizeId(value))
-    .filter((value) => value.length > 0);
+  return step.waitingForId.map((value) => normalizeId(value)).filter((value) => value.length > 0);
 }
 
 function buildPlanLookup(plan) {
