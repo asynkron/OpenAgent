@@ -38,7 +38,11 @@ const Timeline = React.memo(function Timeline({ entries }) {
       Static,
       {
         items: entries,
-        itemKey: (item) => item.payload?.eventId ?? item.id,
+        // Always rely on the local entry id so Ink treats every timeline event as
+        // distinct. Runtime payloads sometimes reuse their own identifiers when
+        // streaming updates, and deferring to those ids caused `Static` to
+        // ignore fresh entries and stall the visible timeline.
+        itemKey: (item) => item.id,
         style: { width: '100%', flexGrow: 1 },
       },
       (entry) => {

@@ -7,7 +7,7 @@
 ## Key Components
 
 - `CliApp.js` — top-level Ink tree that wires agent runtime events into UI sections and clears completed plans from the timeline once the human submits a fresh prompt. Auto-response debug payloads (schema/protocol validation failures) now surface as warn-level timeline entries so humans get a concise summary without enabling `--debug`.
-  Incoming runtime payloads are cloned before being stored so late mutations inside the agent loop can’t stall Ink re-renders, including deep-cloning plan updates so React always receives a fresh reference when the runtime mutates the active plan in place.
+  Incoming runtime payloads are cloned before being stored so late mutations inside the agent loop can’t stall Ink re-renders, including deep-cloning plan updates so React always receives a fresh reference when the runtime mutates the active plan in place. Timeline rows now key off their locally generated identifiers so Ink’s `Static` log never suppresses new events when the runtime reuses ids during streaming updates.
 - `AgentResponse.js`, `HumanMessage.js`, `StatusMessage.js` — render conversational messages with markdown support.
 - `Plan.js`, `PlanDetail.js` — visualize plan trees; `Plan.js` now focuses solely on hierarchical steps while the standalone `PlanProgress.js` helper can still render aggregated progress when a caller opts in. Plan detail rows surface each step's current `age` alongside a truncated `command.run` preview so humans can quickly see what the agent intends to execute.
 - `Command.js`, `renderCommand.js`, `commandUtils.js` — pretty-print shell commands with highlights and approval status. `Command.js` now extracts any `*** Begin Patch` / `*** End Patch` sections from `command.run`, renders them in `diff` code fences via the shared markdown renderer, and preserves surrounding text segments.
@@ -35,8 +35,9 @@
 - Debug panel events now carry stable identifiers (`{ id, content }`) so the panel can render without flicker when
   other animated components (thinking spinner, input caret) update the tree.
 - Timeline static rows also set `flexGrow: 1` to force full-width rendering even when nested components have
-  intrinsic sizing, and assistant entries reuse the originating runtime `__id` as their React key to prevent
-  memoized subtrees from resetting.
+  intrinsic sizing. Locally generated entry ids drive Ink’s `Static` keys so duplicate runtime identifiers from
+  streaming updates do not block new rows, and assistant entries still reuse the originating runtime `__id`
+  as their React key to prevent memoized subtrees from resetting.
 
 ## Related Context
 
