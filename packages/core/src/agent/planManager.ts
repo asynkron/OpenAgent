@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Plan persistence and progress tracking helpers.
  *

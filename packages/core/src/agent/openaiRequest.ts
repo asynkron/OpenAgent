@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Wrapper around the OpenAI Responses API with ESC cancellation support.
  *

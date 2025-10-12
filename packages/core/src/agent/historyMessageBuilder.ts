@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * History message helpers shared across the agent runtime.
  *

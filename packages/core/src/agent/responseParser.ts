@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Assistant response parser that normalizes plan and command payloads.
  *

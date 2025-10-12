@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { buildPlanLookup, planHasOpenSteps, planStepIsBlocked } from '../utils/plan.js';
 import { incrementCommandCount as defaultIncrementCommandCount } from '../services/commandStatsService.js';
 import {

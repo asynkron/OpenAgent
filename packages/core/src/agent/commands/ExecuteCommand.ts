@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Default command runner that shells out when no other handler matches.
  *

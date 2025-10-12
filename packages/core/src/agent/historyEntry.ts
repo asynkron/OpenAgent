@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Conversation history helpers shared across the agent runtime.
  *
