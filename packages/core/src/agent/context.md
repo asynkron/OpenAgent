@@ -7,8 +7,6 @@
 ## Key Modules
 
 - `loop.js` — orchestrates the event-driven runtime: manages plan snapshots, queues inputs/outputs, handles OpenAI calls, applies filters, coordinates cancellation, and now JSON-clones every emitted event so subscribers observe immutable snapshots. The runtime exposes factory hooks (`createOutputsQueueFn`, `createInputsQueueFn`, `createPlanManagerFn`, `createEscStateFn`, `createPromptCoordinatorFn`, `createApprovalManagerFn`) so hosts can inject alternative implementations without patching the core loop, emits a `pass` event whenever a new reasoning pass begins so UIs can surface the active counter, and now enforces a payload-growth failsafe that terminates the process if the estimated OpenAI request swells by roughly fivefold between passes, dumping the offending history to `.openagent/failsafe-history/` before exiting and letting callers invoke the guard ahead of any history compaction to avoid unnecessary API calls.
-- `loop.js` — orchestrates the event-driven runtime: manages plan snapshots, queues inputs/outputs, handles OpenAI calls, applies filters, coordinates cancellation, and now JSON-clones every emitted event so subscribers observe immutable snapshots. The runtime exposes factory hooks (`createOutputsQueueFn`, `createInputsQueueFn`, `createPlanManagerFn`, `createEscStateFn`, `createPromptCoordinatorFn`, `createApprovalManagerFn`) so hosts can inject alternative implementations without patching the core loop, emits a `pass` event whenever a new reasoning pass begins so UIs can surface the active counter, and now enforces a payload-growth failsafe that terminates the process if the estimated OpenAI request swells by roughly fivefold between passes. Event payloads are forwarded to outputs as emitted without transformation hooks, so callers must shape them before invoking `emit`.
-- `loop.js` — orchestrates the event-driven runtime: manages plan snapshots, queues inputs/outputs, handles OpenAI calls, applies filters, coordinates cancellation, and now JSON-clones every emitted event so subscribers observe immutable snapshots. The runtime exposes factory hooks (`createOutputsQueueFn`, `createInputsQueueFn`, `createPlanManagerFn`, `createEscStateFn`, `createPromptCoordinatorFn`, `createApprovalManagerFn`) so hosts can inject alternative implementations without patching the core loop, emits a `pass` event whenever a new reasoning pass begins so UIs can surface the active counter, and now enforces a payload-growth failsafe that terminates the process if the estimated OpenAI request swells by roughly fivefold between passes.
 
   Additional DI hooks available in `createAgentRuntime`:
   - `logger` — console-like sink used by default `createHistoryCompactorFn`.
@@ -27,7 +25,6 @@
   - `createChatMessageEntryFn` — customize chat message envelope creation.
   - `executeAgentPassFn` — replace the default pass executor implementation.
   - `createPlanAutoResponseTrackerFn` — supply a custom plan reminder counter implementation.
-  - `cloneEventPayloadFn` — override event deep-clone behavior used by the emitter.
   - `cancelFn` — provide a custom cancellation function passed to the prompt coordinator.
   - `planReminderMessage` — customize the reminder text when the plan is pending.
   - `userInputPrompt` — customize the prompt label shown for user input.
