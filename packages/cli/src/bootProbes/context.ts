@@ -1,4 +1,3 @@
-// @ts-nocheck
 import type { Dirent } from 'node:fs';
 import { access, readFile, readdir } from 'node:fs/promises';
 import { join, delimiter } from 'node:path';
@@ -181,7 +180,9 @@ export function createBootProbeResult({
 
   return {
     detected: Boolean(detected),
-    details: Array.isArray(details) ? details.filter(Boolean) : [],
+    details: Array.isArray(details)
+      ? details.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0)
+      : [],
     error: error ?? null,
     tooling: toolingSummary,
   };

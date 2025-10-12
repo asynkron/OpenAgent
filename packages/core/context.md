@@ -13,6 +13,7 @@
 - `tsconfig.json` — package-scoped compiler configuration that emits JavaScript and declaration files into `dist/`.
 - `prompts/` — canonical system/developer guidance plus prompt manifest consumed by runtime configuration. See [`prompts/context.md`](prompts/context.md).
 - `scripts/` — bundled helper utilities invoked by command normalizers. See [`scripts/context.md`](scripts/context.md).
+- `services/commandStatsService.ts` now runs under TypeScript checking, ensuring the command usage tracker writes safely to disk across platforms.
 
 ## Related Context
 

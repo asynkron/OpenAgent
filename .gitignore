@@ -142,3 +142,6 @@ vite.config.ts.timestamp-*
 .idea/
 WARP.md
 packages/cli/.openagent
+packages/core/scripts/gitdrop
+packages/core/scripts/gitpop
+packages/core/scripts/gitpush

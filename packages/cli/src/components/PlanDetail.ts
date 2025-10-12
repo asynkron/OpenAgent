@@ -1,13 +1,18 @@
-// @ts-nocheck
 import React from 'react';
 import { Box, Text } from 'ink';
 
+import type { PlanNode } from './planUtils.js';
+
 const h = React.createElement;
+
+type PlanDetailProps = {
+  node?: PlanNode | null;
+};
 
 /**
  * Displays a single plan entry with indentation that mirrors the hierarchy.
  */
-export function PlanDetail({ node }) {
+export function PlanDetail({ node }: PlanDetailProps): React.ReactElement | null {
   if (!node) {
     return null;
   }
@@ -15,7 +20,7 @@ export function PlanDetail({ node }) {
   const age = typeof node.age === 'number' && Number.isFinite(node.age) ? node.age : 0;
   const hasCommandPreview =
     typeof node.commandPreview === 'string' && node.commandPreview.length > 0;
-  const metaParts = [];
+  const metaParts: string[] = [];
   if (node.status) {
     metaParts.push(node.status);
   }
@@ -43,7 +48,7 @@ export function PlanDetail({ node }) {
     hasCommandPreview
       ? h(Text, { color: 'gray' }, '  ↳ ', h(Text, { color: 'white' }, node.commandPreview))
       : null,
-  );
+  ) as React.ReactElement;
 }
 
 export default PlanDetail;

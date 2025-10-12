@@ -8,7 +8,7 @@
 ## Key Areas
 
 - `components/` — Ink React components for rendering responses, plans, commands, status messages, and debug panels. All runtime files now ship as TypeScript modules. See [`components/context.md`](components/context.md).
-- `bootProbes/` — environment probes that detect toolchains (Node, Python, Git, etc.) and surface status in the CLI. Probes compile to ESM in `dist/`. See [`bootProbes/context.md`](bootProbes/context.md).
+- `bootProbes/` — environment probes that detect toolchains (Node, Python, Git, etc.) and surface status in the CLI. Probes now type-check alongside the registry helpers and compile to ESM in `dist/`. See [`bootProbes/context.md`](bootProbes/context.md).
 - `runner.ts` & `runtime.ts` — orchestrate CLI startup, validate required environment configuration (e.g., `OPENAI_API_KEY`), configure the agent runtime, and pipe events into Ink with typed IO utilities.
 - `loadCoreModule.ts` — dynamically resolves `@asynkron/openagent-core`, falls back to the local workspace copy when `node_modules` links are absent, and now guards against missing exports at runtime.
 - `render.ts`, `status.ts`, `thinking.ts` — helper utilities for formatting markdown, plan progress, context usage, and spinner indicators.

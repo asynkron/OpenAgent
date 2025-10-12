@@ -11,6 +11,7 @@
 - `edit-lines.mjs` — targeted line replacement utility with dry-run/rollback safeguards.
 - `read.mjs` — base64-encoded batch file reader used by the `read` command helper.
 - `rename-identifier.mjs` — scope-aware identifier renamer for single-file refactors.
+- `gitpush.sh`, `gitpop.sh`, `gitdrop.sh` — git-stack helpers now installed with executable permissions plus `gitpush`, `gitpop`, `gitdrop` symlinks for command-style invocation.
 
 ## Related Context
 

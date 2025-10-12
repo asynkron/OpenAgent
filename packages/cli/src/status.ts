@@ -4,7 +4,7 @@
 
 import chalk from 'chalk';
 
-type ContextUsage = {
+export type ContextUsage = {
   total: number;
   used?: number | null;
   remaining?: number | null;
