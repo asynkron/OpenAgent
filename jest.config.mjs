@@ -11,8 +11,10 @@ export default {
   testEnvironment: 'node',
   setupFilesAfterEnv: ['<rootDir>/tests/mockOpenAI.js'],
   roots: ['<rootDir>/packages', '<rootDir>/tests'],
+  extensionsToTreatAsEsm: ['.ts'],
+  transform: tsJestTransform,
   moduleNameMapper: {
-    '^@asynkron/openagent-core$': '<rootDir>/packages/core/index.js',
+    '^@asynkron/openagent-core$': '<rootDir>/packages/core/dist/index.js',
   },
   transform: {
     '^.+\\.(ts|tsx)$': [

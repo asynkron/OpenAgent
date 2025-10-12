@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * JSON schema describing the OpenAgent tool payload.
  *

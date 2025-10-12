@@ -4,13 +4,17 @@
   "private": true,
   "type": "module",
   "description": "Chat agent websocket backend",
-  "main": "src/index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "node ./src/index.js",
-    "dev": "NODE_ENV=development node ./src/index.js"
+    "build": "tsc --project tsconfig.json",
+    "start": "npm run build && node ./dist/index.js",
+    "dev": "NODE_ENV=development npm run start"
   },
   "dependencies": {
     "@asynkron/openagent-core": "file:../../core",
     "ws": "^8.15.1"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.12"
   }
 }
