@@ -21,6 +21,42 @@ type ChatInputElement = HTMLTextAreaElement | HTMLInputElement;
 
 type OptionalElement<T extends Element> = T | null | undefined;
 
+const AGENT_PAYLOAD_TYPES = [
+  'agent_message',
+  'agent_status',
+  'agent_error',
+  'agent_thinking',
+  'agent_request_input',
+  'agent_plan',
+  'agent_event',
+  'agent_command',
+] as const;
+
+type AgentPayloadType = (typeof AGENT_PAYLOAD_TYPES)[number];
+
+type AgentIncomingPayload =
+  | (AgentMessagePayload & { type: 'agent_message' })
+  | (AgentMessagePayload & { type: 'agent_status' })
+  | (AgentMessagePayload & { type: 'agent_error' })
+  | (AgentMessagePayload & { type: 'agent_thinking'; state?: 'start' | 'stop' })
+  | (AgentMessagePayload & { type: 'agent_request_input' })
+  | (AgentMessagePayload & { type: 'agent_plan' })
+  | (AgentEventPayload & { type: 'agent_event' })
+  | (AgentCommandPayload & { type: 'agent_command' });
+
+const AGENT_PAYLOAD_TYPE_SET = new Set<string>(AGENT_PAYLOAD_TYPES);
+
+type ListenerTarget = EventTarget & {
+  addEventListener(type: string, listener: EventListener, options?: boolean | AddEventListenerOptions): void;
+  removeEventListener(
+    type: string,
+    listener: EventListener,
+    options?: boolean | EventListenerOptions,
+  ): void;
+};
+
+type ListenerMap = HTMLElementEventMap;
+
 export interface ChatServiceOptions {
   panel: OptionalElement<HTMLElement>;
   startContainer?: OptionalElement<HTMLElement>;
@@ -44,18 +80,22 @@ export interface ChatServiceApi {
 }
 
 function createHighlightedCodeBlock(
-  text: unknown,
-  { language = '', classNames = [] }: { language?: string; classNames?: string[] | string } = {},
+  text: string | null | undefined,
+  {
+    language = '',
+    classNames = [],
+  }: { language?: string | null; classNames?: ReadonlyArray<string> | string } = {},
 ): HTMLPreElement | null {
-  if (typeof text !== 'string' || text.length === 0) {
+  const content = text ?? '';
+  if (content.length === 0) {
     return null;
   }
 
   const blockClasses = normaliseClassList(classNames);
-  const safeLanguage = typeof language === 'string' ? language.trim() : '';
+  const safeLanguage = (language ?? '').trim();
 
   try {
-    const markdown = `\`\`\`${safeLanguage}\n${text}\n\`\`\``;
+    const markdown = `\`\`\`${safeLanguage}\n${content}\n\`\`\``;
     const options = {
       gfm: true,
       highlight(code: string, infoString?: string): string {
@@ -97,7 +137,6 @@ function createHighlightedCodeBlock(
   blockClasses.forEach((className) => pre.classList.add(className));
 
   const codeElement = document.createElement('code');
-  const content = text;
 
   try {
     const requestedLanguage = safeLanguage && hljs.getLanguage(safeLanguage) ? safeLanguage : '';
@@ -131,31 +170,34 @@ function autoResize(textarea: OptionalElement<ChatInputElement>): void {
   textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
 }
 
-function addListener(
-  target: EventTarget | null | undefined,
-  type: string,
-  handler: EventListener,
+function addListener<Type extends keyof ListenerMap, Target extends ListenerTarget>(
+  target: Target | null | undefined,
+  type: Type,
+  handler: (event: ListenerMap[Type]) => void,
   cleanupFns: CleanupFn[],
 ): void {
-  if (!target || typeof (target as EventTarget).addEventListener !== 'function') {
+  if (!target) {
     return;
   }
-  const attachTarget = target as EventTarget;
-  attachTarget.addEventListener(type, handler);
-  cleanupFns.push(() => attachTarget.removeEventListener(type, handler));
+  target.addEventListener(type, handler as EventListener);
+  cleanupFns.push(() => target.removeEventListener(type, handler as EventListener));
 }
 
-function parseAgentPayload(data: unknown): AgentMessagePayload | null {
+function isAgentPayloadType(value: string): value is AgentPayloadType {
+  return AGENT_PAYLOAD_TYPE_SET.has(value);
+}
+
+function parseAgentPayload(data: unknown): AgentIncomingPayload | null {
   if (!data || typeof data !== 'object') {
     return null;
   }
 
-  const payload = data as AgentMessagePayload;
-  if (!('type' in payload)) {
+  const payload = data as { type?: unknown };
+  if (typeof payload.type !== 'string' || !isAgentPayloadType(payload.type)) {
     return null;
   }
 
-  return payload;
+  return payload as AgentIncomingPayload;
 }
 
 export function createChatService({
@@ -232,9 +274,9 @@ export function createChatService({
     }
   }
 
-  function setStatus(message: unknown, { level }: { level?: string } = {}): void {
-    lastStatus = typeof message === 'string' ? message : '';
-    lastStatusLevel = typeof level === 'string' ? level : '';
+  function setStatus(message: string | null | undefined, { level }: { level?: string } = {}): void {
+    lastStatus = message ?? '';
+    lastStatusLevel = level ?? '';
     if (!isThinking) {
       updateStatusDisplay();
     }
@@ -420,21 +462,33 @@ export function createChatService({
     let headerText = title;
     let bodyText = '';
 
-    const fallbackTitles: Record<string, string> = {
+    const fallbackTitles = {
       banner: title || text || 'Agent banner',
       status: title || 'Status update',
       'request-input': title || 'Input requested',
-    };
+    } as const;
 
-    if (eventType === 'banner') {
-      headerText = fallbackTitles.banner;
-      bodyText = subtitle || description || details;
-      if (!bodyText && text && text !== headerText) {
-        bodyText = text;
+    switch (eventType) {
+      case 'banner': {
+        headerText = fallbackTitles.banner;
+        bodyText = subtitle || description || details || '';
+        if (!bodyText && text && text !== headerText) {
+          bodyText = text;
+        }
+        break;
       }
-    } else {
-      headerText = fallbackTitles[eventType] || headerText;
-      bodyText = subtitle || description || details || text;
+      case 'status':
+      case 'request-input': {
+        headerText = fallbackTitles[eventType as keyof typeof fallbackTitles] ?? headerText;
+        bodyText = subtitle || description || details || text;
+        break;
+      }
+      default: {
+        if (!headerText) {
+          headerText = title || text;
+        }
+        bodyText = subtitle || description || details || text;
+      }
     }
 
     if (!headerText && !bodyText && text) {
@@ -473,9 +527,7 @@ export function createChatService({
       bubble.appendChild(body);
     }
 
-    const metadata =
-      payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : null;
-    const scopeText = metadata ? normaliseText(metadata.scope).trim() : '';
+    const scopeText = normaliseText(payload.metadata?.scope).trim();
     if (scopeText) {
       const meta = documentRef.createElement('div');
       meta.className = 'agent-event-meta';
@@ -492,12 +544,12 @@ export function createChatService({
     scrollToLatest();
   }
 
-  function appendCommand(payload: AgentCommandPayload = {}): void {
+  function appendCommand(payload?: AgentCommandPayload | null): void {
     if (!messageList) {
       return;
     }
 
-    const command = payload.command ?? null;
+    const command = payload?.command ?? null;
     const runText = normaliseText(command?.run);
     const description = normaliseText(command?.description).trim();
     const shellText = normaliseText(command?.shell).trim();
@@ -577,7 +629,7 @@ export function createChatService({
       return;
     }
 
-    let payload: AgentMessagePayload | null = null;
+    let payload: AgentIncomingPayload | null = null;
     try {
       const parsed = JSON.parse(event.data);
       payload = parseAgentPayload(parsed);
@@ -590,9 +642,7 @@ export function createChatService({
       return;
     }
 
-    const { type = '' } = payload as AgentMessagePayload & { type?: string };
-
-    switch (type) {
+    switch (payload.type) {
       case 'agent_message': {
         updateThinkingState(false);
         const text = normaliseText(payload.text);
@@ -609,8 +659,7 @@ export function createChatService({
           break;
         }
         if (text) {
-          const level = typeof payload.level === 'string' ? payload.level : undefined;
-          setStatus(text, { level });
+          setStatus(text, { level: payload.level });
         }
         break;
       }
@@ -647,21 +696,18 @@ export function createChatService({
       }
       case 'agent_plan': {
         ensureConversationStarted();
-        if (Array.isArray(payload.plan)) {
-          planDisplay?.update(payload.plan);
-        } else {
-          planDisplay?.update([]);
-        }
+        const planSteps: PlanStep[] = Array.isArray(payload.plan) ? (payload.plan as PlanStep[]) : [];
+        planDisplay?.update(planSteps);
         break;
       }
       case 'agent_event': {
-        const eventType = typeof payload.eventType === 'string' ? payload.eventType : 'event';
+        const eventType = payload.eventType ?? 'event';
         appendEvent(eventType, payload);
         break;
       }
       case 'agent_command': {
         updateThinkingState(false);
-        appendCommand(payload as AgentCommandPayload);
+        appendCommand(payload);
         break;
       }
       default: {
@@ -769,7 +815,7 @@ export function createChatService({
   }
 
   function sendUserMessage(rawText: string): boolean {
-    if (typeof rawText !== 'string' || isThinking) {
+    if (isThinking) {
       return false;
     }
     const trimmed = rawText.trim();
@@ -782,36 +828,46 @@ export function createChatService({
     return true;
   }
 
+  function dispatchFromInput(
+    input: ChatInputElement | null | undefined,
+    { resize = false }: { resize?: boolean } = {},
+  ): void {
+    const value = input?.value ?? '';
+    if (sendUserMessage(value) && input) {
+      input.value = '';
+      if (resize) {
+        autoResize(input);
+      }
+    }
+  }
+
   function handleStartSubmit(event: SubmitEvent): void {
     event.preventDefault();
-    const value = startInput?.value || '';
-    const sent = sendUserMessage(value);
-    if (sent && startInput) {
-      startInput.value = '';
-    }
+    dispatchFromInput(startInput);
   }
 
   function handleChatSubmit(event: SubmitEvent): void {
     event.preventDefault();
-    const value = chatInput?.value || '';
-    const sent = sendUserMessage(value);
-    if (sent && chatInput) {
-      chatInput.value = '';
-      autoResize(chatInput);
-    }
+    dispatchFromInput(chatInput, { resize: true });
   }
 
   function handleChatKeydown(event: KeyboardEvent): void {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      handleChatSubmit(event as unknown as SubmitEvent);
+      dispatchFromInput(chatInput, { resize: true });
     }
   }
 
-  addListener(startForm, 'submit', handleStartSubmit as EventListener, cleanupFns);
-  addListener(chatForm, 'submit', handleChatSubmit as EventListener, cleanupFns);
-  addListener(chatInput, 'keydown', handleChatKeydown as EventListener, cleanupFns);
-  addListener(chatInput, 'input', (() => autoResize(chatInput)) as EventListener, cleanupFns);
+  const handleChatInputChange = (_event: Event): void => {
+    if (chatInput) {
+      autoResize(chatInput);
+    }
+  };
+
+  addListener(startForm, 'submit', handleStartSubmit, cleanupFns);
+  addListener(chatForm, 'submit', handleChatSubmit, cleanupFns);
+  addListener(chatInput, 'keydown', handleChatKeydown, cleanupFns);
+  addListener(chatInput, 'input', handleChatInputChange, cleanupFns);
 
   if (chatInput) {
     autoResize(chatInput);

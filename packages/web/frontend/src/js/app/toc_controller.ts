@@ -45,7 +45,7 @@ export function createTocController({
     }
 
     const historyRef = windowRef?.history;
-    if (historyRef && typeof historyRef.replaceState === 'function') {
+    if (historyRef) {
       const pathname = windowRef?.location?.pathname ?? '';
       const search = windowRef?.location?.search ?? '';
       const newUrl = `${pathname}${search}#${targetId}`;

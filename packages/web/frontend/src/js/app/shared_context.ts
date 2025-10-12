@@ -7,6 +7,8 @@ import {
   type NormalisedFileIndex,
 } from './bootstrap_helpers.js';
 
+const noop = (): void => {};
+
 type ConnectionStatusHandler = (connected: boolean) => void;
 
 type UpdateHeader = () => void;
@@ -156,7 +158,7 @@ export function createSharedContext({
   normaliseFileIndex,
   buildTreeFromFlatList,
   getCssNumber,
-  rootElement,
+  rootElement = null,
   setStatus,
 }: SharedContextOptions): SharedContext {
   if (!appState) {
@@ -190,34 +192,23 @@ export function createSharedContext({
   const expandedDirectories = sets.expandedDirectories ?? new Set<string>();
   const knownDirectories = sets.knownDirectories ?? new Set<string>();
 
-  const invokeUpdateHeader = typeof updateHeader === 'function' ? updateHeader : () => {};
-  const invokeUpdateActionVisibility =
-    typeof updateActionVisibility === 'function' ? updateActionVisibility : () => {};
-  const invokeUpdateDocumentTitle =
-    typeof updateDocumentPanelTitle === 'function' ? updateDocumentPanelTitle : () => {};
-  const invokeApplyPendingChanges =
-    typeof applyHasPendingChanges === 'function'
-      ? (value: boolean) => applyHasPendingChanges(Boolean(value))
-      : () => {};
-  const invokeConnectionStatus =
-    typeof setConnectionStatusHandler === 'function' ? setConnectionStatusHandler : () => {};
-  const invokeBuildQuery = typeof buildQuery === 'function' ? buildQuery : () => '';
-  const invokeUpdateLocation = typeof updateLocation === 'function' ? updateLocation : () => {};
-  const invokeFallbackMarkdownFor =
-    typeof fallbackMarkdownFor === 'function' ? fallbackMarkdownFor : (path: string) => path;
-  const invokeNormaliseFileIndex =
-    typeof normaliseFileIndex === 'function' ? normaliseFileIndex : defaultNormaliseFileIndex;
-  const invokeBuildTreeFromFlatList =
-    typeof buildTreeFromFlatList === 'function'
-      ? buildTreeFromFlatList
-      : defaultBuildTreeFromFlatList;
-  const invokeGetCssNumber =
-    typeof getCssNumber === 'function'
-      ? (variableName: string, fallbackValue: number) =>
-          getCssNumber(rootElement ?? null, variableName, fallbackValue)
-      : (variableName: string, fallbackValue: number) =>
-          defaultGetCssNumber(rootElement ?? null, variableName, fallbackValue);
-  const invokeSetStatus = typeof setStatus === 'function' ? setStatus : () => {};
+  const invokeUpdateHeader = updateHeader ?? noop;
+  const invokeUpdateActionVisibility = updateActionVisibility ?? noop;
+  const invokeUpdateDocumentTitle = updateDocumentPanelTitle ?? noop;
+  const invokeApplyPendingChanges = applyHasPendingChanges
+    ? (value: boolean) => applyHasPendingChanges(Boolean(value))
+    : noop;
+  const invokeConnectionStatus = setConnectionStatusHandler ?? noop;
+  const invokeBuildQuery: BuildQueryFn = buildQuery ?? (() => '');
+  const invokeUpdateLocation = updateLocation ?? noop;
+  const invokeFallbackMarkdownFor = fallbackMarkdownFor ?? ((path: string) => path);
+  const invokeNormaliseFileIndex = normaliseFileIndex ?? defaultNormaliseFileIndex;
+  const invokeBuildTreeFromFlatList = buildTreeFromFlatList ?? defaultBuildTreeFromFlatList;
+  const invokeGetCssNumber = (variableName: string, fallbackValue: number): number =>
+    getCssNumber
+      ? getCssNumber(rootElement, variableName, fallbackValue)
+      : defaultGetCssNumber(rootElement, variableName, fallbackValue);
+  const invokeSetStatus = setStatus ?? noop;
 
   const sharedContext: SharedContext = {
     controllers: {
@@ -247,7 +238,7 @@ export function createSharedContext({
     layout: null,
     setCurrentFile(value: string | null, options: { silent?: boolean } = {}): void {
       const { silent = false } = options;
-      const nextValue = typeof value === 'string' && value.length ? value : value || null;
+      const nextValue = value && value.length > 0 ? value : null;
       if (appState.currentFile === nextValue) {
         return;
       }
@@ -262,18 +253,18 @@ export function createSharedContext({
       return appState.currentFile;
     },
     setCurrentContent(value: string): void {
-      appState.currentContent = typeof value === 'string' ? value : '';
+      appState.currentContent = value;
     },
     getCurrentContent(): string {
       return appState.currentContent;
     },
     setHasPendingChanges(value: boolean): void {
+      const nextValue = Boolean(value);
       const header = sharedContext.controllers?.header;
-      if (typeof header?.applyHasPendingChanges === 'function') {
-        header.applyHasPendingChanges(value);
+      if (header?.applyHasPendingChanges) {
+        header.applyHasPendingChanges(nextValue);
         return;
       }
-      const nextValue = Boolean(value);
       if (nextValue === appState.hasPendingChanges) {
         return;
       }
@@ -290,11 +281,11 @@ export function createSharedContext({
       }
       appState.isEditing = next;
       const header = sharedContext.controllers?.header;
-      if (typeof header?.updateActionVisibility === 'function') {
+      if (header?.updateActionVisibility) {
         header.updateActionVisibility();
-      } else {
-        invokeUpdateActionVisibility();
+        return;
       }
+      invokeUpdateActionVisibility();
     },
     isEditing(): boolean {
       return appState.isEditing;
@@ -306,11 +297,11 @@ export function createSharedContext({
       }
       appState.isPreviewing = next;
       const header = sharedContext.controllers?.header;
-      if (typeof header?.updateActionVisibility === 'function') {
+      if (header?.updateActionVisibility) {
         header.updateActionVisibility();
-      } else {
-        invokeUpdateActionVisibility();
+        return;
       }
+      invokeUpdateActionVisibility();
     },
     isPreviewing(): boolean {
       return appState.isPreviewing;
@@ -319,9 +310,7 @@ export function createSharedContext({
       return appState.resolvedRootPath;
     },
     setResolvedRootPath(value: string): void {
-      if (typeof value === 'string') {
-        appState.resolvedRootPath = value;
-      }
+      appState.resolvedRootPath = value;
     },
     getOriginalPathArgument(): string {
       return appState.originalPathArgument;
@@ -356,11 +345,11 @@ export function createSharedContext({
     },
     setStatus: invokeSetStatus,
     setConnectionStatus(connected: boolean): void {
-      invokeConnectionStatus(connected);
+      invokeConnectionStatus(Boolean(connected));
     },
     updateHeader(): void {
       const header = sharedContext.controllers?.header;
-      if (typeof header?.updateHeader === 'function') {
+      if (header?.updateHeader) {
         header.updateHeader();
         return;
       }
@@ -368,7 +357,7 @@ export function createSharedContext({
     },
     updateActionVisibility(): void {
       const header = sharedContext.controllers?.header;
-      if (typeof header?.updateActionVisibility === 'function') {
+      if (header?.updateActionVisibility) {
         header.updateActionVisibility();
         return;
       }
@@ -379,25 +368,22 @@ export function createSharedContext({
     },
     updateDocumentPanelTitle(): void {
       const header = sharedContext.controllers?.header;
-      if (typeof header?.updateDocumentPanelTitle === 'function') {
+      if (header?.updateDocumentPanelTitle) {
         header.updateDocumentPanelTitle();
         return;
       }
       invokeUpdateDocumentTitle();
     },
     buildQuery(params: Record<string, string | undefined>): string {
-      if (sharedContext.router && typeof sharedContext.router.buildQuery === 'function') {
-        return sharedContext.router.buildQuery(params);
-      }
-      return invokeBuildQuery(params);
+      return sharedContext.router?.buildQuery?.(params) ?? invokeBuildQuery(params);
     },
     updateLocation(file: string, options: { replace?: boolean } = {}): void {
       if (sharedContext.router) {
         const { replace = false } = options;
-        if (replace && typeof sharedContext.router.replace === 'function') {
-          sharedContext.router.replace(file);
-        } else if (typeof sharedContext.router.push === 'function') {
-          sharedContext.router.push(file);
+        if (replace) {
+          sharedContext.router.replace?.(file);
+        } else {
+          sharedContext.router.push?.(file);
         }
         return;
       }
