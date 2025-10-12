@@ -60,9 +60,10 @@ export class ObservationBuilder {
     const originalStderr = typeof result.stderr === 'string' ? result.stderr : '';
 
     const combined = this.combineStdStreams(originalStdout, originalStderr, exitCode);
-    const combinedLineCount = this.lineCount(combined.stdout) + this.lineCount(combined.stderr);
+    const combinedByteSize =
+      this.byteLength(combined.stdout) + this.byteLength(combined.stderr);
     // Guard against runaway commands bloating the transcript.
-    const exceedsOutputLimit = combinedLineCount > 6000;
+    const exceedsOutputLimit = combinedByteSize > 50 * 1024;
     const corruptMessage = '!!!corrupt command, excessive output!!!';
 
     let filteredStdout = combined.stdout;
@@ -147,6 +148,13 @@ export class ObservationBuilder {
       return 0;
     }
     return String(text).split('\n').length;
+  }
+
+  byteLength(text) {
+    if (text === undefined || text === null || text === '') {
+      return 0;
+    }
+    return Buffer.byteLength(String(text), 'utf8');
   }
 }
 
