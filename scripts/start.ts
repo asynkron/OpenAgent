@@ -1,13 +1,17 @@
 #!/usr/bin/env node
-import { spawn } from 'node:child_process';
+import { spawn, type SpawnOptions, type ChildProcess } from 'node:child_process';
 import process from 'node:process';
 
-function runCommand(command, args, options = {}) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: 'inherit', ...options });
+async function runCommand(
+  command: string,
+  args: string[],
+  options: SpawnOptions = {},
+): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const child: ChildProcess = spawn(command, args, { stdio: 'inherit', ...options });
 
-    child.on('error', reject);
-    child.on('exit', (code, signal) => {
+    child.once('error', reject);
+    child.once('exit', (code, signal) => {
       if (code === 0) {
         resolve();
         return;
@@ -22,7 +26,7 @@ function runCommand(command, args, options = {}) {
   });
 }
 
-async function startWebBackend(extraArgs) {
+async function startWebBackend(extraArgs: string[]): Promise<void> {
   try {
     await runCommand('npm', ['--prefix', 'packages/web/frontend', 'run', 'build']);
   } catch (error) {
@@ -30,25 +34,25 @@ async function startWebBackend(extraArgs) {
     throw error;
   }
 
-  const backendArgs = ['--prefix', 'packages/web/backend', 'run', 'start'];
+  const backendArgs: string[] = ['--prefix', 'packages/web/backend', 'run', 'start'];
   if (extraArgs.length > 0) {
     backendArgs.push('--', ...extraArgs);
   }
 
   const backend = spawn('npm', backendArgs, { stdio: 'inherit' });
 
-  const forwardSignal = (signal) => {
+  const forwardSignal = (signal: NodeJS.Signals | number | null) => {
     if (!backend.killed) {
-      backend.kill(signal);
+      backend.kill(signal as NodeJS.Signals);
     }
   };
 
   process.on('SIGINT', forwardSignal);
   process.on('SIGTERM', forwardSignal);
 
-  await new Promise((resolve, reject) => {
-    backend.on('error', reject);
-    backend.on('exit', (code, signal) => {
+  await new Promise<void>((resolve, reject) => {
+    backend.once('error', reject);
+    backend.once('exit', (code, signal) => {
       process.off('SIGINT', forwardSignal);
       process.off('SIGTERM', forwardSignal);
 
@@ -66,26 +70,26 @@ async function startWebBackend(extraArgs) {
   });
 }
 
-async function startDefault(args) {
-  const cliArgs = ['run', 'start', '--workspace', '@asynkron/openagent'];
+async function startDefault(args: string[]): Promise<void> {
+  const cliArgs: string[] = ['run', 'start', '--workspace', '@asynkron/openagent'];
   if (args.length > 0) {
     cliArgs.push('--', ...args);
   }
 
   const cli = spawn('npm', cliArgs, { stdio: 'inherit' });
 
-  const forwardSignal = (signal) => {
+  const forwardSignal = (signal: NodeJS.Signals | number | null) => {
     if (!cli.killed) {
-      cli.kill(signal);
+      cli.kill(signal as NodeJS.Signals);
     }
   };
 
   process.on('SIGINT', forwardSignal);
   process.on('SIGTERM', forwardSignal);
 
-  await new Promise((resolve, reject) => {
-    cli.on('error', reject);
-    cli.on('exit', (code, signal) => {
+  await new Promise<void>((resolve, reject) => {
+    cli.once('error', reject);
+    cli.once('exit', (code, signal) => {
       process.off('SIGINT', forwardSignal);
       process.off('SIGTERM', forwardSignal);
 
@@ -101,7 +105,7 @@ async function startDefault(args) {
   });
 }
 
-async function main() {
+async function main(): Promise<void> {
   const [, , firstArg, ...restArgs] = process.argv;
 
   try {

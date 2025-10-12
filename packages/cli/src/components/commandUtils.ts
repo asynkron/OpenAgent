@@ -115,10 +115,9 @@ export function buildHeadingDetail(
     }
     case 'REPLACE': {
       const spec =
-        (execution?.spec as Record<string, unknown>) || command?.replace || ({} as Record<
-            string,
-            unknown
-          >);
+        (execution?.spec as Record<string, unknown>) ||
+        command?.replace ||
+        ({} as Record<string, unknown>);
       const parts: string[] = [];
       if ('pattern' in spec) {
         parts.push(`pattern: ${JSON.stringify(spec.pattern ?? '')}`);

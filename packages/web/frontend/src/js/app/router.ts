@@ -17,7 +17,10 @@ type RouterHandlers = {
     originalPathArgument?: string;
   };
   getCurrentFile?: () => string | null;
-  onNavigate?: (targetFile: string, options?: { skipHistory?: boolean; replaceHistory?: boolean }) => void;
+  onNavigate?: (
+    targetFile: string,
+    options?: { skipHistory?: boolean; replaceHistory?: boolean },
+  ) => void;
   onFallback?: (options?: { skipHistory?: boolean }) => void;
   windowRef?: Window & typeof globalThis;
 };

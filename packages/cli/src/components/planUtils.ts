@@ -82,7 +82,10 @@ function normalizeStatus(status: string | null | undefined): string {
   return typeof status === 'string' ? status.toLowerCase() : '';
 }
 
-function resolveStatusDetails(status: string, blocked: boolean): { symbol: string; color: PlanNodeColor } {
+function resolveStatusDetails(
+  status: string,
+  blocked: boolean,
+): { symbol: string; color: PlanNodeColor } {
   const normalized = normalizeStatus(status);
 
   if (blocked) {

@@ -5,10 +5,12 @@ import { renderMarkdownMessage } from '../render.js';
 
 const h = React.createElement;
 
-type DebugEvent = {
-  id?: string | number;
-  content?: string;
-} | string;
+type DebugEvent =
+  | {
+      id?: string | number;
+      content?: string;
+    }
+  | string;
 
 type DebugPanelProps = {
   events?: DebugEvent[];

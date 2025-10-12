@@ -36,8 +36,7 @@ export function ContextUsage({ usage }: ContextUsageProps): React.ReactElement |
 
     const safeRemaining =
       typeof remaining === 'number' && Number.isFinite(remaining) ? Math.max(remaining, 0) : null;
-    const safeUsed =
-      typeof used === 'number' && Number.isFinite(used) ? Math.max(used, 0) : null;
+    const safeUsed = typeof used === 'number' && Number.isFinite(used) ? Math.max(used, 0) : null;
     const percent =
       typeof percentRemaining === 'number' && Number.isFinite(percentRemaining)
         ? Math.max(Math.min(percentRemaining, 100), 0)

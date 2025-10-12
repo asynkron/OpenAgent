@@ -152,7 +152,8 @@ deepFreeze(RESPONSE_PARAMETERS_SCHEMA);
 export const OPENAGENT_RESPONSE_TOOL = deepFreeze({
   type: 'function',
   name: 'open-agent',
-  description: 'Return the response envelope that matches the OpenAgent protocol (message, plan, and command fields).',
+  description:
+    'Return the response envelope that matches the OpenAgent protocol (message, plan, and command fields).',
   parameters: RESPONSE_PARAMETERS_SCHEMA,
 });
 

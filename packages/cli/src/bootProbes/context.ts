@@ -7,9 +7,7 @@ export type BootProbeContext = {
   fileExists(relativePath: string): Promise<boolean>;
   readTextFile(relativePath: string): Promise<string | null>;
   readJsonFile<T = unknown>(relativePath: string): Promise<T | null>;
-  hasRootEntry(
-    matcher: string | RegExp | ((entry: Dirent) => boolean),
-  ): Promise<boolean>;
+  hasRootEntry(matcher: string | RegExp | ((entry: Dirent) => boolean)): Promise<boolean>;
   findRootEntries(predicate: (entry: Dirent) => boolean): Promise<Dirent[]>;
   readDirEntries(relativePath: string): Promise<Dirent[]>;
   getRootEntries(): Promise<Dirent[]>;

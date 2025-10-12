@@ -1,7 +1,6 @@
-/* eslint-env jest */
 import { jest } from '@jest/globals';
 
-const loaderPath = '../loadCoreModule.ts';
+const loaderPath = '../loadCoreModule.js';
 const loaderUrl = new URL(loaderPath, import.meta.url);
 const fallbackSpecifier = new URL('../../core/index.js', loaderUrl).href;
 
@@ -32,7 +31,7 @@ describe('loadCoreModule', () => {
 
   test('falls back to the local core entry when the package is missing', async () => {
     const notFoundError = new Error("Cannot find module '@asynkron/openagent-core'");
-    notFoundError.code = 'ERR_MODULE_NOT_FOUND';
+    (notFoundError as NodeJS.ErrnoException).code = 'ERR_MODULE_NOT_FOUND';
 
     const fallbackExports = { sentinel: 'fallback' };
     const importer = jest.fn(async (specifier) => {

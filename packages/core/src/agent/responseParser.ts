@@ -104,7 +104,13 @@ function normalizeFlatCommand(command: AssistantCommand): AssistantCommand {
   const shellString = firstNonEmptyString(command.shell);
 
   if (runString) {
-    const { run: _ignoredRun, cmd: _ignoredCmd, command_line: _ignoredCommandLine, shell: _ignoredShell, ...rest } = command;
+    const {
+      run: _ignoredRun,
+      cmd: _ignoredCmd,
+      command_line: _ignoredCommandLine,
+      shell: _ignoredShell,
+      ...rest
+    } = command;
     const normalized: AssistantCommand = { ...rest, run: runString };
     if (shellString) {
       normalized.shell = shellString;
@@ -113,7 +119,12 @@ function normalizeFlatCommand(command: AssistantCommand): AssistantCommand {
   }
 
   if (shellString) {
-    const { shell: _ignoredShell, cmd: _ignoredCmd, command_line: _ignoredCommandLine, ...rest } = command;
+    const {
+      shell: _ignoredShell,
+      cmd: _ignoredCmd,
+      command_line: _ignoredCommandLine,
+      ...rest
+    } = command;
     return { ...rest, run: shellString };
   }
 
@@ -135,7 +146,13 @@ function normalizeNestedRunCommand(command: AssistantCommand): AssistantCommand 
     shell: nestedShell,
     ...nestedRest
   } = nested as JsonLikeObject & AssistantCommand;
-  const { run: _ignoredRun, cmd: topLevelCmd, command_line: topLevelCommandLine, shell: topLevelShell, ...rest } = command;
+  const {
+    run: _ignoredRun,
+    cmd: topLevelCmd,
+    command_line: topLevelCommandLine,
+    shell: topLevelShell,
+    ...rest
+  } = command;
 
   const merged: AssistantCommand = { ...rest, ...nestedRest };
   const runString = firstNonEmptyString(
@@ -175,7 +192,12 @@ function normalizeNestedShellCommand(command: AssistantCommand): AssistantComman
     shell: nestedShell,
     ...nestedRest
   } = nested as JsonLikeObject & AssistantCommand;
-  const { shell: _ignoredShell, cmd: topLevelCmd, command_line: topLevelCommandLine, ...rest } = command;
+  const {
+    shell: _ignoredShell,
+    cmd: topLevelCmd,
+    command_line: topLevelCommandLine,
+    ...rest
+  } = command;
 
   const merged: AssistantCommand = { ...nestedRest, ...rest };
   const runString = firstNonEmptyString(
@@ -200,7 +222,9 @@ function normalizeNestedShellCommand(command: AssistantCommand): AssistantComman
   return merged;
 }
 
-function normalizeCommandPayload(command: AssistantPayload['command']): AssistantCommand | AssistantPayload['command'] {
+function normalizeCommandPayload(
+  command: AssistantPayload['command'],
+): AssistantCommand | AssistantPayload['command'] {
   if (typeof command === 'string') {
     const trimmed = command.trim();
     if (!trimmed) {
@@ -293,7 +317,9 @@ function normalizePlan(plan: AssistantPayload['plan']): AssistantPayload['plan']
   return plan.map((step) => normalizePlanStep(step));
 }
 
-function normalizeAssistantPayload(payload: AssistantPayload | unknown): AssistantPayload | unknown {
+function normalizeAssistantPayload(
+  payload: AssistantPayload | unknown,
+): AssistantPayload | unknown {
   if (!isPlainObject(payload)) {
     return payload;
   }

@@ -1,26 +1,41 @@
-/* eslint-env jest */
 import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { formatBootProbeSummary, runBootProbes } from '../index.ts';
-import PythonBootProbe from '../pythonProbe.ts';
-import NodeBootProbe from '../nodeProbe.ts';
-import GoBootProbe from '../goProbe.ts';
-import RustBootProbe from '../rustProbe.ts';
-import JvmBootProbe from '../jvmProbe.ts';
-import ContainerBootProbe from '../containerProbe.ts';
+import { formatBootProbeSummary, runBootProbes } from '../index.js';
+import PythonBootProbe from '../pythonProbe.js';
+import NodeBootProbe from '../nodeProbe.js';
+import GoBootProbe from '../goProbe.js';
+import RustBootProbe from '../rustProbe.js';
+import JvmBootProbe from '../jvmProbe.js';
+import ContainerBootProbe from '../containerProbe.js';
 
-async function createTempDir(prefix = 'boot-probe-test-') {
+type DirentLike = {
+  name: string;
+  isFile(): boolean;
+  isDirectory(): boolean;
+};
+
+type ProbeContextOverrides = {
+  commands?: Record<string, boolean>;
+  files?: Map<string, string> | Record<string, string>;
+  directories?: Map<string, DirentLike[]> | Record<string, DirentLike[]>;
+  rootEntries?: DirentLike[];
+};
+
+async function createTempDir(prefix = 'boot-probe-test-'): Promise<string> {
   return mkdtemp(join(tmpdir(), prefix));
 }
 
-function normalizeLine(value) {
+function normalizeLine(value: string | null | undefined): string {
   // eslint-disable-next-line no-control-regex
   return (value || '').replace(/\u001B\[[0-9;]*m/g, '').trim();
 }
 
-function createDirent(name, { type = 'file' } = {}) {
+function createDirent(
+  name: string,
+  { type = 'file' }: { type?: 'file' | 'directory' } = {},
+): DirentLike {
   return {
     name,
     isFile: () => type === 'file',
@@ -33,20 +48,23 @@ function createStubProbeContext({
   files = new Map(),
   directories = new Map(),
   rootEntries = [],
-} = {}) {
-  const fileMap = files instanceof Map ? files : new Map(Object.entries(files));
+}: ProbeContextOverrides = {}) {
+  const fileMap =
+    files instanceof Map ? files : new Map(Object.entries(files as Record<string, string>));
   const directoryMap =
-    directories instanceof Map ? directories : new Map(Object.entries(directories));
+    directories instanceof Map
+      ? directories
+      : new Map(Object.entries(directories as Record<string, DirentLike[]>));
   const entryList = Array.isArray(rootEntries) ? rootEntries : [];
 
   return {
-    async fileExists(path) {
+    async fileExists(path: string) {
       return fileMap.has(path);
     },
-    async readTextFile(path) {
+    async readTextFile(path: string) {
       return fileMap.get(path) ?? null;
     },
-    async readJsonFile(path) {
+    async readJsonFile(path: string) {
       const value = fileMap.get(path);
       if (!value) return null;
       try {
@@ -58,10 +76,12 @@ function createStubProbeContext({
     async getRootEntries() {
       return entryList;
     },
-    async findRootEntries(predicate) {
+    async findRootEntries(predicate: (entry: DirentLike) => boolean) {
       return entryList.filter((entry) => predicate(entry));
     },
-    async hasRootEntry(matcher) {
+    async hasRootEntry(
+      matcher: string | RegExp | ((entry: DirentLike) => boolean),
+    ): Promise<boolean> {
       if (typeof matcher === 'string') {
         return entryList.some((entry) => entry.name === matcher);
       }
@@ -73,12 +93,12 @@ function createStubProbeContext({
       }
       return false;
     },
-    async readDirEntries(path) {
+    async readDirEntries(path: string) {
       const value = directoryMap.get(path);
       return Array.isArray(value) ? value : [];
     },
-    async commandExists(command) {
-      return Boolean(commands[command]);
+    async commandExists(command: string) {
+      return Boolean(commands[command] ?? false);
     },
   };
 }

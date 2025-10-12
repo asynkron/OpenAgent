@@ -122,7 +122,10 @@ export function isTerminalStatus(status: unknown): boolean {
   return TERMINAL_STATUSES.has(normalized) || normalized.startsWith('complete');
 }
 
-export function isStepBlocked(step: PlanStep | null | undefined, lookup: Map<string, PlanStep>): boolean {
+export function isStepBlocked(
+  step: PlanStep | null | undefined,
+  lookup: Map<string, PlanStep>,
+): boolean {
   const dependencies = dependenciesFor(step);
   if (dependencies.length === 0) {
     return false;
@@ -186,7 +189,10 @@ export function decoratePlan(plan: PlanStep[] | null | undefined): DecoratedPlan
     });
 }
 
-export function aggregateProgress(items: PlanStep[] | null | undefined): { completed: number; total: number } {
+export function aggregateProgress(items: PlanStep[] | null | undefined): {
+  completed: number;
+  total: number;
+} {
   let completed = 0;
   let total = 0;
 

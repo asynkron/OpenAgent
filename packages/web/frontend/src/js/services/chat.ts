@@ -1,10 +1,7 @@
 import hljs from 'highlight.js';
 import { marked } from 'marked';
 import type { MarkedOptions } from 'marked';
-import {
-  createMarkdownDisplay,
-  type MarkdownDisplayApi,
-} from '../components/markdown_display.js';
+import { createMarkdownDisplay, type MarkdownDisplayApi } from '../components/markdown_display.js';
 import { createPlanDisplay, type PlanStep } from '../components/plan_display.js';
 import {
   isApprovalNotification,
@@ -103,8 +100,7 @@ function createHighlightedCodeBlock(
   const content = text;
 
   try {
-    const requestedLanguage =
-      safeLanguage && hljs.getLanguage(safeLanguage) ? safeLanguage : '';
+    const requestedLanguage = safeLanguage && hljs.getLanguage(safeLanguage) ? safeLanguage : '';
     if (requestedLanguage) {
       codeElement.innerHTML = hljs.highlight(content, { language: requestedLanguage }).value;
     } else {
@@ -477,7 +473,8 @@ export function createChatService({
       bubble.appendChild(body);
     }
 
-    const metadata = payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : null;
+    const metadata =
+      payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : null;
     const scopeText = metadata ? normaliseText(metadata.scope).trim() : '';
     if (scopeText) {
       const meta = documentRef.createElement('div');

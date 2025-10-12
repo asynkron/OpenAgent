@@ -114,7 +114,12 @@ export class HistoryCompactor {
 
   private readonly logger: Logger;
 
-  constructor({ openai, model, usageThreshold = DEFAULT_USAGE_THRESHOLD, logger }: HistoryCompactorOptions = {}) {
+  constructor({
+    openai,
+    model,
+    usageThreshold = DEFAULT_USAGE_THRESHOLD,
+    logger,
+  }: HistoryCompactorOptions = {}) {
     this.openai = openai ?? undefined;
     this.model = model ?? undefined;
     this.usageThreshold = usageThreshold;
@@ -132,7 +137,12 @@ export class HistoryCompactor {
     }
 
     const usage = summarizeContextUsage({ history, model: this.model ?? undefined });
-    if (!usage || typeof usage.used !== 'number' || typeof usage.total !== 'number' || usage.total <= 0) {
+    if (
+      !usage ||
+      typeof usage.used !== 'number' ||
+      typeof usage.total !== 'number' ||
+      usage.total <= 0
+    ) {
       return false;
     }
 
@@ -148,7 +158,10 @@ export class HistoryCompactor {
     }
 
     const entriesToCompactCount = Math.max(1, Math.floor(availableEntries / 2));
-    const entriesToCompact = history.slice(firstContentIndex, firstContentIndex + entriesToCompactCount);
+    const entriesToCompact = history.slice(
+      firstContentIndex,
+      firstContentIndex + entriesToCompactCount,
+    );
 
     let summary: string;
     try {
@@ -210,7 +223,8 @@ export class HistoryCompactor {
   }
 
   private _log(method: 'log' | 'warn', message: string, meta?: unknown): void {
-    const fn = this.logger && typeof this.logger[method] === 'function' ? this.logger[method] : null;
+    const fn =
+      this.logger && typeof this.logger[method] === 'function' ? this.logger[method] : null;
     if (!fn) {
       return;
     }

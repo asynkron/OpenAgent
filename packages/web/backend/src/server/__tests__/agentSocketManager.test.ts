@@ -40,7 +40,10 @@ describe('AgentSocketManager', () => {
     expect(bindingOptions.runtimeOptions?.getAutoApproveFlag()).toBe(true);
     expect(bindingOptions.runtimeOptions?.emitAutoApproveStatus).toBe(true);
 
-    const formatted = bindingOptions.formatOutgoing?.({ type: 'assistant-message', message: 'Hello' });
+    const formatted = bindingOptions.formatOutgoing?.({
+      type: 'assistant-message',
+      message: 'Hello',
+    });
     expect(formatted).toBe(JSON.stringify({ type: 'agent_message', text: 'Hello' }));
 
     socket.emitMessage(JSON.stringify({ type: 'chat', prompt: '  hi there  ' }));
@@ -86,7 +89,10 @@ describe('sendAgentPayload', () => {
     const { sendAgentPayload } = await import('../agentSocket.js');
 
     const socket = new TestWebSocket();
-    const result = sendAgentPayload(socket as unknown as WebSocket, { type: 'agent_message', text: 'hi' });
+    const result = sendAgentPayload(socket as unknown as WebSocket, {
+      type: 'agent_message',
+      text: 'hi',
+    });
 
     expect(result).toBe(true);
     expect(socket.send).toHaveBeenCalledWith(JSON.stringify({ type: 'agent_message', text: 'hi' }));
@@ -102,7 +108,9 @@ describe('sendAgentPayload', () => {
     const socket = new TestWebSocket();
     socket.readyState = 0;
 
-    expect(sendAgentPayload(socket as unknown as WebSocket, { type: 'agent_message', text: 'hi' })).toBe(false);
+    expect(
+      sendAgentPayload(socket as unknown as WebSocket, { type: 'agent_message', text: 'hi' }),
+    ).toBe(false);
     expect(socket.send).not.toHaveBeenCalled();
   });
 

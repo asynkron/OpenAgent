@@ -137,7 +137,10 @@ export function createHeaderController({
         appState.resolvedRootPath || appState.originalPathArgument || 'Unknown';
     }
 
-    const toggleDisable = (button: HTMLButtonElement | null | undefined, disabled: boolean): void => {
+    const toggleDisable = (
+      button: HTMLButtonElement | null | undefined,
+      disabled: boolean,
+    ): void => {
       if (button) {
         button.disabled = Boolean(disabled);
       }

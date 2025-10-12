@@ -119,7 +119,10 @@ export class AmnesiaManager {
   readonly threshold: number;
   readonly rules: AmnesiaRule[];
 
-  constructor({ threshold = DEFAULT_THRESHOLD, rules = DEFAULT_RULES }: AmnesiaManagerOptions = {}) {
+  constructor({
+    threshold = DEFAULT_THRESHOLD,
+    rules = DEFAULT_RULES,
+  }: AmnesiaManagerOptions = {}) {
     this.threshold = normalizeThreshold(threshold, DEFAULT_THRESHOLD);
     this.rules = Array.isArray(rules) && rules.length > 0 ? rules.slice() : DEFAULT_RULES;
   }

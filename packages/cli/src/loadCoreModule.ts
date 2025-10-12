@@ -12,8 +12,7 @@ type LoadCoreModuleOptions = {
   fallbackSpecifier?: string | URL;
 };
 
-const defaultImporter: Importer = (specifier) =>
-  import(specifier) as Promise<CoreModule>;
+const defaultImporter: Importer = (specifier) => import(specifier) as Promise<CoreModule>;
 
 let cachedModule: CoreModule | undefined;
 
@@ -26,9 +25,10 @@ let cachedModule: CoreModule | undefined;
  * the module twice. Optional overrides make the behavior easy to exercise in
  * unit tests without touching the filesystem.
  */
-export async function loadCoreModule(
-  { importer, fallbackSpecifier }: LoadCoreModuleOptions = {},
-): Promise<CoreModule> {
+export async function loadCoreModule({
+  importer,
+  fallbackSpecifier,
+}: LoadCoreModuleOptions = {}): Promise<CoreModule> {
   if (cachedModule) {
     return cachedModule;
   }

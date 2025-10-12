@@ -1,7 +1,6 @@
-/* eslint-env jest */
 import { jest } from '@jest/globals';
 
-const RUNNER_MODULE = '../runner.ts';
+const RUNNER_MODULE = '../runner.js';
 
 describe('runCli', () => {
   const envBackup = { ...process.env };
@@ -26,7 +25,7 @@ describe('runCli', () => {
     // The real runtime spins up Ink's render loop which keeps timers and streams
     // alive even when the CLI exits early. Mock it so the test process can
     // terminate without leaking handles while still verifying the guard clause.
-    await jest.unstable_mockModule('../runtime.ts', () => ({
+    await jest.unstable_mockModule('../runtime.js', () => ({
       __esModule: true,
       agentLoop: agentLoopMock,
       runCommandAndTrack: runCommandAndTrackMock,

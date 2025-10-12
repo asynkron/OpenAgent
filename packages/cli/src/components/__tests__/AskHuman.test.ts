@@ -2,16 +2,16 @@
 import React from 'react';
 import { describe, expect, jest, test } from '@jest/globals';
 import { render } from 'ink-testing-library';
-import AskHuman, { HUMAN_SLASH_COMMANDS } from '../AskHuman.ts';
+import AskHuman, { HUMAN_SLASH_COMMANDS } from '../AskHuman.js';
 
 const ESC = String.fromCharCode(27);
 const ANSI_ESCAPE_PATTERN = new RegExp(`${ESC}\\[[0-9;]*m`, 'g');
 
-function stripAnsi(value) {
+function stripAnsi(value: string): string {
   return value.replace(ANSI_ESCAPE_PATTERN, '');
 }
 
-async function flush() {
+async function flush(): Promise<void> {
   await new Promise((resolve) => setImmediate(resolve));
   await new Promise((resolve) => setImmediate(resolve));
 }

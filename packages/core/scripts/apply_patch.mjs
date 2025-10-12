@@ -14,11 +14,7 @@ function parseArgs(argv) {
       options.ignoreWhitespace = true;
       continue;
     }
-    if (
-      arg === '--respect-whitespace' ||
-      arg === '-W' ||
-      arg === '--no-ignore-whitespace'
-    ) {
+    if (arg === '--respect-whitespace' || arg === '-W' || arg === '--no-ignore-whitespace') {
       options.ignoreWhitespace = false;
       continue;
     }

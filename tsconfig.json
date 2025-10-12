@@ -20,9 +20,5 @@
     "tests/**/*.ts",
     "scripts/**/*.ts"
   ],
-  "exclude": [
-    "node_modules",
-    "coverage",
-    "dist"
-  ]
+  "exclude": ["node_modules", "coverage", "dist"]
 }

@@ -71,11 +71,7 @@ function isAgentPromptMessage(value: unknown): value is AgentPromptMessage {
 }
 
 function resolvePrompt(message: AgentPromptMessage): string | undefined {
-  const promptSource =
-    message.prompt ??
-    message.text ??
-    message.value ??
-    message.message;
+  const promptSource = message.prompt ?? message.text ?? message.value ?? message.message;
 
   if (typeof promptSource === 'string') {
     const trimmed = promptSource.trim();
@@ -99,7 +95,9 @@ export class AgentSocketManager {
     // Track each websocket so we can cleanly tear down bindings on shutdown.
   }
 
-  private buildRuntimeOptions(): { getAutoApproveFlag: () => boolean; emitAutoApproveStatus: boolean } | undefined {
+  private buildRuntimeOptions():
+    | { getAutoApproveFlag: () => boolean; emitAutoApproveStatus: boolean }
+    | undefined {
     if (this.agentConfig?.autoApprove === false) {
       return undefined;
     }

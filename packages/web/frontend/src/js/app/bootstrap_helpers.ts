@@ -171,7 +171,9 @@ export function flattenTree(nodes: readonly FileTreeEntry[] | null | undefined):
   return result;
 }
 
-export function buildTreeFromFlatList(flatList: readonly FileEntry[] | null | undefined): FileTreeEntry[] {
+export function buildTreeFromFlatList(
+  flatList: readonly FileEntry[] | null | undefined,
+): FileTreeEntry[] {
   if (!Array.isArray(flatList) || flatList.length === 0) {
     return [];
   }
@@ -260,7 +262,9 @@ export function getCssNumber(
   }
 
   try {
-    const computed = getComputedStyle(rootElement ?? document.documentElement).getPropertyValue(variableName);
+    const computed = getComputedStyle(rootElement ?? document.documentElement).getPropertyValue(
+      variableName,
+    );
     const parsed = Number.parseFloat(computed);
     if (Number.isFinite(parsed)) {
       return parsed;
@@ -276,7 +280,9 @@ export function setStatus(_message: string): void {
   // Status banner removed; keep function to avoid touching callers.
 }
 
-export function createSetConnectionStatus(offlineOverlay: HTMLElement | null): (connected: boolean) => void {
+export function createSetConnectionStatus(
+  offlineOverlay: HTMLElement | null,
+): (connected: boolean) => void {
   return function setConnectionStatus(connected: boolean): void {
     offlineOverlay?.classList.toggle('visible', !connected);
   };

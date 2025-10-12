@@ -8,13 +8,6 @@
     "sourceMap": true,
     "noEmit": false
   },
-  "include": [
-    "index.ts",
-    "src/**/*.ts",
-    "scripts/**/*.ts"
-  ],
-  "exclude": [
-    "src/**/__tests__/**",
-    "dist"
-  ]
+  "include": ["index.ts", "src/**/*.ts", "scripts/**/*.ts"],
+  "exclude": ["src/**/__tests__/**", "dist"]
 }

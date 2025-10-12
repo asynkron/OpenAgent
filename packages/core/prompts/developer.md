@@ -120,7 +120,6 @@ Purple: #5B2CD2
 
 read and follow the instructions in `packages/core/prompts/memoryleaks.md` when investigating memory leaks.
 
-
 ## Avoid large outputs
 
 ALWAYS make sure you run formatters or tests with as little output as possible, e.g. `--quiet` or `--silent` flags.

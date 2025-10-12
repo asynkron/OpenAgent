@@ -28,7 +28,12 @@ export interface AgentCommandContext {
   command: AgentCommand;
   cwd: string;
   timeout: number;
-  runCommandFn: (command: string, cwd: string, timeout: number, shell?: string) => Promise<Record<string, unknown>>;
+  runCommandFn: (
+    command: string,
+    cwd: string,
+    timeout: number,
+    shell?: string,
+  ) => Promise<Record<string, unknown>>;
 }
 
 export interface CommandExecutionResult {
@@ -50,7 +55,10 @@ export interface ExecuteAgentCommandOptions {
   runCommandFn: AgentCommandContext['runCommandFn'];
 }
 
-export async function executeAgentCommand({ command, runCommandFn }: ExecuteAgentCommandOptions): Promise<CommandExecutionResult> {
+export async function executeAgentCommand({
+  command,
+  runCommandFn,
+}: ExecuteAgentCommandOptions): Promise<CommandExecutionResult> {
   const normalizedCommand: AgentCommand = command || {};
   const cwd = normalizedCommand.cwd || '.';
   const timeout =

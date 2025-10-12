@@ -13,7 +13,11 @@
  * to regenerate it after editing this source until the build pipeline emits from
  * TypeScript directly.
  */
-import type { ObservationRecord, ObservationForLLM, ObservationMetadata } from './historyMessageBuilder.js';
+import type {
+  ObservationRecord,
+  ObservationForLLM,
+  ObservationMetadata,
+} from './historyMessageBuilder.js';
 
 export interface ObservationRenderPayload {
   stdout: string;
@@ -65,7 +69,13 @@ export class ObservationBuilder {
   private readonly buildPreview: ObservationBuilderDeps['buildPreview'];
   private readonly now: () => Date;
 
-  constructor({ combineStdStreams, applyFilter, tailLines, buildPreview, now }: ObservationBuilderDeps) {
+  constructor({
+    combineStdStreams,
+    applyFilter,
+    tailLines,
+    buildPreview,
+    now,
+  }: ObservationBuilderDeps) {
     if (typeof combineStdStreams !== 'function') {
       throw new TypeError('ObservationBuilder requires a combineStdStreams function.');
     }
@@ -127,9 +137,11 @@ export class ObservationBuilder {
     const truncated = exceedsOutputLimit
       ? true
       : Boolean(
-          (command && command.filter_regex &&
+          (command &&
+            command.filter_regex &&
             (combined.stdout !== filteredStdout || combined.stderr !== filteredStderr)) ||
-            (command && command.tail_lines &&
+            (command &&
+              command.tail_lines &&
               (this.lineCount(originalStdout) > command.tail_lines ||
                 this.lineCount(originalStderr) > command.tail_lines)),
         );

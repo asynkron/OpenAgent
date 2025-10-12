@@ -90,7 +90,9 @@ function buildSteps(plan: PlanStep[] | null | undefined): HTMLOListElement | nul
   return list;
 }
 
-export function createPlanDisplay({ container }: PlanDisplayOptions = { container: null }): PlanDisplayApi | null {
+export function createPlanDisplay(
+  { container }: PlanDisplayOptions = { container: null },
+): PlanDisplayApi | null {
   if (!container) {
     return null;
   }

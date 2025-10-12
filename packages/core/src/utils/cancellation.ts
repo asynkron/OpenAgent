@@ -96,7 +96,10 @@ export type CancellationRegistration = {
   unregister: () => void;
 };
 
-export function register({ description = 'operation', onCancel }: RegisterOptions = {}): CancellationRegistration {
+export function register({
+  description = 'operation',
+  onCancel,
+}: RegisterOptions = {}): CancellationRegistration {
   cleanupStack();
 
   const token = Symbol('cancellation-operation');

@@ -55,7 +55,10 @@ type ControllersModule = {
   createRouter?: (options: {
     appState: AppContext['state'];
     getCurrentFile: () => string | null;
-    onNavigate: (targetFile: string, options?: { skipHistory?: boolean; replaceHistory?: boolean }) => void;
+    onNavigate: (
+      targetFile: string,
+      options?: { skipHistory?: boolean; replaceHistory?: boolean },
+    ) => void;
     onFallback: (options?: { skipHistory?: boolean }) => void;
   }) => RouterApi | null;
 };
@@ -83,7 +86,10 @@ type ViewerApi = {
 };
 
 type NavigationApi = {
-  loadFile?: (targetFile: string, options?: { replaceHistory?: boolean; skipHistory?: boolean }) => Promise<void> | void;
+  loadFile?: (
+    targetFile: string,
+    options?: { replaceHistory?: boolean; skipHistory?: boolean },
+  ) => Promise<void> | void;
   renderFileList?: () => void;
   updateActiveFileHighlight?: () => void;
   bindEditorApi?: (editorApi: EditorApi | null) => void;
@@ -121,7 +127,10 @@ type ServicesModule = {
   createChatService?: (options: ChatServiceOptions) => ChatServiceApi | null;
   createRealtimeService?: RealtimeServiceFactory;
   createViewerApi?: (target: MarkdownDisplayContext | ViewerApi | null) => ViewerApi | null;
-  initNavigation?: (sharedContext: SharedContext, viewerApi: ViewerApi | null) => NavigationApi | null;
+  initNavigation?: (
+    sharedContext: SharedContext,
+    viewerApi: ViewerApi | null,
+  ) => NavigationApi | null;
   initEditor?: (
     sharedContext: SharedContext,
     viewerApi: ViewerApi | null,
@@ -168,8 +177,12 @@ export function createUnifiedApp({
     );
   }
 
-  const { initialState = {}, state: appState = {} as AppContext['state'], elements = {}, terminalStorageKey } =
-    context;
+  const {
+    initialState = {},
+    state: appState = {} as AppContext['state'],
+    elements = {},
+    terminalStorageKey,
+  } = context;
 
   const elementRefs = elements as AppContext['elements'];
 
@@ -359,7 +372,7 @@ export function createUnifiedApp({
       }) ?? null;
 
     const markdownContext = sharedContext.markdownContext ?? null;
-    viewerApi = markdownContext ? createViewerApi?.(markdownContext) ?? null : null;
+    viewerApi = markdownContext ? (createViewerApi?.(markdownContext) ?? null) : null;
     navigationApi = initNavigation?.(sharedContext, viewerApi) ?? null;
     editorApi = initEditor?.(sharedContext, viewerApi, navigationApi) ?? null;
 
@@ -382,15 +395,17 @@ export function createUnifiedApp({
       content.addEventListener('click', contentClickHandler);
     }
 
-    const handleDirectoryUpdate = createHandleDirectoryUpdate?.({
-      navigationApi,
-      sharedContext,
-      resetViewToFallback,
-    }) ?? null;
-    const handleFileChanged = createHandleFileChanged?.({
-      navigationApi,
-      sharedContext,
-    }) ?? null;
+    const handleDirectoryUpdate =
+      createHandleDirectoryUpdate?.({
+        navigationApi,
+        sharedContext,
+        resetViewToFallback,
+      }) ?? null;
+    const handleFileChanged =
+      createHandleFileChanged?.({
+        navigationApi,
+        sharedContext,
+      }) ?? null;
 
     realtimeService =
       createRealtimeService?.({
@@ -406,9 +421,12 @@ export function createUnifiedApp({
       const fallback = sharedContext.fallbackMarkdownFor?.(
         appState.resolvedRootPath || appState.originalPathArgument || 'the selected path',
       );
-      viewerApi?.render?.(typeof initialState.content === 'string' ? initialState.content : fallback, {
-        updateCurrent: true,
-      });
+      viewerApi?.render?.(
+        typeof initialState.content === 'string' ? initialState.content : fallback,
+        {
+          updateCurrent: true,
+        },
+      );
       navigationApi?.renderFileList?.();
       sharedContext.updateHeader?.();
       if (initialState && typeof (initialState as { error?: string }).error === 'string') {

@@ -71,10 +71,14 @@ export class ApprovalManager {
   }: ApprovalManagerOptions) {
     const noop = () => {};
 
-    this.isPreapprovedCommand = typeof isPreapprovedCommand === 'function' ? isPreapprovedCommand : undefined;
-    this.isSessionApproved = typeof isSessionApproved === 'function' ? isSessionApproved : undefined;
-    this.approveForSession = typeof approveForSession === 'function' ? approveForSession : undefined;
-    this.getAutoApproveFlag = typeof getAutoApproveFlag === 'function' ? getAutoApproveFlag : undefined;
+    this.isPreapprovedCommand =
+      typeof isPreapprovedCommand === 'function' ? isPreapprovedCommand : undefined;
+    this.isSessionApproved =
+      typeof isSessionApproved === 'function' ? isSessionApproved : undefined;
+    this.approveForSession =
+      typeof approveForSession === 'function' ? approveForSession : undefined;
+    this.getAutoApproveFlag =
+      typeof getAutoApproveFlag === 'function' ? getAutoApproveFlag : undefined;
     this.askHuman = typeof askHuman === 'function' ? askHuman : undefined;
     this.preapprovedCfg = preapprovedCfg;
     this.logInfo = typeof logInfo === 'function' ? logInfo : noop;

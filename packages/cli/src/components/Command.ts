@@ -103,7 +103,11 @@ function renderPlainRunLines(content: string | null, baseKey: string): React.Rea
         return null;
       }
       const displayText = line === '' ? ' ' : line;
-      return h(Text, { key: `${baseKey}-${index}`, dimColor: true }, displayText) as React.ReactElement;
+      return h(
+        Text,
+        { key: `${baseKey}-${index}`, dimColor: true },
+        displayText,
+      ) as React.ReactElement;
     })
     .filter((node): node is React.ReactElement => Boolean(node));
 }
@@ -115,8 +119,17 @@ function renderDiffSegment(content: string, key: string): React.ReactElement {
   return h(Text, { key }, rendered) as React.ReactElement;
 }
 
-function SummaryLine({ line, index }: { line: SummaryLineValue; index: number }): React.ReactElement {
-  const baseProps: Record<string, unknown> = { key: index, ...(commandSummaryLineProps.base ?? {}) };
+function SummaryLine({
+  line,
+  index,
+}: {
+  line: SummaryLineValue;
+  index: number;
+}): React.ReactElement {
+  const baseProps: Record<string, unknown> = {
+    key: index,
+    ...(commandSummaryLineProps.base ?? {}),
+  };
   const baseColor = baseProps.color ?? commandColors.fg;
 
   const buildProps = (styleKey: keyof typeof commandSummaryLineProps, fallbackColor?: string) => {

@@ -42,9 +42,7 @@ export function Plan({ plan }: PlanProps): React.ReactElement {
       children.push(h(PlanDetail, { key: node.id, node }) as React.ReactElement);
     }
   } else {
-    children.push(
-      h(Text, { dimColor: true, key: 'empty' }, 'No plan yet.') as React.ReactElement,
-    );
+    children.push(h(Text, { dimColor: true, key: 'empty' }, 'No plan yet.') as React.ReactElement);
   }
 
   const containerProps: Record<string, unknown> = {

@@ -91,9 +91,9 @@ export async function requestModelCompletion({
   } as any);
 
   try {
-    const raceCandidates: Array<Promise<{ kind: 'completion'; value: unknown } | { kind: 'escape'; payload: unknown }>> = [
-      requestPromise.then((value: unknown) => ({ kind: 'completion' as const, value })),
-    ];
+    const raceCandidates: Array<
+      Promise<{ kind: 'completion'; value: unknown } | { kind: 'escape'; payload: unknown }>
+    > = [requestPromise.then((value: unknown) => ({ kind: 'completion' as const, value }))];
 
     if (escPromise) {
       raceCandidates.push(escPromise.then((payload) => ({ kind: 'escape' as const, payload })));
@@ -141,7 +141,8 @@ export async function requestModelCompletion({
   } catch (error: any) {
     if (
       error &&
-      (error.name === 'APIUserAbortError' || (typeof error.message === 'string' && error.message.includes('aborted')))
+      (error.name === 'APIUserAbortError' ||
+        (typeof error.message === 'string' && error.message.includes('aborted')))
     ) {
       resetEscState(escState);
 

@@ -107,20 +107,17 @@ export interface CreateMarkdownDisplayOptions {
   buildQuery?: (params?: Record<string, string>) => string;
 }
 
-export {
-  renderMarkdown,
-  captureHeadingLocations,
-  getHeadingLocation,
-  getHeadingSection,
-};
+export { renderMarkdown, captureHeadingLocations, getHeadingLocation, getHeadingSection };
 
-export function createMarkdownDisplay({
-  content,
-  tocList = null,
-  getCurrentFile = () => null,
-  setCurrentContent = () => {},
-  buildQuery = () => '',
-}: CreateMarkdownDisplayOptions = {} as CreateMarkdownDisplayOptions): MarkdownDisplayApi {
+export function createMarkdownDisplay(
+  {
+    content,
+    tocList = null,
+    getCurrentFile = () => null,
+    setCurrentContent = () => {},
+    buildQuery = () => '',
+  }: CreateMarkdownDisplayOptions = {} as CreateMarkdownDisplayOptions,
+): MarkdownDisplayApi {
   if (!content) {
     throw new Error('createMarkdownDisplay requires a content element.');
   }

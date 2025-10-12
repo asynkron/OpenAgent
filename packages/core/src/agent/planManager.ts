@@ -32,7 +32,12 @@ export interface PlanManagerEvents {
 }
 
 export type EmitFn = (event: PlanManagerEvents) => void;
-export type EmitStatusFn = (event: { type: 'status'; level: string; message: string; details?: unknown }) => void;
+export type EmitStatusFn = (event: {
+  type: 'status';
+  level: string;
+  message: string;
+  details?: unknown;
+}) => void;
 
 export interface PlanManagerOptions {
   emit: EmitFn;
@@ -87,7 +92,8 @@ export function createPlanManager({
 
   const emitPlanProgressEvent = (plan: PlanTree) => {
     const progress = computeProgress(plan);
-    const signature = progress.totalSteps === 0 ? null : `${progress.completedSteps}|${progress.totalSteps}`;
+    const signature =
+      progress.totalSteps === 0 ? null : `${progress.completedSteps}|${progress.totalSteps}`;
 
     if (signature === lastProgressSignature) {
       return progress;

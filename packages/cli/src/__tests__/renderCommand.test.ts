@@ -1,4 +1,3 @@
-/* eslint-env jest */
 import { jest } from '@jest/globals';
 
 const defaultEnv = { ...process.env };
@@ -7,7 +6,7 @@ async function loadRenderer() {
   jest.resetModules();
   process.env = { ...defaultEnv, FORCE_COLOR: '0' };
   jest.unstable_mockModule('dotenv/config', () => ({}));
-  const imported = await import('../../index.ts');
+  const imported = await import('../../index.js');
   return imported.renderCommand;
 }
 
@@ -41,7 +40,7 @@ describe('renderCommand (execute summary)', () => {
 
       renderCommand(command, result, preview);
 
-      const outputs = logSpy.mock.calls.map((call) => call[0]);
+      const outputs = logSpy.mock.calls.map((call) => call[0] as string);
       expect(outputs).toHaveLength(2);
       expect(outputs[1]).toContain('EXECUTE (cat src/file.txt)');
       expect(outputs[1]).toContain('Command completed successfully.');
@@ -74,7 +73,7 @@ describe('renderCommand (execute summary)', () => {
 
       renderCommand(command, result, preview);
 
-      const outputs = logSpy.mock.calls.map((call) => call[0]);
+      const outputs = logSpy.mock.calls.map((call) => call[0] as string);
       expect(outputs).toHaveLength(2);
       expect(outputs[1]).toContain('line 1');
       expect(outputs[1]).toContain('+ 1 more line');

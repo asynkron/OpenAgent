@@ -286,8 +286,8 @@ export function planToMarkdown(plan) {
     const priority = Number.isFinite(Number(item.priority)) ? Number(item.priority) : null;
     const dependencies = Array.isArray(item.waitingForId)
       ? item.waitingForId
-        .filter((value) => normalizePlanIdentifier(value))
-        .map((value) => value.trim())
+          .filter((value) => normalizePlanIdentifier(value))
+          .map((value) => value.trim())
       : [];
 
     const details = [];

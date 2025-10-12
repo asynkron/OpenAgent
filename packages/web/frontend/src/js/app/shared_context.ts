@@ -59,7 +59,11 @@ type SharedContextOptions = {
   fallbackMarkdownFor?: FallbackMarkdownFn;
   normaliseFileIndex?: NormaliseFileIndexFn;
   buildTreeFromFlatList?: BuildTreeFromFlatListFn;
-  getCssNumber?: (root: HTMLElement | null | undefined, variableName: string, fallbackValue: number) => number;
+  getCssNumber?: (
+    root: HTMLElement | null | undefined,
+    variableName: string,
+    fallbackValue: number,
+  ) => number;
   rootElement?: HTMLElement | null;
   setStatus?: SetStatusFn;
 };
@@ -129,7 +133,11 @@ function defaultBuildTreeFromFlatList(value: FileEntry[] | null | undefined): Fi
   return createFileTreeFromFlatList(value);
 }
 
-function defaultGetCssNumber(_root: HTMLElement | null | undefined, _name: string, fallback: number): number {
+function defaultGetCssNumber(
+  _root: HTMLElement | null | undefined,
+  _name: string,
+  fallback: number,
+): number {
   return fallback;
 }
 
@@ -200,10 +208,15 @@ export function createSharedContext({
   const invokeNormaliseFileIndex =
     typeof normaliseFileIndex === 'function' ? normaliseFileIndex : defaultNormaliseFileIndex;
   const invokeBuildTreeFromFlatList =
-    typeof buildTreeFromFlatList === 'function' ? buildTreeFromFlatList : defaultBuildTreeFromFlatList;
-  const invokeGetCssNumber = typeof getCssNumber === 'function'
-    ? (variableName: string, fallbackValue: number) => getCssNumber(rootElement ?? null, variableName, fallbackValue)
-    : (variableName: string, fallbackValue: number) => defaultGetCssNumber(rootElement ?? null, variableName, fallbackValue);
+    typeof buildTreeFromFlatList === 'function'
+      ? buildTreeFromFlatList
+      : defaultBuildTreeFromFlatList;
+  const invokeGetCssNumber =
+    typeof getCssNumber === 'function'
+      ? (variableName: string, fallbackValue: number) =>
+          getCssNumber(rootElement ?? null, variableName, fallbackValue)
+      : (variableName: string, fallbackValue: number) =>
+          defaultGetCssNumber(rootElement ?? null, variableName, fallbackValue);
   const invokeSetStatus = typeof setStatus === 'function' ? setStatus : () => {};
 
   const sharedContext: SharedContext = {

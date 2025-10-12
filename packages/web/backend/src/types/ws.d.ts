@@ -32,10 +32,16 @@ declare module 'ws' {
     close(code?: number, reason?: string | Buffer): void;
     terminate(): void;
 
-    on<Event extends keyof WebSocketEventMap>(event: Event, listener: WebSocketEventMap[Event]): this;
+    on<Event extends keyof WebSocketEventMap>(
+      event: Event,
+      listener: WebSocketEventMap[Event],
+    ): this;
     on(event: string, listener: (...args: unknown[]) => void): this;
 
-    once<Event extends keyof WebSocketEventMap>(event: Event, listener: WebSocketEventMap[Event]): this;
+    once<Event extends keyof WebSocketEventMap>(
+      event: Event,
+      listener: WebSocketEventMap[Event],
+    ): this;
     once(event: string, listener: (...args: unknown[]) => void): this;
 
     off?(event: keyof WebSocketEventMap | string, listener: (...args: unknown[]) => void): this;

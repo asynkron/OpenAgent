@@ -177,9 +177,9 @@ export class HttpClient implements HttpClientInterface {
         body,
         status: response.status ?? 0,
         statusText: response.statusText ?? '',
-        ok: response.ok ?? (response.status !== undefined
-          ? response.status >= 200 && response.status < 300
-          : false),
+        ok:
+          response.ok ??
+          (response.status !== undefined ? response.status >= 200 && response.status < 300 : false),
       };
     } catch (error) {
       if (timedOut && (error as { name?: string }).name === 'AbortError') {
@@ -193,7 +193,10 @@ export class HttpClient implements HttpClientInterface {
     }
   }
 
-  private fetchWithNode(url: string, { timeoutMs, method, headers }: InternalRequestOptions): Promise<HttpResponse> {
+  private fetchWithNode(
+    url: string,
+    { timeoutMs, method, headers }: InternalRequestOptions,
+  ): Promise<HttpResponse> {
     const parsed = new URL(url);
     const lib = parsed.protocol === 'https:' ? this.httpsModule : this.httpModule;
 

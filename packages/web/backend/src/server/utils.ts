@@ -190,7 +190,8 @@ function normaliseCommand(command: unknown): NormalisedAgentCommand | undefined 
     normalised.timeoutSeconds = timeoutValue;
   }
 
-  const filter = typeof source.filter_regex === 'string' ? normaliseAgentText(source.filter_regex).trim() : '';
+  const filter =
+    typeof source.filter_regex === 'string' ? normaliseAgentText(source.filter_regex).trim() : '';
   if (filter) {
     normalised.filterRegex = filter;
   }
@@ -203,7 +204,9 @@ function normaliseCommand(command: unknown): NormalisedAgentCommand | undefined 
   return Object.keys(normalised).length > 0 ? normalised : undefined;
 }
 
-function normaliseCommandResult(result: unknown): Pick<AgentCommandPayload, 'exitCode' | 'runtimeMs' | 'killed'> {
+function normaliseCommandResult(
+  result: unknown,
+): Pick<AgentCommandPayload, 'exitCode' | 'runtimeMs' | 'killed'> {
   if (!isRecord(result)) {
     return {};
   }
@@ -319,7 +322,8 @@ export function formatAgentEvent(event: unknown): AgentPayload | undefined {
       return payload;
     }
     case 'error': {
-      const message = normaliseAgentText((data as ErrorEvent).message).trim() ||
+      const message =
+        normaliseAgentText((data as ErrorEvent).message).trim() ||
         'Agent runtime reported an error.';
       const payload: AgentErrorPayload = {
         type: 'agent_error',
@@ -335,9 +339,7 @@ export function formatAgentEvent(event: unknown): AgentPayload | undefined {
     }
     case 'thinking': {
       const state = (data as ThinkingEvent).state;
-      return state === 'start' || state === 'stop'
-        ? { type: 'agent_thinking', state }
-        : undefined;
+      return state === 'start' || state === 'stop' ? { type: 'agent_thinking', state } : undefined;
     }
     case 'plan': {
       const plan = (data as PlanEvent).plan;

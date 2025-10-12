@@ -25,7 +25,9 @@ export const DotNetBootProbe = {
     }
 
     const entries = await context.getRootEntries();
-    const csprojFiles = entries.filter((entry: Dirent) => entry.isFile() && entry.name.endsWith('.csproj'));
+    const csprojFiles = entries.filter(
+      (entry: Dirent) => entry.isFile() && entry.name.endsWith('.csproj'),
+    );
     if (csprojFiles.length > 0) {
       detected = true;
       details.push(
@@ -36,7 +38,9 @@ export const DotNetBootProbe = {
       );
     }
 
-    const slnFiles = entries.filter((entry: Dirent) => entry.isFile() && entry.name.endsWith('.sln'));
+    const slnFiles = entries.filter(
+      (entry: Dirent) => entry.isFile() && entry.name.endsWith('.sln'),
+    );
     if (slnFiles.length > 0) {
       detected = true;
       details.push(

@@ -131,7 +131,10 @@ export type SummarizeContextUsageOptions = {
   model?: MaybeNullish<string>;
 };
 
-export function summarizeContextUsage({ history, model }: SummarizeContextUsageOptions = {}): ContextUsageSummary {
+export function summarizeContextUsage({
+  history,
+  model,
+}: SummarizeContextUsageOptions = {}): ContextUsageSummary {
   const total = getContextWindow({ model });
   const used = estimateTokensForHistory(history);
 

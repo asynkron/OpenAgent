@@ -1,10 +1,7 @@
 import chalk from 'chalk';
 import os from 'node:os';
 
-import {
-  createBootProbeContext,
-  createBootProbeResult,
-} from './context.js';
+import { createBootProbeContext, createBootProbeResult } from './context.js';
 import type { BootProbeContext, BootProbeResult } from './context.js';
 import JavaScriptBootProbe from './javascriptProbe.js';
 import NodeBootProbe from './nodeProbe.js';

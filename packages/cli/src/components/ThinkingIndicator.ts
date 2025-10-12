@@ -19,12 +19,7 @@ export function ThinkingIndicator({ active }: ThinkingIndicatorProps): React.Rea
   return h(
     Box,
     { marginTop: 1 },
-    h(
-      Text,
-      { dimColor: true },
-      h(Spinner, { type: 'dots', key: 'spinner' }),
-      ' Thinking…',
-    ),
+    h(Text, { dimColor: true }, h(Spinner, { type: 'dots', key: 'spinner' }), ' Thinking…'),
   ) as React.ReactElement;
 }
 

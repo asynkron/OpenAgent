@@ -1,4 +1,3 @@
-/* eslint-env jest */
 import { jest } from '@jest/globals';
 
 const defaultEnv = { ...process.env };
@@ -7,7 +6,7 @@ async function loadRenderer() {
   jest.resetModules();
   process.env = { ...defaultEnv };
   jest.unstable_mockModule('dotenv/config', () => ({}));
-  const imported = await import('../../index.ts');
+  const imported = await import('../../index.js');
   return imported.default;
 }
 

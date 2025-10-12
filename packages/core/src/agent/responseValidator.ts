@@ -70,7 +70,10 @@ function buildSchemaErrorMessage(error: ErrorObject | null | undefined): string 
     return `Missing required property "${error.params.missingProperty}".`;
   }
 
-  if (error.keyword === 'additionalProperties' && typeof error.params?.additionalProperty === 'string') {
+  if (
+    error.keyword === 'additionalProperties' &&
+    typeof error.params?.additionalProperty === 'string'
+  ) {
     return `Unexpected property "${error.params.additionalProperty}".`;
   }
 
@@ -105,7 +108,9 @@ export function validateAssistantResponseSchema(payload: unknown): SchemaValidat
   }
 
   const errors = Array.isArray(schemaValidator.errors)
-    ? schemaValidator.errors.map((error: ErrorObject | null | undefined) => describeSchemaError(error))
+    ? schemaValidator.errors.map((error: ErrorObject | null | undefined) =>
+        describeSchemaError(error),
+      )
     : [
         {
           path: 'response',
@@ -201,7 +206,9 @@ function validatePlanItem(
       state.firstOpenStatus = normalizedStatus;
     }
     if (!commandHasPayload) {
-      errors.push(`${path} requires a non-empty command while the step is ${normalizedStatus || 'active'}.`);
+      errors.push(
+        `${path} requires a non-empty command while the step is ${normalizedStatus || 'active'}.`,
+      );
     }
   } else if (command && !commandHasPayload && isPlainObject(command)) {
     errors.push(`${path}.command must include execution details when provided.`);
@@ -223,7 +230,11 @@ export function validateAssistantResponse(payload: unknown): AssistantResponseVa
     };
   }
 
-  if (typeof payload.message !== 'undefined' && payload.message !== null && typeof payload.message !== 'string') {
+  if (
+    typeof payload.message !== 'undefined' &&
+    payload.message !== null &&
+    typeof payload.message !== 'string'
+  ) {
     errors.push('"message" must be a string when provided.');
   }
 

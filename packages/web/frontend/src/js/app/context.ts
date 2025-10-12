@@ -137,7 +137,10 @@ export function createAppContext(): AppContext {
     agentMessages: getElementById<HTMLElement>('agent-messages'),
     agentChatForm: getElementById<HTMLFormElement>('agent-chat-form'),
     agentChatInput: (getElementById<HTMLTextAreaElement>('agent-chat-input') ||
-      getElementById<HTMLInputElement>('agent-chat-input')) as HTMLTextAreaElement | HTMLInputElement | null,
+      getElementById<HTMLInputElement>('agent-chat-input')) as
+      | HTMLTextAreaElement
+      | HTMLInputElement
+      | null,
     agentStatus: getElementById<HTMLElement>('agent-status'),
     terminalPanel: getElementById<HTMLElement>('terminal-panel'),
     terminalContainer: getElementById<HTMLElement>('terminal-container'),

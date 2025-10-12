@@ -8,7 +8,12 @@ import chalk from 'chalk';
 import { marked, type Renderer } from 'marked';
 import markedTerminal from 'marked-terminal';
 
-import { createPlanNodes, type PlanNode, type PlanNodeColor, type PlanStep } from './components/planUtils.js';
+import {
+  createPlanNodes,
+  type PlanNode,
+  type PlanNodeColor,
+  type PlanStep,
+} from './components/planUtils.js';
 import {
   computeProgressState,
   type PlanProgress,

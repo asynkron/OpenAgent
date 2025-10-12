@@ -1,4 +1,3 @@
-/* eslint-env jest */
 import { jest } from '@jest/globals';
 
 const defaultEnv = { ...process.env };
@@ -7,7 +6,7 @@ async function loadModule() {
   jest.resetModules();
   process.env = { ...defaultEnv, FORCE_COLOR: '0' };
   jest.unstable_mockModule('dotenv/config', () => ({}));
-  const imported = await import('../../index.ts');
+  const imported = await import('../../index.js');
   return imported.default;
 }
 
@@ -51,7 +50,7 @@ describe('renderPlan', () => {
         },
       ]);
 
-      const outputs = logSpy.mock.calls.map((call) => call[0]);
+      const outputs = logSpy.mock.calls.map((call) => call[0] as string);
 
       expect(outputs.length).toBe(1);
 

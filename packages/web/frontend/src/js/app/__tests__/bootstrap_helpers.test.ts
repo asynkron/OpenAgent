@@ -53,7 +53,10 @@ describe('bootstrap_helpers', () => {
     const files: FileEntry[] = [{ name: 'index.md', relativePath: 'docs/index.md' }];
     const existingTree = buildTreeFromFlatList(files);
 
-    const result = normaliseFileIndex({ filesValue: { files, tree: existingTree }, treeValue: null });
+    const result = normaliseFileIndex({
+      filesValue: { files, tree: existingTree },
+      treeValue: null,
+    });
 
     expect(result.files).toEqual(files);
     expect(result.tree).toBe(existingTree);
@@ -135,7 +138,9 @@ describe('bootstrap_helpers', () => {
     };
 
     const reset = createResetViewToFallback({
-      sharedContext: sharedContext as unknown as Parameters<typeof createResetViewToFallback>[0]['sharedContext'],
+      sharedContext: sharedContext as unknown as Parameters<
+        typeof createResetViewToFallback
+      >[0]['sharedContext'],
       viewerApi,
       editorApi,
     });

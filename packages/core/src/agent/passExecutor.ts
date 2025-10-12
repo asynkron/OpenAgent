@@ -216,11 +216,13 @@ export interface ExecuteAgentPassOptions {
   extractOpenAgentToolCallFn?: typeof defaultExtractOpenAgentToolCall;
   summarizeContextUsageFn?: typeof defaultSummarizeContextUsage;
   incrementCommandCountFn?: typeof defaultIncrementCommandCount;
-  guardRequestPayloadSizeFn?: ((options: {
-    history: ChatMessageEntry[];
-    model: string;
-    passIndex: number;
-  }) => Promise<void>) | null;
+  guardRequestPayloadSizeFn?:
+    | ((options: {
+        history: ChatMessageEntry[];
+        model: string;
+        passIndex: number;
+      }) => Promise<void>)
+    | null;
 }
 
 export async function executeAgentPass({
@@ -798,7 +800,9 @@ export async function executeAgentPass({
         }));
       } catch (error) {
         const normalizedError =
-          error instanceof Error ? error : new Error(typeof error === 'string' ? error : String(error));
+          error instanceof Error
+            ? error
+            : new Error(typeof error === 'string' ? error : String(error));
 
         emitEvent({
           type: 'status',

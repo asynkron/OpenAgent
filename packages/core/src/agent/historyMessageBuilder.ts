@@ -110,14 +110,16 @@ const describeCommand = (command: CommandDescriptor | null | undefined): string 
 const hasKeys = (value: unknown): value is JsonLike =>
   Boolean(value) && typeof value === 'object' && Object.keys(value as JsonLike).length > 0;
 
-const PLAN_UPDATE_MESSAGE = 'Here is the updated plan with the latest command observations.' as const;
+const PLAN_UPDATE_MESSAGE =
+  'Here is the updated plan with the latest command observations.' as const;
 
 const buildObservationContent = ({
   observation,
   command,
 }: ObservationInput): ObservationSummaryContent => {
   const payload: ObservationForLLM = (observation?.observation_for_llm ?? {}) as ObservationForLLM;
-  const metadata: ObservationMetadata = (observation?.observation_metadata ?? {}) as ObservationMetadata;
+  const metadata: ObservationMetadata = (observation?.observation_metadata ??
+    {}) as ObservationMetadata;
 
   if (Array.isArray(payload.plan)) {
     const planContent: ObservationSummaryContent = {
@@ -189,9 +191,11 @@ const buildObservationContent = ({
   return content;
 };
 
-export const formatObservationMessage = (
-  { observation, command = null }: ObservationInput,
-): ObservationSummaryContent => buildObservationContent({ observation, command });
+export const formatObservationMessage = ({
+  observation,
+  command = null,
+}: ObservationInput): ObservationSummaryContent =>
+  buildObservationContent({ observation, command });
 
 export const createObservationHistoryEntry = ({
   observation,
@@ -205,10 +209,7 @@ export const createObservationHistoryEntry = ({
     content: stringify(buildObservationContent({ observation, command })),
   });
 
-export const createPlanReminderEntry = ({
-  planReminderMessage,
-  pass,
-}: AutoResponseInput) => {
+export const createPlanReminderEntry = ({ planReminderMessage, pass }: AutoResponseInput) => {
   const content: AutoResponseContent = {
     type: 'plan-reminder',
     message:
