@@ -6,12 +6,14 @@
   "description": "Chat agent websocket backend",
   "main": "dist/index.js",
   "scripts": {
+    "prebuild": "npm run build --workspace @asynkron/openagent-web-core",
     "build": "tsc --project tsconfig.json",
     "start": "npm run build && node ./dist/index.js",
     "dev": "NODE_ENV=development npm run start"
   },
   "dependencies": {
     "@asynkron/openagent-core": "file:../../core",
+    "@asynkron/openagent-web-core": "file:../core",
     "ws": "^8.15.1"
   },
   "devDependencies": {

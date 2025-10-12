@@ -8,7 +8,7 @@
 - `src/index.ts` — boots the backend with runtime configuration derived from environment variables.
 - `src/server.ts` — wraps HTTP and WebSocket server lifecycle management.
 - `src/server/agentSocket.ts` — manages runtime bindings for each connected agent websocket client.
-- `src/server/utils.ts` — shared helpers for normalising runtime payloads and error reporting.
+- `src/server/utils.ts` — binds to `@asynkron/openagent-web-core` for event serialisation plus local error helpers.
 - `src/types/openagent-core.d.ts` — ambient bindings for the core runtime websocket adapter exposed by the CLI package.
 - `src/types/ws.d.ts` — workspace-scoped typings for the `ws` package so the backend stays TypeScript-only without external @types.
 
@@ -18,5 +18,6 @@
 - `npm run dev` mirrors `start` but sets `NODE_ENV=development` for local overrides.
 
 ## Integration Notes
-- Depends on `@asynkron/openagent-core` for the WebSocket binding; ambient typings live in `src/types/`.
+- Depends on `@asynkron/openagent-core` for the WebSocket binding and `@asynkron/openagent-web-core` for TypeScript event
+  normalisation; ambient typings live in `src/types/`.
 - Runtime auto-approve defaults to `true` but honours `AGENT_AUTO_APPROVE=false` from the environment.
