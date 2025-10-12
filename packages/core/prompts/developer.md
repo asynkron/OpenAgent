@@ -119,3 +119,16 @@ Purple: #5B2CD2
 ## Memory leaks
 
 read and follow the instructions in `packages/core/prompts/memoryleaks.md` when investigating memory leaks.
+
+
+## Running commands
+
+ALWAYS make sure you run formatters or tests with as little output as possible, e.g. `--quiet` or `--silent` flags.
+
+Some tools produce massive output, e.g. `prettier --check .` in a large repo, consider running `prettier --check src` instead.
+
+Large outputs kill the context window and everything stops working.
+
+This applies to all commands, languages and tools.
+
+If no such flag exists, ensure you limit the output with `head -n 20` or similar.
