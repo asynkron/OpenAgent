@@ -1,10 +1,21 @@
-// @ts-nocheck
 const CORE_PACKAGE_ID = '@asynkron/openagent-core';
 const LOCAL_CORE_ENTRY_URL = new URL('../../core/index.js', import.meta.url);
 
-const defaultImporter = (specifier) => import(specifier);
+type CoreModule = Record<string, unknown> & {
+  applyStartupFlagsFromArgv?: (argv: string[]) => void;
+};
 
-let cachedModule;
+type Importer = (specifier: string) => Promise<CoreModule>;
+
+type LoadCoreModuleOptions = {
+  importer?: Importer;
+  fallbackSpecifier?: string | URL;
+};
+
+const defaultImporter: Importer = (specifier) =>
+  import(specifier) as Promise<CoreModule>;
+
+let cachedModule: CoreModule | undefined;
 
 /**
  * Loads the core runtime dependency used by the CLI.
@@ -15,17 +26,19 @@ let cachedModule;
  * the module twice. Optional overrides make the behavior easy to exercise in
  * unit tests without touching the filesystem.
  */
-export async function loadCoreModule({ importer, fallbackSpecifier } = {}) {
+export async function loadCoreModule(
+  { importer, fallbackSpecifier }: LoadCoreModuleOptions = {},
+): Promise<CoreModule> {
   if (cachedModule) {
     return cachedModule;
   }
 
   const importModule = typeof importer === 'function' ? importer : defaultImporter;
-  const fallbackTarget = fallbackSpecifier ?? LOCAL_CORE_ENTRY_URL.href;
+  const fallbackTarget = resolveFallbackTarget(fallbackSpecifier);
 
   try {
     cachedModule = await importModule(CORE_PACKAGE_ID);
-  } catch (error) {
+  } catch (error: unknown) {
     if (isModuleNotFoundError(error)) {
       cachedModule = await importModule(fallbackTarget);
     } else {
@@ -33,19 +46,36 @@ export async function loadCoreModule({ importer, fallbackSpecifier } = {}) {
     }
   }
 
+  if (!cachedModule) {
+    throw new Error(`Failed to load ${CORE_PACKAGE_ID}`);
+  }
+
   return cachedModule;
 }
 
-function isModuleNotFoundError(error) {
-  if (!error) {
+function resolveFallbackTarget(fallbackSpecifier?: string | URL): string {
+  if (!fallbackSpecifier) {
+    return LOCAL_CORE_ENTRY_URL.href;
+  }
+
+  if (typeof fallbackSpecifier === 'string') {
+    return fallbackSpecifier;
+  }
+
+  return fallbackSpecifier.href;
+}
+
+function isModuleNotFoundError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
     return false;
   }
 
+  const code = (error as { code?: unknown }).code;
   const message = typeof error.message === 'string' ? error.message : '';
 
   return (
-    error.code === 'ERR_MODULE_NOT_FOUND' ||
-    error.code === 'MODULE_NOT_FOUND' ||
+    code === 'ERR_MODULE_NOT_FOUND' ||
+    code === 'MODULE_NOT_FOUND' ||
     /Cannot find (module|package)/i.test(message)
   );
 }
@@ -53,6 +83,6 @@ function isModuleNotFoundError(error) {
 /**
  * Visible for tests to ensure memoization does not leak between cases.
  */
-export function __clearCoreModuleCacheForTesting() {
+export function __clearCoreModuleCacheForTesting(): void {
   cachedModule = undefined;
 }

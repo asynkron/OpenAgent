@@ -11,7 +11,7 @@
     "start": "node ./scripts/start.js",
     "prestart": "npm run build --workspace @asynkron/openagent-core",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "pretest": "npm run build --workspaces --if-present",
+    "pretest": "npm run build --workspace @asynkron/openagent-core && npm run build --workspace @asynkron/openagent",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",

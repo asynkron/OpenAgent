@@ -1,11 +1,21 @@
-// @ts-nocheck
 /**
  * Lightweight helpers for rendering transient status lines in the CLI.
  */
 
 import chalk from 'chalk';
 
-function formatPercentage(value) {
+type ContextUsage = {
+  total: number;
+  used?: number | null;
+  remaining?: number | null;
+  percentRemaining?: number | null;
+};
+
+type RenderOptions = {
+  logger?: (line: string) => void;
+};
+
+function formatPercentage(value: number): string | null {
   if (!Number.isFinite(value)) {
     return null;
   }
@@ -15,7 +25,10 @@ function formatPercentage(value) {
   return value.toFixed(1);
 }
 
-export function renderRemainingContext(usage, options = {}) {
+export function renderRemainingContext(
+  usage: ContextUsage | null | undefined,
+  options: RenderOptions = {},
+): string | undefined {
   if (!usage || typeof usage !== 'object') {
     return undefined;
   }
@@ -30,12 +43,14 @@ export function renderRemainingContext(usage, options = {}) {
   const safeUsed = Number.isFinite(used) ? Math.max(used, 0) : null;
   const percent = Number.isFinite(percentRemaining)
     ? Math.max(Math.min(percentRemaining, 100), 0)
-    : safeRemaining !== null
-      ? (safeRemaining / total) * 100
-      : null;
+      : safeRemaining !== null
+        ? (safeRemaining / total) * 100
+        : null;
 
   const parts = [
-    `Context remaining: ${safeRemaining?.toLocaleString?.() ?? '—'} / ${total.toLocaleString()}`,
+    `Context remaining: ${
+      safeRemaining !== null ? safeRemaining.toLocaleString() : '—'
+    } / ${total.toLocaleString()}`,
   ];
 
   if (percent !== null) {

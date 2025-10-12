@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Handles the lightweight CLI "thinking" animation shown while awaiting API calls.
  *
@@ -14,7 +13,10 @@
 import * as readline from 'node:readline';
 import chalk from 'chalk';
 
-export function formatElapsedTime(startTime, now = Date.now()) {
+export function formatElapsedTime(
+  startTime: number | null | undefined,
+  now: number = Date.now(),
+): string {
   if (!startTime || startTime > now) {
     return '00:00';
   }
@@ -26,36 +28,64 @@ export function formatElapsedTime(startTime, now = Date.now()) {
   return String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
 }
 
-const DEFAULT_FRAMES = ['⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏', '⠋'];
+const DEFAULT_FRAMES = [
+  '⠙',
+  '⠹',
+  '⠸',
+  '⠼',
+  '⠴',
+  '⠦',
+  '⠧',
+  '⠇',
+  '⠏',
+  '⠋',
+] as const;
+
+type ThinkingIndicatorOptions = {
+  stream?: NodeJS.WriteStream;
+  frames?: readonly string[];
+  label?: string;
+  intervalMs?: number;
+};
+
+type IntervalHandle = ReturnType<typeof setInterval>;
 
 export class ThinkingIndicator {
+  private readonly stream: NodeJS.WriteStream;
+  private readonly frames: readonly string[];
+  private readonly label: string;
+  private readonly intervalMs: number;
+  private intervalHandle: IntervalHandle | null;
+  private animationStart: number | null;
+  private frameIndex: number;
+
   constructor({
     stream = process.stdout,
     frames = DEFAULT_FRAMES,
     label = ' Thinking',
     intervalMs = 50,
-  } = {}) {
+  }: ThinkingIndicatorOptions = {}) {
     this.stream = stream;
     this.frames = Array.isArray(frames) && frames.length > 0 ? frames : DEFAULT_FRAMES;
     this.label = label;
     this.intervalMs = Math.max(16, Number(intervalMs) || 50);
 
-    this._intervalHandle = null;
-    this._animationStart = null;
-    this._frameIndex = 0;
+    this.intervalHandle = null;
+    this.animationStart = null;
+    this.frameIndex = 0;
   }
 
-  isRunning() {
-    return Boolean(this._intervalHandle);
+  isRunning(): boolean {
+    return Boolean(this.intervalHandle);
   }
 
-  start() {
+  start(): void {
     if (this.isRunning()) {
       return;
     }
 
-    this._animationStart = Date.now();
-    this._frameIndex = 0;
+    this.animationStart = Date.now();
+    this.frameIndex = 0;
 
     try {
       this.stream.write('\n');
@@ -63,20 +93,22 @@ export class ThinkingIndicator {
       // Ignore stream write failures silently.
     }
 
-    this._intervalHandle = setInterval(() => {
-      this._renderFrame();
+    this.intervalHandle = setInterval(() => {
+      this.renderFrame();
     }, this.intervalMs);
   }
 
-  stop() {
+  stop(): void {
     if (!this.isRunning()) {
       return;
     }
 
-    clearInterval(this._intervalHandle);
-    this._intervalHandle = null;
-    this._animationStart = null;
-    this._frameIndex = 0;
+    if (this.intervalHandle) {
+      clearInterval(this.intervalHandle);
+    }
+    this.intervalHandle = null;
+    this.animationStart = null;
+    this.frameIndex = 0;
 
     try {
       readline.clearLine(this.stream, 0);
@@ -86,13 +118,13 @@ export class ThinkingIndicator {
     }
   }
 
-  _renderFrame() {
-    if (!this._animationStart) {
+  private renderFrame(): void {
+    if (!this.animationStart) {
       return;
     }
 
-    const frame = this.frames[this._frameIndex % this.frames.length];
-    const elapsed = formatElapsedTime(this._animationStart);
+    const frame = this.frames[this.frameIndex % this.frames.length];
+    const elapsed = formatElapsedTime(this.animationStart);
 
     try {
       readline.clearLine(this.stream, 0);
@@ -102,17 +134,17 @@ export class ThinkingIndicator {
       // Ignore TTY issues silently.
     }
 
-    this._frameIndex = (this._frameIndex + 1) % this.frames.length;
+    this.frameIndex = (this.frameIndex + 1) % this.frames.length;
   }
 }
 
 export const defaultIndicator = new ThinkingIndicator();
 
-export function startThinking() {
+export function startThinking(): void {
   defaultIndicator.start();
 }
 
-export function stopThinking() {
+export function stopThinking(): void {
   defaultIndicator.stop();
 }
 

@@ -1,10 +1,66 @@
-// @ts-nocheck
 /**
  * Shared formatting helpers for command summaries across Ink components and
  * compatibility console renderers.
  */
 
-export function normalizePreviewLines(preview) {
+export type Command = {
+  run?: string | null;
+  edit?: {
+    path?: string;
+    encoding?: string;
+    edits?: unknown[];
+  } | null;
+  replace?: {
+    pattern?: unknown;
+    replacement?: unknown;
+    files?: string[];
+    dry_run?: boolean;
+    dryRun?: boolean;
+  } | null;
+  description?: string | null;
+};
+
+export type CommandExecution = {
+  type?: string | null;
+  spec?: Record<string, unknown> | null;
+  command?: Command | null;
+  description?: string | null;
+};
+
+export type CommandPreview = {
+  stdoutPreview?: string | null;
+  stderrPreview?: string | null;
+  execution?: CommandExecution | null;
+};
+
+export type CommandResult = {
+  exit_code?: number | null;
+  killed?: boolean;
+};
+
+export type SummaryLine =
+  | { kind: 'arrow'; text: string }
+  | { kind: 'indent'; text: string }
+  | { kind: 'error-arrow'; text: string }
+  | { kind: 'error-indent'; text: string }
+  | { kind: 'exit-code'; text: string; status: 'success' | 'error' };
+
+export type CommandRenderData = {
+  type: string;
+  detail: string;
+  description: string;
+  summaryLines: SummaryLine[];
+};
+
+type SummaryContext = {
+  command: Command;
+  result: CommandResult | null | undefined;
+  preview: CommandPreview;
+  execution: CommandExecution;
+  summaryLines: SummaryLine[];
+};
+
+export function normalizePreviewLines(preview: string | null | undefined): string[] {
   if (!preview) {
     return [];
   }
@@ -15,7 +71,10 @@ export function normalizePreviewLines(preview) {
   return lines;
 }
 
-export function inferCommandType(command, execution) {
+export function inferCommandType(
+  command: Command | null | undefined,
+  execution: CommandExecution | null | undefined,
+): string {
   if (!command || typeof command !== 'object') {
     return 'EXECUTE';
   }
@@ -30,32 +89,41 @@ export function inferCommandType(command, execution) {
   return 'EXECUTE';
 }
 
-function pluralize(word, count) {
+function pluralize(word: string, count: number): string {
   return `${word}${count === 1 ? '' : 's'}`;
 }
 
-export function buildHeadingDetail(type, execution, command) {
+export function buildHeadingDetail(
+  type: string,
+  execution: CommandExecution | null | undefined,
+  command: Command | null | undefined,
+): string {
   switch (type) {
     case 'EDIT': {
-      const spec = execution?.spec || command?.edit || {};
-      const parts = [];
-      if (spec.path) {
+      const spec = (execution?.spec as Record<string, unknown>) || command?.edit || {};
+      const parts: string[] = [];
+      if (typeof spec.path === 'string') {
         parts.push(spec.path);
       }
-      if (spec.encoding) {
+      if (typeof spec.encoding === 'string') {
         parts.push(spec.encoding);
       }
-      const editCount = Array.isArray(spec.edits) ? spec.edits.length : 0;
+      const edits = Array.isArray(spec.edits) ? spec.edits : [];
+      const editCount = edits.length;
       parts.push(`${editCount} ${pluralize('edit', editCount)}`);
       return `(${parts.join(', ')})`;
     }
     case 'REPLACE': {
-      const spec = execution?.spec || command?.replace || {};
-      const parts = [];
-      if (spec.pattern !== undefined) {
+      const spec =
+        (execution?.spec as Record<string, unknown>) || command?.replace || ({} as Record<
+            string,
+            unknown
+          >);
+      const parts: string[] = [];
+      if ('pattern' in spec) {
         parts.push(`pattern: ${JSON.stringify(spec.pattern ?? '')}`);
       }
-      if (spec.replacement !== undefined) {
+      if ('replacement' in spec) {
         parts.push(`replacement: ${JSON.stringify(spec.replacement ?? '')}`);
       }
       const files = Array.isArray(spec.files) ? spec.files.filter(Boolean) : [];
@@ -80,8 +148,11 @@ export function buildHeadingDetail(type, execution, command) {
   }
 }
 
-export function extractCommandDescription(command, execution) {
-  const candidates = [
+export function extractCommandDescription(
+  command: Command | null | undefined,
+  execution: CommandExecution | null | undefined,
+): string {
+  const candidates: Array<string | null | undefined> = [
     command?.description,
     execution?.command?.description,
     execution?.description,
@@ -99,7 +170,7 @@ export function extractCommandDescription(command, execution) {
   return '';
 }
 
-function appendStdErr(summaryLines, stderrPreview) {
+function appendStdErr(summaryLines: SummaryLine[], stderrPreview: string | null | undefined): void {
   const stderrLines = normalizePreviewLines(stderrPreview);
   if (stderrLines.length === 0) {
     return;
@@ -111,8 +182,8 @@ function appendStdErr(summaryLines, stderrPreview) {
   }
 }
 
-function summarizeEditOrReplace({ preview, summaryLines }) {
-  const stdoutLines = normalizePreviewLines(preview.stdoutPreview);
+function summarizeEditOrReplace({ preview, summaryLines }: SummaryContext): void {
+  const stdoutLines = normalizePreviewLines(preview.stdoutPreview ?? undefined);
   if (stdoutLines.length === 0) {
     return;
   }
@@ -122,8 +193,8 @@ function summarizeEditOrReplace({ preview, summaryLines }) {
   }
 }
 
-function summarizeExecute({ preview, summaryLines }) {
-  const stdoutLines = normalizePreviewLines(preview.stdoutPreview);
+function summarizeExecute({ preview, summaryLines }: SummaryContext): void {
+  const stdoutLines = normalizePreviewLines(preview.stdoutPreview ?? undefined);
   if (stdoutLines.length === 0) {
     return;
   }
@@ -140,19 +211,34 @@ function summarizeExecute({ preview, summaryLines }) {
   }
 }
 
-export function buildCommandRenderData(command, result, preview = {}, execution = {}) {
+export function buildCommandRenderData(
+  command: Command | null | undefined,
+  result: CommandResult | null | undefined,
+  preview: CommandPreview = {},
+  execution: CommandExecution | null | undefined = {},
+): CommandRenderData | null {
   if (!command || typeof command !== 'object') {
     return null;
   }
 
-  const normalizedExecution =
-    execution && typeof execution === 'object' ? execution : preview.execution || {};
+  const normalizedExecution: CommandExecution =
+    execution && typeof execution === 'object'
+      ? execution
+      : preview.execution && typeof preview.execution === 'object'
+        ? preview.execution
+        : {};
   const type = inferCommandType(command, normalizedExecution).toUpperCase();
   const detail = buildHeadingDetail(type, normalizedExecution, command);
   const description = extractCommandDescription(command, normalizedExecution);
-  const summaryLines = [];
+  const summaryLines: SummaryLine[] = [];
 
-  const summaryContext = { command, result, preview, execution: normalizedExecution, summaryLines };
+  const summaryContext: SummaryContext = {
+    command,
+    result,
+    preview,
+    execution: normalizedExecution,
+    summaryLines,
+  };
 
   if (type === 'EDIT' || type === 'REPLACE') {
     summarizeEditOrReplace(summaryContext);

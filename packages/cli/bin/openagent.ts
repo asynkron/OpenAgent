@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
-
 /**
  * Thin wrapper that launches the CLI without pulling in the package exports.
  * Useful when the package is installed globally or invoked via `npx`.
