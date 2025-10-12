@@ -87,14 +87,14 @@ export function validateAssistantResponseSchema(payload) {
   const errors = Array.isArray(schemaValidator.errors)
     ? schemaValidator.errors.map((error) => describeSchemaError(error))
     : [
-        {
-          path: 'response',
-          message: 'Schema validation failed for assistant response.',
-          keyword: 'unknown',
-          instancePath: '',
-          params: {},
-        },
-      ];
+      {
+        path: 'response',
+        message: 'Schema validation failed for assistant response.',
+        keyword: 'unknown',
+        instancePath: '',
+        params: {},
+      },
+    ];
 
   return {
     valid: false,
@@ -199,10 +199,6 @@ export function validateAssistantResponse(payload) {
   }
 
   if (Array.isArray(plan)) {
-    if (plan.length > 3) {
-      errors.push('Plan must not contain more than 3 top-level steps.');
-    }
-
     const state = {
       runningCount: 0,
       firstOpenStatus: '',
