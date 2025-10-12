@@ -20,7 +20,9 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> =>
   Boolean(value) && typeof value === 'object' && 'then' in (value as Record<string, unknown>) && isFunction((value as PromiseLike<unknown>).then);
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
-  Boolean(value) && typeof value === 'object';
+  typeof value === 'object' && value !== null;
+
+const isRuntimeEvent = (value: unknown): value is RuntimeEvent => isRecord(value);
 
 export interface RuntimeOutputs {
   next(): Promise<RuntimeEvent | null | undefined>;
@@ -48,7 +50,15 @@ export interface WebSocketLike {
 
 export type RuntimeFactory = (options: Parameters<typeof createAgentRuntime>[0]) => AgentRuntime;
 
-export type IncomingStructuredMessage = Record<string, unknown>;
+export interface IncomingStructuredMessage {
+  type?: string;
+  prompt?: unknown;
+  value?: unknown;
+  message?: unknown;
+  cancel?: boolean;
+  payload?: unknown;
+  [key: string]: unknown;
+}
 
 export type ParsedIncomingMessage =
   | string
@@ -159,10 +169,55 @@ export const defaultParseIncoming: ParseIncomingFn = (raw) => {
 
 export const defaultFormatOutgoing: FormatOutgoingFn = (event) => JSON.stringify(event ?? {});
 
+type PromptEnvelope = { kind: 'prompt'; prompt: string };
+
+type CancelEnvelope = { kind: 'cancel'; payload?: unknown };
+
+type NormalizedIncomingEnvelope = PromptEnvelope | CancelEnvelope;
+
+const CANCEL_FALLBACK_REASON = 'socket-cancel';
+
 function normalisePromptValue(value: unknown): string {
   if (typeof value === 'string') return value;
   if (value == null) return '';
   return String(value);
+}
+
+// Converts arbitrary socket payloads into high-level prompt/cancel envelopes so the
+// binding can forward them to the runtime without ad-hoc type assertions.
+function normaliseIncomingMessage(parsed: ParsedIncomingMessage): NormalizedIncomingEnvelope | null {
+  if (parsed == null) {
+    return null;
+  }
+
+  if (typeof parsed === 'string') {
+    return { kind: 'prompt', prompt: parsed };
+  }
+
+  if (!isRecord(parsed)) {
+    return { kind: 'prompt', prompt: normalisePromptValue(parsed) };
+  }
+
+  const type = typeof parsed.type === 'string' ? parsed.type : undefined;
+
+  if (type === 'cancel' || parsed.cancel === true) {
+    return { kind: 'cancel', payload: parsed.payload ?? { reason: CANCEL_FALLBACK_REASON } };
+  }
+
+  if (
+    type === 'prompt' ||
+    type === 'input' ||
+    type === 'message' ||
+    type === 'user-input' ||
+    typeof parsed.prompt !== 'undefined' ||
+    typeof parsed.value !== 'undefined' ||
+    typeof parsed.message !== 'undefined'
+  ) {
+    const prompt = normalisePromptValue(parsed.prompt ?? parsed.value ?? parsed.message);
+    return { kind: 'prompt', prompt };
+  }
+
+  return null;
 }
 
 const hasEmitterApi = (socket: WebSocketLike): socket is WebSocketLike & {
@@ -342,38 +397,17 @@ export function createWebSocketBinding({
       return;
     }
 
-    if (parsed == null) {
+    const envelope = normaliseIncomingMessage(parsed);
+    if (!envelope) {
       return;
     }
 
-    if (typeof parsed === 'string') {
-      runtime.submitPrompt(parsed);
+    if (envelope.kind === 'cancel') {
+      runtime.cancel(envelope.payload);
       return;
     }
 
-    if (!isRecord(parsed)) {
-      runtime.submitPrompt(String(parsed));
-      return;
-    }
-
-    const type = typeof parsed.type === 'string' ? (parsed.type as string) : undefined;
-
-    if (type === 'cancel' || parsed.cancel === true) {
-      runtime.cancel(parsed.payload ?? { reason: 'socket-cancel' });
-      return;
-    }
-
-    const promptValue = parsed.prompt ?? parsed.value ?? parsed.message;
-
-    if (
-      type === 'prompt' ||
-      type === 'input' ||
-      type === 'message' ||
-      type === 'user-input' ||
-      typeof promptValue !== 'undefined'
-    ) {
-      runtime.submitPrompt(normalisePromptValue(promptValue));
-    }
+    runtime.submitPrompt(envelope.prompt);
   };
 
   const handleClose: EventHandler = () => {
@@ -416,7 +450,7 @@ export function createWebSocketBinding({
     try {
       for await (const event of iterable) {
         if (closed) break;
-        if (!isRecord(event)) continue;
+        if (!isRuntimeEvent(event)) continue;
         await safeSend(socket, formatOutgoing, event);
       }
     } catch (error) {
