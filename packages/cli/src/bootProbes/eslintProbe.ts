@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createBootProbeResult } from './context.js';
 
 const ESLINT_CONFIG_FILES = [

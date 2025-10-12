@@ -9,7 +9,7 @@ const tsRecommendedRules = tseslint.configs.recommended.rules;
 
 export default [
   {
-    ignores: ['node_modules', 'coverage', '**/templates/**', 'scripts/**'],
+    ignores: ['node_modules', 'coverage', '**/templates/**', 'scripts/**', '**/dist/**'],
   },
   js.configs.recommended,
   prettierRecommended,
@@ -115,6 +115,17 @@ export default [
     },
   },
   {
+    files: ['**/tests/**/*.ts', '**/__tests__/**/*.ts', '**/__tests__/**/*.tsx'],
+    languageOptions: {
+      globals: {
+        ...globals.jest,
+      },
+    },
+    rules: {
+      'no-control-regex': 'off',
+    },
+  },
+  {
     files: ['**/tests/**/*.js', '**/__tests__/**/*.js'],
     languageOptions: {
       globals: {
@@ -124,6 +135,22 @@ export default [
     },
     rules: {
       'no-control-regex': 'off',
+    },
+  },
+  {
+    files: [
+      'packages/cli/src/components/AskHuman.ts',
+      'packages/cli/src/components/CliApp.ts',
+      'packages/cli/src/components/InkTextArea.ts',
+    ],
+    rules: {
+      '@typescript-eslint/ban-ts-comment': 'off',
+    },
+  },
+  {
+    files: ['**/*.d.ts'],
+    rules: {
+      'no-dupe-class-members': 'off',
     },
   },
   {

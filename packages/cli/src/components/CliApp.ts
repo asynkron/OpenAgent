@@ -120,7 +120,7 @@ function formatDebugPayload(payload) {
   }
   try {
     return JSON.stringify(payload, null, 2);
-  } catch (error) {
+  } catch (_error) {
     return String(payload);
   }
 }
@@ -201,14 +201,14 @@ function cloneValue(value) {
   if (typeof structuredClone === 'function') {
     try {
       return structuredClone(value);
-    } catch (error) {
+    } catch (_error) {
       // Fall through to JSON fallback when structured cloning fails (e.g., non-cloneable values).
     }
   }
 
   try {
     return JSON.parse(JSON.stringify(value));
-  } catch (error) {
+  } catch (_error) {
     // As a last resort, return the original reference so we at least render something.
     return value;
   }

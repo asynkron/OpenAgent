@@ -1,4 +1,3 @@
-// @ts-nocheck
 import os from 'node:os';
 
 import { createBootProbeResult } from './context.js';

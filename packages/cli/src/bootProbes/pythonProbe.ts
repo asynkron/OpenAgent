@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createBootProbeResult } from './context.js';
 
 const PYTHON_FILES = [

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import type { Dirent } from 'node:fs';
 
 import { createBootProbeResult } from './context.js';

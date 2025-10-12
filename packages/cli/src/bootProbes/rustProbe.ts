@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createBootProbeResult } from './context.js';
 
 // Rust projects expose these well-known files in their workspace root.
