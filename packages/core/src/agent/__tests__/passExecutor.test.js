@@ -118,6 +118,8 @@ const setupPassExecutor = async (options = {}) => {
     executeAgentCommand,
     summarizeContextUsage,
     planHasOpenSteps,
+    planStepIsBlocked,
+    buildPlanLookup,
   };
 };
 
@@ -321,6 +323,137 @@ describe('executeAgentPass', () => {
       (event) => Array.isArray(event.plan) && event.plan[0]?.status === 'failed',
     );
     expect(failedEvent).toBeDefined();
+  });
+
+  test('executes every ready plan step in priority order during a single pass', async () => {
+    const commandRuns = [];
+    const {
+      executeAgentPass,
+      parseAssistantResponse,
+      executeAgentCommand,
+      planHasOpenSteps,
+      planStepIsBlocked,
+      buildPlanLookup,
+    } = await setupPassExecutor({
+      executeAgentCommandImpl: ({ command }) => {
+        commandRuns.push(command.run);
+        return { result: { stdout: '', stderr: '', exit_code: 0 }, executionDetails: { code: 0 } };
+      },
+    });
+
+    planHasOpenSteps.mockReturnValue(true);
+
+    buildPlanLookup.mockImplementation((plan) => {
+      const lookup = new Map();
+      if (!Array.isArray(plan)) {
+        return lookup;
+      }
+
+      plan.forEach((item, index) => {
+        if (!item || typeof item !== 'object') {
+          return;
+        }
+
+        const key = typeof item.id === 'string' && item.id.trim() ? item.id.trim() : `index:${index}`;
+        if (!lookup.has(key)) {
+          lookup.set(key, item);
+        }
+      });
+
+      return lookup;
+    });
+
+    planStepIsBlocked.mockImplementation((step, planOrLookup) => {
+      if (!step || typeof step !== 'object') {
+        return false;
+      }
+
+      const dependencies = Array.isArray(step.waitingForId) ? step.waitingForId : [];
+      if (dependencies.length === 0) {
+        return false;
+      }
+
+      const lookup = planOrLookup instanceof Map ? planOrLookup : buildPlanLookup(planOrLookup);
+
+      if (!lookup || lookup.size === 0) {
+        return true;
+      }
+
+      return dependencies.some((rawId) => {
+        if (typeof rawId !== 'string' || !rawId.trim()) {
+          return true;
+        }
+
+        const dependency = lookup.get(rawId.trim());
+        if (!dependency || typeof dependency.status !== 'string') {
+          return true;
+        }
+
+        const normalized = dependency.status.trim().toLowerCase();
+        return normalized !== 'completed' && normalized !== 'failed';
+      });
+    });
+
+    parseAssistantResponse.mockImplementation(() => ({
+      ok: true,
+      value: {
+        message: 'Executing plan',
+        plan: [
+          {
+            id: 'c',
+            title: 'Independent high priority task',
+            status: 'pending',
+            priority: 1,
+            command: { run: 'run-c' },
+          },
+          {
+            id: 'a',
+            title: 'Base task',
+            status: 'pending',
+            priority: 2,
+            command: { run: 'run-a' },
+          },
+          {
+            id: 'b',
+            title: 'Dependent follow-up',
+            status: 'pending',
+            priority: 0,
+            waitingForId: ['a'],
+            command: { run: 'run-b' },
+          },
+        ],
+      },
+      recovery: { strategy: 'direct' },
+    }));
+
+    const emitEvent = jest.fn();
+    const history = [];
+
+    const PASS_INDEX = 17;
+    const result = await executeAgentPass({
+      openai: {},
+      model: 'gpt-5-codex',
+      history,
+      emitEvent,
+      runCommandFn: jest.fn(),
+      applyFilterFn: jest.fn(),
+      tailLinesFn: jest.fn(),
+      getNoHumanFlag: () => false,
+      setNoHumanFlag: () => {},
+      planReminderMessage: 'remember the plan',
+      startThinkingFn: jest.fn(),
+      stopThinkingFn: jest.fn(),
+      escState: {},
+      approvalManager: null,
+      historyCompactor: null,
+      planManager: null,
+      emitAutoApproveStatus: false,
+      passIndex: PASS_INDEX,
+    });
+
+    expect(result).toBe(true);
+    expect(executeAgentCommand).toHaveBeenCalledTimes(3);
+    expect(commandRuns).toEqual(['run-c', 'run-a', 'run-b']);
   });
 
   test('persists merged plans and marks successful commands as completed', async () => {
