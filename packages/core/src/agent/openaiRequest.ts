@@ -16,6 +16,7 @@
 import { register as registerCancellation } from '../utils/cancellation.js';
 import { createResponse } from '../openai/responses.js';
 import { OPENAGENT_RESPONSE_TOOL } from './responseToolSchema.js';
+import { getOpenAIRequestSettings } from '../openai/client.js';
 import { createEscWaiter, resetEscState, type EscState } from './escState.js';
 import { createObservationHistoryEntry, type ObservationRecord } from './historyMessageBuilder.js';
 import { mapHistoryToOpenAIMessages } from './historyEntry.js';
@@ -67,8 +68,20 @@ export async function requestModelCompletion({
 
   startThinkingFn();
   const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  const { timeoutMs, maxRetries } = getOpenAIRequestSettings();
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  if (controller && typeof timeoutMs === 'number' && timeoutMs > 0) {
+    timeoutId = setTimeout(() => {
+      try {
+        controller.abort(new Error('openagent-request-timeout'));
+      } catch (_error) {
+        controller.abort();
+      }
+    }, timeoutMs);
+  }
   const cancellationRegistration: CancellationRegistrationOptions = {
-    description: 'openai.responses.create',
+    description: 'ai-sdk.generate',
   };
 
   if (controller) {
@@ -77,17 +90,22 @@ export async function requestModelCompletion({
 
   const cancellationOp = registerCancellation(cancellationRegistration);
 
-  const requestOptions = controller ? { signal: controller.signal } : undefined;
+  const requestOptions: Record<string, unknown> = {};
+  if (controller) {
+    requestOptions.signal = controller.signal;
+  }
+
+  if (typeof maxRetries === 'number') {
+    requestOptions.maxRetries = maxRetries;
+  }
+
+  const normalizedRequestOptions = Object.keys(requestOptions).length > 0 ? requestOptions : undefined;
   const requestPromise = createResponse({
     openai,
     model,
     input: mapHistoryToOpenAIMessages(history),
     tools: [OPENAGENT_RESPONSE_TOOL],
-    tool_choice: {
-      type: 'function',
-      name: 'open-agent',
-    },
-    options: requestOptions,
+    options: normalizedRequestOptions,
   } as any);
 
   try {
@@ -108,8 +126,11 @@ export async function requestModelCompletion({
 
       await requestPromise.catch((error: any) => {
         if (!error) return null;
-        if (error.name === 'APIUserAbortError') return null;
-        if (typeof error.message === 'string' && error.message.includes('aborted')) {
+        const name = typeof error.name === 'string' ? error.name : '';
+        const message = typeof error.message === 'string' ? error.message : '';
+        if (name === 'AbortError') return null;
+        if (name === 'TimeoutError') return null;
+        if (/abort|cancell?ed|timeout/i.test(message)) {
           return null;
         }
         throw error;
@@ -139,10 +160,13 @@ export async function requestModelCompletion({
     resetEscState(escState);
     return { status: 'success', completion: outcome.value };
   } catch (error: any) {
+    const name = error && typeof error.name === 'string' ? error.name : '';
+    const message = error && typeof error.message === 'string' ? error.message : '';
     if (
       error &&
-      (error.name === 'APIUserAbortError' ||
-        (typeof error.message === 'string' && error.message.includes('aborted')))
+      (name === 'AbortError' ||
+        name === 'TimeoutError' ||
+        /abort|cancell?ed|timeout/i.test(message))
     ) {
       resetEscState(escState);
 
@@ -170,6 +194,10 @@ export async function requestModelCompletion({
     cleanupEscWaiter();
     if (cancellationOp && typeof cancellationOp.unregister === 'function') {
       cancellationOp.unregister();
+    }
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
     }
     stopThinkingFn();
   }

@@ -1,4 +1,8 @@
 // @ts-nocheck
+import { generateObject, generateText } from 'ai';
+import { OPENAGENT_RESPONSE_TOOL } from '../agent/responseToolSchema.js';
+import { getOpenAIRequestSettings } from './client.js';
+
 const VALID_REASONING_EFFORTS = new Set(['low', 'medium', 'high']);
 
 function normalizeReasoningEffort(value) {
@@ -22,30 +26,128 @@ export function getConfiguredReasoningEffort() {
   return ENV_REASONING_EFFORT;
 }
 
-export function createResponse({ openai, model, input, tools, options, reasoningEffort }) {
-  if (!openai || !openai.responses || typeof openai.responses.create !== 'function') {
+function buildCallSettings(options) {
+  const { maxRetries } = getOpenAIRequestSettings();
+
+  const settings = {};
+
+  if (options && typeof options === 'object') {
+    if (options.signal) {
+      settings.abortSignal = options.signal;
+    }
+
+    if (typeof options.maxRetries === 'number') {
+      settings.maxRetries = options.maxRetries;
+    }
+  }
+
+  if (typeof settings.maxRetries === 'undefined' && typeof maxRetries === 'number') {
+    settings.maxRetries = maxRetries;
+  }
+
+  return settings;
+}
+
+function buildProviderOptions(reasoningEffort) {
+  const normalized = normalizeReasoningEffort(reasoningEffort) ?? ENV_REASONING_EFFORT;
+  if (!normalized) {
+    return undefined;
+  }
+
+  return { openai: { reasoningEffort: normalized } };
+}
+
+function mapToolToSchema(tool) {
+  if (!tool || typeof tool !== 'object') {
+    return null;
+  }
+
+  if (tool === OPENAGENT_RESPONSE_TOOL) {
+    return OPENAGENT_RESPONSE_TOOL;
+  }
+
+  if (tool.schema) {
+    return tool;
+  }
+
+  return null;
+}
+
+export async function createResponse({
+  openai,
+  model,
+  input,
+  tools,
+  options,
+  reasoningEffort,
+}) {
+  if (!openai || typeof openai !== 'object' || typeof openai.responses !== 'function') {
     throw new Error('Invalid OpenAI client instance provided.');
   }
 
-  const payload = {
-    model,
-    input,
-  };
+  const callSettings = buildCallSettings(options);
+  const providerOptions = buildProviderOptions(reasoningEffort);
+  const messages = Array.isArray(input) ? input : [];
+  const languageModel = openai.responses(model);
 
-  if (Array.isArray(tools) && tools.length > 0) {
-    payload.tools = tools;
-    payload.tool_choice = {
-      type: 'function',
-      name: 'open-agent',
+  const tool = Array.isArray(tools) && tools.length > 0 ? mapToolToSchema(tools[0]) : null;
+
+  if (tool && tool.schema) {
+    const structured = await generateObject({
+      model: languageModel,
+      messages,
+      schema: tool.schema,
+      schemaName: typeof tool.name === 'string' ? tool.name : undefined,
+      schemaDescription: typeof tool.description === 'string' ? tool.description : undefined,
+      providerOptions,
+      ...callSettings,
+    });
+
+    const argumentsText = JSON.stringify(structured.object);
+    const callId =
+      structured.response && typeof structured.response.id === 'string'
+        ? structured.response.id
+        : null;
+
+    return {
+      output_text: argumentsText,
+      output: [
+        {
+          type: 'function_call',
+          name: tool.name ?? 'open-agent',
+          arguments: argumentsText,
+          call_id: callId,
+        },
+      ],
+      structured,
     };
   }
 
-  const effort = normalizeReasoningEffort(reasoningEffort) ?? ENV_REASONING_EFFORT;
-  if (effort) {
-    payload.reasoning = { effort };
-  }
+  const textResult = await generateText({
+    model: languageModel,
+    messages,
+    providerOptions,
+    ...callSettings,
+  });
 
-  return openai.responses.create(payload, options);
+  const normalizedText = typeof textResult.text === 'string' ? textResult.text : '';
+
+  return {
+    output_text: normalizedText,
+    output: [
+      {
+        type: 'message',
+        role: 'assistant',
+        content: [
+          {
+            type: 'output_text',
+            text: normalizedText,
+          },
+        ],
+      },
+    ],
+    text: textResult,
+  };
 }
 
 export default {
