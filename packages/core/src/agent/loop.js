@@ -74,8 +74,8 @@ export function createAgentRuntime({
   getDebugFlag = () => false,
   setNoHumanFlag = () => {},
   emitAutoApproveStatus = false,
-  createHistoryCompactorFn = ({ openai: client, currentModel }) =>
-    new HistoryCompactor({ openai: client, model: currentModel, logger: console }),
+  createHistoryCompactorFn = ({ openai: client, currentModel, logger }) =>
+    new HistoryCompactor({ openai: client, model: currentModel, logger: logger ?? console }),
   dementiaLimit = 30,
   amnesiaLimit = 10,
   createAmnesiaManagerFn = (config) => new AmnesiaManager(config),
@@ -85,6 +85,14 @@ export function createAgentRuntime({
   createEscStateFn = () => createEscState(),
   createPromptCoordinatorFn = (config) => new PromptCoordinator(config),
   createApprovalManagerFn = (config) => new ApprovalManager(config),
+  // New DI hooks
+  logger = console,
+  idGeneratorFn = null,
+  transformEmittedEventFn = null,
+  applyDementiaPolicyFn = applyDementiaPolicy,
+  createChatMessageEntryFn = createChatMessageEntry,
+  executeAgentPassFn = executeAgentPass,
+  createPlanAutoResponseTrackerFn = null,
 } = {}) {
   const outputs = createOutputsQueueFn();
   if (
@@ -107,15 +115,38 @@ export function createAgentRuntime({
   }
   let counter = 0;
   let passCounter = 0;
+  const nextId = () => {
+    try {
+      if (typeof idGeneratorFn === 'function') {
+        const id = idGeneratorFn({ counter });
+        if (id) return String(id);
+      }
+    } catch (e) {
+      // ignore and fall back
+    }
+    return 'key' + counter++;
+  };
+
   const emit = (event) => {
     const clonedEvent = cloneEventPayload(event);
-
     if (!clonedEvent || typeof clonedEvent !== 'object') {
       throw new TypeError('Agent emit expected event to be an object.');
     }
-
-    clonedEvent.__id = 'key' + counter++;
-    outputs.push(clonedEvent);
+    clonedEvent.__id = nextId();
+    let finalEvent = clonedEvent;
+    if (typeof transformEmittedEventFn === 'function') {
+      try {
+        const transformed = transformEmittedEventFn(finalEvent);
+        if (!transformed) {
+          return; // drop event
+        }
+        finalEvent = transformed;
+      } catch (e) {
+        // If transformer fails, emit a warning and continue with original event
+        outputs.push({ type: 'status', level: 'warn', message: 'transformEmittedEventFn threw. Emitting original event.' });
+      }
+    }
+    outputs.push(finalEvent);
   };
 
   const nextPass = () => {
@@ -126,7 +157,7 @@ export function createAgentRuntime({
 
   const planManagerConfig = {
     emit,
-    emitStatus: (event) => outputs.push(event),
+    emitStatus: (event) => emit(event),
     getPlanMergeFlag,
   };
 
@@ -148,19 +179,25 @@ export function createAgentRuntime({
 
   // Track how many consecutive plan reminders we have injected so that the
   // agent eventually defers to a human if progress stalls.
-  let planReminderAutoResponseCount = 0;
-  const planAutoResponseTracker = {
-    increment() {
-      planReminderAutoResponseCount += 1;
-      return planReminderAutoResponseCount;
-    },
-    reset() {
-      planReminderAutoResponseCount = 0;
-    },
-    getCount() {
-      return planReminderAutoResponseCount;
-    },
+  const defaultPlanAutoResponseTracker = () => {
+    let count = 0;
+    return {
+      increment() {
+        count += 1;
+        return count;
+      },
+      reset() {
+        count = 0;
+      },
+      getCount() {
+        return count;
+      },
+    };
   };
+
+  const planAutoResponseTracker =
+    (typeof createPlanAutoResponseTrackerFn === 'function' &&
+      createPlanAutoResponseTrackerFn()) || defaultPlanAutoResponseTracker();
 
   const fallbackEscController = createEscState();
   let escController = fallbackEscController;
@@ -195,7 +232,7 @@ export function createAgentRuntime({
   const detachEscListener = escController.detach;
 
   const promptCoordinatorConfig = {
-    emitEvent: (event) => outputs.push(event),
+    emitEvent: (event) => emit(event),
     escState: { ...escState, trigger: triggerEsc },
     cancelFn: cancelActive,
   };
@@ -220,7 +257,7 @@ export function createAgentRuntime({
   try {
     openai = getClient();
   } catch (err) {
-    outputs.push({
+    emit({
       type: 'error',
       message: 'Failed to initialize OpenAI client. Ensure API key is configured.',
       details: err instanceof Error ? err.message : String(err),
@@ -237,8 +274,8 @@ export function createAgentRuntime({
     getAutoApproveFlag,
     askHuman: async (prompt) => promptCoordinator.request(prompt, { scope: 'approval' }),
     preapprovedCfg,
-    logWarn: (message) => outputs.push({ type: 'status', level: 'warn', message }),
-    logSuccess: (message) => outputs.push({ type: 'status', level: 'info', message }),
+    logWarn: (message) => emit({ type: 'status', level: 'warn', message }),
+    logSuccess: (message) => emit({ type: 'status', level: 'info', message }),
   };
 
   let approvalManager = null;
@@ -262,7 +299,7 @@ export function createAgentRuntime({
   const combinedSystemPrompt = augmentation ? `${systemPrompt}\n\n${augmentation}` : systemPrompt;
 
   const history = [
-    createChatMessageEntry({
+    createChatMessageEntryFn({
       eventType: 'chat-message',
       role: 'system',
       content: combinedSystemPrompt,
@@ -296,7 +333,7 @@ export function createAgentRuntime({
 
   const historyCompactor =
     typeof createHistoryCompactorFn === 'function'
-      ? createHistoryCompactorFn({ openai, currentModel: model })
+      ? createHistoryCompactorFn({ openai, currentModel: model, logger })
       : null;
 
   let running = false;
@@ -320,7 +357,7 @@ export function createAgentRuntime({
         }
       }
     } catch (error) {
-      outputs.push({
+      emit({
         type: 'error',
         message: 'Input processing terminated unexpectedly.',
         details: error instanceof Error ? error.message : String(error),
@@ -378,7 +415,7 @@ export function createAgentRuntime({
     if (normalizedDementiaLimit > 0) {
       try {
         mutated =
-          applyDementiaPolicy({
+          (applyDementiaPolicyFn || applyDementiaPolicy)({
             history,
             currentPass,
             limit: normalizedDementiaLimit,
@@ -456,7 +493,7 @@ export function createAgentRuntime({
         const activePass = nextPass();
 
         history.push(
-          createChatMessageEntry({
+          createChatMessageEntryFn({
             eventType: 'chat-message',
             role: 'user',
             content: userInput,
@@ -471,7 +508,7 @@ export function createAgentRuntime({
           let currentPass = activePass;
 
           while (continueLoop) {
-            const shouldContinue = await executeAgentPass({
+            const shouldContinue = await (executeAgentPassFn || executeAgentPass)({
               openai,
               model,
               history,

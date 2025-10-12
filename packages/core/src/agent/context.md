@@ -7,6 +7,16 @@
 ## Key Modules
 
 - `loop.js` — orchestrates the event-driven runtime: manages plan snapshots, queues inputs/outputs, handles OpenAI calls, applies filters, coordinates cancellation, and now JSON-clones every emitted event so subscribers observe immutable snapshots. The runtime exposes factory hooks (`createOutputsQueueFn`, `createInputsQueueFn`, `createPlanManagerFn`, `createEscStateFn`, `createPromptCoordinatorFn`, `createApprovalManagerFn`) so hosts can inject alternative implementations without patching the core loop, and it emits a `pass` event whenever a new reasoning pass begins so UIs can surface the active counter.
+ - `loop.js` — orchestrates the event-driven runtime: manages plan snapshots, queues inputs/outputs, handles OpenAI calls, applies filters, coordinates cancellation, and now JSON-clones every emitted event so subscribers observe immutable snapshots. The runtime exposes factory hooks (`createOutputsQueueFn`, `createInputsQueueFn`, `createPlanManagerFn`, `createEscStateFn`, `createPromptCoordinatorFn`, `createApprovalManagerFn`) so hosts can inject alternative implementations without patching the core loop, and it emits a `pass` event whenever a new reasoning pass begins so UIs can surface the active counter.
+
+   New DI hooks in `createAgentRuntime`:
+   - `logger` — console-like sink used by default `createHistoryCompactorFn`.
+   - `idGeneratorFn` — generate deterministic `__id`s for emitted events (useful in tests).
+   - `transformEmittedEventFn(event)` — transform or drop events before they reach the outputs queue.
+   - `applyDementiaPolicyFn` — override default dementia pruning behavior.
+   - `createChatMessageEntryFn` — customize chat message envelope creation.
+   - `executeAgentPassFn` — replace the default pass executor implementation.
+   - `createPlanAutoResponseTrackerFn` — supply a custom plan reminder counter implementation.
 - `approvalManager.js` — centralizes auto-approval checks (allowlist/session flags) and human prompts; the constructor normalizes optional collaborators once so runtime logic can invoke them without repetitive type guards.
 - `commandExecution.js` — normalizes assistant commands before dispatching to the default executor and tracks runtime metadata.
 - `commands/` subdirectory — houses the default execute strategy used for all shell invocations.
