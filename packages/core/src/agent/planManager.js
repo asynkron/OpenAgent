@@ -20,7 +20,7 @@ function formatStatusEvent(level, message, details) {
 export function createPlanManager({
   emit,
   emitStatus,
-  getPlanMergeFlag,
+
   planDirectoryPath = resolve(process.cwd(), '.openagent'),
   planFilePath = resolve(planDirectoryPath, 'plan.json'),
   clonePlan = defaultClone,
@@ -40,9 +40,6 @@ export function createPlanManager({
 
   let activePlan = [];
   let lastProgressSignature = null;
-
-  const shouldMergePlans = () =>
-    Boolean(typeof getPlanMergeFlag === 'function' && getPlanMergeFlag());
 
   const emitPlanProgressEvent = (plan) => {
     const progress = computeProgress(plan);
@@ -109,11 +106,8 @@ export function createPlanManager({
     get() {
       return clonePlan(activePlan);
     },
-    isMergingEnabled() {
-      return shouldMergePlans();
-    },
     async update(nextPlan) {
-      const merging = shouldMergePlans();
+      const merging = true;
       if (!Array.isArray(nextPlan) || nextPlan.length === 0) {
         if (!merging) {
           activePlan = [];

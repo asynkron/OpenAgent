@@ -2,9 +2,6 @@
  * Plan utilities extracted from the agent loop.
  */
 
-const COMPLETED_STATUSES = new Set(['completed', 'complete', 'done', 'finished']);
-const CHILD_KEY = 'substeps';
-
 function isCompletedStatus(status) {
   if (typeof status !== 'string') {
     return false;
@@ -15,11 +12,11 @@ function isCompletedStatus(status) {
     return false;
   }
 
-  if (COMPLETED_STATUSES.has(normalized)) {
+  if (normalized == 'completed') {
     return true;
   }
 
-  return normalized.startsWith('complete');
+  return false;
 }
 
 function isTerminalStatus(status) {
@@ -84,14 +81,8 @@ function clonePlanItem(item) {
 
   const cloned = { ...item };
 
-  delete cloned.children;
-  delete cloned.steps;
-  delete cloned[CHILD_KEY];
-
   return cloned;
 }
-
-const VOLATILE_KEYS = new Set(['age']);
 
 function mergePlanItems(existingItem, incomingItem) {
   if (!existingItem || typeof existingItem !== 'object') {
@@ -106,33 +97,14 @@ function mergePlanItems(existingItem, incomingItem) {
     return null;
   }
 
-  for (const [key, value] of Object.entries(incomingItem)) {
-    if (VOLATILE_KEYS.has(key) || key === CHILD_KEY) {
-      continue;
-    }
-
-    if (key === 'children' || key === 'steps') {
-      continue;
-    }
-
-    if (key === 'status') {
-      continue;
-    }
-
-    existingItem[key] = value;
-  }
-
-  delete existingItem.children;
-  delete existingItem.steps;
-  delete existingItem[CHILD_KEY];
+  existingItem.waitingForId = incomingItem.waitingForId || [];
 
   return existingItem;
 }
 
-export function mergePlanTrees(existingPlan = [], incomingPlan = [], options = {}) {
+export function mergePlanTrees(existingPlan = [], incomingPlan = []) {
   const existing = Array.isArray(existingPlan) ? existingPlan : [];
   const incoming = Array.isArray(incomingPlan) ? incomingPlan : [];
-  const { preserveIncomingStatusForNewSteps = false } = options;
 
   if (incoming.length === 0) {
     return [];
@@ -158,9 +130,7 @@ export function mergePlanTrees(existingPlan = [], incomingPlan = [], options = {
       }
     } else if (!isAbandonedStatus(item?.status)) {
       const cloned = clonePlanItem(item);
-      if (!preserveIncomingStatusForNewSteps) {
-        cloned.status = 'pending';
-      }
+      cloned.status = 'pending';
       result.push(cloned);
     }
   });
@@ -304,8 +274,8 @@ export function planToMarkdown(plan) {
     const priority = Number.isFinite(Number(item.priority)) ? Number(item.priority) : null;
     const dependencies = Array.isArray(item.waitingForId)
       ? item.waitingForId
-          .filter((value) => normalizePlanIdentifier(value))
-          .map((value) => value.trim())
+        .filter((value) => normalizePlanIdentifier(value))
+        .map((value) => value.trim())
       : [];
 
     const details = [];
