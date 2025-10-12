@@ -17,27 +17,15 @@ export const RESPONSE_PARAMETERS_SCHEMA = {
   {
     message: "Executing the requested command.",
     plan: [
-      //task
       {
-        id: "unique-id",
-        description: "Run the user-requested shell command to print a greeting.",
-        status: "pending",
-        priority: 1,
-        //optional, AI can decide if this task must wait for other tasks to complete first
-        waitingForId: ["this-id-must-complete-first", "and-this-id-too"], 
+        step: "1",
+        title: "Run the user-requested shell command to print a greeting.",
+        status: "running",
         command: {
-            reason: "Run the user-requested shell command to print a greeting.",
-            shell: "/bin/bash",
-            run: "some command that helps progress to the end goal.. never do noop operations such as echo",
-            cwd: "/Users/rogerjohansson/git/asynkron/OpenAgent",
-            timeout_sec: 30
-          }
-      },
-      {
-        id: "this-id-must-complete-first",
-        description: "Do something...",
-
-        ...
+          run: "echo hello",
+          cwd: ".",
+          timeout_sec: 30
+        }
       }
     ],
   }
@@ -46,7 +34,7 @@ export const RESPONSE_PARAMETERS_SCHEMA = {
   required: ['message', 'plan'],
   properties: {
     message: {
-      type: 'string',
+      type: ['string', 'null'],
       description: 'Markdown formatted message to the user',
     },
     plan: {
@@ -55,18 +43,34 @@ export const RESPONSE_PARAMETERS_SCHEMA = {
       items: {
         type: 'object',
         description: 'Represents a single plan step.',
-        required: ['id', 'title', 'status', 'command'],
+        required: ['step', 'title', 'status'],
         additionalProperties: false,
         properties: {
+          step: {
+            type: 'string',
+            description: 'Stable identifier used to refer to this plan step.',
+          },
           id: {
             type: 'string',
-            description: 'Random ID assigned by AI.',
+            description: 'Optional legacy identifier carried over from previous responses.',
           },
           title: { type: 'string' },
+          description: {
+            type: 'string',
+            description: 'Optional human-readable description of the step.',
+          },
           status: {
             type: 'string',
-            enum: ['pending', 'completed', 'failed', 'abandoned'],
-            description: '',
+            enum: ['pending', 'running', 'completed', 'failed', 'abandoned'],
+            description: 'Lifecycle status for the plan step.',
+          },
+          priority: {
+            anyOf: [
+              { type: 'integer' },
+              { type: 'number' },
+              { type: 'string' },
+            ],
+            description: 'Optional priority indicator used to order execution.',
           },
           age: {
             type: 'integer',
@@ -82,9 +86,8 @@ export const RESPONSE_PARAMETERS_SCHEMA = {
           },
           command: {
             type: 'object',
-            required: ['shell', 'run'],
             description:
-              'MUST be on an element of the plan array. Next tool invocation to execute for this plan step. This command should complete the task if successful. Must NOT be a raw string (e.g. command: "ls"). Must follow this format: {"shell":"/bin/bash","run":"ls -la","cwd":"/home/user","timeout_sec":30,"filter_regex":".*\\.txt$","tail_lines":10}',
+              'Optional command describing the next action required to progress this plan step. Must not be an empty string.',
             additionalProperties: false,
             properties: {
               reason: {
