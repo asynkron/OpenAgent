@@ -90,7 +90,7 @@ export async function runCommandAndTrack(
   cwd: string = '.',
   timeoutSec: number = 60,
 ): Promise<CommandResult> {
-  const result = await coreRunCommand(run, cwd, timeoutSec, undefined);
+  const result = await coreRunCommand(run, cwd, timeoutSec);
   const key = determineCommandKey(run);
   await recordCommandStat(key);
   return result;

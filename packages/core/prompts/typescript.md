@@ -25,9 +25,9 @@ npx fta packages/core/src --json > fta-report.json
 Or call it programmatically when scripting checks:
 
 ```ts
-import { runFta } from "fta-cli";
+import { runFta } from 'fta-cli';
 
-const results = runFta("packages/cli/src", { json: true });
+const results = runFta('packages/cli/src', { json: true });
 ```
 
 Review the upstream docs for additional scoring thresholds and CI integration ideas.

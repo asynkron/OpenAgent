@@ -73,7 +73,7 @@ describe('runCommandAndTrack', () => {
     const runtime = await importRuntime();
     await runtime.runCommandAndTrack('git status', '/tmp', 5);
 
-    expect(runCommandMock).toHaveBeenCalledWith('git status', '/tmp', 5, undefined);
+    expect(runCommandMock).toHaveBeenCalledWith('git status', '/tmp', 5);
     expect(incrementCommandCountMock).toHaveBeenCalledWith('git');
   });
 
@@ -81,7 +81,7 @@ describe('runCommandAndTrack', () => {
     const runtime = await importRuntime();
     await runtime.runCommandAndTrack(['npm', 'test'], '.', 60);
 
-    expect(runCommandMock).toHaveBeenCalledWith(['npm', 'test'], '.', 60, undefined);
+    expect(runCommandMock).toHaveBeenCalledWith(['npm', 'test'], '.', 60);
     expect(incrementCommandCountMock).toHaveBeenCalledWith('npm');
   });
 });

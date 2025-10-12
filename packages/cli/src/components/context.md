@@ -42,6 +42,9 @@
   as their React key to prevent memoized subtrees from resetting.
 - `Command.ts` now treats theme-driven style props as typed records instead of loose `any` maps, keeping the lint
   surface clean while preserving the flexible merge behaviour required by theme overrides.
+- InkTextArea regression tests live in focused suites (`InkTextArea.input.test.ts`, `InkTextArea.slash-menu.test.ts`,
+  `InkTextArea.transform.test.ts`) with shared helpers under `test-utils/` so caret/command behaviours can evolve
+  independently without editing a monolithic spec.
 
 ## Related Context
 

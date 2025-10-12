@@ -28,7 +28,9 @@ export function addListener<Type extends keyof ListenerMap, Target extends Liste
   cleanupFns.push(() => target.removeEventListener(type, handler as EventListener));
 }
 
-export function autoResize(textarea: HTMLTextAreaElement | HTMLInputElement | null | undefined): void {
+export function autoResize(
+  textarea: HTMLTextAreaElement | HTMLInputElement | null | undefined,
+): void {
   if (!textarea) {
     return;
   }

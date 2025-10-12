@@ -25,7 +25,9 @@ export interface SlashCommandDefinition {
   allowNewlines?: boolean;
   shouldActivate?: (context: SlashCommandActivationContext) => boolean;
   filterItem?: (item: SlashCommandItem, context: SlashCommandFilterContext) => boolean;
-  getItems?: (context: SlashCommandDynamicContext) => Promise<SlashCommandSourceItem[]> | SlashCommandSourceItem[];
+  getItems?: (
+    context: SlashCommandDynamicContext,
+  ) => Promise<SlashCommandSourceItem[]> | SlashCommandSourceItem[];
   items?: SlashCommandSourceItem[];
 }
 

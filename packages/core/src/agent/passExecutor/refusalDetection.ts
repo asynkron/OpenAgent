@@ -11,11 +11,7 @@ const REFUSAL_NEGATION_PATTERNS = [
   /\bwon['’]?t be able to\b/i,
 ];
 
-const REFUSAL_ASSISTANCE_PATTERNS = [
-  /\bhelp\b/i,
-  /\bassist\b/i,
-  /\bcontinue\b/i,
-];
+const REFUSAL_ASSISTANCE_PATTERNS = [/\bhelp\b/i, /\bassist\b/i, /\bcontinue\b/i];
 
 const REFUSAL_SORRY_PATTERN = /\bsorry\b/i;
 

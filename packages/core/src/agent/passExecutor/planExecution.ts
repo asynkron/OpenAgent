@@ -72,7 +72,9 @@ export const hasCommandPayload = (command: unknown): command is PlanCommand => {
   return Boolean(run || shell);
 };
 
-export const collectExecutablePlanSteps = (plan: PlanStep[] | null | undefined): ExecutablePlanStep[] => {
+export const collectExecutablePlanSteps = (
+  plan: PlanStep[] | null | undefined,
+): ExecutablePlanStep[] => {
   const executable: ExecutablePlanStep[] = [];
 
   if (!Array.isArray(plan)) {

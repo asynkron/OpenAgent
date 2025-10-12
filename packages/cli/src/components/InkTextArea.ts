@@ -214,9 +214,7 @@ function CommandMenu({ matches, activeMatch, isVisible, title }: CommandMenuProp
           width: '100%',
         },
         h(Text, { color: isActive ? 'white' : 'cyan' }, label),
-        item.description
-          ? h(Text, { color: 'gray', dimColor: true }, item.description)
-          : null,
+        item.description ? h(Text, { color: 'gray', dimColor: true }, item.description) : null,
       );
     }),
   );
@@ -416,7 +414,7 @@ export function InkTextArea(props: InkTextAreaProps) {
     : 0;
 
   const selectedCommandMatch = commandMenuVisible
-    ? commandMatches[resolvedCommandHighlightIndex] ?? commandMatches[0]
+    ? (commandMatches[resolvedCommandHighlightIndex] ?? commandMatches[0])
     : null;
 
   const resetDesiredColumn = useCallback(() => {
@@ -466,7 +464,14 @@ export function InkTextArea(props: InkTextAreaProps) {
 
     setCommandHighlightIndex(0);
     return true;
-  }, [activeCommand, commandMenuVisible, onSlashCommandSelect, selectedCommandMatch, updateValue, value]);
+  }, [
+    activeCommand,
+    commandMenuVisible,
+    onSlashCommandSelect,
+    selectedCommandMatch,
+    updateValue,
+    value,
+  ]);
 
   const handleInput = useCallback(
     (input: string, key: Key) => {
@@ -476,7 +481,9 @@ export function InkTextArea(props: InkTextAreaProps) {
 
       const printableInput = input && input !== '\u0000' ? input : '';
       const specialKeys = extractSpecialKeys(key);
-      const shiftModifierActive = Boolean(key?.shift || key?.isShiftPressed || specialKeys.includes('shift'));
+      const shiftModifierActive = Boolean(
+        key?.shift || key?.isShiftPressed || specialKeys.includes('shift'),
+      );
       const isLineFeedInput = printableInput === '\n';
       const isCarriageReturnInput = printableInput === '\r';
       const isShiftOnlySequence =
@@ -776,7 +783,7 @@ export function InkTextArea(props: InkTextAreaProps) {
   });
 
   const resolvedCommandHighlight = commandMenuVisible
-    ? commandMatches[Math.min(commandHighlightIndex, commandMatches.length - 1)] ?? null
+    ? (commandMatches[Math.min(commandHighlightIndex, commandMatches.length - 1)] ?? null)
     : null;
 
   const commandMenuElement = h(CommandMenu, {

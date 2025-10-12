@@ -3,7 +3,11 @@ export interface LimitedListResult<T> {
   trimmed: boolean;
 }
 
-export function appendWithLimit<T>(list: ReadonlyArray<T>, entry: T, limit?: number): LimitedListResult<T> {
+export function appendWithLimit<T>(
+  list: ReadonlyArray<T>,
+  entry: T,
+  limit?: number,
+): LimitedListResult<T> {
   const next = [...list, entry];
   if (!limit || next.length <= limit) {
     return { next, trimmed: false };

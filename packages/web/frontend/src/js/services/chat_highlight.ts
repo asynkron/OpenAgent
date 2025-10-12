@@ -13,7 +13,9 @@ interface HighlightedMarkedOptions extends MarkedOptions {
 
 const toClassList = (classNames: ReadonlyArray<string> | string | undefined): string[] => {
   if (Array.isArray(classNames)) {
-    return classNames.filter((value): value is string => typeof value === 'string' && value.length > 0);
+    return classNames.filter(
+      (value): value is string => typeof value === 'string' && value.length > 0,
+    );
   }
 
   if (typeof classNames === 'string') {

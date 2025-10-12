@@ -71,7 +71,6 @@ export interface ChatServiceApi {
   dispose(): void;
 }
 
-
 function isAgentPayloadType(value: string): value is AgentPayloadType {
   return AGENT_PAYLOAD_TYPE_SET.has(value);
 }
