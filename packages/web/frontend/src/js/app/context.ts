@@ -1,9 +1,13 @@
+import type { FileEntry, FileTreeEntry } from './bootstrap_helpers.js';
+
 interface InitialState {
   selectedFile?: string | null;
   content?: string;
   rootPath?: string;
   pathArgument?: string;
   error?: string;
+  files?: FileEntry[];
+  fileTree?: FileTreeEntry[];
 }
 
 type AppElements = {
@@ -56,8 +60,8 @@ type AppElements = {
 
 type AppState = {
   currentFile: string | null;
-  files: Array<Record<string, unknown>>;
-  fileTree: Array<Record<string, unknown>>;
+  files: FileEntry[];
+  fileTree: FileTreeEntry[];
   websocket: WebSocket | null;
   reconnectTimer: ReturnType<typeof setTimeout> | null;
   isEditing: boolean;
@@ -145,8 +149,8 @@ export function createAppContext(): AppContext {
 
   const state: AppState = {
     currentFile: initialState.selectedFile || null,
-    files: [],
-    fileTree: [],
+    files: Array.isArray(initialState.files) ? initialState.files : [],
+    fileTree: Array.isArray(initialState.fileTree) ? initialState.fileTree : [],
     websocket: null,
     reconnectTimer: null,
     isEditing: false,
