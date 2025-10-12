@@ -1,12 +1,58 @@
+/**
+ * History compaction helper that summarizes old conversation entries when usage spikes.
+ *
+ * Responsibilities:
+ * - Estimate token usage for the active history and decide when compaction is needed.
+ * - Invoke the OpenAI Responses API to summarize older entries into a long-term memory note.
+ * - Replace the compacted slice of history with a synthetic summary entry.
+ *
+ * Note: The runtime still imports the compiled `historyCompactor.js`; run `tsc` to
+ * regenerate it after editing this source until the build pipeline emits from
+ * TypeScript directly.
+ */
 import { summarizeContextUsage } from '../utils/contextUsage.js';
 import { extractResponseText } from '../openai/responseUtils.js';
 import { createResponse } from '../openai/responses.js';
 import { createChatMessageEntry, mapHistoryToOpenAIMessages } from './historyEntry.js';
+import type { ChatMessageEntry } from './historyEntry.js';
 
 const DEFAULT_USAGE_THRESHOLD = 0.5;
 const DEFAULT_SUMMARY_PREFIX = 'Compacted memory:';
 
-const stringifyContent = (content) => {
+export type JsonLike = Record<string, unknown>;
+
+export interface ChatHistoryEntry extends JsonLike {
+  role?: string | null;
+  content?: unknown;
+  pass?: number;
+}
+
+export interface HistoryCompactorOptions {
+  openai?: OpenAIClient | null;
+  model?: string | null;
+  usageThreshold?: number;
+  logger?: Logger;
+}
+
+export interface CompactIfNeededInput {
+  history?: ChatHistoryEntry[] | null;
+}
+
+export interface OpenAIResponsesClient {
+  create: (payload: JsonLike, options?: JsonLike) => Promise<unknown>;
+}
+
+export interface OpenAIClient {
+  responses?: {
+    create?: OpenAIResponsesClient['create'];
+  };
+}
+
+export type Logger = {
+  [key: string]: ((...args: unknown[]) => void) | undefined;
+};
+
+const stringifyContent = (content: unknown): string => {
   if (typeof content === 'string') {
     return content;
   }
@@ -33,7 +79,7 @@ const stringifyContent = (content) => {
   return String(content);
 };
 
-const buildSummarizationInput = (entries) => {
+const buildSummarizationInput = (entries: ChatHistoryEntry[]): ChatMessageEntry[] => {
   const formattedEntries = entries
     .map((entry, index) => {
       const role = typeof entry?.role === 'string' ? entry.role : 'unknown';
@@ -59,15 +105,23 @@ const buildSummarizationInput = (entries) => {
 };
 
 export class HistoryCompactor {
-  constructor({ openai, model, usageThreshold = DEFAULT_USAGE_THRESHOLD, logger } = {}) {
+  private readonly openai?: OpenAIClient | null;
+
+  private readonly model?: string | null;
+
+  private readonly usageThreshold: number;
+
+  private readonly logger: Logger;
+
+  constructor({ openai, model, usageThreshold = DEFAULT_USAGE_THRESHOLD, logger }: HistoryCompactorOptions = {}) {
     this.openai = openai ?? undefined;
     this.model = model ?? undefined;
     this.usageThreshold = usageThreshold;
-    const defaultLogger = console;
+    const defaultLogger = console as unknown as Logger;
     this.logger = logger ?? defaultLogger;
   }
 
-  async compactIfNeeded({ history }) {
+  async compactIfNeeded({ history }: CompactIfNeededInput): Promise<boolean> {
     if (!Array.isArray(history) || history.length === 0) {
       return false;
     }
@@ -95,7 +149,7 @@ export class HistoryCompactor {
     const entriesToCompactCount = Math.max(1, Math.floor(availableEntries / 2));
     const entriesToCompact = history.slice(firstContentIndex, firstContentIndex + entriesToCompactCount);
 
-    let summary;
+    let summary: string;
     try {
       summary = await this.generateSummary(entriesToCompact);
     } catch (error) {
@@ -114,7 +168,7 @@ export class HistoryCompactor {
 
     this._log('log', `[history-compactor] Compacted summary:\n${summarizedText}`);
 
-    const compactedPass = entriesToCompact.reduce((max, entry) => {
+    const compactedPass = entriesToCompact.reduce<number>((max, entry) => {
       if (typeof entry?.pass === 'number' && entry.pass > max) {
         return entry.pass;
       }
@@ -139,7 +193,7 @@ export class HistoryCompactor {
     return true;
   }
 
-  async generateSummary(entries) {
+  async generateSummary(entries: ChatHistoryEntry[]): Promise<string> {
     const input = buildSummarizationInput(entries);
     const response = await createResponse({
       openai: this.openai,
@@ -154,9 +208,8 @@ export class HistoryCompactor {
     return summary.trim();
   }
 
-  _log(method, message, meta) {
-    const fn =
-      this.logger && typeof this.logger[method] === 'function' ? this.logger[method] : null;
+  private _log(method: 'log' | 'warn', message: string, meta?: unknown): void {
+    const fn = this.logger && typeof this.logger[method] === 'function' ? this.logger[method] : null;
     if (!fn) {
       return;
     }

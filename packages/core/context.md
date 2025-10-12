@@ -10,6 +10,7 @@
 - `package.json` — package manifest declaring dependencies and export map.
 - `index.js` — entry point that re-exports the curated runtime surface from `src/lib`.
 - `src/` — implementation of the agent loop, OpenAI client adapters, services, and utilities. See [`src/context.md`](src/context.md).
+- Gradual TypeScript adoption has started; some utilities now keep `.ts` sources alongside generated `.js` runtime files.
 - `prompts/` — canonical system/developer guidance plus prompt manifest consumed by runtime configuration. See [`prompts/context.md`](prompts/context.md).
 - `scripts/` — bundled helper utilities invoked by command normalizers. See [`scripts/context.md`](scripts/context.md).
 

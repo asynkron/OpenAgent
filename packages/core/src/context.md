@@ -15,6 +15,7 @@
 - `config/` — system prompt discovery/building.
 - `lib/` — curated export surface (startup flags, runtime factory) consumed by package entry.
 - `utils/` — shared helpers (async queues, cancellation, text formatting, plan math, JSON validation, HTTP fetch wrapper).
+- TypeScript migration is underway; utilities can expose typed `.ts` sources while keeping emitted `.js` available for current runtime consumers.
 
 ## Positive Signals
 
