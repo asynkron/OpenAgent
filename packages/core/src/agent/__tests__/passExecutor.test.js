@@ -180,6 +180,55 @@ describe('executeAgentPass', () => {
     );
   });
 
+  test('invokes payload guard before attempting history compaction', async () => {
+    const { executeAgentPass, requestModelCompletion } = await setupPassExecutor();
+
+    requestModelCompletion.mockResolvedValueOnce({ status: 'canceled' });
+
+    const callOrder = [];
+    const guardRequestPayloadSizeFn = jest.fn(async () => {
+      callOrder.push('guard');
+    });
+    const compactIfNeeded = jest.fn(async () => {
+      callOrder.push('compactor');
+    });
+
+    const emitEvent = jest.fn();
+    const history = [];
+    const PASS_INDEX = 7;
+
+    await executeAgentPass({
+      openai: {},
+      model: 'gpt-5-codex',
+      history,
+      emitEvent,
+      runCommandFn: jest.fn(),
+      applyFilterFn: jest.fn(),
+      tailLinesFn: jest.fn(),
+      getNoHumanFlag: () => false,
+      setNoHumanFlag: () => {},
+      planReminderMessage: 'remember the plan',
+      startThinkingFn: jest.fn(),
+      stopThinkingFn: jest.fn(),
+      escState: {},
+      approvalManager: null,
+      historyCompactor: { compactIfNeeded },
+      planManager: null,
+      emitAutoApproveStatus: false,
+      passIndex: PASS_INDEX,
+      guardRequestPayloadSizeFn,
+    });
+
+    expect(guardRequestPayloadSizeFn).toHaveBeenCalledTimes(1);
+    expect(guardRequestPayloadSizeFn).toHaveBeenCalledWith({
+      history,
+      model: 'gpt-5-codex',
+      passIndex: PASS_INDEX,
+    });
+    expect(compactIfNeeded).toHaveBeenCalledTimes(1);
+    expect(callOrder).toEqual(['guard', 'compactor']);
+  });
+
   test('marks executing plan steps as running', async () => {
     const {
       executeAgentPass,
