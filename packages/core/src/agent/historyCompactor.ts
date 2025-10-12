@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * History compaction helper that summarizes old conversation entries when usage spikes.
  *

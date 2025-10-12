@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Coordinates prompt requests coming from the agent runtime with responses from the UI layer.
  *

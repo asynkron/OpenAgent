@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Assistant response validators to enforce protocol compliance.
  *

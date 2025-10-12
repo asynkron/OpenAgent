@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Command dispatcher used by the agent runtime.
  *

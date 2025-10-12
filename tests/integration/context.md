@@ -17,7 +17,7 @@
 
 ## Positive Signals
 
-- Harness reuses real runtime modules (`createAgentRuntime`) while swapping in deterministic OpenAI mocks and an in-memory plan manager, so behavior closely mirrors production execution without leaking state between suites.
+- Harness reuses real runtime modules (`createAgentRuntime`) while swapping in deterministic OpenAI mocks and an in-memory plan manager, so behavior closely mirrors production execution without leaking state between suites. After the TypeScript build migration the harness now stubs the compiled `dist/src/**` modules to keep assertions aligned with the runtime used by the CLI.
 - Tests cover both positive flows and cancellation/approval edge cases.
 
 ## Risks / Gaps

@@ -6,7 +6,7 @@ import {
   mergePlanTrees,
   clonePlanTree,
   computePlanProgress,
-} from '../../packages/core/src/utils/plan.js';
+} from '../../packages/core/dist/src/utils/plan.js';
 
 // Central queue used by integration suites to feed deterministic model completions
 // without reaching out to the real OpenAI SDK.
@@ -155,11 +155,11 @@ export async function loadAgentWithMockedModules() {
     return modelCompletionQueue.shift();
   });
 
-  jest.unstable_mockModule('../../packages/core/src/agent/openaiRequest.js', () => ({
+  jest.unstable_mockModule('../../packages/core/dist/src/agent/openaiRequest.js', () => ({
     requestModelCompletion: requestModelCompletionMock,
   }));
 
-  jest.unstable_mockModule('../../packages/core/src/services/commandStatsService.js', () => ({
+  jest.unstable_mockModule('../../packages/core/dist/src/services/commandStatsService.js', () => ({
     incrementCommandCount: commandStatsMock,
   }));
 

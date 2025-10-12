@@ -3,11 +3,12 @@
   "version": "2.13.12",
   "description": "Headless runtime for the OpenAgent orchestration loop",
   "type": "module",
-  "main": "./index.js",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./index.js",
-      "default": "./index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -17,6 +18,9 @@
     "openagent"
   ],
   "license": "MIT",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
   "dependencies": {
     "chalk": "^4.1.2",
     "dotenv": "^17.2.3",

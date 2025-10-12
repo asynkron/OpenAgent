@@ -15,14 +15,14 @@
 - `config/` — system prompt discovery/building.
 - `lib/` — curated export surface (startup flags, runtime factory) consumed by package entry.
 - `utils/` — shared helpers (async queues, cancellation, text formatting, plan math, JSON validation, HTTP fetch wrapper).
-- TypeScript migration is underway; utilities can expose typed `.ts` sources while keeping emitted `.js` available for current runtime consumers.
+- The entire tree now ships `.ts` sources that compile into `dist/src/**` before publishing.
 
 ## Positive Signals
 
 - Modular design cleanly separates pure helpers from side-effectful layers; facilitates testing and alternate UIs.
 - Co-located `__tests__/` directories under `agent/`, `utils/`, `commands/`, `openai/`, `bindings/`, and `lib/` keep runtime unit
   coverage next to the implementation files.
-- Startup flags (`lib/startupFlags.js`) centralize configuration toggles and are covered by unit tests.
+- Startup flags (`lib/startupFlags.ts`) centralize configuration toggles and are covered by unit tests.
 
 ## Risks / Gaps
 
