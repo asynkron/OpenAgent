@@ -29,9 +29,8 @@ describe('PlanDetail', () => {
     try {
       const frame = stripAnsi(lastFrame());
       const lines = frame.split('\n').map((line) => line.trimEnd());
-      expect(lines[0]).toBe('▶ 1. Compile project');
-      expect(lines[1].trim()).toBe('age 4');
-      expect(lines[2].trim()).toBe('↳ run: npm run build -- --watch');
+      expect(lines[0]).toBe('▶ 1. Compile project -  age 4');
+      expect(lines[1].trim()).toBe('↳ run: npm run build -- --watch');
     } finally {
       unmount();
     }
@@ -52,9 +51,8 @@ describe('PlanDetail', () => {
     try {
       const frame = stripAnsi(lastFrame());
       const lines = frame.split('\n').map((line) => line.trimEnd());
-      expect(lines[0]).toBe('  • 2. Investigate logs');
-      expect(lines[1].trim()).toBe('age 0');
-      expect(frame).not.toContain('↳');
+      expect(lines[0]).toBe('  • 2. Investigate logs -  age 0');
+      expect(lines).toHaveLength(1);
     } finally {
       unmount();
     }

@@ -833,10 +833,42 @@ export async function executeAgentPass({
         activePlanStep = activePlanExecutableSteps[snapshotIndex]?.step ?? activePlanStep;
       }
 
-      const { result, executionDetails } = await executeAgentCommandFn({
-        command,
-        runCommandFn,
-      });
+      let commandResult;
+      let executionDetails;
+
+      try {
+        ({ result: commandResult, executionDetails } = await executeAgentCommandFn({
+          command,
+          runCommandFn,
+        }));
+      } catch (error) {
+        const normalizedError =
+          error instanceof Error ? error : new Error(typeof error === 'string' ? error : String(error));
+
+        emitEvent({
+          type: 'status',
+          level: 'error',
+          message: 'Command execution threw an exception.',
+          details: normalizedError.stack || normalizedError.message,
+        });
+
+        commandResult = {
+          stdout: '',
+          stderr: normalizedError.message,
+          exit_code: 1,
+          killed: false,
+          runtime_ms: 0,
+        };
+
+        executionDetails = {
+          type: 'EXECUTE',
+          command,
+          error: {
+            message: normalizedError.message,
+            stack: normalizedError.stack,
+          },
+        };
+      }
 
       let key = typeof command.key === 'string' && command.key.trim() ? command.key.trim() : '';
       if (!key) {
@@ -856,7 +888,7 @@ export async function executeAgentPass({
 
       const { renderPayload, observation } = observationBuilder.build({
         command,
-        result,
+        result: commandResult,
       });
 
       step.observation = observation;
@@ -866,10 +898,10 @@ export async function executeAgentPass({
       }
 
       const exitCode =
-        typeof result?.exit_code === 'number'
-          ? result.exit_code
-          : typeof result?.exitCode === 'number'
-            ? result.exitCode
+        typeof commandResult?.exit_code === 'number'
+          ? commandResult.exit_code
+          : typeof commandResult?.exitCode === 'number'
+            ? commandResult.exitCode
             : null;
       if (exitCode === 0) {
         if (activePlanStep && typeof activePlanStep === 'object') {
@@ -889,7 +921,7 @@ export async function executeAgentPass({
         }
       }
 
-      if (result && result.killed) {
+      if (commandResult && commandResult.killed) {
         // When a command is canceled we drop the executable payload so the agent
         // waits for the model to acknowledge the interruption instead of
         // immediately retrying the same command in a tight loop.
@@ -905,7 +937,7 @@ export async function executeAgentPass({
       emitDebug(() => ({
         stage: 'command-execution',
         command,
-        result,
+        result: commandResult,
         execution: executionDetails,
         observation,
       }));
@@ -913,7 +945,7 @@ export async function executeAgentPass({
       emitEvent({
         type: 'command-result',
         command,
-        result,
+        result: commandResult,
         preview: renderPayload,
         execution: executionDetails,
       });

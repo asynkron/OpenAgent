@@ -366,6 +366,122 @@ describe('executeAgentPass', () => {
     expect(failedEvent).toBeDefined();
   });
 
+  test('continues executing remaining steps when a command throws', async () => {
+    const thrown = new Error('synthetic failure');
+    let invocation = 0;
+
+    const {
+      executeAgentPass,
+      parseAssistantResponse,
+      executeAgentCommand,
+      planHasOpenSteps,
+      buildPlanLookup,
+    } = await setupPassExecutor({
+      executeAgentCommandImpl: async ({ command }) => {
+        invocation += 1;
+        if (invocation === 1) {
+          throw thrown;
+        }
+        return {
+          result: {
+            stdout: `ok: ${command?.run ?? ''}`,
+            stderr: '',
+            exit_code: 0,
+            killed: false,
+            runtime_ms: 10,
+          },
+          executionDetails: { type: 'EXECUTE', command },
+        };
+      },
+    });
+
+    parseAssistantResponse.mockImplementation(() => ({
+      ok: true,
+      value: {
+        message: 'Run plan',
+        plan: [
+          { step: '1', title: 'First', status: 'pending', command: { run: 'first' } },
+          { step: '2', title: 'Second', status: 'pending', command: { run: 'second' } },
+        ],
+      },
+      recovery: { strategy: 'direct' },
+    }));
+
+    planHasOpenSteps.mockImplementation((plan = []) =>
+      Array.isArray(plan)
+        ? plan.some((item) => {
+            if (!item || typeof item !== 'object') {
+              return false;
+            }
+            const status = typeof item.status === 'string' ? item.status.trim().toLowerCase() : '';
+            return status !== 'completed' && status !== 'failed' && status !== 'abandoned';
+          })
+        : false,
+    );
+
+    buildPlanLookup.mockImplementation((plan = []) => {
+      const map = new Map();
+      if (!Array.isArray(plan)) {
+        return map;
+      }
+      plan.forEach((item, index) => {
+        if (!item || typeof item !== 'object') {
+          return;
+        }
+        const id =
+          typeof item.id === 'string' && item.id.trim().length > 0
+            ? item.id.trim()
+            : `index:${index}`;
+        if (!map.has(id)) {
+          map.set(id, item);
+        }
+      });
+      return map;
+    });
+
+    const emitEvent = jest.fn();
+    const history = [];
+
+    const PASS_INDEX = 9;
+    const result = await executeAgentPass({
+      openai: {},
+      model: 'gpt-5-codex',
+      history,
+      emitEvent,
+      runCommandFn: jest.fn(),
+      applyFilterFn: jest.fn(),
+      tailLinesFn: jest.fn(),
+      getNoHumanFlag: () => false,
+      setNoHumanFlag: () => {},
+      planReminderMessage: 'remember the plan',
+      startThinkingFn: jest.fn(),
+      stopThinkingFn: jest.fn(),
+      escState: {},
+      approvalManager: null,
+      historyCompactor: null,
+      planManager: null,
+      emitAutoApproveStatus: false,
+      passIndex: PASS_INDEX,
+    });
+
+    expect(result).toBe(true);
+    expect(executeAgentCommand).toHaveBeenCalledTimes(2);
+
+    const commandResultEvents = emitEvent.mock.calls
+      .map(([event]) => event)
+      .filter((event) => event && event.type === 'command-result');
+    expect(commandResultEvents).toHaveLength(2);
+    expect(commandResultEvents[0].result.exit_code).toBe(1);
+    expect(commandResultEvents[1].result.exit_code).toBe(0);
+
+    const statusErrorEvent = emitEvent.mock.calls
+      .map(([event]) => event)
+      .find((event) => event && event.type === 'status' && event.level === 'error');
+    expect(statusErrorEvent).toMatchObject({
+      message: 'Command execution threw an exception.',
+    });
+  });
+
   test('executes every ready plan step in priority order during a single pass', async () => {
     const commandRuns = [];
     const {
