@@ -18,6 +18,7 @@
   - Merging no longer downgrades locally completed/failed steps when the assistant resends them as pending, preventing command replays.
   - Assistant-provided statuses are ignored (except `abandoned`) so the runtime owns status transitions, and any newly merged steps start in `pending`.
   - Deep-clone helper ensures persisted plans round-trip without clearing locally managed status/observation fields.
+  - Merge keys normalize `id` values case-insensitively so assistant resends with different casing still hit the same step.
 - `text.js` — string helpers (filters, tailing, shell splitting).
 
 ## Positive Signals

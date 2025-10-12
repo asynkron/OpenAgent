@@ -898,11 +898,11 @@ describe('executeAgentPass', () => {
     const observationEntry = history[history.length - 1];
     expect(observationEntry).toMatchObject({
       eventType: 'chat-message',
-      role: 'assistant',
+      role: 'user',
       pass: PASS_INDEX,
     });
     expect(observationEntry.payload).toEqual({
-      role: 'assistant',
+      role: 'user',
       content: observationEntry.content,
     });
     const assistantEntry = history[0];

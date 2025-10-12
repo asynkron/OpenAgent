@@ -110,7 +110,7 @@ export const formatObservationMessage = ({ observation, command = null }) =>
 export const createObservationHistoryEntry = ({ observation, command = null, pass }) =>
   createChatMessageEntry({
     eventType: 'chat-message',
-    role: 'assistant',
+    role: 'user',
     pass,
     content: stringify(buildObservationContent({ observation, command })),
   });

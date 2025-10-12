@@ -83,7 +83,7 @@ function createPlanKey(item, fallbackIndex) {
 
   const id = normalizePlanIdentifier(item.id);
   if (id) {
-    return `id:${id}`;
+    return `id:${id.toLowerCase()}`;
   }
 
   if (typeof item.title === 'string' && item.title.trim().length > 0) {

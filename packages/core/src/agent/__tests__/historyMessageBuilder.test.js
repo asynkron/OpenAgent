@@ -7,7 +7,7 @@ import {
 } from '../historyMessageBuilder.js';
 
 describe('historyMessageBuilder', () => {
-  test('creates an assistant entry for command observations', () => {
+  test('creates a user entry for command observations', () => {
     const observation = {
       observation_for_llm: {
         stdout: 'hello\n',
@@ -26,8 +26,8 @@ describe('historyMessageBuilder', () => {
       pass: 5,
     });
 
-    expect(entry).toMatchObject({ eventType: 'chat-message', role: 'assistant', pass: 5 });
-    expect(entry.payload).toEqual({ role: 'assistant', content: entry.content });
+    expect(entry).toMatchObject({ eventType: 'chat-message', role: 'user', pass: 5 });
+    expect(entry.payload).toEqual({ role: 'user', content: entry.content });
 
     const parsed = JSON.parse(entry.content);
     expect(parsed).toMatchObject({
@@ -64,7 +64,7 @@ describe('historyMessageBuilder', () => {
   test('serializes plan updates as structured JSON', () => {
     const observation = {
       observation_for_llm: {
-        plan: [{ step: '1', title: 'Do the thing', status: 'running' }],
+        plan: [{ id: 'task-1', title: 'Do the thing', status: 'running' }],
       },
       observation_metadata: {
         timestamp: '2025-01-01T00:00:00.000Z',
@@ -72,11 +72,11 @@ describe('historyMessageBuilder', () => {
     };
 
     const entry = createObservationHistoryEntry({ observation, pass: 9 });
-    expect(entry).toMatchObject({ eventType: 'chat-message', role: 'assistant', pass: 9 });
-    expect(entry.payload).toEqual({ role: 'assistant', content: entry.content });
+    expect(entry).toMatchObject({ eventType: 'chat-message', role: 'user', pass: 9 });
+    expect(entry.payload).toEqual({ role: 'user', content: entry.content });
     const parsed = JSON.parse(entry.content);
     expect(parsed).toMatchObject({ type: 'plan-update' });
-    expect(parsed.plan).toEqual([{ step: '1', title: 'Do the thing', status: 'running' }]);
+    expect(parsed.plan).toEqual([{ id: 'task-1', title: 'Do the thing', status: 'running' }]);
     expect(parsed.metadata).toMatchObject({ timestamp: '2025-01-01T00:00:00.000Z' });
   });
 
