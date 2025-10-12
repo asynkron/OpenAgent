@@ -64,6 +64,7 @@
 - Extensive unit coverage ensures protocol parsing/validation logic stays aligned with prompts.
 - Plan management persists state to `.openagent/plan.json` and supports optional plan merging.
 - Approval flow separates policy (`services/commandApprovalService.js`) from human interaction logic.
+- Tests now rely on dependency injection to stub the OpenAI client, so local runs do not require a real API key.
 
 ## Risks / Gaps
 
