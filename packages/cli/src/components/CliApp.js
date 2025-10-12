@@ -26,6 +26,22 @@ const MemoCommand = React.memo(Command);
 const MemoStatusMessage = React.memo(StatusMessage);
 const MemoDebugPanel = React.memo(DebugPanel);
 
+function useStableState(initialValue, comparator = Object.is) {
+  const [state, setState] = useState(initialValue);
+
+  const setStableState = useCallback(
+    (nextValue) => {
+      setState((previous) => {
+        const resolved = typeof nextValue === 'function' ? nextValue(previous) : nextValue;
+        return comparator(previous, resolved) ? previous : resolved;
+      });
+    },
+    [comparator],
+  );
+
+  return [state, setStableState];
+}
+
 const Timeline = React.memo(function Timeline({ entries }) {
   if (!entries || entries.length === 0) {
     return null;
@@ -286,6 +302,26 @@ function parsePositiveInteger(value, defaultValue = 1) {
   return Math.floor(normalized);
 }
 
+function isPlanProgressComplete(progressState) {
+  if (!progressState?.seen) {
+    return false;
+  }
+
+  const progress = progressState.value;
+  if (!progress) {
+    return false;
+  }
+
+  const { totalSteps, completedSteps } = progress;
+
+  return (
+    Number.isFinite(totalSteps) &&
+    totalSteps > 0 &&
+    Number.isFinite(completedSteps) &&
+    completedSteps >= totalSteps
+  );
+}
+
 /**
  * Main Ink container responsible for driving the CLI experience.
  */
@@ -295,9 +331,9 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
   const entryIdRef = useRef(0);
   const debugEventIdRef = useRef(0);
   const commandLogIdRef = useRef(0);
-  const [plan, setPlan] = useState([]);
-  const [planProgress, setPlanProgress] = useState({ seen: false, value: null });
-  const [contextUsage, setContextUsage] = useState(null);
+  const [plan, setPlan] = useStableState([], deepEqual);
+  const [planProgress, setPlanProgress] = useStableState({ seen: false, value: null }, deepEqual);
+  const [contextUsage, setContextUsage] = useStableState(null, deepEqual);
   const [thinking, setThinking] = useState(false);
   const [inputRequest, setInputRequest] = useState(null);
   const [entries, setEntries] = useState([]);
@@ -411,103 +447,141 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
     [appendEntry],
   );
 
+  const handleHistorySlashCommand = useCallback(
+    async (rawPath) => {
+      const activeRuntime = runtimeRef.current;
+      if (!activeRuntime || typeof activeRuntime.getHistorySnapshot !== 'function') {
+        handleStatusEvent({
+          level: 'error',
+          message: 'History snapshot is unavailable for this session.',
+        });
+        return true;
+      }
+
+      let history;
+      try {
+        history = activeRuntime.getHistorySnapshot();
+      } catch (error) {
+        handleStatusEvent({
+          level: 'error',
+          message: 'Failed to read history from the runtime.',
+          details: error,
+        });
+        return true;
+      }
+
+      try {
+        const targetPath = await writeHistorySnapshot({ history, filePath: rawPath });
+        handleStatusEvent({
+          level: 'info',
+          message: `Saved history to ${targetPath}.`,
+        });
+      } catch (error) {
+        handleStatusEvent({
+          level: 'error',
+          message: 'Failed to write history file.',
+          details: error,
+        });
+      }
+
+      return true;
+    },
+    [handleStatusEvent],
+  );
+
+  const handleCommandInspectorSlashCommand = useCallback(
+    (rawCount) => {
+      if (!commandLog || commandLog.length === 0) {
+        handleStatusEvent({
+          level: 'info',
+          message: 'No commands have been received yet.',
+        });
+        setCommandInspector(null);
+        return true;
+      }
+
+      let requested = 1;
+      if (rawCount.length > 0) {
+        const parsed = parsePositiveInteger(rawCount, Number.NaN);
+        if (!Number.isFinite(parsed)) {
+          handleStatusEvent({
+            level: 'warn',
+            message: 'Command inspector requires a positive integer. Showing the latest command instead.',
+          });
+        } else {
+          requested = parsed;
+        }
+      }
+
+      const safeCount = Math.max(1, Math.min(commandLog.length, requested));
+      const panelKey = Date.now();
+      setCommandInspector({ requested: safeCount, token: panelKey });
+      handleStatusEvent({
+        level: 'info',
+        message:
+          safeCount === 1
+            ? 'Showing the most recent command payload.'
+            : `Showing the ${safeCount} most recent command payloads.`,
+      });
+
+      return true;
+    },
+    [commandLog, handleStatusEvent],
+  );
+
+  const slashCommandHandlers = useMemo(
+    () => ({
+      history: handleHistorySlashCommand,
+      command: handleCommandInspectorSlashCommand,
+    }),
+    [handleCommandInspectorSlashCommand, handleHistorySlashCommand],
+  );
+
   const handleSlashCommand = useCallback(
     async (submission) => {
-      if (typeof submission !== 'string' || !submission.trim().startsWith('/')) {
+      if (typeof submission !== 'string') {
         return false;
       }
 
       const normalized = submission.trim();
-      const withoutPrefix = normalized.slice(1).trim();
+      if (!normalized.startsWith('/')) {
+        return false;
+      }
 
+      const withoutPrefix = normalized.slice(1).trim();
       if (!withoutPrefix) {
         return false;
       }
 
       const [rawName, ...restParts] = withoutPrefix.split(/\s+/u);
       const commandName = rawName.toLowerCase();
-      const rest = restParts.join(' ').trim();
+      const handler = slashCommandHandlers[commandName];
 
-      switch (commandName) {
-        case 'history': {
-          const activeRuntime = runtimeRef.current;
-          if (!activeRuntime || typeof activeRuntime.getHistorySnapshot !== 'function') {
-            handleStatusEvent({
-              level: 'error',
-              message: 'History snapshot is unavailable for this session.',
-            });
-            return true;
-          }
-
-          let history;
-          try {
-            history = activeRuntime.getHistorySnapshot();
-          } catch (error) {
-            handleStatusEvent({
-              level: 'error',
-              message: 'Failed to read history from the runtime.',
-              details: error,
-            });
-            return true;
-          }
-
-          try {
-            const targetPath = await writeHistorySnapshot({ history, filePath: rest });
-            handleStatusEvent({
-              level: 'info',
-              message: `Saved history to ${targetPath}.`,
-            });
-          } catch (error) {
-            handleStatusEvent({
-              level: 'error',
-              message: 'Failed to write history file.',
-              details: error,
-            });
-          }
-          return true;
-        }
-        case 'command': {
-          if (!commandLog || commandLog.length === 0) {
-            handleStatusEvent({
-              level: 'info',
-              message: 'No commands have been received yet.',
-            });
-            setCommandInspector(null);
-            return true;
-          }
-
-          let requested = 1;
-          if (rest.length > 0) {
-            const parsed = parsePositiveInteger(rest, Number.NaN);
-            if (!Number.isFinite(parsed)) {
-              handleStatusEvent({
-                level: 'warn',
-                message:
-                  'Command inspector requires a positive integer. Showing the latest command instead.',
-              });
-            } else {
-              requested = parsed;
-            }
-          }
-
-          const safeCount = Math.max(1, Math.min(commandLog.length, requested));
-          const panelKey = Date.now();
-          setCommandInspector({ requested: safeCount, token: panelKey });
-          handleStatusEvent({
-            level: 'info',
-            message:
-              safeCount === 1
-                ? 'Showing the most recent command payload.'
-                : `Showing the ${safeCount} most recent command payloads.`,
-          });
-          return true;
-        }
-        default:
-          return false;
+      if (!handler) {
+        return false;
       }
+
+      const rest = restParts.join(' ').trim();
+      const result = await handler(rest);
+      return result !== false;
     },
-    [commandLog, handleStatusEvent],
+    [slashCommandHandlers],
   );
+
+  const resetPlanAfterCompletion = useCallback(() => {
+    setPlan((previousPlan) =>
+      Array.isArray(previousPlan) && previousPlan.length === 0 ? previousPlan : [],
+    );
+    setPlanProgress((previousProgress) => {
+      if (
+        !previousProgress?.seen &&
+        (previousProgress?.value === null || typeof previousProgress?.value === 'undefined')
+      ) {
+        return previousProgress;
+      }
+      return { seen: false, value: null };
+    });
+  }, [setPlan, setPlanProgress]);
 
   const handleSubmitPrompt = useCallback(
     async (value) => {
@@ -529,25 +603,10 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
       }
 
       if (!handledLocally) {
-        const progressValue = planProgress?.value ?? null;
-        const planCompleted =
-          planProgress?.seen === true &&
-          progressValue &&
-          Number.isFinite(progressValue.totalSteps) &&
-          progressValue.totalSteps > 0 &&
-          Number.isFinite(progressValue.completedSteps) &&
-          progressValue.completedSteps >= progressValue.totalSteps;
-
-        if (planCompleted) {
+        if (isPlanProgressComplete(planProgress)) {
           // Once every leaf step is marked complete, clear the rendered plan so the
           // next human turn starts with a fresh slate.
-          setPlan((prevPlan) => (Array.isArray(prevPlan) && prevPlan.length === 0 ? prevPlan : []));
-          setPlanProgress((prev) => {
-            if (!prev?.seen && (prev?.value === null || typeof prev?.value === 'undefined')) {
-              return prev;
-            }
-            return { seen: false, value: null };
-          });
+          resetPlanAfterCompletion();
         }
 
         try {
@@ -563,7 +622,55 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
       // input. Keep the current request active so the next human prompt is routed
       // to OpenAI instead of being treated as another local command.
     },
-    [appendEntry, handleSlashCommand, handleStatusEvent, planProgress],
+    [appendEntry, handleSlashCommand, handleStatusEvent, planProgress, resetPlanAfterCompletion],
+  );
+
+  const eventHandlers = useMemo(
+    () => ({
+      banner: (event) =>
+        appendEntry('banner', { title: event.title ?? null, subtitle: event.subtitle ?? null }),
+      status: handleStatusEvent,
+      thinking: (event) => setThinking(event.state === 'start'),
+      'assistant-message': handleAssistantMessage,
+      plan: (event) => {
+        const nextPlan = Array.isArray(event.plan) ? cloneValue(event.plan) : [];
+        setPlan(nextPlan);
+      },
+      'plan-progress': (event) =>
+        setPlanProgress({
+          seen: true,
+          value: event.progress ? cloneValue(event.progress) : null,
+        }),
+      'context-usage': (event) => setContextUsage(event.usage ? cloneValue(event.usage) : null),
+      'command-result': handleCommandEvent,
+      error: (event) =>
+        handleStatusEvent({
+          level: 'error',
+          message: event.message || 'Agent error encountered.',
+          details: event.details || event.raw,
+        }),
+      'request-input': (event) =>
+        setInputRequest({
+          prompt: event.prompt ?? '▷',
+          metadata:
+            event.metadata === undefined || event.metadata === null
+              ? null
+              : cloneValue(event.metadata),
+        }),
+      debug: handleDebugEvent,
+    }),
+    [
+      appendEntry,
+      handleAssistantMessage,
+      handleCommandEvent,
+      handleDebugEvent,
+      handleStatusEvent,
+      setContextUsage,
+      setInputRequest,
+      setPlan,
+      setPlanProgress,
+      setThinking,
+    ],
   );
 
   const handleEvent = useCallback(
@@ -572,66 +679,10 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
         return;
       }
 
-      switch (event.type) {
-        case 'banner':
-          appendEntry('banner', { title: event.title ?? null, subtitle: event.subtitle ?? null });
-          break;
-        case 'status':
-          handleStatusEvent(event);
-          break;
-        case 'thinking':
-          setThinking(event.state === 'start');
-          break;
-        case 'assistant-message':
-          handleAssistantMessage(event);
-          break;
-        case 'plan': {
-          // Clone the plan payload so downstream mutations in the runtime cannot
-          // mutate our stateful reference and short-circuit Ink updates.
-          const nextPlan = Array.isArray(event.plan) ? cloneValue(event.plan) : [];
-          setPlan((prevPlan) => (deepEqual(prevPlan, nextPlan) ? prevPlan : nextPlan));
-          break;
-        }
-        case 'plan-progress': {
-          const nextPlanProgress = {
-            seen: true,
-            value: event.progress ? cloneValue(event.progress) : null,
-          };
-          setPlanProgress((prev) => (deepEqual(prev, nextPlanProgress) ? prev : nextPlanProgress));
-          break;
-        }
-        case 'context-usage': {
-          const nextContextUsage = event.usage ? cloneValue(event.usage) : null;
-          setContextUsage((prev) => (deepEqual(prev, nextContextUsage) ? prev : nextContextUsage));
-          break;
-        }
-        case 'command-result':
-          handleCommandEvent(event);
-          break;
-        case 'error':
-          handleStatusEvent({
-            level: 'error',
-            message: event.message || 'Agent error encountered.',
-            details: event.details || event.raw,
-          });
-          break;
-        case 'request-input':
-          setInputRequest({
-            prompt: event.prompt ?? '▷',
-            metadata:
-              event.metadata === undefined || event.metadata === null
-                ? null
-                : cloneValue(event.metadata),
-          });
-          break;
-        case 'debug':
-          handleDebugEvent(event);
-          break;
-        default:
-          break;
-      }
+      const handler = eventHandlers[event.type];
+      handler?.(event);
     },
-    [appendEntry, handleAssistantMessage, handleCommandEvent, handleDebugEvent, handleStatusEvent],
+    [eventHandlers],
   );
 
   useEffect(() => {
@@ -726,25 +777,16 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
   const hasDebugEvents = debugEvents.length > 0;
   const showCommandInspector = commandPanelEvents.length > 0;
   const commandInspectorKey = commandInspector?.token ?? 'command-inspector';
-  const children = [];
-
-  children.push(h(Timeline, { entries, key: `timeline-${timelineKey}` }));
-
-  if (hasDebugEvents) {
-    children.push(h(MemoDebugPanel, { events: debugEvents, heading: 'Debug', key: 'debug' }));
-  }
-
-  if (showCommandInspector) {
-    children.push(
-      h(MemoDebugPanel, {
-        events: commandPanelEvents,
-        heading: 'Recent commands',
-        key: `command-${commandInspectorKey}`,
-      }),
-    );
-  }
-
-  children.push(
+  const sections = [
+    h(Timeline, { entries, key: `timeline-${timelineKey}` }),
+    hasDebugEvents ? h(MemoDebugPanel, { events: debugEvents, heading: 'Debug', key: 'debug' }) : null,
+    showCommandInspector
+      ? h(MemoDebugPanel, {
+          events: commandPanelEvents,
+          heading: 'Recent commands',
+          key: `command-${commandInspectorKey}`,
+        })
+      : null,
     h(AskHuman, {
       prompt: inputRequest?.prompt,
       onSubmit: inputRequest ? handleSubmitPrompt : undefined,
@@ -752,17 +794,14 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
       contextUsage,
       key: 'ask-human',
     }),
-  );
-
-  children.push(
     h(MemoPlan, {
       plan,
       progress: planProgress.value,
       key: 'plan',
     }),
-  );
+  ].filter(Boolean);
 
-  return h(Box, { flexDirection: 'column' }, children);
+  return h(Box, { flexDirection: 'column' }, sections);
 }
 
 export default CliApp;
