@@ -34,6 +34,7 @@
 - Whenever code, docs, or prompts change, update the nearest `context.md` (and parent summaries) so the index remains trustworthy.
 - README now opens with `![Screenshot](./screenshot.png)` to preview the CLI.
 - Cross-reference sibling directories if behavior spans subsystems (e.g., CLI rendering ↔ agent runtime).
+- TypeScript scaffolding now lives at the workspace root via `tsconfig.json` plus `npm run typecheck` for incremental adoption; compiled JavaScript still ships from package directories until the build pipeline is fully converted.
 
 ## Related Context
 

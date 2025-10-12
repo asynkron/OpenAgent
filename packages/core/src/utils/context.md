@@ -20,7 +20,7 @@
   - Deep-clone helper ensures persisted plans round-trip without clearing locally managed status/observation fields.
   - Merge keys normalize `id` values case-insensitively so assistant resends with different casing still hit the same step.
   - Progress helpers only treat canonical terminal statuses (`completed`, `failed`) as finished; tests assert unrecognized values like `done` remain pending.
-- `text.js` — string helpers (filters, tailing, shell splitting).
+- `text.ts` (emits `text.js` for runtime consumption) — string helpers (filters, tailing, shell splitting).
 
 ## Positive Signals
 
