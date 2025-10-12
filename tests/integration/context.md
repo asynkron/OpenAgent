@@ -13,11 +13,11 @@
 - `approvalFlow.integration.test.js` — exercises auto-approval, session approvals, and human prompts end-to-end.
 - `cmdStats.integration.test.js` — tracks command statistics service wiring.
 - `scripts.integration.test.js` — smoke-tests automation scripts when invoked via the CLI runtime.
-- `agentRuntimeTestHarness.js` & `testRunnerUI.js` — scaffolding to run the agent loop programmatically and assert emitted events.
+- `agentRuntimeTestHarness.js` & `testRunnerUI.js` — scaffolding to run the agent loop programmatically and assert emitted events, now injecting an in-memory plan manager so suites stay isolated from `.openagent/plan.json` while still exercising merge/progress logic.
 
 ## Positive Signals
 
-- Harness reuses real runtime modules (`createAgentRuntime`), so behavior closely mirrors production execution.
+- Harness reuses real runtime modules (`createAgentRuntime`) while swapping in deterministic OpenAI mocks and an in-memory plan manager, so behavior closely mirrors production execution without leaking state between suites.
 - Tests cover both positive flows and cancellation/approval edge cases.
 
 ## Risks / Gaps

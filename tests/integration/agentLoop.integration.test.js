@@ -26,7 +26,7 @@ if (!rawNestedShellResponsePayload.includes('"stage": "openai-response"')) {
 
 test('agent runtime executes one mocked command then exits on user request', async () => {
   process.env.OPENAI_API_KEY = 'test-key';
-  const { agent } = await loadAgentWithMockedModules();
+  const { agent, createTestPlanManager } = await loadAgentWithMockedModules();
   agent.STARTUP_FORCE_AUTO_APPROVE = true;
 
   queueModelResponse({
@@ -61,6 +61,7 @@ test('agent runtime executes one mocked command then exits on user request', asy
   const runtime = agent.createAgentRuntime({
     getAutoApproveFlag: () => agent.STARTUP_FORCE_AUTO_APPROVE,
     runCommandFn: runCommandMock,
+    createPlanManagerFn: createTestPlanManager,
   });
 
   const ui = createTestRunnerUI(runtime);
@@ -75,7 +76,7 @@ test('agent runtime executes one mocked command then exits on user request', asy
 
 test('agent runtime executes nested shell commands from raw response strings', async () => {
   process.env.OPENAI_API_KEY = 'test-key';
-  const { agent } = await loadAgentWithMockedModules();
+  const { agent, createTestPlanManager } = await loadAgentWithMockedModules();
   agent.STARTUP_FORCE_AUTO_APPROVE = true;
 
   queueModelCompletion({
@@ -108,6 +109,7 @@ test('agent runtime executes nested shell commands from raw response strings', a
   const runtime = agent.createAgentRuntime({
     getAutoApproveFlag: () => agent.STARTUP_FORCE_AUTO_APPROVE,
     runCommandFn: runCommandMock,
+    createPlanManagerFn: createTestPlanManager,
   });
 
   const ui = createTestRunnerUI(runtime);
@@ -123,7 +125,7 @@ test('agent runtime executes nested shell commands from raw response strings', a
 
 const driveRefusalAutoResponse = async (refusalMessage) => {
   process.env.OPENAI_API_KEY = 'test-key';
-  const { agent, mocks } = await loadAgentWithMockedModules();
+  const { agent, mocks, createTestPlanManager } = await loadAgentWithMockedModules();
 
   // The first response simulates the model refusing; the second proves we nudged it to try again.
   queueModelResponse({
@@ -135,7 +137,9 @@ const driveRefusalAutoResponse = async (refusalMessage) => {
     plan: [],
   });
 
-  const runtime = agent.createAgentRuntime();
+  const runtime = agent.createAgentRuntime({
+    createPlanManagerFn: createTestPlanManager,
+  });
   const ui = createTestRunnerUI(runtime);
   ui.queueUserInput('Please try something else', 'exit');
 

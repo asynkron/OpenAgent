@@ -65,7 +65,7 @@ describe('Approval flow integration', () => {
   test('executes command after human approves once', async () => {
     process.env.OPENAI_API_KEY = 'test-key';
 
-    const { agent } = await loadAgentWithMockedModules();
+    const { agent, createTestPlanManager } = await loadAgentWithMockedModules();
 
     enqueueHandshakeResponse();
 
@@ -94,6 +94,7 @@ describe('Approval flow integration', () => {
     const runtime = agent.createAgentRuntime({
       getAutoApproveFlag: () => false,
       runCommandFn: runCommandMock,
+      createPlanManagerFn: createTestPlanManager,
     });
 
     const ui = createTestRunnerUI(runtime);
@@ -117,7 +118,7 @@ describe('Approval flow integration', () => {
   test('skips command execution when human rejects', async () => {
     process.env.OPENAI_API_KEY = 'test-key';
 
-    const { agent } = await loadAgentWithMockedModules();
+    const { agent, createTestPlanManager } = await loadAgentWithMockedModules();
 
     enqueueHandshakeResponse();
 
@@ -140,11 +141,12 @@ describe('Approval flow integration', () => {
     const runtime = agent.createAgentRuntime({
       getAutoApproveFlag: () => false,
       runCommandFn: runCommandMock,
+      createPlanManagerFn: createTestPlanManager,
     });
 
     const ui = createTestRunnerUI(runtime);
     ui.queueUserInput('Attempt command');
-    ui.queueApprovalResponse('3');
+    ui.queueApprovalResponse('3', '3');
     ui.queueUserInput('exit');
 
     await ui.start();
@@ -163,7 +165,7 @@ describe('Approval flow integration', () => {
   test('auto-approves commands flagged as preapproved', async () => {
     process.env.OPENAI_API_KEY = 'test-key';
 
-    const { agent } = await loadAgentWithMockedModules();
+    const { agent, createTestPlanManager } = await loadAgentWithMockedModules();
 
     enqueueHandshakeResponse();
 
@@ -192,6 +194,7 @@ describe('Approval flow integration', () => {
       getAutoApproveFlag: () => false,
       runCommandFn: runCommandMock,
       isPreapprovedCommandFn: () => true,
+      createPlanManagerFn: createTestPlanManager,
     });
 
     const ui = createTestRunnerUI(runtime);
