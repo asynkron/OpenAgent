@@ -1,360 +1,246 @@
 // @ts-nocheck
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
+import type { Key } from 'ink';
+
+import {
+  BLINK_INTERVAL_MS,
+  clamp,
+  computeCaretPosition,
+  extractSpecialKeys,
+  resolveHorizontalPadding,
+  transformToRows,
+  type CaretPosition,
+  type HorizontalPaddingInput,
+  type LastKeyEvent,
+  type TextRow,
+} from './inkTextArea/layout.js';
+import {
+  buildSlashCommandEvent,
+  computeActiveCommand,
+  normalizeCommandDefinition,
+  normalizeSlashItem,
+  type ActiveSlashCommand,
+  type NormalizedSlashCommand,
+  type SlashCommandDefinition,
+  type SlashCommandItem,
+  type SlashCommandSourceItem,
+} from './inkTextArea/commands.js';
+import type { SlashCommandSelectEvent } from './inkTextArea/types.js';
 
 const h = React.createElement;
-const BLINK_INTERVAL_MS = 500;
 
-function isWhitespace(char) {
-  if (!char) {
-    return false;
-  }
-  return /\s/u.test(char);
+const ANSI_INVERSE_ON = '\u001B[7m';
+const ANSI_INVERSE_OFF = '\u001B[27m';
+
+type LegacySlashMenuItem = SlashCommandSourceItem;
+
+interface CommandMatch {
+  item: SlashCommandItem;
+  index: number;
 }
 
-function normalizeSlashItem(item, index) {
-  if (!item || typeof item !== 'object') {
-    return null;
-  }
-
-  const labelSource =
-    item.label ?? item.title ?? item.name ?? item.id ?? item.key ?? `item-${index}`;
-  const label = typeof labelSource === 'string' ? labelSource : String(labelSource);
-  const description =
-    typeof item.description === 'string' && item.description.length > 0
-      ? item.description
-      : undefined;
-  const keywords = Array.isArray(item.keywords)
-    ? item.keywords.filter((keyword) => typeof keyword === 'string')
-    : [];
-  const insertValue =
-    typeof item.insertValue === 'string'
-      ? item.insertValue
-      : typeof item.replacement === 'string'
-        ? item.replacement
-        : undefined;
-
-  return {
-    id: item.id ?? index,
-    label,
-    description,
-    keywords,
-    insertValue,
-    source: item,
-  };
+interface CommandCacheEntry {
+  signature: string;
+  items: SlashCommandItem[];
 }
 
-function defaultFilterItem(item, context) {
-  if (!context) {
-    return true;
-  }
+type CommandCache = Record<string, CommandCacheEntry>;
 
-  const { normalizedQuery } = context;
-
-  if (!normalizedQuery) {
-    return true;
-  }
-
-  const tokens = normalizedQuery
-    .split(/\s+/u)
-    .map((token) => token.trim())
-    .filter(Boolean);
-
-  if (tokens.length === 0) {
-    return true;
-  }
-
-  const normalizedDescription =
-    typeof item.description === 'string' ? item.description.replace(/\([^)]*\)/gu, ' ') : '';
-
-  const haystackParts = [
-    item.label,
-    item.insertValue,
-    normalizedDescription,
-    ...(item.keywords ?? []),
-  ]
-    .filter((part) => typeof part === 'string' && part.length > 0)
-    .map((part) => part.toLowerCase());
-
-  if (haystackParts.length === 0) {
-    return false;
-  }
-
-  if (tokens.length > 1) {
-    const contiguousQuery = normalizedQuery.trim().replace(/\s+/gu, ' ');
-
-    if (contiguousQuery.length > 0) {
-      const hasContiguousMatch = haystackParts.some((part) => part.includes(contiguousQuery));
-
-      if (!hasContiguousMatch) {
-        return false;
-      }
-    }
-  }
-
-  // Ensure every token from the query appears in at least one searchable field so
-  // long example strings (e.g., descriptions) do not cause overly broad matches.
-  return tokens.every((token) => haystackParts.some((part) => part.includes(token)));
+export interface InkTextAreaProps extends HorizontalPaddingInput {
+  value?: string;
+  onChange?: (value: string) => void;
+  onSubmit?: (value: string) => void;
+  placeholder?: string;
+  width?: number;
+  isActive?: boolean;
+  isDisabled?: boolean;
+  slashMenuItems?: ReadonlyArray<LegacySlashMenuItem>;
+  commandMenus?: ReadonlyArray<SlashCommandDefinition>;
+  onSlashCommandSelect?: (event: SlashCommandSelectEvent) => void;
+  textProps?: Record<string, unknown>;
+  debug?: boolean;
+  showDebugMetrics?: boolean;
+  commandMenuTitle?: string;
+  [key: string]: unknown;
 }
 
-function normalizeCommandDefinition(definition, index) {
-  if (!definition || typeof definition !== 'object') {
-    return null;
-  }
-
-  const trigger =
-    typeof definition.trigger === 'string' && definition.trigger.length > 0
-      ? definition.trigger
-      : '/';
-
-  const allowInline = Boolean(definition.allowInline);
-  const shouldActivate =
-    typeof definition.shouldActivate === 'function'
-      ? definition.shouldActivate
-      : ({ precedingChar }) => allowInline || !precedingChar || isWhitespace(precedingChar);
-
-  const filterItem =
-    typeof definition.filterItem === 'function' ? definition.filterItem : defaultFilterItem;
-
-  const staticItems = Array.isArray(definition.items)
-    ? definition.items.map((item, itemIndex) => normalizeSlashItem(item, itemIndex)).filter(Boolean)
-    : [];
-
-  const getItems = typeof definition.getItems === 'function' ? definition.getItems : null;
-  const allowNewlines = Boolean(definition.allowNewlines);
-
-  return {
-    id: definition.id ?? `command-${index}`,
-    trigger,
-    triggerLength: trigger.length,
-    allowNewlines,
-    allowInline,
-    shouldActivate,
-    filterItem,
-    getItems,
-    staticItems,
-    order: index,
-    source: definition,
-  };
+interface CommandMenuProps {
+  matches: CommandMatch[];
+  activeMatch: CommandMatch | null;
+  isVisible: boolean;
+  title?: string;
 }
 
-function computeActiveCommand(value, caretIndex, commands) {
-  if (typeof value !== 'string' || value.length === 0) {
-    return null;
-  }
+export function buildCommandDefinitions(
+  slashMenuItems: ReadonlyArray<LegacySlashMenuItem> | undefined,
+  commandMenus: ReadonlyArray<SlashCommandDefinition> | undefined,
+): NormalizedSlashCommand[] {
+  const legacyDefinitions: SlashCommandDefinition[] =
+    Array.isArray(slashMenuItems) && slashMenuItems.length > 0
+      ? [
+          {
+            id: 'legacy-slash-command',
+            trigger: '/',
+            items: slashMenuItems as SlashCommandSourceItem[],
+          },
+        ]
+      : [];
 
-  if (!Array.isArray(commands) || commands.length === 0) {
-    return null;
-  }
+  const providedDefinitions = Array.isArray(commandMenus) ? commandMenus : [];
 
-  const clampedIndex = clamp(caretIndex ?? value.length, 0, value.length);
-  const textToCaret = value.slice(0, clampedIndex);
-  let bestMatch = null;
+  return [...legacyDefinitions, ...providedDefinitions]
+    .map((definition, index) => normalizeCommandDefinition(definition, index))
+    .filter((definition): definition is NormalizedSlashCommand => Boolean(definition));
+}
 
-  for (const command of commands) {
-    const triggerIndex = textToCaret.lastIndexOf(command.trigger);
+function useCommandItems(
+  activeCommand: ActiveSlashCommand | null,
+  caretIndex: number,
+  value: string,
+): CommandCache {
+  const [dynamicCommandItems, setDynamicCommandItems] = useState<CommandCache>({});
 
-    if (triggerIndex === -1) {
-      continue;
+  useEffect(() => {
+    if (!activeCommand) {
+      return undefined;
     }
 
-    const queryStart = triggerIndex + command.triggerLength;
+    const { command } = activeCommand;
 
-    if (queryStart > clampedIndex) {
-      continue;
+    if (!command.getItems) {
+      return undefined;
     }
 
-    const query = textToCaret.slice(queryStart);
+    let cancelled = false;
+    const signature = `${command.id}:${activeCommand.startIndex}:${activeCommand.query}`;
 
-    if (!command.allowNewlines && query.includes('\n')) {
-      continue;
-    }
+    Promise.resolve(
+      command.getItems({
+        query: activeCommand.query,
+        command: command.source ?? command,
+        value,
+        caretIndex,
+        range: { startIndex: activeCommand.startIndex, endIndex: activeCommand.endIndex },
+      }),
+    )
+      .then((items) => (Array.isArray(items) ? items : []))
+      .catch(() => [])
+      .then((items) => {
+        if (cancelled) {
+          return;
+        }
 
-    if (query.includes('\u0000')) {
-      continue;
-    }
+        const normalizedItems = items
+          .map((item, index) => normalizeSlashItem(item, index))
+          .filter((value): value is SlashCommandItem => Boolean(value));
 
-    const precedingChar = triggerIndex > 0 ? textToCaret[triggerIndex - 1] : '';
+        setDynamicCommandItems((prev) => {
+          const previousEntry = prev[command.id];
 
-    const context = {
-      value,
-      caretIndex: clampedIndex,
-      triggerIndex,
-      query,
-      precedingChar,
-      command: command.source ?? command,
+          if (previousEntry && previousEntry.signature === signature) {
+            return prev;
+          }
+
+          return {
+            ...prev,
+            [command.id]: {
+              signature,
+              items: normalizedItems,
+            },
+          };
+        });
+      });
+
+    return () => {
+      cancelled = true;
     };
+  }, [activeCommand, caretIndex, value]);
 
-    if (!command.shouldActivate(context)) {
-      continue;
-    }
-
-    if (
-      !bestMatch ||
-      triggerIndex > bestMatch.startIndex ||
-      (triggerIndex === bestMatch.startIndex && command.order > bestMatch.command.order)
-    ) {
-      bestMatch = {
-        command,
-        startIndex: triggerIndex,
-        endIndex: clampedIndex,
-        query,
-      };
-    }
-  }
-
-  return bestMatch;
+  return dynamicCommandItems;
 }
 
-function clamp(value, min, max) {
-  if (value < min) return min;
-  if (value > max) return max;
-  return value;
-}
-
-const ARROW_LABELS = {
-  upArrow: 'up',
-  downArrow: 'down',
-  leftArrow: 'left',
-  rightArrow: 'right',
-};
-
-function toNonNegativeInteger(value) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return 0;
-  }
-  return Math.max(0, Math.floor(value));
-}
-
-function resolveHorizontalPadding({ padding, paddingX, paddingLeft, paddingRight }) {
-  const base = toNonNegativeInteger(padding);
-  const horizontal = paddingX !== undefined ? toNonNegativeInteger(paddingX) : base;
-  const left = paddingLeft !== undefined ? toNonNegativeInteger(paddingLeft) : horizontal;
-  const right = paddingRight !== undefined ? toNonNegativeInteger(paddingRight) : horizontal;
-  return { paddingLeft: left, paddingRight: right };
-}
-
-function extractSpecialKeys(key) {
-  if (!key || typeof key !== 'object') {
+function buildCommandMatches(
+  activeCommand: ActiveSlashCommand | null,
+  dynamicItems: CommandCache,
+  caretIndex: number,
+  value: string,
+): CommandMatch[] {
+  if (!activeCommand) {
     return [];
   }
 
-  return Object.entries(key)
-    .filter((entry) => {
-      const [name, value] = entry;
-      return typeof value === 'boolean' && value && name !== 'isShiftPressed';
-    })
-    .map(([name]) => ARROW_LABELS[name] ?? name);
+  const { command } = activeCommand;
+  const asyncItems = dynamicItems[command.id]?.items ?? [];
+  const allItems = [...command.staticItems, ...asyncItems];
+  const normalizedQuery = activeCommand.query.toLowerCase();
+
+  return allItems
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) =>
+      command.filterItem(item, {
+        query: activeCommand.query,
+        normalizedQuery,
+        command: command.source ?? command,
+        value,
+        caretIndex: activeCommand.endIndex,
+      }),
+    );
 }
 
-/**
- * Break a string into the visual rows rendered by the editor.
- * Rows end either because the terminal width was reached or a newline was encountered.
- */
-export function transformToRows(source, maxWidth, options = {}) {
-  const { paddingLeft = 0, paddingRight = 0 } = options ?? {};
-  const safeWidth = Math.max(1, Math.floor(maxWidth ?? 1));
-  const horizontalPadding = toNonNegativeInteger(paddingLeft) + toNonNegativeInteger(paddingRight);
-  const effectiveWidth = Math.max(1, safeWidth - horizontalPadding);
-  const rows = [];
-
-  let rowStartIndex = 0;
-  let column = 0;
-  let lastBreakWasNewline = false;
-
-  for (let index = 0; index < source.length; index += 1) {
-    const char = source[index];
-
-    if (char === '\n' || char === '\r') {
-      const text = source.slice(rowStartIndex, index);
-      rows.push({
-        text,
-        startIndex: rowStartIndex,
-      });
-      if (char === '\r' && source[index + 1] === '\n') {
-        index += 1;
-      }
-      rowStartIndex = index + 1;
-      column = 0;
-      lastBreakWasNewline = true;
-      continue;
-    }
-
-    column += 1;
-    lastBreakWasNewline = false;
-
-    if (column >= effectiveWidth) {
-      const breakIndex = index + 1;
-      const text = source.slice(rowStartIndex, breakIndex);
-      rows.push({
-        text,
-        startIndex: rowStartIndex,
-      });
-      rowStartIndex = breakIndex;
-      column = 0;
-    }
+function CommandMenu({ matches, activeMatch, isVisible, title }: CommandMenuProps) {
+  if (!isVisible || matches.length === 0) {
+    return null;
   }
 
-  const remainingText = source.slice(rowStartIndex);
+  const items = matches.map(({ item, index }) => ({ item, index }));
 
-  if (remainingText.length > 0 || rows.length === 0 || lastBreakWasNewline) {
-    rows.push({
-      text: remainingText,
-      startIndex: rowStartIndex,
-    });
-  }
+  return h(
+    Box,
+    { flexDirection: 'column', marginTop: 1, borderStyle: 'round', borderColor: 'cyan' },
+    title
+      ? h(Text, { key: 'title', color: 'cyanBright', bold: true, marginBottom: 1 }, title)
+      : null,
+    ...items.map(({ item, index }) => {
+      const isActive = activeMatch?.index === index;
+      const label = isActive ? `${ANSI_INVERSE_ON}${item.label}${ANSI_INVERSE_OFF}` : item.label;
 
-  return rows;
+      return h(
+        Box,
+        {
+          key: String(item.id ?? index),
+          flexDirection: 'column',
+          marginBottom: 1,
+          width: '100%',
+        },
+        h(Text, { color: isActive ? 'white' : 'cyan' }, label),
+        item.description
+          ? h(Text, { color: 'gray', dimColor: true }, item.description)
+          : null,
+      );
+    }),
+  );
 }
 
-function computeCaretPosition(rows, caretIndex, totalLength) {
-  if (rows.length === 0) {
-    return {
-      rowIndex: 0,
-      column: 0,
-      row: { text: '', startIndex: 0 },
-    };
-  }
+export function InkTextArea(props: InkTextAreaProps) {
+  const {
+    value = '',
+    onChange,
+    onSubmit,
+    placeholder = '',
+    width,
+    isActive = true,
+    isDisabled = false,
+    slashMenuItems,
+    commandMenus,
+    onSlashCommandSelect,
+    textProps: explicitTextProps = {},
+    debug = false,
+    showDebugMetrics = false,
+    commandMenuTitle,
+    ...rest
+  } = props;
 
-  const clampedIndex = clamp(caretIndex, 0, totalLength);
-
-  for (let index = 0; index < rows.length; index += 1) {
-    const row = rows[index];
-    const nextRowStart = index + 1 < rows.length ? rows[index + 1].startIndex : totalLength;
-
-    if (clampedIndex < nextRowStart || index === rows.length - 1) {
-      const offset = Math.max(0, clampedIndex - row.startIndex);
-      return {
-        rowIndex: index,
-        column: Math.min(offset, row.text.length),
-        row,
-      };
-    }
-  }
-
-  const lastRow = rows[rows.length - 1];
-  const offset = Math.max(0, clampedIndex - lastRow.startIndex);
-
-  return {
-    rowIndex: rows.length - 1,
-    column: Math.min(offset, lastRow.text.length),
-    row: lastRow,
-  };
-}
-
-export function InkTextArea({
-  value = '',
-  onChange,
-  onSubmit,
-  placeholder = '',
-  width,
-  isActive = true,
-  isDisabled = false,
-  slashMenuItems = [],
-  commandMenus = [],
-  onSlashCommandSelect,
-  ...rest
-}) {
   const {
     padding,
     paddingX,
@@ -376,11 +262,18 @@ export function InkTextArea({
     borderBottom,
     borderLeft,
     borderRight,
-    ...textProps
-  } = rest;
+    ...textPropsFromRest
+  } = rest as Record<string, unknown>;
+
+  const textProps = {
+    ...textPropsFromRest,
+    ...explicitTextProps,
+  } as Record<string, unknown>;
+
+  const interactive = isActive && !isDisabled;
   const [caretIndex, setCaretIndex] = useState(() => clamp(0, 0, value.length));
   const [showCaret, setShowCaret] = useState(true);
-  const [lastKeyEvent, setLastKeyEvent] = useState(() => ({
+  const [lastKeyEvent, setLastKeyEvent] = useState<LastKeyEvent>(() => ({
     rawInput: '',
     printableInput: '',
     specialKeys: [],
@@ -391,12 +284,11 @@ export function InkTextArea({
     wasReturnKey: false,
     shiftModifierActive: false,
   });
-  const desiredColumnRef = useRef(null);
+  const desiredColumnRef = useRef<number | null>(null);
   const [commandHighlightIndex, setCommandHighlightIndex] = useState(0);
-  const interactive = isActive && !isDisabled;
 
   const { stdout } = useStdout();
-  const [measuredWidth, setMeasuredWidth] = useState(() =>
+  const [measuredWidth, setMeasuredWidth] = useState<number | undefined>(() =>
     stdout && Number.isFinite(stdout.columns) ? Math.floor(stdout.columns) : undefined,
   );
 
@@ -437,19 +329,20 @@ export function InkTextArea({
 
     return 60;
   }, [measuredWidth, width]);
+
   const maxIndex = value.length;
 
   useEffect(() => {
-    setCaretIndex((prev) => clamp(prev, 0, maxIndex));
+    setCaretIndex((previous) => clamp(previous, 0, maxIndex));
   }, [maxIndex]);
 
   const { paddingLeft: resolvedPaddingLeft, paddingRight: resolvedPaddingRight } = useMemo(
     () =>
       resolveHorizontalPadding({
-        padding,
-        paddingX,
-        paddingLeft,
-        paddingRight,
+        padding: padding as number | undefined,
+        paddingX: paddingX as number | undefined,
+        paddingLeft: paddingLeft as number | undefined,
+        paddingRight: paddingRight as number | undefined,
       }),
     [padding, paddingLeft, paddingRight, paddingX],
   );
@@ -467,125 +360,30 @@ export function InkTextArea({
       }),
     [normalizedWidth, resolvedPaddingLeft, resolvedPaddingRight, value],
   );
-  const caretPosition = useMemo(
+
+  const caretPosition = useMemo<CaretPosition>(
     () => computeCaretPosition(rows, caretIndex, value.length),
     [caretIndex, rows, value.length],
   );
-  const caretLine = caretPosition.rowIndex;
-  const caretColumn = caretPosition.column;
 
-  const [dynamicCommandItems, setDynamicCommandItems] = useState(() => ({}));
+  const normalizedCommands = useMemo(
+    () => buildCommandDefinitions(slashMenuItems, commandMenus),
+    [commandMenus, slashMenuItems],
+  );
 
-  const normalizedCommands = useMemo(() => {
-    const legacyDefinitions =
-      Array.isArray(slashMenuItems) && slashMenuItems.length > 0
-        ? [
-            {
-              id: 'legacy-slash-command',
-              trigger: '/',
-              items: slashMenuItems,
-            },
-          ]
-        : [];
-
-    const providedDefinitions = Array.isArray(commandMenus) ? commandMenus : [];
-
-    return [...legacyDefinitions, ...providedDefinitions]
-      .map((definition, index) => normalizeCommandDefinition(definition, index))
-      .filter(Boolean);
-  }, [commandMenus, slashMenuItems]);
-
-  const activeCommand = useMemo(
+  const activeCommand = useMemo<ActiveSlashCommand | null>(
     () => computeActiveCommand(value, caretIndex, normalizedCommands),
     [caretIndex, normalizedCommands, value],
   );
 
-  const activeCommandId = activeCommand?.command?.id;
-
-  useEffect(() => {
-    // Fetch dynamic command items whenever the active command relies on a callback.
-    if (!activeCommand) {
-      return undefined;
-    }
-
-    const { command } = activeCommand;
-
-    if (!command.getItems) {
-      return undefined;
-    }
-
-    let cancelled = false;
-    const signature = `${command.id}:${activeCommand.startIndex}:${activeCommand.query}`;
-
-    Promise.resolve(
-      command.getItems({
-        query: activeCommand.query,
-        command: command.source ?? command,
-        value,
-        caretIndex,
-        range: { startIndex: activeCommand.startIndex, endIndex: activeCommand.endIndex },
-      }),
-    )
-      .then((items) => (Array.isArray(items) ? items : []))
-      .catch(() => [])
-      .then((items) => {
-        if (cancelled) {
-          return;
-        }
-
-        const normalizedItems = items
-          .map((item, index) => normalizeSlashItem(item, index))
-          .filter(Boolean);
-
-        setDynamicCommandItems((prev) => {
-          const previousEntry = prev[command.id];
-
-          if (previousEntry && previousEntry.signature === signature) {
-            return prev;
-          }
-
-          return {
-            ...prev,
-            [command.id]: {
-              signature,
-              items: normalizedItems,
-            },
-          };
-        });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeCommand, caretIndex, value]);
-
-  const commandMatches = useMemo(() => {
-    if (!activeCommand) {
-      return [];
-    }
-
-    const { command } = activeCommand;
-    const asyncItems = dynamicCommandItems[command.id]?.items ?? [];
-    const allItems = [...command.staticItems, ...asyncItems];
-
-    const normalizedQuery = activeCommand.query.toLowerCase();
-
-    return allItems
-      .map((item, index) => ({ item, index }))
-      .filter(({ item }) =>
-        command.filterItem(item, {
-          query: activeCommand.query,
-          normalizedQuery,
-          command: command.source ?? command,
-          value,
-          caretIndex: activeCommand.endIndex,
-        }),
-      );
-  }, [activeCommand, caretIndex, dynamicCommandItems, value]);
+  const dynamicCommandItems = useCommandItems(activeCommand, caretIndex, value);
+  const commandMatches = useMemo(
+    () => buildCommandMatches(activeCommand, dynamicCommandItems, caretIndex, value),
+    [activeCommand, caretIndex, dynamicCommandItems, value],
+  );
 
   const commandMenuVisible = Boolean(activeCommand) && commandMatches.length > 0;
-
-  const commandSignatureRef = useRef(null);
+  const commandSignatureRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!commandMenuVisible) {
@@ -596,18 +394,18 @@ export function InkTextArea({
       return;
     }
 
-    const signature = `${activeCommand.startIndex}:${activeCommand.query}:${activeCommandId}`;
+    const signature = `${activeCommand?.startIndex ?? 0}:${activeCommand?.query ?? ''}:${activeCommand?.command.id ?? ''}`;
     if (commandSignatureRef.current !== signature) {
       commandSignatureRef.current = signature;
       setCommandHighlightIndex(0);
       return;
     }
 
-    setCommandHighlightIndex((prev) => clamp(prev, 0, commandMatches.length - 1));
+    setCommandHighlightIndex((previous) => clamp(previous, 0, commandMatches.length - 1));
   }, [
     activeCommand?.query,
     activeCommand?.startIndex,
-    activeCommandId,
+    activeCommand?.command.id,
     commandHighlightIndex,
     commandMatches.length,
     commandMenuVisible,
@@ -618,7 +416,7 @@ export function InkTextArea({
     : 0;
 
   const selectedCommandMatch = commandMenuVisible
-    ? (commandMatches[resolvedCommandHighlightIndex] ?? commandMatches[0])
+    ? commandMatches[resolvedCommandHighlightIndex] ?? commandMatches[0]
     : null;
 
   const resetDesiredColumn = useCallback(() => {
@@ -633,7 +431,7 @@ export function InkTextArea({
 
     setShowCaret(true);
     const interval = setInterval(() => {
-      setShowCaret((prev) => !prev);
+      setShowCaret((previous) => !previous);
     }, BLINK_INTERVAL_MS);
 
     return () => {
@@ -642,7 +440,7 @@ export function InkTextArea({
   }, [interactive]);
 
   const updateValue = useCallback(
-    (nextValue, nextCaretIndex) => {
+    (nextValue: string, nextCaretIndex: number) => {
       const clampedIndex = clamp(nextCaretIndex, 0, nextValue.length);
       resetDesiredColumn();
       onChange?.(nextValue);
@@ -664,40 +462,21 @@ export function InkTextArea({
     const nextCaretIndex = before.length + replacement.length;
 
     updateValue(nextValue, nextCaretIndex);
-    onSlashCommandSelect?.({
-      item: item.source ?? item,
-      query: activeCommand.query,
-      command: activeCommand.command.source ?? activeCommand.command,
-      range: {
-        startIndex: activeCommand.startIndex,
-        endIndex: activeCommand.endIndex,
-      },
-      replacement,
-      value: nextValue,
-    });
+    onSlashCommandSelect?.(buildSlashCommandEvent(activeCommand, item, replacement, nextValue));
 
     setCommandHighlightIndex(0);
     return true;
-  }, [
-    activeCommand,
-    onSlashCommandSelect,
-    selectedCommandMatch,
-    commandMenuVisible,
-    updateValue,
-    value,
-  ]);
+  }, [activeCommand, commandMenuVisible, onSlashCommandSelect, selectedCommandMatch, updateValue, value]);
 
   const handleInput = useCallback(
-    (input, key) => {
+    (input: string, key: Key) => {
       if (!interactive) {
         return;
       }
 
       const printableInput = input && input !== '\u0000' ? input : '';
       const specialKeys = extractSpecialKeys(key);
-      const shiftModifierActive = Boolean(
-        key?.shift || key?.isShiftPressed || specialKeys.includes('shift'),
-      );
+      const shiftModifierActive = Boolean(key?.shift || key?.isShiftPressed || specialKeys.includes('shift'));
       const isLineFeedInput = printableInput === '\n';
       const isCarriageReturnInput = printableInput === '\r';
       const isShiftOnlySequence =
@@ -756,16 +535,16 @@ export function InkTextArea({
         }
 
         if (key.upArrow || (key.tab && key.shift)) {
-          setCommandHighlightIndex((prev) => {
-            const next = (prev - 1 + total) % total;
+          setCommandHighlightIndex((previous) => {
+            const next = (previous - 1 + total) % total;
             return next;
           });
           return true;
         }
 
         if (key.downArrow || (key.tab && !key.shift)) {
-          setCommandHighlightIndex((prev) => {
-            const next = (prev + 1) % total;
+          setCommandHighlightIndex((previous) => {
+            const next = (previous + 1) % total;
             return next;
           });
           return true;
@@ -792,7 +571,6 @@ export function InkTextArea({
       }
 
       if (shouldInsertNewline) {
-        // Shift+Enter (or a raw newline input) inserts a line break at the caret instead of submitting.
         const nextValue = `${value.slice(0, caretIndex)}\n${value.slice(caretIndex)}`;
         updateValue(nextValue, caretIndex + 1);
         return;
@@ -831,12 +609,12 @@ export function InkTextArea({
       desiredColumnRef.current = null;
 
       if (key.leftArrow) {
-        setCaretIndex((prev) => Math.max(0, prev - 1));
+        setCaretIndex((previous) => Math.max(0, previous - 1));
         return;
       }
 
       if (key.rightArrow) {
-        setCaretIndex((prev) => Math.min(value.length, prev + 1));
+        setCaretIndex((previous) => Math.min(value.length, previous + 1));
         return;
       }
 
@@ -881,14 +659,15 @@ export function InkTextArea({
       }
     },
     [
+      activeCommand,
       caretIndex,
       caretPosition,
+      commandMatches,
+      commandMenuVisible,
       handleCommandSelection,
       interactive,
       onSubmit,
       rows,
-      commandMatches.length,
-      commandMenuVisible,
       updateValue,
       value,
     ],
@@ -908,7 +687,7 @@ export function InkTextArea({
     });
   }, [hasValue, normalizedWidth, placeholder, resolvedPaddingLeft, resolvedPaddingRight, rows]);
 
-  const textStyle = useMemo(() => {
+  const computedTextProps = useMemo(() => {
     const { dimColor, wrap, ...otherTextProps } = textProps;
 
     return {
@@ -918,274 +697,168 @@ export function InkTextArea({
     };
   }, [hasValue, textProps]);
 
-  const caretRowIndex = hasValue ? caretLine : 0;
-  const caretColumnDisplay = caretColumn + 1;
-  const caretLineDisplay = caretLine + 1;
-  const widthPropDisplay = useMemo(
-    () => (typeof width === 'number' && Number.isFinite(width) ? Math.floor(width) : 'n/a'),
-    [width],
-  );
-  const measuredWidthDisplay = useMemo(
-    () => (typeof measuredWidth === 'number' ? measuredWidth : 'n/a'),
-    [measuredWidth],
-  );
+  const caretRowIndex = hasValue ? caretPosition.rowIndex : 0;
+  const caretColumnDisplay = caretPosition.column + 1;
+  const caretLineDisplay = caretRowIndex + 1;
 
-  const rowElements = displayRows.map((row, rowIndex) => {
-    const key = `row-${row.startIndex}-${rowIndex}`;
-    const isCaretRow = caretVisible && rowIndex === caretRowIndex;
+  const rowElements = displayRows.map((row: TextRow, index: number) => {
+    const isCaretRow = caretVisible && index === caretRowIndex;
+    const caretColumn = caretPosition.column;
 
     if (!isCaretRow) {
       const textContent = row.text.length > 0 ? row.text : ' ';
-      return h(Text, { key, ...textStyle }, textContent);
+      return h(
+        Box,
+        {
+          key: `row-${row.startIndex}-${index}`,
+          flexDirection: 'row',
+          width: '100%',
+          alignSelf: 'stretch',
+        },
+        h(Text, { key: 'row', ...computedTextProps }, textContent),
+      );
     }
 
     if (!hasValue) {
-      const placeholderSegments = [h(Text, { inverse: true, key: 'caret-highlight' }, ' ')];
+      const segments = [
+        h(Text, { key: 'caret', inverse: caretVisible, ...computedTextProps }, ' '),
+      ];
+
       if (row.text.length > 0) {
-        placeholderSegments.push(row.text);
+        segments.push(h(Text, { key: 'placeholder', ...computedTextProps }, row.text));
       }
-      return h(Text, { key, ...textStyle }, ...placeholderSegments);
+
+      return h(
+        Box,
+        {
+          key: `row-${row.startIndex}-${index}`,
+          flexDirection: 'row',
+          width: '100%',
+          alignSelf: 'stretch',
+        },
+        ...segments,
+      );
     }
 
-    const caretColumnIndex = caretColumn;
-    const beforeCaret = row.text.slice(0, caretColumnIndex);
-    const caretChar = row.text[caretColumnIndex];
+    const beforeCaret = row.text.slice(0, caretColumn);
+    const caretChar = row.text[caretColumn];
     const caretDisplay = caretChar ?? ' ';
-    const afterStart = caretChar ? caretColumnIndex + 1 : caretColumnIndex;
+    const afterStart = caretChar ? caretColumn + 1 : caretColumn;
     const afterCaret = row.text.slice(afterStart);
-    const segments = [];
+    const segments = [] as React.ReactNode[];
 
     if (beforeCaret.length > 0) {
-      segments.push(beforeCaret);
+      segments.push(h(Text, { key: 'before', ...computedTextProps }, beforeCaret));
     }
 
-    segments.push(h(Text, { inverse: true, key: 'caret-highlight' }, caretDisplay));
+    segments.push(
+      h(Text, { key: 'caret', inverse: caretVisible, ...computedTextProps }, caretDisplay),
+    );
 
     if (afterCaret.length > 0) {
-      segments.push(afterCaret);
+      segments.push(h(Text, { key: 'after', ...computedTextProps }, afterCaret));
     }
 
     if (segments.length === 1 && caretDisplay === ' ') {
-      segments.push('');
-    }
-
-    return h(Text, { key, ...textStyle }, ...segments);
-  });
-
-  const lastKeyDisplay = useMemo(() => {
-    if (lastKeyEvent.printableInput) {
-      return lastKeyEvent.printableInput;
-    }
-    if (lastKeyEvent.specialKeys.length > 0) {
-      return lastKeyEvent.specialKeys.join(' + ');
-    }
-    return 'n/a';
-  }, [lastKeyEvent]);
-
-  const modifierKeys = useMemo(
-    () =>
-      lastKeyEvent.specialKeys.filter((name) =>
-        ['shift', 'ctrl', 'meta', 'alt', 'option', 'super'].includes(name),
-      ),
-    [lastKeyEvent.specialKeys],
-  );
-
-  const commandMenuElement = useMemo(() => {
-    if (!commandMenuVisible) {
-      return null;
+      segments.push(h(Text, { key: 'padding', ...computedTextProps }, ''));
     }
 
     return h(
       Box,
       {
-        key: 'command-menu',
-        flexDirection: 'column',
-        borderStyle: 'round',
-        borderColor: 'cyan',
-        marginTop: 1,
+        key: `row-${row.startIndex}-${index}`,
+        flexDirection: 'row',
         width: '100%',
+        alignSelf: 'stretch',
       },
-      ...commandMatches.map((match, index) => {
-        const isSelected = index === resolvedCommandHighlightIndex;
-        const labelContent = isSelected
-          ? `${ANSI_INVERSE_ON}${match.item.label}${ANSI_INVERSE_OFF}`
-          : match.item.label;
-        const segments = [
-          h(
-            Text,
-            {
-              key: 'label',
-            },
-            labelContent,
-          ),
-        ];
-
-        if (match.item.description) {
-          segments.push(
-            h(
-              Text,
-              {
-                key: 'spacer',
-              },
-              ' ',
-            ),
-          );
-          segments.push(
-            h(
-              Text,
-              {
-                key: 'description',
-                color: isSelected ? undefined : 'gray',
-                dimColor: !isSelected,
-              },
-              match.item.description,
-            ),
-          );
-        }
-
-        return h(
-          Box,
-          {
-            key: `command-item-${match.item.id ?? index}`,
-            paddingX: 1,
-          },
-          ...segments,
-        );
-      }),
+      ...segments,
     );
-  }, [commandMatches, commandMenuVisible, resolvedCommandHighlightIndex]);
+  });
 
-  const shouldRenderDebug = process.env.NODE_ENV === 'test';
+  const resolvedCommandHighlight = commandMenuVisible
+    ? commandMatches[Math.min(commandHighlightIndex, commandMatches.length - 1)] ?? null
+    : null;
 
-  const debugElement = useMemo(() => {
-    if (!shouldRenderDebug) {
-      return null;
-    }
+  const commandMenuElement = h(CommandMenu, {
+    matches: commandMatches,
+    activeMatch: resolvedCommandHighlight,
+    isVisible: commandMenuVisible,
+    title: commandMenuTitle,
+  });
 
-    return h(
-      Box,
-      { flexDirection: 'column', marginTop: 1 },
-      h(Text, { color: 'gray', dimColor: true, key: 'debug-heading' }, 'Debug info'),
-      h(
-        Text,
-        { color: 'gray', key: 'debug-width' },
-        `Width: ${normalizedWidth} (effective: ${effectiveWidth}, prop: ${widthPropDisplay}, measured: ${measuredWidthDisplay})`,
-      ),
-      h(
-        Text,
-        { color: 'gray', key: 'debug-caret' },
-        `Caret: line ${caretLineDisplay}, column ${caretColumnDisplay}, index ${caretIndex}`,
-      ),
-      h(Text, { color: 'gray', key: 'debug-last-key' }, `Last key: ${lastKeyDisplay}`),
-      h(
-        Text,
-        { color: 'gray', key: 'debug-modifiers' },
-        `Special keys: ${modifierKeys.length > 0 ? modifierKeys.join(', ') : 'none'}`,
-      ),
-    );
-  }, [
-    caretColumnDisplay,
-    caretIndex,
-    caretLineDisplay,
-    effectiveWidth,
-    lastKeyDisplay,
-    measuredWidthDisplay,
-    modifierKeys,
-    normalizedWidth,
-    shouldRenderDebug,
-    widthPropDisplay,
-  ]);
+  const shouldRenderDebug = debug || showDebugMetrics || process.env.NODE_ENV === 'test';
+  const modifierKeys = lastKeyEvent.specialKeys;
+  const widthPropDisplay = typeof width === 'number' ? String(width) : 'auto';
+  const measuredWidthDisplay = measuredWidth ? String(measuredWidth) : 'n/a';
+  const lastKeyDisplay = lastKeyEvent.printableInput || lastKeyEvent.rawInput || 'none';
 
-  const containerProps = useMemo(() => {
-    const style = {
-      flexDirection: 'column',
-      width: '100%',
-      alignSelf: 'stretch',
-    };
+  const debugElement = shouldRenderDebug
+    ? h(
+        Box,
+        { flexDirection: 'column', marginTop: 1 },
+        h(Text, { color: 'gray', dimColor: true, key: 'debug-heading' }, 'Debug info'),
+        h(
+          Text,
+          { color: 'gray', key: 'debug-width' },
+          `Width: ${normalizedWidth} (effective: ${effectiveWidth}, prop: ${widthPropDisplay}, measured: ${measuredWidthDisplay})`,
+        ),
+        h(
+          Text,
+          { color: 'gray', key: 'debug-caret' },
+          `Caret: line ${caretLineDisplay}, column ${caretColumnDisplay}, index ${caretIndex}`,
+        ),
+        h(Text, { color: 'gray', key: 'debug-last-key' }, `Last key: ${lastKeyDisplay}`),
+        h(
+          Text,
+          { color: 'gray', key: 'debug-modifiers' },
+          `Special keys: ${modifierKeys.length > 0 ? modifierKeys.join(', ') : 'none'}`,
+        ),
+      )
+    : null;
 
-    const boxOptions = {
-      padding,
-      paddingX,
-      paddingY,
-      paddingLeft,
-      paddingRight,
-      paddingTop,
-      paddingBottom,
-      margin,
-      marginX,
-      marginY,
-      marginLeft,
-      marginRight,
-      marginTop,
-      marginBottom,
-      borderColor,
-      borderStyle,
-      borderTop,
-      borderBottom,
-      borderLeft,
-      borderRight,
-    };
+  const containerStyle: Record<string, unknown> = {
+    flexDirection: 'column',
+    width: '100%',
+    alignSelf: 'stretch',
+  };
 
-    for (const [key, value] of Object.entries(boxOptions)) {
-      if (value !== undefined) {
-        style[key] = value;
-      }
-    }
-
-    return style;
-  }, [
-    borderBottom,
-    borderColor,
-    borderLeft,
-    borderRight,
-    borderStyle,
-    borderTop,
-    margin,
-    marginBottom,
-    marginLeft,
-    marginRight,
-    marginTop,
-    marginX,
-    marginY,
+  const boxOptions = {
     padding,
-    paddingBottom,
+    paddingX,
+    paddingY,
     paddingLeft,
     paddingRight,
     paddingTop,
-    paddingX,
-    paddingY,
-  ]);
+    paddingBottom,
+    margin,
+    marginX,
+    marginY,
+    marginLeft,
+    marginRight,
+    marginTop,
+    marginBottom,
+    borderColor,
+    borderStyle,
+    borderTop,
+    borderBottom,
+    borderLeft,
+    borderRight,
+  };
+
+  for (const [key, value] of Object.entries(boxOptions)) {
+    if (value !== undefined) {
+      containerStyle[key] = value;
+    }
+  }
 
   return h(
     Box,
-    containerProps,
+    containerStyle,
     h(Box, { flexDirection: 'column', width: '100%' }, ...rowElements),
     commandMenuElement,
     debugElement,
-    // h(
-    //   Box,
-    //   { flexDirection: 'column', marginTop: 1 },
-    //   h(Text, { color: 'gray', dimColor: true, key: 'debug-heading' }, 'Debug info'),
-    //   h(
-    //     Text,
-    //     { color: 'gray', key: 'debug-width' },
-    //     `Width: ${normalizedWidth} (effective: ${effectiveWidth}, prop: ${widthPropDisplay}, measured: ${measuredWidthDisplay})`,
-    //   ),
-    //   h(
-    //     Text,
-    //     { color: 'gray', key: 'debug-caret' },
-    //     `Caret: line ${caretLineDisplay}, column ${caretColumnDisplay}, index ${caretIndex}`,
-    //   ),
-    //   h(Text, { color: 'gray', key: 'debug-last-key' }, `Last key: ${lastKeyDisplay}`),
-    //   h(
-    //     Text,
-    //     { color: 'gray', key: 'debug-modifiers' },
-    //     `Special keys: ${modifierKeys.length > 0 ? modifierKeys.join(', ') : 'none'}`,
-    //   ),
-    // ),
   );
 }
 
+export { transformToRows } from './inkTextArea/layout.js';
 export default InkTextArea;
-const ANSI_INVERSE_ON = '\u001B[7m';
-const ANSI_INVERSE_OFF = '\u001B[27m';
