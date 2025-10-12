@@ -29,33 +29,6 @@ import { AmnesiaManager, applyDementiaPolicy } from './amnesiaManager.js';
 import { createChatMessageEntry, mapHistoryToOpenAIMessages } from './historyEntry.js';
 import { requestModelCompletion as defaultRequestModelCompletion } from './openaiRequest.js';
 
-function cloneEventPayload(event) {
-  if (event === null || typeof event !== 'object') {
-    return event;
-  }
-
-  try {
-    // JSON serialization guarantees a deep clone for plain data structures.
-    return JSON.parse(JSON.stringify(event));
-  } catch (jsonError) {
-    if (typeof structuredClone === 'function') {
-      try {
-        return structuredClone(event);
-      } catch (structuredCloneError) {
-        // Ignore and fall back to manual recursion below.
-      }
-    }
-
-    if (Array.isArray(event)) {
-      return event.map((item) => cloneEventPayload(item));
-    }
-
-    return Object.fromEntries(
-      Object.entries(event).map(([key, value]) => [key, cloneEventPayload(value)]),
-    );
-  }
-}
-
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 const PLAN_PENDING_REMINDER =
   'The plan is not completed, either send a command to continue, update the plan, take a deep breath and reanalyze the situation, add/remove steps or sub-steps, or abandon the plan if we don´t know how to continue';
@@ -101,7 +74,6 @@ export function createAgentRuntime({
   executeAgentPassFn = executeAgentPass,
   createPlanAutoResponseTrackerFn = null,
   // Additional DI hooks
-  cloneEventPayloadFn = cloneEventPayload,
   cancelFn = cancelActive,
   planReminderMessage = PLAN_PENDING_REMINDER,
   userInputPrompt = '\n ▷ ',
@@ -238,10 +210,11 @@ export function createAgentRuntime({
   };
 
   const emit = (event) => {
-    const clonedEvent = cloneEventPayloadFn(event);
-    if (!clonedEvent || typeof clonedEvent !== 'object') {
+    if (!event || typeof event !== 'object') {
       throw new TypeError('Agent emit expected event to be an object.');
     }
+    // Hard requirement: stringify, deserialize, emit — always deep clone via JSON serialization.
+    const clonedEvent = JSON.parse(JSON.stringify(event));
     clonedEvent.__id = nextId();
     let finalEvent = clonedEvent;
     if (typeof transformEmittedEventFn === 'function') {
