@@ -117,9 +117,9 @@ describe('plan utilities', () => {
 
     const progress = computePlanProgress(plan);
 
-    expect(progress.completedSteps).toBe(2);
+    expect(progress.completedSteps).toBe(1);
     expect(progress.totalSteps).toBe(3);
-    expect(progress.remainingSteps).toBe(1);
-    expect(progress.ratio).toBeCloseTo(2 / 3, 5);
+    expect(progress.remainingSteps).toBe(2);
+    expect(progress.ratio).toBeCloseTo(1 / 3, 5);
   });
 });

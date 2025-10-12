@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
 import { jest } from '@jest/globals';
 
 // Central queue used by integration suites to feed deterministic model completions
@@ -5,6 +8,18 @@ import { jest } from '@jest/globals';
 const modelCompletionQueue = [];
 
 let mockCallCounter = 0;
+
+const planFilePath = path.resolve(process.cwd(), '.openagent/plan.json');
+
+function clearPlanSnapshot() {
+  try {
+    fs.mkdirSync(path.dirname(planFilePath), { recursive: true });
+    fs.writeFileSync(planFilePath, '[]\n', 'utf8');
+  } catch (error) {
+    // If the snapshot cannot be cleared we swallow the error so tests keep running;
+    // lingering plan state will surface through failing assertions.
+  }
+}
 
 function sanitizePayload(payload) {
   if (!payload || typeof payload !== 'object') {
@@ -48,6 +63,7 @@ export function queueModelCompletion(outcome) {
 export function resetQueuedResponses() {
   modelCompletionQueue.length = 0;
   mockCallCounter = 0;
+  clearPlanSnapshot();
 }
 
 export async function loadAgentWithMockedModules() {
