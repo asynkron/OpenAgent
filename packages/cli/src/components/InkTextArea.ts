@@ -15,17 +15,9 @@ import {
   type LastKeyEvent,
   type TextRow,
 } from './inkTextArea/layout.js';
-import {
-  buildSlashCommandEvent,
-  computeActiveCommand,
-  normalizeCommandDefinition,
-  normalizeSlashItem,
-  type ActiveSlashCommand,
-  type NormalizedSlashCommand,
-  type SlashCommandDefinition,
-  type SlashCommandItem,
-  type SlashCommandSourceItem,
-} from './inkTextArea/commands.js';
+import type { SlashCommandDefinition, SlashCommandSourceItem } from './inkTextArea/commands.js';
+import { useCommandMenu } from './inkTextArea/useCommandMenu.js';
+import type { CommandMatch } from './inkTextArea/useCommandMenu.js';
 import type { SlashCommandSelectEvent } from './inkTextArea/types.js';
 
 const h = React.createElement;
@@ -34,18 +26,6 @@ const ANSI_INVERSE_ON = '\u001B[7m';
 const ANSI_INVERSE_OFF = '\u001B[27m';
 
 type LegacySlashMenuItem = SlashCommandSourceItem;
-
-interface CommandMatch {
-  item: SlashCommandItem;
-  index: number;
-}
-
-interface CommandCacheEntry {
-  signature: string;
-  items: SlashCommandItem[];
-}
-
-type CommandCache = Record<string, CommandCacheEntry>;
 
 export interface InkTextAreaProps extends HorizontalPaddingInput {
   value?: string;
@@ -70,122 +50,6 @@ interface CommandMenuProps {
   activeMatch: CommandMatch | null;
   isVisible: boolean;
   title?: string;
-}
-
-export function buildCommandDefinitions(
-  slashMenuItems: ReadonlyArray<LegacySlashMenuItem> | undefined,
-  commandMenus: ReadonlyArray<SlashCommandDefinition> | undefined,
-): NormalizedSlashCommand[] {
-  const legacyDefinitions: SlashCommandDefinition[] =
-    Array.isArray(slashMenuItems) && slashMenuItems.length > 0
-      ? [
-          {
-            id: 'legacy-slash-command',
-            trigger: '/',
-            items: slashMenuItems as SlashCommandSourceItem[],
-          },
-        ]
-      : [];
-
-  const providedDefinitions = Array.isArray(commandMenus) ? commandMenus : [];
-
-  return [...legacyDefinitions, ...providedDefinitions]
-    .map((definition, index) => normalizeCommandDefinition(definition, index))
-    .filter((definition): definition is NormalizedSlashCommand => Boolean(definition));
-}
-
-function useCommandItems(
-  activeCommand: ActiveSlashCommand | null,
-  caretIndex: number,
-  value: string,
-): CommandCache {
-  const [dynamicCommandItems, setDynamicCommandItems] = useState<CommandCache>({});
-
-  useEffect(() => {
-    if (!activeCommand) {
-      return undefined;
-    }
-
-    const { command } = activeCommand;
-
-    if (!command.getItems) {
-      return undefined;
-    }
-
-    let cancelled = false;
-    const signature = `${command.id}:${activeCommand.startIndex}:${activeCommand.query}`;
-
-    Promise.resolve(
-      command.getItems({
-        query: activeCommand.query,
-        command: command.source ?? command,
-        value,
-        caretIndex,
-        range: { startIndex: activeCommand.startIndex, endIndex: activeCommand.endIndex },
-      }),
-    )
-      .then((items) => (Array.isArray(items) ? items : []))
-      .catch(() => [])
-      .then((items) => {
-        if (cancelled) {
-          return;
-        }
-
-        const normalizedItems = items
-          .map((item, index) => normalizeSlashItem(item, index))
-          .filter((value): value is SlashCommandItem => Boolean(value));
-
-        setDynamicCommandItems((prev) => {
-          const previousEntry = prev[command.id];
-
-          if (previousEntry && previousEntry.signature === signature) {
-            return prev;
-          }
-
-          return {
-            ...prev,
-            [command.id]: {
-              signature,
-              items: normalizedItems,
-            },
-          };
-        });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeCommand, caretIndex, value]);
-
-  return dynamicCommandItems;
-}
-
-function buildCommandMatches(
-  activeCommand: ActiveSlashCommand | null,
-  dynamicItems: CommandCache,
-  caretIndex: number,
-  value: string,
-): CommandMatch[] {
-  if (!activeCommand) {
-    return [];
-  }
-
-  const { command } = activeCommand;
-  const asyncItems = dynamicItems[command.id]?.items ?? [];
-  const allItems = [...command.staticItems, ...asyncItems];
-  const normalizedQuery = activeCommand.query.toLowerCase();
-
-  return allItems
-    .map((item, index) => ({ item, index }))
-    .filter(({ item }) =>
-      command.filterItem(item, {
-        query: activeCommand.query,
-        normalizedQuery,
-        command: command.source ?? command,
-        value,
-        caretIndex: activeCommand.endIndex,
-      }),
-    );
 }
 
 function CommandMenu({ matches, activeMatch, isVisible, title }: CommandMenuProps) {
@@ -283,7 +147,6 @@ export function InkTextArea(props: InkTextAreaProps) {
     shiftModifierActive: false,
   });
   const desiredColumnRef = useRef<number | null>(null);
-  const [commandHighlightIndex, setCommandHighlightIndex] = useState(0);
 
   const { stdout } = useStdout();
   const [measuredWidth, setMeasuredWidth] = useState<number | undefined>(() =>
@@ -364,59 +227,6 @@ export function InkTextArea(props: InkTextAreaProps) {
     [caretIndex, rows, value.length],
   );
 
-  const normalizedCommands = useMemo(
-    () => buildCommandDefinitions(slashMenuItems, commandMenus),
-    [commandMenus, slashMenuItems],
-  );
-
-  const activeCommand = useMemo<ActiveSlashCommand | null>(
-    () => computeActiveCommand(value, caretIndex, normalizedCommands),
-    [caretIndex, normalizedCommands, value],
-  );
-
-  const dynamicCommandItems = useCommandItems(activeCommand, caretIndex, value);
-  const commandMatches = useMemo(
-    () => buildCommandMatches(activeCommand, dynamicCommandItems, caretIndex, value),
-    [activeCommand, caretIndex, dynamicCommandItems, value],
-  );
-
-  const commandMenuVisible = Boolean(activeCommand) && commandMatches.length > 0;
-  const commandSignatureRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!commandMenuVisible) {
-      commandSignatureRef.current = null;
-      if (commandHighlightIndex !== 0) {
-        setCommandHighlightIndex(0);
-      }
-      return;
-    }
-
-    const signature = `${activeCommand?.startIndex ?? 0}:${activeCommand?.query ?? ''}:${activeCommand?.command.id ?? ''}`;
-    if (commandSignatureRef.current !== signature) {
-      commandSignatureRef.current = signature;
-      setCommandHighlightIndex(0);
-      return;
-    }
-
-    setCommandHighlightIndex((previous) => clamp(previous, 0, commandMatches.length - 1));
-  }, [
-    activeCommand?.query,
-    activeCommand?.startIndex,
-    activeCommand?.command.id,
-    commandHighlightIndex,
-    commandMatches.length,
-    commandMenuVisible,
-  ]);
-
-  const resolvedCommandHighlightIndex = commandMenuVisible
-    ? Math.min(commandHighlightIndex, commandMatches.length - 1)
-    : 0;
-
-  const selectedCommandMatch = commandMenuVisible
-    ? (commandMatches[resolvedCommandHighlightIndex] ?? commandMatches[0])
-    : null;
-
   const resetDesiredColumn = useCallback(() => {
     desiredColumnRef.current = null;
   }, []);
@@ -447,31 +257,19 @@ export function InkTextArea(props: InkTextAreaProps) {
     [onChange, resetDesiredColumn],
   );
 
-  const handleCommandSelection = useCallback(() => {
-    if (!commandMenuVisible || !selectedCommandMatch || !activeCommand) {
-      return false;
-    }
-
-    const { item } = selectedCommandMatch;
-    const replacement = item.insertValue ?? '';
-    const before = value.slice(0, activeCommand.startIndex);
-    const after = value.slice(activeCommand.endIndex);
-    const nextValue = `${before}${replacement}${after}`;
-    const nextCaretIndex = before.length + replacement.length;
-
-    updateValue(nextValue, nextCaretIndex);
-    onSlashCommandSelect?.(buildSlashCommandEvent(activeCommand, item, replacement, nextValue));
-
-    setCommandHighlightIndex(0);
-    return true;
-  }, [
-    activeCommand,
-    commandMenuVisible,
-    onSlashCommandSelect,
-    selectedCommandMatch,
-    updateValue,
+  const {
+    matches: commandMatches,
+    isVisible: commandMenuVisible,
+    highlightMatch: resolvedCommandHighlight,
+    handleNavigation: handleCommandNavigation,
+  } = useCommandMenu({
     value,
-  ]);
+    caretIndex,
+    slashMenuItems,
+    commandMenus,
+    onSlashCommandSelect,
+    updateValue,
+  });
 
   const handleInput = useCallback(
     (input: string, key: Key) => {
@@ -530,39 +328,7 @@ export function InkTextArea(props: InkTextAreaProps) {
         shiftModifierActive,
       });
 
-      const commandNavigationHandled = (() => {
-        if (!commandMenuVisible) {
-          return false;
-        }
-
-        const total = commandMatches.length;
-
-        if (total === 0) {
-          return false;
-        }
-
-        if (key.upArrow || (key.tab && key.shift)) {
-          setCommandHighlightIndex((previous) => {
-            const next = (previous - 1 + total) % total;
-            return next;
-          });
-          return true;
-        }
-
-        if (key.downArrow || (key.tab && !key.shift)) {
-          setCommandHighlightIndex((previous) => {
-            const next = (previous + 1) % total;
-            return next;
-          });
-          return true;
-        }
-
-        if (key.return && !shouldInsertNewline) {
-          return handleCommandSelection();
-        }
-
-        return false;
-      })();
+      const commandNavigationHandled = handleCommandNavigation(key, shouldInsertNewline);
 
       if (commandNavigationHandled) {
         return;
@@ -666,12 +432,9 @@ export function InkTextArea(props: InkTextAreaProps) {
       }
     },
     [
-      activeCommand,
       caretIndex,
       caretPosition,
-      commandMatches,
-      commandMenuVisible,
-      handleCommandSelection,
+      handleCommandNavigation,
       interactive,
       onSubmit,
       rows,
@@ -781,10 +544,6 @@ export function InkTextArea(props: InkTextAreaProps) {
       ...segments,
     );
   });
-
-  const resolvedCommandHighlight = commandMenuVisible
-    ? (commandMatches[Math.min(commandHighlightIndex, commandMatches.length - 1)] ?? null)
-    : null;
 
   const commandMenuElement = h(CommandMenu, {
     matches: commandMatches,
