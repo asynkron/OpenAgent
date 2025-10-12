@@ -15,17 +15,266 @@ export function normaliseAgentText(value: unknown): string {
   }
 }
 
-export type AgentEvent =
-  | { type: 'assistant-message'; message: unknown }
-  | { type: 'status'; message?: unknown; level?: unknown; details?: unknown; title?: unknown }
-  | { type: 'error'; message?: unknown; details?: unknown }
-  | { type: 'thinking'; state?: unknown }
-  | { type: 'plan'; plan?: unknown }
-  | { type: 'command-result'; command?: unknown; result?: unknown; preview?: unknown }
-  | { type: 'request-input'; prompt?: unknown; level?: unknown; metadata?: unknown }
-  | { type: string };
+interface AgentEventBase {
+  type: string;
+  [key: string]: unknown;
+}
 
-export function formatAgentEvent(event: unknown): string | undefined {
+interface AssistantMessageEvent extends AgentEventBase {
+  type: 'assistant-message';
+  message?: unknown;
+}
+
+interface StatusEvent extends AgentEventBase {
+  type: 'status';
+  message?: unknown;
+  level?: unknown;
+  details?: unknown;
+  title?: unknown;
+}
+
+interface ErrorEvent extends AgentEventBase {
+  type: 'error';
+  message?: unknown;
+  details?: unknown;
+}
+
+interface ThinkingEvent extends AgentEventBase {
+  type: 'thinking';
+  state?: unknown;
+}
+
+interface PlanEvent extends AgentEventBase {
+  type: 'plan';
+  plan?: unknown;
+}
+
+interface CommandResultEvent extends AgentEventBase {
+  type: 'command-result';
+  command?: unknown;
+  result?: unknown;
+  preview?: unknown;
+}
+
+interface RequestInputEvent extends AgentEventBase {
+  type: 'request-input';
+  prompt?: unknown;
+  level?: unknown;
+  metadata?: unknown;
+}
+
+export type AgentEvent =
+  | AssistantMessageEvent
+  | StatusEvent
+  | ErrorEvent
+  | ThinkingEvent
+  | PlanEvent
+  | CommandResultEvent
+  | RequestInputEvent
+  | AgentEventBase;
+
+export interface AgentMessagePayload {
+  type: 'agent_message';
+  text: string;
+}
+
+export interface AgentStatusPayload {
+  type: 'agent_status';
+  text: string;
+  eventType: 'status';
+  level?: string;
+  details?: string;
+  title?: string;
+}
+
+export interface AgentErrorPayload {
+  type: 'agent_error';
+  message: string;
+  details?: string;
+}
+
+export interface AgentThinkingPayload {
+  type: 'agent_thinking';
+  state: 'start' | 'stop';
+}
+
+export interface AgentPlanPayload {
+  type: 'agent_plan';
+  plan: unknown[];
+}
+
+export interface NormalisedAgentCommand {
+  run?: string;
+  description?: string;
+  shell?: string;
+  cwd?: string;
+  timeoutSeconds?: number;
+  filterRegex?: string;
+  tailLines?: number;
+}
+
+export interface AgentCommandPreviewPayload {
+  stdout?: string;
+  stderr?: string;
+}
+
+export interface AgentCommandPayload {
+  type: 'agent_command';
+  command?: NormalisedAgentCommand;
+  exitCode?: number | null;
+  runtimeMs?: number;
+  killed?: boolean;
+  preview?: AgentCommandPreviewPayload;
+}
+
+export interface AgentRequestInputPayload {
+  type: 'agent_request_input';
+  prompt: string;
+  level?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export type AgentPayload =
+  | AgentMessagePayload
+  | AgentStatusPayload
+  | AgentErrorPayload
+  | AgentThinkingPayload
+  | AgentPlanPayload
+  | AgentCommandPayload
+  | AgentRequestInputPayload;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function normaliseCommand(command: unknown): NormalisedAgentCommand | undefined {
+  if (!isRecord(command)) {
+    return undefined;
+  }
+
+  const source = command as {
+    run?: unknown;
+    description?: unknown;
+    shell?: unknown;
+    cwd?: unknown;
+    timeout_sec?: unknown;
+    timeout?: unknown;
+    filter_regex?: unknown;
+    tail_lines?: unknown;
+  };
+
+  const normalised: NormalisedAgentCommand = {};
+
+  const run = normaliseAgentText(source.run).trim();
+  if (run) {
+    normalised.run = run;
+  }
+
+  const description = normaliseAgentText(source.description).trim();
+  if (description) {
+    normalised.description = description;
+  }
+
+  const shell = typeof source.shell === 'string' ? normaliseAgentText(source.shell).trim() : '';
+  if (shell) {
+    normalised.shell = shell;
+  }
+
+  const cwd = typeof source.cwd === 'string' ? normaliseAgentText(source.cwd).trim() : '';
+  if (cwd) {
+    normalised.cwd = cwd;
+  }
+
+  const timeoutValue = source.timeout_sec ?? source.timeout;
+  if (typeof timeoutValue === 'number' && Number.isFinite(timeoutValue)) {
+    normalised.timeoutSeconds = timeoutValue;
+  }
+
+  const filter = typeof source.filter_regex === 'string' ? normaliseAgentText(source.filter_regex).trim() : '';
+  if (filter) {
+    normalised.filterRegex = filter;
+  }
+
+  const tailLines = source.tail_lines;
+  if (typeof tailLines === 'number' && Number.isFinite(tailLines)) {
+    normalised.tailLines = tailLines;
+  }
+
+  return Object.keys(normalised).length > 0 ? normalised : undefined;
+}
+
+function normaliseCommandResult(result: unknown): Pick<AgentCommandPayload, 'exitCode' | 'runtimeMs' | 'killed'> {
+  if (!isRecord(result)) {
+    return {};
+  }
+
+  const source = result as { exit_code?: unknown; runtime_ms?: unknown; killed?: unknown };
+  const payload: Pick<AgentCommandPayload, 'exitCode' | 'runtimeMs' | 'killed'> = {};
+
+  if (typeof source.exit_code === 'number' || source.exit_code === null) {
+    payload.exitCode = source.exit_code;
+  }
+
+  if (typeof source.runtime_ms === 'number' && Number.isFinite(source.runtime_ms)) {
+    payload.runtimeMs = source.runtime_ms;
+  }
+
+  if (typeof source.killed === 'boolean') {
+    payload.killed = source.killed;
+  }
+
+  return payload;
+}
+
+function normaliseCommandPreview(preview: unknown): AgentCommandPreviewPayload | undefined {
+  if (!isRecord(preview)) {
+    return undefined;
+  }
+
+  const source = preview as {
+    stdoutPreview?: unknown;
+    stdout?: unknown;
+    stderrPreview?: unknown;
+    stderr?: unknown;
+  };
+
+  const stdoutSource = source.stdoutPreview ?? source.stdout;
+  const stderrSource = source.stderrPreview ?? source.stderr;
+
+  const stdout = normaliseAgentText(stdoutSource);
+  const stderr = normaliseAgentText(stderrSource);
+
+  const trimmedStdout = stdout.trim();
+  const trimmedStderr = stderr.trim();
+
+  if (!trimmedStdout && !trimmedStderr) {
+    return undefined;
+  }
+
+  const payload: AgentCommandPreviewPayload = {};
+  if (trimmedStdout) {
+    payload.stdout = stdout;
+  }
+  if (trimmedStderr) {
+    payload.stderr = stderr;
+  }
+  return payload;
+}
+
+function serialiseMetadata(metadata: unknown): Record<string, unknown> | undefined {
+  if (!isRecord(metadata)) {
+    return undefined;
+  }
+
+  try {
+    return JSON.parse(JSON.stringify(metadata)) as Record<string, unknown>;
+  } catch (error) {
+    console.warn('Failed to serialise agent metadata', error);
+    return undefined;
+  }
+}
+
+export function formatAgentEvent(event: unknown): AgentPayload | undefined {
   if (!event || typeof event !== 'object') {
     return undefined;
   }
@@ -34,174 +283,104 @@ export function formatAgentEvent(event: unknown): string | undefined {
 
   switch (data.type) {
     case 'assistant-message': {
-      const text = normaliseAgentText((data as { message?: unknown }).message).trim();
-      if (!text) {
-        return undefined;
-      }
-      return JSON.stringify({ type: 'agent_message', text });
+      const text = normaliseAgentText((data as AssistantMessageEvent).message).trim();
+      return text ? { type: 'agent_message', text } : undefined;
     }
     case 'status': {
-      const text = normaliseAgentText((data as { message?: unknown }).message);
+      const text = normaliseAgentText((data as StatusEvent).message);
       if (!text) {
         return undefined;
       }
-      const payload: Record<string, unknown> = {
+
+      const payload: AgentStatusPayload = {
         type: 'agent_status',
         text,
         eventType: 'status',
       };
-      const level = (data as { level?: unknown }).level;
+
+      const level = (data as StatusEvent).level;
       if (typeof level === 'string' && level) {
         payload.level = level;
       }
-      const details = (data as { details?: unknown }).details;
+
+      const details = (data as StatusEvent).details;
       if (typeof details === 'string' && details) {
         payload.details = details;
       }
-      const title = (data as { title?: unknown }).title;
+
+      const title = (data as StatusEvent).title;
       if (typeof title === 'string' && title) {
-        payload.title = normaliseAgentText(title);
+        const normalizedTitle = normaliseAgentText(title).trim();
+        if (normalizedTitle) {
+          payload.title = normalizedTitle;
+        }
       }
-      return JSON.stringify(payload);
+
+      return payload;
     }
     case 'error': {
-      const message = normaliseAgentText((data as { message?: unknown }).message) ||
+      const message = normaliseAgentText((data as ErrorEvent).message).trim() ||
         'Agent runtime reported an error.';
-      const payload: Record<string, unknown> = {
+      const payload: AgentErrorPayload = {
         type: 'agent_error',
         message,
       };
-      const details = (data as { details?: unknown }).details;
-      if (details != null) {
-        payload.details = normaliseAgentText(details);
+
+      const details = (data as ErrorEvent).details;
+      if (typeof details === 'string' && details) {
+        payload.details = details;
       }
-      return JSON.stringify(payload);
+
+      return payload;
     }
     case 'thinking': {
-      const state = (data as { state?: unknown }).state;
-      if (state === 'start' || state === 'stop') {
-        return JSON.stringify({ type: 'agent_thinking', state });
-      }
-      return undefined;
+      const state = (data as ThinkingEvent).state;
+      return state === 'start' || state === 'stop'
+        ? { type: 'agent_thinking', state }
+        : undefined;
     }
     case 'plan': {
-      const plan = (data as { plan?: unknown }).plan;
-      if (Array.isArray(plan)) {
-        return JSON.stringify({ type: 'agent_plan', plan });
-      }
-      return undefined;
+      const plan = (data as PlanEvent).plan;
+      return Array.isArray(plan) ? { type: 'agent_plan', plan } : undefined;
     }
     case 'command-result': {
-      const command = (data as { command?: unknown }).command;
-      const result = (data as { result?: unknown }).result;
-      const preview = (data as { preview?: unknown }).preview;
-
-      const payload: Record<string, unknown> = {
+      const payload: AgentCommandPayload = {
         type: 'agent_command',
       };
 
-      if (command && typeof command === 'object') {
-        const normalizedCommand: Record<string, unknown> = {};
-        const run = normaliseAgentText((command as { run?: unknown }).run).trim();
-        if (run) {
-          normalizedCommand.run = run;
-        }
-        const description = normaliseAgentText((command as { description?: unknown }).description).trim();
-        if (description) {
-          normalizedCommand.description = description;
-        }
-        const shellValue = (command as { shell?: unknown }).shell;
-        if (typeof shellValue === 'string') {
-          const shell = normaliseAgentText(shellValue).trim();
-          if (shell) {
-            normalizedCommand.shell = shell;
-          }
-        }
-        const cwdValue = (command as { cwd?: unknown }).cwd;
-        if (typeof cwdValue === 'string') {
-          const cwd = normaliseAgentText(cwdValue).trim();
-          if (cwd) {
-            normalizedCommand.cwd = cwd;
-          }
-        }
-        const timeoutValue = (command as { timeout_sec?: unknown; timeout?: unknown }).timeout_sec ??
-          (command as { timeout_sec?: unknown; timeout?: unknown }).timeout;
-        if (typeof timeoutValue === 'number' && Number.isFinite(timeoutValue)) {
-          normalizedCommand.timeoutSeconds = timeoutValue;
-        }
-        const filterValue = (command as { filter_regex?: unknown }).filter_regex;
-        if (typeof filterValue === 'string') {
-          const filter = normaliseAgentText(filterValue).trim();
-          if (filter) {
-            normalizedCommand.filterRegex = filter;
-          }
-        }
-        const tailLinesValue = (command as { tail_lines?: unknown }).tail_lines;
-        if (typeof tailLinesValue === 'number' && Number.isFinite(tailLinesValue)) {
-          normalizedCommand.tailLines = tailLinesValue;
-        }
-        if (Object.keys(normalizedCommand).length > 0) {
-          payload.command = normalizedCommand;
-        }
+      const commandPayload = normaliseCommand((data as CommandResultEvent).command);
+      if (commandPayload) {
+        payload.command = commandPayload;
       }
 
-      if (result && typeof result === 'object') {
-        const exitCode = (result as { exit_code?: unknown }).exit_code;
-        if (typeof exitCode === 'number' || exitCode === null) {
-          payload.exitCode = exitCode;
-        }
-        const runtimeMs = (result as { runtime_ms?: unknown }).runtime_ms;
-        if (typeof runtimeMs === 'number' && Number.isFinite(runtimeMs)) {
-          payload.runtimeMs = runtimeMs;
-        }
-        const killed = (result as { killed?: unknown }).killed;
-        if (typeof killed === 'boolean') {
-          payload.killed = killed;
-        }
+      const resultPayload = normaliseCommandResult((data as CommandResultEvent).result);
+      Object.assign(payload, resultPayload);
+
+      const previewPayload = normaliseCommandPreview((data as CommandResultEvent).preview);
+      if (previewPayload) {
+        payload.preview = previewPayload;
       }
 
-      if (preview && typeof preview === 'object') {
-        const stdout = normaliseAgentText(
-          (preview as { stdoutPreview?: unknown; stdout?: unknown }).stdoutPreview ??
-            (preview as { stdoutPreview?: unknown; stdout?: unknown }).stdout,
-        );
-        const stderr = normaliseAgentText(
-          (preview as { stderrPreview?: unknown; stderr?: unknown }).stderrPreview ??
-            (preview as { stderrPreview?: unknown; stderr?: unknown }).stderr,
-        );
-        const trimmedStdout = stdout.trim();
-        const trimmedStderr = stderr.trim();
-        if (trimmedStdout || trimmedStderr) {
-          payload.preview = {};
-          if (trimmedStdout) {
-            (payload.preview as Record<string, unknown>).stdout = stdout;
-          }
-          if (trimmedStderr) {
-            (payload.preview as Record<string, unknown>).stderr = stderr;
-          }
-        }
-      }
-
-      return JSON.stringify(payload);
+      return payload;
     }
     case 'request-input': {
-      const payload: Record<string, unknown> = {
+      const prompt = normaliseAgentText((data as RequestInputEvent).prompt);
+      const payload: AgentRequestInputPayload = {
         type: 'agent_request_input',
-        prompt: normaliseAgentText((data as { prompt?: unknown }).prompt),
+        prompt,
       };
-      const level = (data as { level?: unknown }).level;
+
+      const level = (data as RequestInputEvent).level;
       if (typeof level === 'string' && level) {
         payload.level = level;
       }
-      const metadata = (data as { metadata?: unknown }).metadata;
-      if (metadata && typeof metadata === 'object') {
-        try {
-          payload.metadata = JSON.parse(JSON.stringify(metadata));
-        } catch (error) {
-          console.warn('Failed to serialise agent metadata', error);
-        }
+
+      const metadata = serialiseMetadata((data as RequestInputEvent).metadata);
+      if (metadata) {
+        payload.metadata = metadata;
       }
-      return JSON.stringify(payload);
+
+      return payload;
     }
     default:
       return undefined;
