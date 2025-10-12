@@ -126,7 +126,14 @@ describe('agent plan progress events', () => {
     const queue = [
       buildResponsePayload({
         message: 'Plan update',
-        plan: [{ step: '1', title: 'Task', status: 'completed' }],
+        plan: [
+          {
+            id: 'plan-step-1',
+            title: 'Task',
+            status: 'completed',
+            command: { shell: '/bin/bash', run: 'echo done' },
+          },
+        ],
       }),
     ];
 

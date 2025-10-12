@@ -77,10 +77,10 @@
           "$defs": {
             "planStep": {
               "type": "object",
-              "required": ["step", "title", "status"],
+              "required": ["id", "title", "status", "command"],
               "additionalProperties": false,
               "properties": {
-                "step": {
+                "id": {
                   "type": "string"
                 },
                 "title": {
@@ -88,7 +88,7 @@
                 },
                 "status": {
                   "type": "string",
-                  "enum": ["pending", "running", "completed", "failed"]
+                  "enum": ["pending", "completed", "failed", "abandoned"]
                 },
                 "substeps": {
                   "type": "array",
@@ -106,12 +106,12 @@
             },
             "command": {
               "type": "object",
-              "required": ["confirmed", "shell", "run", "cwd"],
+              "required": ["shell", "run"],
               "additionalProperties": false,
               "properties": {
-                "confirmed": {
-                  "type": "integer",
-                  "description": "1337 if you actually read and understood this spec. REQUIRED!"
+                "reason": {
+                  "type": "string",
+                  "description": "Explain why this shell command is required for the plan step."
                 },
                 "shell": {
                   "type": "string",
@@ -164,5 +164,5 @@
     "metadata": {},
     "output_text": ""
   },
-  "responseText": "{\"message\":\"Running `echo hello`.\",\"plan\":[{\"step\":\"1\",\"title\":\"Execute nested shell\",\"status\":\"running\",\"command\":{\"shell\":{\"command\":\"echo hello\",\"cwd\":\".\"}}}]}"
+  "responseText": "{\"message\":\"Running `echo hello`.\",\"plan\":[{\"id\":\"plan-step-execute\",\"title\":\"Execute nested shell\",\"status\":\"pending\",\"command\":{\"shell\":\"/bin/bash\",\"run\":\"echo hello\",\"cwd\":\".\"}}]}"
 }

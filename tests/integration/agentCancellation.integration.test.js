@@ -13,23 +13,46 @@ const PLAN_STEP_TITLES = {
   execute: 'Run long command',
 };
 
-function buildPlan(statusGather, statusExecute, command = null) {
-  const plan = [
-    { step: '1', title: PLAN_STEP_TITLES.gather, status: statusGather },
-    { step: '2', title: PLAN_STEP_TITLES.execute, status: statusExecute },
-  ];
+const DEFAULT_SHELL = '/bin/bash';
 
-  if (command) {
-    plan[1].command = command;
+function withDefaultCommand(command, fallbackRun) {
+  const base = {
+    shell: DEFAULT_SHELL,
+    run: fallbackRun,
+    cwd: '.',
+    timeout_sec: 30,
+  };
+
+  if (!command) {
+    return base;
   }
 
-  return plan;
+  return { ...base, ...command };
+}
+
+function buildPlan(statusGather, statusExecute, command = null) {
+  return [
+    {
+      id: 'plan-step-gather',
+      title: PLAN_STEP_TITLES.gather,
+      status: statusGather,
+      command: withDefaultCommand(null, 'echo "gathering context"'),
+    },
+    {
+      id: 'plan-step-execute',
+      title: PLAN_STEP_TITLES.execute,
+      status: statusExecute,
+      command: withDefaultCommand(command, 'echo "pending execution"'),
+    },
+  ];
 }
 
 function enqueueHandshakeResponse() {
+  const plan = buildPlan('completed', 'pending');
+  plan[1].waitingForId = ['await-human'];
   queueModelResponse({
     message: 'Handshake ready',
-    plan: buildPlan('running', 'pending'),
+    plan,
   });
 }
 
@@ -58,14 +81,13 @@ test('ESC cancellation aborts an in-flight command and surfaces UI feedback', as
 
   enqueueHandshakeResponse();
 
+  const executionPlan = buildPlan('completed', 'pending', {
+    shell: 'bash',
+    run: 'sleep 30',
+  });
   queueModelResponse({
     message: 'Preparing to run command',
-    plan: buildPlan('completed', 'running', {
-      shell: 'bash',
-      run: 'sleep 30',
-      cwd: '.',
-      timeout_sec: 30,
-    }),
+    plan: executionPlan,
   });
 
   enqueueFollowUp('Command canceled acknowledgement', 'completed');
@@ -141,6 +163,7 @@ test('ESC cancellation aborts an in-flight command and surfaces UI feedback', as
   await ui.start();
 
   expect(runCommandMock).toHaveBeenCalledTimes(1);
+  expect(runCommandMock).toHaveBeenCalledWith('sleep 30', '.', 30, 'bash');
   expect(cancelObserved).toBe(true);
 
   const statusEvent = ui.events.find(

@@ -12,10 +12,10 @@ describe('validateAssistantResponseSchema', () => {
       message: 'Ready',
       plan: [
         {
-          step: '1',
+          id: 'step-1',
           title: 'Do the thing',
-          status: 'running',
-          command: { run: 'echo "hi"' },
+          status: 'pending',
+          command: { shell: '/bin/bash', run: 'echo "hi"' },
         },
       ],
     });
@@ -59,24 +59,24 @@ describe('validateAssistantResponse', () => {
     expect(result).toEqual({ valid: true, errors: [] });
   });
 
-  test('accepts active plan with running step and command', () => {
+  test('accepts active plan with pending step and command', () => {
     const result = validateAssistantResponse({
       message: 'Working',
       plan: [
         {
-          step: '1',
+          id: 'step-1',
           title: 'Do the thing',
-          status: 'running',
+          status: 'pending',
           command: {
             shell: 'bash',
             run: 'echo "hello"',
           },
         },
         {
-          step: '2',
+          id: 'step-2',
           title: 'Follow up',
           status: 'pending',
-          command: { run: 'ls' },
+          command: { shell: 'bash', run: 'ls' },
         },
       ],
     });
@@ -97,18 +97,18 @@ describe('validateAssistantResponse', () => {
 
   test('requires command when plan has open steps', () => {
     const result = validateAssistantResponse({
-      plan: [{ step: '1', title: 'Only step', status: 'running' }],
+      plan: [{ id: 'step-1', title: 'Only step', status: 'pending' }],
     });
 
     expect(result.valid).toBe(false);
     expect(result.errors).toContain(
-      'plan[0] requires a non-empty command while the step is running.',
+      'plan[0] requires a non-empty command while the step is pending.',
     );
   });
 
   test('allows completed plan step without command', () => {
     const result = validateAssistantResponse({
-      plan: [{ step: '1', title: 'Done', status: 'completed' }],
+      plan: [{ id: 'step-1', title: 'Done', status: 'completed' }],
     });
 
     expect(result.valid).toBe(true);
@@ -118,10 +118,10 @@ describe('validateAssistantResponse', () => {
   test('limits top-level plan size', () => {
     const result = validateAssistantResponse({
       plan: [
-        { step: '1', title: 'A', status: 'completed' },
-        { step: '2', title: 'B', status: 'completed' },
-        { step: '3', title: 'C', status: 'completed' },
-        { step: '4', title: 'D', status: 'completed' },
+        { id: 'step-1', title: 'A', status: 'completed' },
+        { id: 'step-2', title: 'B', status: 'completed' },
+        { id: 'step-3', title: 'C', status: 'completed' },
+        { id: 'step-4', title: 'D', status: 'completed' },
       ],
     });
 
@@ -129,15 +129,20 @@ describe('validateAssistantResponse', () => {
     expect(result.errors).toContain('Plan must not contain more than 3 top-level steps.');
   });
 
-  test('ensures the first open step is marked running', () => {
+  test('accepts plan when open steps are pending', () => {
     const result = validateAssistantResponse({
       plan: [
-        { step: '1', title: 'A', status: 'pending', command: { run: 'echo one' } },
-        { step: '2', title: 'B', status: 'running', command: { run: 'echo two' } },
+        { id: 'step-1', title: 'A', status: 'completed' },
+        {
+          id: 'step-2',
+          title: 'B',
+          status: 'pending',
+          command: { shell: '/bin/bash', run: 'echo two' },
+        },
       ],
     });
 
-    expect(result.valid).toBe(false);
-    expect(result.errors).toContain('The next pending plan step must be marked as "running".');
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
   });
 });

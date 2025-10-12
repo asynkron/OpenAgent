@@ -12,23 +12,46 @@ const PLAN_STEP_TITLES = {
   execute: 'Execute requested command',
 };
 
-function buildPlan(statusGather, statusExecute, command = null) {
-  const plan = [
-    { step: '1', title: PLAN_STEP_TITLES.gather, status: statusGather },
-    { step: '2', title: PLAN_STEP_TITLES.execute, status: statusExecute },
-  ];
+const DEFAULT_SHELL = '/bin/bash';
 
-  if (command) {
-    plan[1].command = command;
+function withDefaultCommand(command, fallbackRun) {
+  const base = {
+    shell: DEFAULT_SHELL,
+    run: fallbackRun,
+    cwd: '.',
+    timeout_sec: 5,
+  };
+
+  if (!command) {
+    return base;
   }
 
-  return plan;
+  return { ...base, ...command };
+}
+
+function buildPlan(statusGather, statusExecute, command = null) {
+  return [
+    {
+      id: 'plan-step-gather',
+      title: PLAN_STEP_TITLES.gather,
+      status: statusGather,
+      command: withDefaultCommand(null, 'echo "gathering context"'),
+    },
+    {
+      id: 'plan-step-execute',
+      title: PLAN_STEP_TITLES.execute,
+      status: statusExecute,
+      command: withDefaultCommand(command, 'echo "waiting for approval"'),
+    },
+  ];
 }
 
 function enqueueHandshakeResponse() {
+  const plan = buildPlan('completed', 'pending');
+  plan[1].waitingForId = ['await-human'];
   queueModelResponse({
     message: 'Handshake',
-    plan: buildPlan('running', 'pending'),
+    plan,
   });
 }
 
@@ -48,10 +71,8 @@ describe('Approval flow integration', () => {
 
     const firstPayload = {
       message: 'Needs approval',
-      plan: buildPlan('completed', 'running', {
+      plan: buildPlan('completed', 'pending', {
         run: 'echo "APPROVED"',
-        cwd: '.',
-        timeout_sec: 5,
       }),
     };
     const secondPayload = {
@@ -102,10 +123,8 @@ describe('Approval flow integration', () => {
 
     const firstPayload = {
       message: 'Needs approval',
-      plan: buildPlan('completed', 'running', {
+      plan: buildPlan('completed', 'pending', {
         run: 'echo "SHOULD_NOT_RUN"',
-        cwd: '.',
-        timeout_sec: 5,
       }),
     };
     const secondPayload = {
@@ -150,10 +169,8 @@ describe('Approval flow integration', () => {
 
     const preapprovedCommand = {
       message: 'Preapproved command incoming',
-      plan: buildPlan('completed', 'running', {
+      plan: buildPlan('completed', 'pending', {
         run: 'npm test',
-        cwd: '.',
-        timeout_sec: 5,
       }),
     };
 

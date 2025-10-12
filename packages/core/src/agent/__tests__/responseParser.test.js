@@ -52,9 +52,9 @@ describe('parseAssistantResponse', () => {
       message: 'Running command `echo hello`.',
       plan: [
         {
-          step: '1',
+          id: 'plan-step-1',
           title: 'Execute command',
-          status: 'running',
+          status: 'pending',
           command: {
             cwd: '.',
             shell: 'echo hello',
@@ -71,9 +71,9 @@ describe('parseAssistantResponse', () => {
       plan: [
         {
           age: 0,
-          step: '1',
+          id: 'plan-step-1',
           title: 'Execute command',
-          status: 'running',
+          status: 'pending',
           command: {
             cwd: '.',
             run: 'echo hello',
@@ -88,9 +88,9 @@ describe('parseAssistantResponse', () => {
       message: 'Raw command provided as string.',
       plan: [
         {
-          step: '1',
+          id: 'plan-step-1',
           title: 'Execute command',
-          status: 'running',
+          status: 'pending',
           command: 'ls',
         },
       ],
@@ -104,9 +104,9 @@ describe('parseAssistantResponse', () => {
       plan: [
         {
           age: 0,
-          step: '1',
+          id: 'plan-step-1',
           title: 'Execute command',
-          status: 'running',
+          status: 'pending',
           command: {
             run: 'ls',
           },
@@ -120,9 +120,9 @@ describe('parseAssistantResponse', () => {
       message: 'Command tokens provided as array.',
       plan: [
         {
-          step: '1',
+          id: 'plan-step-1',
           title: 'Execute command',
-          status: 'running',
+          status: 'pending',
           command: ['apply_patch', "<<'PATCH'", 'content'],
         },
       ],
@@ -136,9 +136,9 @@ describe('parseAssistantResponse', () => {
       plan: [
         {
           age: 0,
-          step: '1',
+          id: 'plan-step-1',
           title: 'Execute command',
-          status: 'running',
+          status: 'pending',
           command: {
             run: "apply_patch <<'PATCH' content",
           },
@@ -152,9 +152,9 @@ describe('parseAssistantResponse', () => {
       message: 'Running command `echo hello`.',
       plan: [
         {
-          step: '1',
+          id: 'plan-step-1',
           title: 'Execute command',
-          status: 'running',
+          status: 'pending',
           command: {
             shell: {
               command: 'echo hello',
@@ -175,9 +175,9 @@ describe('parseAssistantResponse', () => {
       plan: [
         {
           age: 0,
-          step: '1',
+          id: 'plan-step-1',
           title: 'Execute command',
-          status: 'running',
+          status: 'pending',
           command: {
             cwd: '.',
             timeout_sec: 5,
@@ -199,11 +199,12 @@ describe('parseAssistantResponse', () => {
       plan: [
         {
           age: 0,
-          step: '1',
+          id: 'plan-step-execute',
           title: 'Execute nested shell',
-          status: 'running',
+          status: 'pending',
           command: {
             cwd: '.',
+            shell: '/bin/bash',
             run: 'echo hello',
           },
         },

@@ -103,7 +103,7 @@ export function validateAssistantResponseSchema(payload) {
 }
 
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'abandoned']);
-const ALLOWED_STATUSES = new Set(['pending', 'running', 'completed', 'failed', 'abandoned']);
+const ALLOWED_STATUSES = new Set(['pending', 'completed', 'failed', 'abandoned']);
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -136,8 +136,9 @@ function validatePlanItem(item, path, state, errors) {
 
   const idLabel = typeof item.id === 'string' ? item.id.trim() : '';
   const stepLabel = typeof item.step === 'string' ? item.step.trim() : '';
-  if (!idLabel && !stepLabel) {
-    errors.push(`${path} is missing a non-empty "step" or "id" label.`);
+  if (!idLabel) {
+    const hint = stepLabel ? ' Provide an "id" value instead of "step" to satisfy the schema.' : '';
+    errors.push(`${path} is missing a non-empty "id" label.${hint}`.trim());
   }
 
   if (typeof item.title !== 'string' || !item.title.trim()) {
@@ -152,10 +153,6 @@ function validatePlanItem(item, path, state, errors) {
     errors.push(
       `${path}.status must be one of: ${Array.from(ALLOWED_STATUSES).join(', ')}.`,
     );
-  }
-
-  if (normalizedStatus === 'running') {
-    state.runningCount += 1;
   }
 
   if (!state.firstOpenStatus && normalizedStatus !== 'completed') {
@@ -214,7 +211,6 @@ export function validateAssistantResponse(payload) {
     }
 
     const state = {
-      runningCount: 0,
       firstOpenStatus: '',
       hasOpenSteps: false,
     };
@@ -223,9 +219,6 @@ export function validateAssistantResponse(payload) {
       validatePlanItem(item, `plan[${index}]`, state, errors);
     });
 
-    if (state.hasOpenSteps && state.firstOpenStatus && state.firstOpenStatus !== 'running') {
-      errors.push('The next pending plan step must be marked as "running".');
-    }
   }
 
   return {
