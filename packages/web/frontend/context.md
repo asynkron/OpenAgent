@@ -8,7 +8,7 @@
 
 ## Key Components
 
-- `src/js/` — TypeScript sources for chat services, plan renderer, and unified application bootstrap logic.
+- `src/js/` — TypeScript sources for chat services, plan renderer, and unified application bootstrap logic. Chat wiring now reuses `services/chat_highlight.ts` and `services/chat_dom.ts` to keep markdown rendering and DOM listener utilities isolated from the main chat orchestrator.
 - `src/css/` — Stylesheets bundled alongside JavaScript for the frontend UI.
 - `scripts/ensure-esbuild.mjs` — Rebuild helper guaranteeing esbuild binary compatibility before bundling.
 

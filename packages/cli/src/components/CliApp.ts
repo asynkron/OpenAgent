@@ -1,7 +1,4 @@
 // @ts-nocheck
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
-
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Static, Text, useApp, useInput } from 'ink';
 
@@ -13,6 +10,12 @@ import Command from './Command.js';
 import Plan from './Plan.js';
 import DebugPanel from './DebugPanel.js';
 import StatusMessage from './StatusMessage.js';
+import {
+  appendWithLimit,
+  formatDebugPayload,
+  summarizeAutoResponseDebug,
+} from './cliApp/logging.js';
+import { resolveHistoryFilePath, writeHistorySnapshot } from './cliApp/history.js';
 
 const MAX_TIMELINE_ENTRIES = 20;
 const MAX_DEBUG_ENTRIES = 20;
@@ -114,46 +117,6 @@ const Timeline = React.memo(function Timeline({ entries }) {
   );
 });
 
-function formatDebugPayload(payload) {
-  if (typeof payload === 'string') {
-    return payload;
-  }
-  try {
-    return JSON.stringify(payload, null, 2);
-  } catch (_error) {
-    return String(payload);
-  }
-}
-
-function summarizeAutoResponseDebug(payload) {
-  if (!payload || typeof payload !== 'object') {
-    return null;
-  }
-
-  const stage = typeof payload.stage === 'string' ? payload.stage : '';
-  if (!stage) {
-    return null;
-  }
-
-  if (stage === 'assistant-response-schema-validation-error') {
-    const message =
-      typeof payload.message === 'string' && payload.message.trim().length > 0
-        ? payload.message.trim()
-        : 'Assistant response failed schema validation.';
-    return `Auto-response triggered: ${message}`;
-  }
-
-  if (stage === 'assistant-response-validation-error') {
-    const message =
-      typeof payload.message === 'string' && payload.message.trim().length > 0
-        ? payload.message.trim()
-        : 'Assistant response failed protocol validation.';
-    return `Auto-response triggered: ${message}`;
-  }
-
-  return null;
-}
-
 function normalizeStatus(event) {
   const message = event.message ?? '';
   if (!message) {
@@ -167,26 +130,6 @@ function normalizeStatus(event) {
     normalized.details = String(event.details);
   }
   return normalized;
-}
-
-function formatTimestampForFilename(date = new Date()) {
-  const pad = (value) => String(value).padStart(2, '0');
-  const year = date.getFullYear();
-  const month = pad(date.getMonth() + 1);
-  const day = pad(date.getDate());
-  const hours = pad(date.getHours());
-  const minutes = pad(date.getMinutes());
-  const seconds = pad(date.getSeconds());
-  return `${year}${month}${day}-${hours}${minutes}${seconds}`;
-}
-
-function resolveHistoryFilePath(rawPath) {
-  if (typeof rawPath === 'string' && rawPath.trim().length > 0) {
-    return path.resolve(process.cwd(), rawPath.trim());
-  }
-  const timestamp = formatTimestampForFilename();
-  const fallbackName = `openagent-history-${timestamp}.json`;
-  return path.resolve(process.cwd(), fallbackName);
 }
 
 function cloneValue(value) {
@@ -212,32 +155,6 @@ function cloneValue(value) {
     // As a last resort, return the original reference so we at least render something.
     return value;
   }
-}
-
-async function writeHistorySnapshot({ history, filePath }) {
-  const targetPath = resolveHistoryFilePath(filePath);
-  const directory = path.dirname(targetPath);
-  await fs.mkdir(directory, { recursive: true });
-
-  let serialized;
-  try {
-    serialized = JSON.stringify(history ?? [], null, 2);
-  } catch (error) {
-    const wrapped = error instanceof Error ? error : new Error(String(error));
-    wrapped.message = `Failed to serialize history: ${wrapped.message}`;
-    throw wrapped;
-  }
-
-  await fs.writeFile(targetPath, `${serialized}\n`, 'utf8');
-  return targetPath;
-}
-
-function appendWithLimit(list, entry, limit) {
-  const next = [...list, entry];
-  if (!limit || next.length <= limit) {
-    return { next, trimmed: false };
-  }
-  return { next: next.slice(next.length - limit), trimmed: true };
 }
 
 function parsePositiveInteger(value, defaultValue = 1) {

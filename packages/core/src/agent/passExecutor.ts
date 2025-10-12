@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { buildPlanLookup, planHasOpenSteps, planStepIsBlocked } from '../utils/plan.js';
+import { planHasOpenSteps } from '../utils/plan.js';
 import { incrementCommandCount as defaultIncrementCommandCount } from '../services/commandStatsService.js';
 import {
   combineStdStreams as defaultCombineStdStreams,
@@ -25,158 +25,26 @@ import {
   createRefusalAutoResponseEntry,
 } from './historyMessageBuilder.js';
 import type { EscState } from './escState.js';
+import {
+  clonePlanForExecution,
+  collectExecutablePlanSteps,
+  ensurePlanStepAge,
+  getPriorityScore,
+  hasCommandPayload,
+  incrementRunningPlanStepAges,
+  type PlanStep,
+} from './passExecutor/planExecution.js';
+import { refusalHeuristics } from './passExecutor/refusalDetection.js';
 
 type UnknownRecord = Record<string, unknown>;
 
-const REFUSAL_AUTO_RESPONSE = 'continue';
-const REFUSAL_STATUS_MESSAGE =
-  'Assistant declined to help; auto-responding with "continue" to prompt another attempt.';
-const REFUSAL_MESSAGE_MAX_LENGTH = 160;
 const PLAN_REMINDER_AUTO_RESPONSE_LIMIT = 3;
-const TERMINAL_PLAN_STATUSES = new Set(['completed', 'failed', 'abandoned']);
-const ensurePlanStepAge = (node: any): void => {
-  if (!node) {
-    return;
-  }
-
-  if (Array.isArray(node)) {
-    node.forEach(ensurePlanStepAge);
-    return;
-  }
-
-  if (typeof node !== 'object') {
-    return;
-  }
-
-  if (!Number.isInteger(node.age) || node.age < 0) {
-    node.age = 0;
-  }
-};
-
-const incrementRunningPlanStepAges = (plan: any): void => {
-  if (!Array.isArray(plan)) {
-    return;
-  }
-
-  plan.forEach((step) => {
-    if (!step || typeof step !== 'object') {
-      return;
-    }
-
-    const status = typeof step.status === 'string' ? step.status.trim().toLowerCase() : '';
-    if (status === 'running') {
-      if (!Number.isInteger(step.age) || step.age < 0) {
-        step.age = 0;
-      }
-      step.age += 1;
-    }
-  });
-};
-
-const REFUSAL_NEGATION_PATTERNS = [
-  /\bcan['’]?t\b/i,
-  /\bcannot\b/i,
-  /\bunable to\b/i,
-  /\bnot able to\b/i,
-  /\bwon['’]?t be able to\b/i,
-];
-
-const REFUSAL_ASSISTANCE_PATTERNS = [
-  /\bhelp\b/i,
-  /\bassist\b/i,
-  /\bcontinue\b/i, // e.g. "I can't continue with that."
-];
-
-const REFUSAL_SORRY_PATTERN = /\bsorry\b/i;
 
 const normalizeAssistantMessage = (value: unknown): string =>
   typeof value === 'string' ? value.replace(/[\u2018\u2019]/g, "'") : '';
-
-const hasCommandPayload = (command: any): boolean => {
-  if (!command || typeof command !== 'object') {
-    return false;
-  }
-
-  const run = typeof command.run === 'string' ? command.run.trim() : '';
-  const shell = typeof command.shell === 'string' ? command.shell.trim() : '';
-
-  return Boolean(run || shell);
-};
-
-const collectExecutablePlanSteps = (plan: any): any[] => {
-  const executable: any[] = [];
-
-  if (!Array.isArray(plan)) {
-    return executable;
-  }
-
-  const lookup = buildPlanLookup(plan);
-
-  plan.forEach((item) => {
-    if (!item || typeof item !== 'object') {
-      return;
-    }
-
-    const status = typeof item.status === 'string' ? item.status.trim().toLowerCase() : '';
-    const blocked = planStepIsBlocked(item, lookup);
-
-    if (!blocked && !TERMINAL_PLAN_STATUSES.has(status) && hasCommandPayload(item.command)) {
-      executable.push({ step: item, command: item.command });
-    }
-  });
-
-  return executable;
-};
-
-const getPriorityScore = (step: any): number => {
-  if (!step || typeof step !== 'object') {
-    return Number.POSITIVE_INFINITY;
-  }
-
-  const numericPriority = Number(step.priority);
-  if (Number.isFinite(numericPriority)) {
-    return numericPriority;
-  }
-
-  return Number.POSITIVE_INFINITY;
-};
-
-const clonePlanForExecution = (plan: any): any[] => {
-  if (!Array.isArray(plan)) {
-    return [];
-  }
-
-  return JSON.parse(JSON.stringify(plan));
-};
-
 // Quick heuristic to detect short apology-style refusals so we can auto-nudge the model.
-const isLikelyRefusalMessage = (message: unknown): boolean => {
-  if (typeof message !== 'string') {
-    return false;
-  }
-
-  const normalized = normalizeAssistantMessage(message).trim();
-
-  if (!normalized || normalized.length > REFUSAL_MESSAGE_MAX_LENGTH) {
-    return false;
-  }
-
-  const lowerCased = normalized.toLowerCase();
-
-  if (!REFUSAL_SORRY_PATTERN.test(lowerCased)) {
-    return false;
-  }
-
-  if (!REFUSAL_ASSISTANCE_PATTERNS.some((pattern) => pattern.test(lowerCased))) {
-    return false;
-  }
-
-  if (!REFUSAL_NEGATION_PATTERNS.some((pattern) => pattern.test(lowerCased))) {
-    return false;
-  }
-
-  return true;
-};
+const isLikelyRefusalMessage = (message: unknown): boolean =>
+  refusalHeuristics.isLikelyRefusalMessage(message);
 
 export interface ExecuteAgentPassOptions {
   openai: unknown;
@@ -542,8 +410,10 @@ export async function executeAgentPass({
 
   emitEvent({ type: 'assistant-message', message: parsed.message ?? '' });
 
-  const incomingPlan = Array.isArray(parsed.plan) ? parsed.plan : null;
-  let activePlan = incomingPlan ?? [];
+  const incomingPlan: PlanStep[] | null = Array.isArray(parsed.plan)
+    ? (parsed.plan as PlanStep[])
+    : null;
+  let activePlan: PlanStep[] = incomingPlan ?? [];
 
   if (planManager) {
     try {
@@ -556,17 +426,17 @@ export async function executeAgentPass({
       if (incomingPlan) {
         const updated = await invokePlanManager?.(planManager.update, incomingPlan);
         if (Array.isArray(updated)) {
-          activePlan = updated;
+          activePlan = updated as PlanStep[];
         }
       } else if (shouldMerge) {
         const snapshot = await invokePlanManager?.(planManager.get);
         if (Array.isArray(snapshot)) {
-          activePlan = snapshot;
+          activePlan = snapshot as PlanStep[];
         }
       } else {
         const cleared = await invokePlanManager?.(planManager.reset);
         if (Array.isArray(cleared)) {
-          activePlan = cleared;
+          activePlan = cleared as PlanStep[];
         }
       }
     } catch (error) {
@@ -635,10 +505,10 @@ export async function executeAgentPass({
 
     if (activePlanEmpty && incomingPlanEmpty && isLikelyRefusalMessage(normalizedMessage)) {
       // When the assistant refuses without offering a plan or command, nudge it forward automatically.
-      emitEvent({ type: 'status', level: 'info', message: REFUSAL_STATUS_MESSAGE });
+      emitEvent({ type: 'status', level: 'info', message: refusalHeuristics.statusMessage });
       history.push(
         createRefusalAutoResponseEntry({
-          autoResponseMessage: REFUSAL_AUTO_RESPONSE,
+          autoResponseMessage: refusalHeuristics.autoResponse,
           pass: activePass,
         }),
       );

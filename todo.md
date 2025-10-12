@@ -26,3 +26,8 @@
   - [x] Add configuration validation for model/endpoint compatibility
   - [x] Implement per-request timeout/retry options with tests
   - [x] Document configuration expectations in src/openai/context.md
+- [x] Reduce FTA hotspots surfaced on 2025-03-17
+  - [x] `packages/cli/src/components/InkTextArea.ts` — simplify slash-command/text-area logic and break helpers into typed modules to shrink the 92.21 score.
+  - [x] `packages/web/frontend/src/js/services/chat.ts` — untangle DOM event wiring and markdown rendering for an 86.66 score drop-in.
+  - [x] `packages/core/src/agent/passExecutor.ts` — carve out pass orchestration helpers so the 86.57 score becomes testable slices.
+  - [x] `packages/cli/src/components/CliApp.ts` — streamline top-level event plumbing to improve the 80.36 score.
