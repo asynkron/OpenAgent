@@ -121,23 +121,6 @@ const collectExecutablePlanSteps = (plan) => {
   return executable;
 };
 
-const buildExecutableStepKey = (step, fallbackIndex = 0) => {
-  if (!step || typeof step !== 'object') {
-    return `index:${fallbackIndex}`;
-  }
-
-  const id = typeof step.id === 'string' ? step.id.trim() : '';
-  if (id) {
-    return `id:${id.toLowerCase()}`;
-  }
-
-  if (typeof step.title === 'string' && step.title.trim()) {
-    return `title:${step.title.trim().toLowerCase()}`;
-  }
-
-  return `index:${fallbackIndex}`;
-};
-
 const getPriorityScore = (step) => {
   if (!step || typeof step !== 'object') {
     return Number.POSITIVE_INFINITY;
@@ -149,26 +132,6 @@ const getPriorityScore = (step) => {
   }
 
   return Number.POSITIVE_INFINITY;
-};
-
-const rebuildExecutableStepMap = (entries, targetMap = new Map()) => {
-  targetMap.clear();
-  if (!Array.isArray(entries)) {
-    return targetMap;
-  }
-
-  entries.forEach((entry, index) => {
-    if (!entry || typeof entry !== 'object' || !entry.step || typeof entry.step !== 'object') {
-      return;
-    }
-
-    const key = buildExecutableStepKey(entry.step, index);
-    if (!targetMap.has(key)) {
-      targetMap.set(key, entry.step);
-    }
-  });
-
-  return targetMap;
 };
 
 const clonePlanForExecution = (plan) => {
@@ -571,16 +534,12 @@ export async function executeAgentPass({
 
   emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
 
-  const planForExecution = clonePlanForExecution(activePlan);
-  let activePlanExecutableSteps = collectExecutablePlanSteps(activePlan);
-  const activePlanStepMap = rebuildExecutableStepMap(activePlanExecutableSteps, new Map());
   let planMutatedDuringExecution = false;
 
   const selectNextExecutableEntry = () => {
-    const candidates = collectExecutablePlanSteps(planForExecution).map((entry, index) => ({
+    const candidates = collectExecutablePlanSteps(activePlan).map((entry, index) => ({
       ...entry,
       index,
-      key: buildExecutableStepKey(entry.step, index),
       priority: getPriorityScore(entry.step),
     }));
 
@@ -598,13 +557,6 @@ export async function executeAgentPass({
 
     return candidates[0] ?? null;
   };
-
-  const refreshActivePlanExecutableSteps = () => {
-    activePlanExecutableSteps = collectExecutablePlanSteps(activePlan);
-    rebuildExecutableStepMap(activePlanExecutableSteps, activePlanStepMap);
-  };
-
-  refreshActivePlanExecutableSteps();
 
   let nextExecutable = selectNextExecutableEntry();
 
@@ -702,16 +654,7 @@ export async function executeAgentPass({
 
   try {
     while (nextExecutable) {
-      const { step, command, index: snapshotIndex, key: stepKey } = nextExecutable;
-      let activePlanStep = activePlanStepMap.get(stepKey) ?? null;
-
-      if (
-        !activePlanStep &&
-        Array.isArray(activePlanExecutableSteps) &&
-        snapshotIndex < activePlanExecutableSteps.length
-      ) {
-        activePlanStep = activePlanExecutableSteps[snapshotIndex]?.step ?? null;
-      }
+      const { step, command } = nextExecutable;
 
       const normalizedRun = typeof command.run === 'string' ? command.run.trim() : '';
       if (normalizedRun && command.run !== normalizedRun) {
@@ -746,7 +689,7 @@ export async function executeAgentPass({
 
             const planObservation = {
               observation_for_llm: {
-                plan: planForExecution,
+                plan: clonePlanForExecution(activePlan),
               },
               observation_metadata: {
                 timestamp: new Date().toISOString(),
@@ -781,28 +724,16 @@ export async function executeAgentPass({
         }
       }
 
-      if (activePlanStep && typeof activePlanStep === 'object') {
-        // Surface that execution has started even if the model forgot to update the status.
-        activePlanStep.status = 'running';
-        planMutatedDuringExecution = true;
-      }
+      const planStep = step && typeof step === 'object' ? step : null;
 
-      if (step && typeof step === 'object') {
-        step.status = 'running';
+      if (planStep) {
+        // Surface that execution has started even if the model forgot to update the status.
+        planStep.status = 'running';
+        planMutatedDuringExecution = true;
       }
 
       if (Array.isArray(activePlan)) {
         emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
-      }
-
-      refreshActivePlanExecutableSteps();
-      activePlanStep = activePlanStepMap.get(stepKey) ?? activePlanStep;
-      if (
-        !activePlanStep &&
-        Array.isArray(activePlanExecutableSteps) &&
-        snapshotIndex < activePlanExecutableSteps.length
-      ) {
-        activePlanStep = activePlanExecutableSteps[snapshotIndex]?.step ?? activePlanStep;
       }
 
       let commandResult;
@@ -863,9 +794,8 @@ export async function executeAgentPass({
         result: commandResult,
       });
 
-      step.observation = observation;
-      if (activePlanStep && typeof activePlanStep === 'object') {
-        activePlanStep.observation = observation;
+      if (planStep) {
+        planStep.observation = observation;
         planMutatedDuringExecution = true;
       }
 
@@ -876,20 +806,14 @@ export async function executeAgentPass({
             ? commandResult.exitCode
             : null;
       if (exitCode === 0) {
-        if (activePlanStep && typeof activePlanStep === 'object') {
-          activePlanStep.status = 'completed';
+        if (planStep) {
+          planStep.status = 'completed';
           planMutatedDuringExecution = true;
-        }
-        if (step && typeof step === 'object') {
-          step.status = 'completed';
         }
       } else if (exitCode !== null) {
-        if (activePlanStep && typeof activePlanStep === 'object') {
-          activePlanStep.status = 'failed';
+        if (planStep) {
+          planStep.status = 'failed';
           planMutatedDuringExecution = true;
-        }
-        if (step && typeof step === 'object') {
-          step.status = 'failed';
         }
       }
 
@@ -897,12 +821,9 @@ export async function executeAgentPass({
         // When a command is canceled we drop the executable payload so the agent
         // waits for the model to acknowledge the interruption instead of
         // immediately retrying the same command in a tight loop.
-        if (activePlanStep && typeof activePlanStep === 'object') {
-          delete activePlanStep.command;
+        if (planStep) {
+          delete planStep.command;
           planMutatedDuringExecution = true;
-        }
-        if (step && typeof step === 'object') {
-          delete step.command;
         }
       }
 
@@ -926,7 +847,6 @@ export async function executeAgentPass({
         emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
       }
 
-      refreshActivePlanExecutableSteps();
       nextExecutable = selectNextExecutableEntry();
     }
   } finally {
@@ -941,7 +861,7 @@ export async function executeAgentPass({
 
   const planObservation = {
     observation_for_llm: {
-      plan: planForExecution,
+      plan: clonePlanForExecution(activePlan),
     },
     observation_metadata: {
       timestamp: new Date().toISOString(),
@@ -950,7 +870,7 @@ export async function executeAgentPass({
 
   emitDebug(() => ({
     stage: 'plan-observation',
-    plan: planForExecution,
+    plan: clonePlanForExecution(activePlan),
   }));
 
   history.push(createObservationHistoryEntry({ observation: planObservation, pass: activePass }));
