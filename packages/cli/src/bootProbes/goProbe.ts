@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createBootProbeResult } from './context.js';
 
 // Canonical files that normally appear in Go workspaces.

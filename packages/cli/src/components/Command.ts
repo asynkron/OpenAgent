@@ -15,14 +15,26 @@ import { renderMarkdownMessage } from '../render.js';
 
 const h = React.createElement;
 const { command } = theme;
-const commandProps = command.props as Record<string, any>;
+type StyleProps = Record<string, unknown>;
+type SummaryLineStyleMap = Record<string, StyleProps> & { base?: StyleProps };
+
+type CommandThemeProps = {
+  container?: StyleProps;
+  heading?: StyleProps;
+  headingBadge?: StyleProps;
+  headingDetail?: StyleProps;
+  summaryLine?: SummaryLineStyleMap;
+  runContainer?: StyleProps;
+};
+
+const commandThemeProps = (command.props ?? {}) as CommandThemeProps;
 const commandColors = command.colors;
-const commandContainerProps = (commandProps.container ?? {}) as Record<string, unknown>;
-const commandHeadingProps = (commandProps.heading ?? {}) as Record<string, unknown>;
-const commandHeadingBadgeProps = (commandProps.headingBadge ?? {}) as Record<string, unknown>;
-const commandHeadingDetailProps = (commandProps.headingDetail ?? {}) as Record<string, unknown>;
-const commandSummaryLineProps = (commandProps.summaryLine ?? {}) as Record<string, any>;
-const commandRunContainerProps = (commandProps.runContainer ?? {}) as Record<string, unknown>;
+const commandContainerProps: StyleProps = commandThemeProps.container ?? {};
+const commandHeadingProps: StyleProps = commandThemeProps.heading ?? {};
+const commandHeadingBadgeProps: StyleProps = commandThemeProps.headingBadge ?? {};
+const commandHeadingDetailProps: StyleProps = commandThemeProps.headingDetail ?? {};
+const commandSummaryLineProps: SummaryLineStyleMap = commandThemeProps.summaryLine ?? {};
+const commandRunContainerProps: StyleProps = commandThemeProps.runContainer ?? {};
 
 const BEGIN_PATCH_MARKER = '*** Begin Patch';
 const END_PATCH_MARKER = '*** End Patch';

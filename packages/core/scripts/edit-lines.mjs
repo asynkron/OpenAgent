@@ -85,13 +85,13 @@ if (origExists) {
 const normalized = origContent.replace(/\r\n/g, '\n');
 const origHadTrailingNewline = normalized.endsWith('\n');
 
-let lines = normalized.length ? normalized.split('\n') : [];
+const lines = normalized.length ? normalized.split('\n') : [];
 // If original ended with newline, split() produces a trailing empty element; remove it so line counts match editor lines.
 if (origHadTrailingNewline && lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
 
 const replNormalized = replacementText.replace(/\r\n/g, '\n');
 const replHadTrailingNewline = replNormalized.endsWith('\n');
-let insertLines = replNormalized.length ? replNormalized.split('\n') : [];
+const insertLines = replNormalized.length ? replNormalized.split('\n') : [];
 if (replHadTrailingNewline && insertLines.length > 0 && insertLines[insertLines.length - 1] === '')
   insertLines.pop();
 

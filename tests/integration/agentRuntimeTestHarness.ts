@@ -20,7 +20,7 @@ function clearPlanSnapshot() {
   try {
     fs.mkdirSync(path.dirname(planFilePath), { recursive: true });
     fs.writeFileSync(planFilePath, '[]\n', 'utf8');
-  } catch (error) {
+  } catch (_error) {
     // If the snapshot cannot be cleared we swallow the error so tests keep running;
     // lingering plan state will surface through failing assertions.
   }

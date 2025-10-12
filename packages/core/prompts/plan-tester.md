@@ -158,12 +158,32 @@ Below are two Markdown-described test cases demonstrating flat and chained plans
 ```json
 {
   "plan": [
-    { "id": "x", "title": "x", "status": "pending", "waitingForId": ["y"],
-      "command": { "shell": "/bin/bash", "run": "echo never-runs", "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent", "timeout_sec": 10,
-        "reason": "Cycle detection test: x depends on y." } },
-    { "id": "y", "title": "y", "status": "pending", "waitingForId": ["x"],
-      "command": { "shell": "/bin/bash", "run": "echo never-runs", "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent", "timeout_sec": 10,
-        "reason": "Cycle detection test: y depends on x." } }
+    {
+      "id": "x",
+      "title": "x",
+      "status": "pending",
+      "waitingForId": ["y"],
+      "command": {
+        "shell": "/bin/bash",
+        "run": "echo never-runs",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 10,
+        "reason": "Cycle detection test: x depends on y."
+      }
+    },
+    {
+      "id": "y",
+      "title": "y",
+      "status": "pending",
+      "waitingForId": ["x"],
+      "command": {
+        "shell": "/bin/bash",
+        "run": "echo never-runs",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 10,
+        "reason": "Cycle detection test: y depends on x."
+      }
+    }
   ]
 }
 ```
@@ -174,19 +194,38 @@ Below are two Markdown-described test cases demonstrating flat and chained plans
   - step-b waits for non-existent step id: step-missing
 - Setup:
   - step-a: echo hello
-  - step-b: echo hello (waitingForId: ["step-missing"]) 
+  - step-b: echo hello (waitingForId: ["step-missing"])
 - Expected behavior:
   - Planner validates that waitingForId references known IDs; step-b becomes failed with clear error (unknown dependency: step-missing). step-a still runs and succeeds.
 
 ```json
 {
   "plan": [
-    { "id": "step-a", "title": "A", "status": "pending",
-      "command": { "shell": "/bin/bash", "run": "echo hello", "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent", "timeout_sec": 10,
-        "reason": "Control: runs regardless of missing dep on step-b." } },
-    { "id": "step-b", "title": "B (bad dep)", "status": "pending", "waitingForId": ["step-missing"],
-      "command": { "shell": "/bin/bash", "run": "echo hello", "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent", "timeout_sec": 10,
-        "reason": "Should be flagged due to unknown dependency id." } }
+    {
+      "id": "step-a",
+      "title": "A",
+      "status": "pending",
+      "command": {
+        "shell": "/bin/bash",
+        "run": "echo hello",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 10,
+        "reason": "Control: runs regardless of missing dep on step-b."
+      }
+    },
+    {
+      "id": "step-b",
+      "title": "B (bad dep)",
+      "status": "pending",
+      "waitingForId": ["step-missing"],
+      "command": {
+        "shell": "/bin/bash",
+        "run": "echo hello",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 10,
+        "reason": "Should be flagged due to unknown dependency id."
+      }
+    }
   ]
 }
 ```
@@ -203,12 +242,30 @@ Below are two Markdown-described test cases demonstrating flat and chained plans
 ```json
 {
   "plan": [
-    { "id": "slow", "title": "Slow with short timeout", "status": "pending",
-      "command": { "shell": "/bin/bash", "run": "sleep 5 && echo done", "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent", "timeout_sec": 2,
-        "reason": "Exercise timeout + kill handling." } },
-    { "id": "fast", "title": "Fast echo", "status": "pending",
-      "command": { "shell": "/bin/bash", "run": "echo hello", "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent", "timeout_sec": 10,
-        "reason": "Should run regardless of slow's timeout (no dep)." } }
+    {
+      "id": "slow",
+      "title": "Slow with short timeout",
+      "status": "pending",
+      "command": {
+        "shell": "/bin/bash",
+        "run": "sleep 5 && echo done",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 2,
+        "reason": "Exercise timeout + kill handling."
+      }
+    },
+    {
+      "id": "fast",
+      "title": "Fast echo",
+      "status": "pending",
+      "command": {
+        "shell": "/bin/bash",
+        "run": "echo hello",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 10,
+        "reason": "Should run regardless of slow's timeout (no dep)."
+      }
+    }
   ]
 }
 ```
@@ -223,10 +280,18 @@ Below are two Markdown-described test cases demonstrating flat and chained plans
 ```json
 {
   "plan": [
-    { "id": "flaky", "title": "Flaky: fail then succeed (up to 2 retries)", "status": "pending",
-      "command": { "shell": "/bin/bash", "run": "if [ ! -f .flaky_ok ]; then echo first-fail >&2; touch .flaky_ok; exit 1; else echo recovered; fi",
-        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent", "timeout_sec": 20,
-        "reason": "Simulate a flaky step. Orchestrator should retry according to policy (documented externally)." } }
+    {
+      "id": "flaky",
+      "title": "Flaky: fail then succeed (up to 2 retries)",
+      "status": "pending",
+      "command": {
+        "shell": "/bin/bash",
+        "run": "if [ ! -f .flaky_ok ]; then echo first-fail >&2; touch .flaky_ok; exit 1; else echo recovered; fi",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 20,
+        "reason": "Simulate a flaky step. Orchestrator should retry according to policy (documented externally)."
+      }
+    }
   ]
 }
 ```
@@ -242,15 +307,44 @@ Below are two Markdown-described test cases demonstrating flat and chained plans
 ```json
 {
   "plan": [
-    { "id": "decide", "title": "Write decision token", "status": "pending",
-      "command": { "shell": "/bin/bash", "run": "echo YES > /tmp/plan-decision.txt && echo wrote-YES",
-        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent", "timeout_sec": 10, "reason": "Emit decision token." } },
-    { "id": "path-yes", "title": "YES branch", "status": "pending", "waitingForId": ["decide"],
-      "command": { "shell": "/bin/bash", "run": "grep -q YES /tmp/plan-decision.txt && echo yes-branch",
-        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent", "timeout_sec": 10, "reason": "Runs only if YES token present." } },
-    { "id": "path-no", "title": "NO branch (should be skipped)", "status": "pending", "waitingForId": ["decide"],
-      "command": { "shell": "/bin/bash", "run": "grep -q NO /tmp/plan-decision.txt && echo no-branch",
-        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent", "timeout_sec": 10, "reason": "Will produce no output and non-zero exit; may be treated as abandoned/failed by policy." } }
+    {
+      "id": "decide",
+      "title": "Write decision token",
+      "status": "pending",
+      "command": {
+        "shell": "/bin/bash",
+        "run": "echo YES > /tmp/plan-decision.txt && echo wrote-YES",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 10,
+        "reason": "Emit decision token."
+      }
+    },
+    {
+      "id": "path-yes",
+      "title": "YES branch",
+      "status": "pending",
+      "waitingForId": ["decide"],
+      "command": {
+        "shell": "/bin/bash",
+        "run": "grep -q YES /tmp/plan-decision.txt && echo yes-branch",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 10,
+        "reason": "Runs only if YES token present."
+      }
+    },
+    {
+      "id": "path-no",
+      "title": "NO branch (should be skipped)",
+      "status": "pending",
+      "waitingForId": ["decide"],
+      "command": {
+        "shell": "/bin/bash",
+        "run": "grep -q NO /tmp/plan-decision.txt && echo no-branch",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 10,
+        "reason": "Will produce no output and non-zero exit; may be treated as abandoned/failed by policy."
+      }
+    }
   ]
 }
 ```
@@ -266,12 +360,31 @@ Below are two Markdown-described test cases demonstrating flat and chained plans
 ```json
 {
   "plan": [
-    { "id": "build", "title": "Build artifact", "status": "pending",
-      "command": { "shell": "/bin/bash", "run": "echo artifact > artifact.txt && echo built",
-        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent", "timeout_sec": 10, "reason": "Create artifact." } },
-    { "id": "consume", "title": "Consume artifact", "status": "pending", "waitingForId": ["build"],
-      "command": { "shell": "/bin/bash", "run": "cat artifact.txt",
-        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent", "timeout_sec": 10, "reason": "Use artifact from previous step." } }
+    {
+      "id": "build",
+      "title": "Build artifact",
+      "status": "pending",
+      "command": {
+        "shell": "/bin/bash",
+        "run": "echo artifact > artifact.txt && echo built",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 10,
+        "reason": "Create artifact."
+      }
+    },
+    {
+      "id": "consume",
+      "title": "Consume artifact",
+      "status": "pending",
+      "waitingForId": ["build"],
+      "command": {
+        "shell": "/bin/bash",
+        "run": "cat artifact.txt",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 10,
+        "reason": "Use artifact from previous step."
+      }
+    }
   ]
 }
 ```
@@ -286,16 +399,61 @@ Below are two Markdown-described test cases demonstrating flat and chained plans
 ```json
 {
   "plan": [
-    { "id": "p1", "title": "p1", "status": "pending",
-      "command": { "shell": "/bin/bash", "run": "sleep 1 && echo 1", "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent", "timeout_sec": 10 } },
-    { "id": "p2", "title": "p2", "status": "pending",
-      "command": { "shell": "/bin/bash", "run": "sleep 1 && echo 2", "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent", "timeout_sec": 10 } },
-    { "id": "p3", "title": "p3", "status": "pending",
-      "command": { "shell": "/bin/bash", "run": "sleep 1 && echo 3", "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent", "timeout_sec": 10 } },
-    { "id": "p4", "title": "p4", "status": "pending",
-      "command": { "shell": "/bin/bash", "run": "sleep 1 && echo 4", "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent", "timeout_sec": 10 } },
-    { "id": "p5", "title": "p5", "status": "pending",
-      "command": { "shell": "/bin/bash", "run": "sleep 1 && echo 5", "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent", "timeout_sec": 10 } }
+    {
+      "id": "p1",
+      "title": "p1",
+      "status": "pending",
+      "command": {
+        "shell": "/bin/bash",
+        "run": "sleep 1 && echo 1",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 10
+      }
+    },
+    {
+      "id": "p2",
+      "title": "p2",
+      "status": "pending",
+      "command": {
+        "shell": "/bin/bash",
+        "run": "sleep 1 && echo 2",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 10
+      }
+    },
+    {
+      "id": "p3",
+      "title": "p3",
+      "status": "pending",
+      "command": {
+        "shell": "/bin/bash",
+        "run": "sleep 1 && echo 3",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 10
+      }
+    },
+    {
+      "id": "p4",
+      "title": "p4",
+      "status": "pending",
+      "command": {
+        "shell": "/bin/bash",
+        "run": "sleep 1 && echo 4",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 10
+      }
+    },
+    {
+      "id": "p5",
+      "title": "p5",
+      "status": "pending",
+      "command": {
+        "shell": "/bin/bash",
+        "run": "sleep 1 && echo 5",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 10
+      }
+    }
   ]
 }
 ```
@@ -310,10 +468,20 @@ Below are two Markdown-described test cases demonstrating flat and chained plans
 ```json
 {
   "plan": [
-    { "id": "spam", "title": "Generate large output", "status": "pending",
-      "command": { "shell": "/bin/bash", "run": "seq 1 5000", "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
-        "timeout_sec": 10, "tail_lines": 10, "filter_regex": "^(499[1-9]|5000)$",
-        "reason": "Limit observation size and filter interesting lines." } }
+    {
+      "id": "spam",
+      "title": "Generate large output",
+      "status": "pending",
+      "command": {
+        "shell": "/bin/bash",
+        "run": "seq 1 5000",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 10,
+        "tail_lines": 10,
+        "filter_regex": "^(499[1-9]|5000)$",
+        "reason": "Limit observation size and filter interesting lines."
+      }
+    }
   ]
 }
 ```
@@ -329,11 +497,29 @@ Below are two Markdown-described test cases demonstrating flat and chained plans
 ```json
 {
   "plan": [
-    { "id": "grep-miss", "title": "grep returns 1 (acceptable)", "status": "pending",
-      "command": { "shell": "/bin/bash", "run": "grep -q needle plan-tester.md", "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
-        "timeout_sec": 10, "reason": "Validate acceptable non-zero exit behavior." } },
-    { "id": "next", "title": "Follow-up runs regardless", "status": "pending",
-      "command": { "shell": "/bin/bash", "run": "echo ok", "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent", "timeout_sec": 10 } }
+    {
+      "id": "grep-miss",
+      "title": "grep returns 1 (acceptable)",
+      "status": "pending",
+      "command": {
+        "shell": "/bin/bash",
+        "run": "grep -q needle plan-tester.md",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 10,
+        "reason": "Validate acceptable non-zero exit behavior."
+      }
+    },
+    {
+      "id": "next",
+      "title": "Follow-up runs regardless",
+      "status": "pending",
+      "command": {
+        "shell": "/bin/bash",
+        "run": "echo ok",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 10
+      }
+    }
   ]
 }
 ```
@@ -349,11 +535,28 @@ Below are two Markdown-described test cases demonstrating flat and chained plans
 ```json
 {
   "plan": [
-    { "id": "long", "title": "Long-running (cancel)", "status": "pending",
-      "command": { "shell": "/bin/bash", "run": "sleep 10", "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent", "timeout_sec": 20 } },
-    { "id": "short", "title": "Short echo", "status": "pending",
-      "command": { "shell": "/bin/bash", "run": "echo quick", "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent", "timeout_sec": 10 } }
+    {
+      "id": "long",
+      "title": "Long-running (cancel)",
+      "status": "pending",
+      "command": {
+        "shell": "/bin/bash",
+        "run": "sleep 10",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 20
+      }
+    },
+    {
+      "id": "short",
+      "title": "Short echo",
+      "status": "pending",
+      "command": {
+        "shell": "/bin/bash",
+        "run": "echo quick",
+        "cwd": "/Users/rogerjohansson/git/asynkron/OpenAgent",
+        "timeout_sec": 10
+      }
+    }
   ]
 }
 ```
-

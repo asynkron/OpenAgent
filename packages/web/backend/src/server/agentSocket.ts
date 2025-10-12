@@ -152,21 +152,19 @@ export class AgentSocketManager {
       cleanup: null,
     };
 
-    let cleanup: ((reason?: string) => Promise<void>) | undefined;
-
     const handleClose = (): void => {
       console.log('Agent websocket closed by client');
-      void cleanup?.('socket-close');
+      void cleanup('socket-close');
     };
 
     const handleError = (socketError: unknown): void => {
       if (socketError instanceof Error && socketError.message) {
         console.warn('Agent websocket error', socketError);
       }
-      void cleanup?.('socket-error');
+      void cleanup('socket-error');
     };
 
-    cleanup = async (reason = 'socket-close'): Promise<void> => {
+    const cleanup = async (reason = 'socket-close'): Promise<void> => {
       if (record.cleaned) {
         return;
       }
@@ -178,7 +176,7 @@ export class AgentSocketManager {
       try {
         ws.off?.('close', handleClose);
         ws.off?.('error', handleError);
-      } catch (error) {
+      } catch (_error) {
         // Ignore listener removal failures; the socket may already be closed.
       }
 
@@ -207,7 +205,7 @@ export class AgentSocketManager {
       let parsed: unknown;
       try {
         parsed = JSON.parse(serialized);
-      } catch (error) {
+      } catch (_error) {
         return;
       }
 

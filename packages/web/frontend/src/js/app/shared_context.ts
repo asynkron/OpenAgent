@@ -25,8 +25,6 @@ type NormaliseFileIndexFn = (
 
 type BuildTreeFromFlatListFn = (list: FileEntry[] | null | undefined) => FileTreeEntry[];
 
-type GetCssNumberFn = (variableName: string, fallbackValue: number) => number;
-
 type SetStatusFn = (message: string, options?: { level?: string }) => void;
 
 type SharedSets = {

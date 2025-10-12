@@ -28,3 +28,4 @@
 - Added Jest suites under `src/js/**/__tests__` to cover plan aggregation and chat payload normalisation utilities.
 - Streamlined chat, shared context, and bootstrap helpers with stricter TypeScript unions and optional chaining, replacing runtime `typeof` guards with typed utilities for cleaner DOM event handling.
 - Refined chat payload routing with a typed handler map and removed the last `unknown` casts from markdown rendering to keep syntax highlighting and message handling strictly typed.
+- Pruned unused helper typings in shared context/tests so ESLint stays quiet under the expanded repo-wide lint run.

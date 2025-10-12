@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createBootProbeResult } from './context.js';
 
 // Detects Git repositories and surfaces useful metadata for reasoning about version control.

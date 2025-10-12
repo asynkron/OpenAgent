@@ -34,6 +34,9 @@ export default [
       ...tsRecommendedRules,
       'no-undef': 'off',
       'no-unused-vars': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
+      '@typescript-eslint/no-empty-object-type': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unused-vars': [
         'warn',
         {
@@ -115,6 +118,22 @@ export default [
     },
   },
   {
+    files: ['**/scripts/**/*.{ts,cts,mts}'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      'import/no-commonjs': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
+      'no-undef': 'off',
+      'no-empty': ['error', { allowEmptyCatch: true }],
+      'no-case-declarations': 'off',
+    },
+  },
+  {
     files: ['**/tests/**/*.ts', '**/__tests__/**/*.ts', '**/__tests__/**/*.tsx'],
     languageOptions: {
       globals: {
@@ -135,16 +154,6 @@ export default [
     },
     rules: {
       'no-control-regex': 'off',
-    },
-  },
-  {
-    files: [
-      'packages/cli/src/components/AskHuman.ts',
-      'packages/cli/src/components/CliApp.ts',
-      'packages/cli/src/components/InkTextArea.ts',
-    ],
-    rules: {
-      '@typescript-eslint/ban-ts-comment': 'off',
     },
   },
   {

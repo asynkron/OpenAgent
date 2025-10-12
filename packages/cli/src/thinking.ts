@@ -78,7 +78,7 @@ export class ThinkingIndicator {
 
     try {
       this.stream.write('\n');
-    } catch (error) {
+    } catch (_error) {
       // Ignore stream write failures silently.
     }
 
@@ -102,7 +102,7 @@ export class ThinkingIndicator {
     try {
       readline.clearLine(this.stream, 0);
       readline.cursorTo(this.stream, 0);
-    } catch (error) {
+    } catch (_error) {
       // Ignore TTY issues silently.
     }
   }
@@ -119,7 +119,7 @@ export class ThinkingIndicator {
       readline.clearLine(this.stream, 0);
       readline.cursorTo(this.stream, 0);
       this.stream.write(chalk.dim(`${frame}${this.label} (${elapsed})`));
-    } catch (error) {
+    } catch (_error) {
       // Ignore TTY issues silently.
     }
 

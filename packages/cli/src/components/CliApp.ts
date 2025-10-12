@@ -630,7 +630,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
       canceled = true;
       try {
         activeRuntime.cancel?.({ reason: 'component-unmount' });
-      } catch (error) {
+      } catch (_error) {
         // Ignore cancellation failures.
       }
     };

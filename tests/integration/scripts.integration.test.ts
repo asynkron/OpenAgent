@@ -14,7 +14,7 @@ function createWorkspace() {
   const cleanup = () => {
     try {
       rmSync(dir, { recursive: true, force: true });
-    } catch (error) {
+    } catch (_error) {
       // Ignore cleanup errors.
     }
   };

@@ -123,7 +123,7 @@ test('agent runtime executes nested shell commands from raw response strings', a
   expect(runCommandMock).toHaveBeenCalledWith('echo hello', '.', 60, '/bin/bash');
 });
 
-const driveRefusalAutoResponse = async (refusalMessage) => {
+const _driveRefusalAutoResponse = async (refusalMessage) => {
   process.env.OPENAI_API_KEY = 'test-key';
   const { agent, mocks, createTestPlanManager } = await loadAgentWithMockedModules();
 

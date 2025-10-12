@@ -25,3 +25,5 @@
 
 - Depends on `@asynkron/openagent-core` for the WebSocket binding; ambient typings live in `src/types/`.
 - Runtime auto-approve defaults to `true` but honours `AGENT_AUTO_APPROVE=false` from the environment.
+- Socket cleanup now relies on a single `cleanup` closure (no optional chaining) and treats listener removal failures as
+  ignorable noise, keeping lint happy while still logging binding stop errors for operators.

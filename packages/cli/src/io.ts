@@ -74,7 +74,7 @@ function installEscapeListener(rl: readline.Interface): void {
       addCleanup(() => {
         try {
           input.setRawMode(false);
-        } catch (err) {
+        } catch (_err) {
           // Ignore raw mode restore failures.
         }
       });
@@ -115,7 +115,7 @@ function installEscapeListener(rl: readline.Interface): void {
     for (const fn of listeners.reverse()) {
       try {
         fn();
-      } catch (err) {
+      } catch (_err) {
         // Ignore cleanup failures.
       }
     }

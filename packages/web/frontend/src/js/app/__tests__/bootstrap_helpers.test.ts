@@ -7,7 +7,6 @@ import {
   getCssNumber,
   normaliseFileIndex,
   type FileEntry,
-  type FileTreeEntry,
 } from '../bootstrap_helpers.js';
 
 const globalAny = globalThis as Record<string, unknown> & {

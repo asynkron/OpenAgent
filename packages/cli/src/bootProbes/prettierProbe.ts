@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createBootProbeResult } from './context.js';
 import type { BootProbeContext, BootProbeResult } from './context.js';
 

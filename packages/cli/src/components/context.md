@@ -39,6 +39,8 @@
   intrinsic sizing. Locally generated entry ids drive Ink’s `Static` keys so duplicate runtime identifiers from
   streaming updates do not block new rows, and assistant entries still reuse the originating runtime `__id`
   as their React key to prevent memoized subtrees from resetting.
+- `Command.ts` now treats theme-driven style props as typed records instead of loose `any` maps, keeping the lint
+  surface clean while preserving the flexible merge behaviour required by theme overrides.
 
 ## Related Context
 
