@@ -1,0 +1,952 @@
+import hljs from 'highlight.js';
+import { marked } from 'marked';
+import type { MarkedOptions } from 'marked';
+import {
+  createMarkdownDisplay,
+  type MarkdownDisplayApi,
+} from '../components/markdown_display.js';
+import { createPlanDisplay, type PlanStep } from '../components/plan_display.js';
+
+type AgentRole = 'agent' | 'user';
+
+type AgentEventPayload = Record<string, unknown> & {
+  eventType?: string;
+  text?: string;
+  title?: string;
+  subtitle?: string;
+  description?: string;
+  details?: string;
+  level?: string;
+  metadata?: Record<string, unknown> & { scope?: string };
+};
+
+type AgentCommandPayload = AgentEventPayload & {
+  command?: Record<string, unknown> & {
+    run?: string;
+    description?: string;
+    shell?: string;
+    preview?: Record<string, unknown> & {
+      code?: string;
+      language?: string;
+      classNames?: string[] | string;
+    };
+    workingDirectory?: string;
+  };
+};
+
+type AgentMessagePayload = AgentEventPayload & {
+  state?: string;
+  prompt?: string;
+  plan?: PlanStep[] | null;
+  message?: string;
+  details?: string;
+};
+
+type CleanupFn = () => void;
+
+type ChatInputElement = HTMLTextAreaElement | HTMLInputElement;
+
+type OptionalElement<T extends Element> = T | null | undefined;
+
+export interface ChatServiceOptions {
+  panel: OptionalElement<HTMLElement>;
+  startContainer?: OptionalElement<HTMLElement>;
+  startForm?: OptionalElement<HTMLFormElement>;
+  startInput?: OptionalElement<HTMLInputElement>;
+  chatContainer?: OptionalElement<HTMLElement>;
+  chatBody?: OptionalElement<HTMLElement>;
+  messageList?: OptionalElement<HTMLElement>;
+  chatForm?: OptionalElement<HTMLFormElement>;
+  chatInput?: OptionalElement<ChatInputElement>;
+  planContainer?: OptionalElement<HTMLElement>;
+  statusElement?: OptionalElement<HTMLElement>;
+  reconnectDelay?: number;
+  windowRef?: Window & typeof globalThis;
+  documentRef?: Document;
+}
+
+export interface ChatServiceApi {
+  connect(): void;
+  dispose(): void;
+}
+
+const APPROVAL_SUPPRESSION_PHRASES = [
+  'approve running this command?',
+  'approved and added to session approvals.',
+  'command approved for the remainder of the session.',
+];
+
+function normaliseText(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (value == null) {
+    return '';
+  }
+  try {
+    return String(value);
+  } catch (error) {
+    console.warn('Failed to normalise agent text', error);
+    return '';
+  }
+}
+
+function toComparableText(value: unknown): string {
+  const normalised = normaliseText(value);
+  if (!normalised) {
+    return '';
+  }
+  return normalised.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function isApprovalText(value: unknown): boolean {
+  const comparable = toComparableText(value);
+  if (!comparable) {
+    return false;
+  }
+  return APPROVAL_SUPPRESSION_PHRASES.some((phrase) => comparable.includes(phrase));
+}
+
+function isApprovalNotification(payload: AgentEventPayload | null | undefined): boolean {
+  if (!payload || typeof payload !== 'object') {
+    return false;
+  }
+
+  const fields: Array<unknown> = [
+    payload.text,
+    payload.title,
+    payload.subtitle,
+    payload.description,
+    payload.details,
+    payload.prompt,
+  ];
+
+  if (payload.metadata && typeof payload.metadata === 'object') {
+    fields.push(payload.metadata.scope);
+  }
+
+  return fields.some((value) => isApprovalText(value));
+}
+
+function normaliseClassList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+  }
+  if (typeof value === 'string') {
+    return value
+      .split(/\s+/)
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0);
+  }
+  return [];
+}
+
+function createHighlightedCodeBlock(
+  text: unknown,
+  { language = '', classNames = [] }: { language?: string; classNames?: string[] | string } = {},
+): HTMLPreElement | null {
+  if (typeof text !== 'string' || text.length === 0) {
+    return null;
+  }
+
+  const blockClasses = normaliseClassList(classNames);
+  const safeLanguage = typeof language === 'string' ? language.trim() : '';
+
+  try {
+    const markdown = `\`\`\`${safeLanguage}\n${text}\n\`\`\``;
+    const options = {
+      gfm: true,
+      highlight(code: string, infoString?: string): string {
+        const requestedLanguage = safeLanguage || (infoString || '').trim();
+        try {
+          if (requestedLanguage && hljs.getLanguage(requestedLanguage)) {
+            return hljs.highlight(code, { language: requestedLanguage }).value;
+          }
+          return hljs.highlightAuto(code).value;
+        } catch (error) {
+          console.warn('Failed to highlight command preview snippet', error);
+          return code;
+        }
+      },
+    };
+    const parsed = marked.parse(markdown, options as unknown as MarkedOptions);
+
+    if (typeof parsed === 'string') {
+      const template = document.createElement('template');
+      template.innerHTML = parsed.trim();
+      const pre = template.content.querySelector('pre');
+      const codeElement = pre ? pre.querySelector('code') : null;
+      if (pre && codeElement) {
+        blockClasses.forEach((className) => pre.classList.add(className));
+        if (safeLanguage) {
+          codeElement.classList.add(`language-${safeLanguage}`);
+        }
+        if (!codeElement.classList.contains('hljs')) {
+          codeElement.classList.add('hljs');
+        }
+        return pre;
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to render command preview with marked', error);
+  }
+
+  const pre = document.createElement('pre');
+  blockClasses.forEach((className) => pre.classList.add(className));
+
+  const codeElement = document.createElement('code');
+  const content = text;
+
+  try {
+    const requestedLanguage =
+      safeLanguage && hljs.getLanguage(safeLanguage) ? safeLanguage : '';
+    if (requestedLanguage) {
+      codeElement.innerHTML = hljs.highlight(content, { language: requestedLanguage }).value;
+    } else {
+      codeElement.innerHTML = hljs.highlightAuto(content).value;
+    }
+    codeElement.classList.add('hljs');
+    if (requestedLanguage) {
+      codeElement.classList.add(`language-${requestedLanguage}`);
+    }
+  } catch (error) {
+    console.warn('Failed to highlight command preview fallback', error);
+    codeElement.textContent = content;
+    if (safeLanguage) {
+      codeElement.classList.add(`language-${safeLanguage}`);
+    }
+  }
+
+  pre.appendChild(codeElement);
+  return pre;
+}
+
+function autoResize(textarea: OptionalElement<ChatInputElement>): void {
+  if (!textarea) {
+    return;
+  }
+  textarea.style.height = 'auto';
+  const maxHeight = 220;
+  textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+}
+
+function addListener(
+  target: EventTarget | null | undefined,
+  type: string,
+  handler: EventListener,
+  cleanupFns: CleanupFn[],
+): void {
+  if (!target || typeof (target as EventTarget).addEventListener !== 'function') {
+    return;
+  }
+  const attachTarget = target as EventTarget;
+  attachTarget.addEventListener(type, handler);
+  cleanupFns.push(() => attachTarget.removeEventListener(type, handler));
+}
+
+function parseAgentPayload(data: unknown): AgentMessagePayload | null {
+  if (!data || typeof data !== 'object') {
+    return null;
+  }
+
+  const payload = data as AgentMessagePayload;
+  if (!('type' in payload)) {
+    return null;
+  }
+
+  return payload;
+}
+
+export function createChatService({
+  panel: panelElement,
+  startContainer,
+  startForm,
+  startInput,
+  chatContainer,
+  chatBody,
+  messageList,
+  chatForm,
+  chatInput,
+  planContainer,
+  statusElement,
+  reconnectDelay = 2000,
+  windowRef = window,
+  documentRef = document,
+}: ChatServiceOptions): ChatServiceApi | null {
+  if (!panelElement) {
+    return null;
+  }
+
+  const panelRef = panelElement;
+
+  const cleanupFns: CleanupFn[] = [];
+  const pendingMessages: string[] = [];
+  const scrollContainer = chatBody ?? messageList ?? null;
+  const sendButtons: HTMLButtonElement[] = [];
+  const planDisplay = createPlanDisplay({ container: planContainer ?? null });
+
+  const startButton = startForm?.querySelector<HTMLButtonElement>('button[type="submit"]');
+  if (startButton && !sendButtons.includes(startButton)) {
+    sendButtons.push(startButton);
+  }
+  const chatButton = chatForm?.querySelector<HTMLButtonElement>('button[type="submit"]');
+  if (chatButton && !sendButtons.includes(chatButton)) {
+    sendButtons.push(chatButton);
+  }
+
+  let socket: WebSocket | null = null;
+  let reconnectTimer: number | null = null;
+  let destroyed = false;
+  let hasConversation = false;
+  let isConnected = false;
+  let isThinking = false;
+  let lastStatus = '';
+  let lastStatusLevel = '';
+  let thinkingMessage: HTMLElement | null = null;
+
+  function scrollToLatest(): void {
+    if (!scrollContainer) {
+      return;
+    }
+    windowRef.requestAnimationFrame(() => {
+      scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    });
+  }
+
+  function updateStatusDisplay(): void {
+    if (!statusElement) {
+      return;
+    }
+    statusElement.textContent = lastStatus || '';
+    if (isThinking) {
+      statusElement.dataset.level = 'info';
+      statusElement.dataset.thinking = 'true';
+    } else {
+      if (lastStatusLevel) {
+        statusElement.dataset.level = lastStatusLevel;
+      } else {
+        delete statusElement.dataset.level;
+      }
+      statusElement.dataset.thinking = 'false';
+    }
+  }
+
+  function setStatus(message: unknown, { level }: { level?: string } = {}): void {
+    lastStatus = typeof message === 'string' ? message : '';
+    lastStatusLevel = typeof level === 'string' ? level : '';
+    if (!isThinking) {
+      updateStatusDisplay();
+    }
+  }
+
+  function ensureConversationStarted(): void {
+    if (hasConversation) {
+      return;
+    }
+    hasConversation = true;
+    panelRef.classList.toggle('agent-panel--empty', false);
+    if (startContainer) {
+      startContainer.classList.toggle('hidden', true);
+    }
+    if (chatContainer) {
+      chatContainer.classList.toggle('hidden', false);
+    }
+    if (chatInput) {
+      windowRef.requestAnimationFrame(() => {
+        chatInput.focus();
+        autoResize(chatInput);
+      });
+    }
+  }
+
+  function ensureThinkingMessage(): void {
+    if (!messageList || thinkingMessage) {
+      return;
+    }
+
+    ensureConversationStarted();
+
+    const wrapper = documentRef.createElement('div');
+    wrapper.className = 'agent-message agent-message--agent agent-message--thinking';
+
+    const bubble = documentRef.createElement('div');
+    bubble.className = 'agent-message-bubble agent-message-bubble--thinking';
+    bubble.setAttribute('aria-live', 'polite');
+
+    const indicator = documentRef.createElement('div');
+    indicator.className = 'agent-thinking-indicator';
+
+    const text = documentRef.createElement('span');
+    text.className = 'agent-thinking-text';
+    text.textContent = 'Preparing response';
+    indicator.appendChild(text);
+
+    const dots = documentRef.createElement('span');
+    dots.className = 'agent-thinking-dots';
+    for (let index = 0; index < 3; index += 1) {
+      const dot = documentRef.createElement('span');
+      dot.className = 'agent-thinking-dot';
+      dots.appendChild(dot);
+    }
+    indicator.appendChild(dots);
+
+    bubble.appendChild(indicator);
+    wrapper.appendChild(bubble);
+    messageList.appendChild(wrapper);
+
+    thinkingMessage = wrapper;
+    scrollToLatest();
+  }
+
+  function removeThinkingMessage(): void {
+    if (thinkingMessage?.parentElement) {
+      thinkingMessage.parentElement.removeChild(thinkingMessage);
+    }
+    thinkingMessage = null;
+  }
+
+  function updateThinkingState(next: unknown): void {
+    const active = Boolean(next);
+    if (active) {
+      ensureThinkingMessage();
+    } else {
+      removeThinkingMessage();
+    }
+    if (isThinking === active) {
+      return;
+    }
+    isThinking = active;
+    sendButtons.forEach((button) => {
+      button.disabled = active;
+    });
+    updateStatusDisplay();
+  }
+
+  function clearReconnectTimer(): void {
+    if (reconnectTimer) {
+      windowRef.clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+  }
+
+  function scheduleReconnect(): void {
+    if (reconnectTimer || destroyed) {
+      return;
+    }
+    reconnectTimer = windowRef.setTimeout(() => {
+      reconnectTimer = null;
+      connect();
+    }, reconnectDelay);
+  }
+
+  function flushPending(): void {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    while (pendingMessages.length > 0) {
+      const nextMessage = pendingMessages[0];
+      try {
+        socket.send(JSON.stringify({ type: 'prompt', prompt: nextMessage }));
+        pendingMessages.shift();
+      } catch (error) {
+        console.warn('Failed to deliver chat message', error);
+        scheduleReconnect();
+        break;
+      }
+    }
+  }
+
+  function appendMessage(role: AgentRole, text: string): void {
+    if (!messageList || !text) {
+      return;
+    }
+
+    ensureConversationStarted();
+
+    const wrapper = documentRef.createElement('div');
+    wrapper.className = `agent-message agent-message--${role}`;
+
+    const bubble = documentRef.createElement('div');
+    bubble.className = 'agent-message-bubble';
+
+    if (role === 'agent') {
+      const markdownDisplay: MarkdownDisplayApi = createMarkdownDisplay({
+        content: bubble,
+        getCurrentFile: () => null,
+        setCurrentContent: () => {
+          /* noop */
+        },
+        buildQuery: () => '',
+      });
+      markdownDisplay.render(text, { updateCurrent: false });
+    } else {
+      bubble.textContent = text;
+    }
+
+    wrapper.appendChild(bubble);
+    messageList.appendChild(wrapper);
+
+    scrollToLatest();
+  }
+
+  function appendEvent(eventType: string, payload: AgentEventPayload = {}): void {
+    if (!messageList) {
+      return;
+    }
+
+    const text = normaliseText(payload.text).trim();
+    const title = normaliseText(payload.title).trim();
+    const subtitle = normaliseText(payload.subtitle).trim();
+    const description = normaliseText(payload.description).trim();
+    const details = normaliseText(payload.details).trim();
+
+    if (
+      isApprovalNotification({
+        text,
+        title,
+        subtitle,
+        description,
+        details,
+      })
+    ) {
+      return;
+    }
+
+    if (eventType === 'request-input') {
+      return;
+    }
+
+    let headerText = title;
+    let bodyText = '';
+
+    const fallbackTitles: Record<string, string> = {
+      banner: title || text || 'Agent banner',
+      status: title || 'Status update',
+      'request-input': title || 'Input requested',
+    };
+
+    if (eventType === 'banner') {
+      headerText = fallbackTitles.banner;
+      bodyText = subtitle || description || details;
+      if (!bodyText && text && text !== headerText) {
+        bodyText = text;
+      }
+    } else {
+      headerText = fallbackTitles[eventType] || headerText;
+      bodyText = subtitle || description || details || text;
+    }
+
+    if (!headerText && !bodyText && text) {
+      bodyText = text;
+    }
+
+    if (!headerText && !bodyText) {
+      return;
+    }
+
+    ensureConversationStarted();
+
+    const wrapper = documentRef.createElement('div');
+    wrapper.className = 'agent-message agent-message--event';
+    if (eventType) {
+      wrapper.dataset.eventType = eventType;
+    }
+    if (payload.level) {
+      wrapper.dataset.level = payload.level;
+    }
+
+    const bubble = documentRef.createElement('div');
+    bubble.className = 'agent-message-bubble agent-message-bubble--event';
+
+    if (headerText && !isApprovalText(headerText)) {
+      const header = documentRef.createElement('div');
+      header.className = 'agent-event-title';
+      header.textContent = headerText;
+      bubble.appendChild(header);
+    }
+
+    if (bodyText && (!headerText || bodyText !== headerText) && !isApprovalText(bodyText)) {
+      const body = documentRef.createElement('div');
+      body.className = 'agent-event-body';
+      body.textContent = bodyText;
+      bubble.appendChild(body);
+    }
+
+    const metadata = payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : null;
+    const scopeText = metadata ? normaliseText(metadata.scope).trim() : '';
+    if (scopeText) {
+      const meta = documentRef.createElement('div');
+      meta.className = 'agent-event-meta';
+      const scope = documentRef.createElement('span');
+      scope.className = 'agent-event-meta-tag';
+      scope.textContent = `Scope: ${scopeText}`;
+      meta.appendChild(scope);
+      bubble.appendChild(meta);
+    }
+
+    wrapper.appendChild(bubble);
+    messageList.appendChild(wrapper);
+
+    scrollToLatest();
+  }
+
+  function appendCommand(payload: AgentCommandPayload = {}): void {
+    if (!messageList) {
+      return;
+    }
+
+    const command =
+      payload.command && typeof payload.command === 'object' ? (payload.command as Record<string, unknown>) : {};
+    const runText = normaliseText(command.run);
+    const description = normaliseText(command.description).trim();
+    const shellText = typeof command.shell === 'string' ? normaliseText(command.shell).trim() : '';
+    const preview =
+      command.preview && typeof command.preview === 'object'
+        ? (command.preview as { code?: string; language?: string; classNames?: string[] | string })
+        : null;
+    const previewCode = typeof preview?.code === 'string' ? preview.code : '';
+    const previewLanguage = typeof preview?.language === 'string' ? preview.language : '';
+    const previewClassNames = preview?.classNames ?? [];
+    const workingDirectory = normaliseText(command.workingDirectory).trim();
+
+    ensureConversationStarted();
+
+    const wrapper = documentRef.createElement('div');
+    wrapper.className = 'agent-message agent-message--command';
+
+    const bubble = documentRef.createElement('div');
+    bubble.className = 'agent-message-bubble agent-message-bubble--command';
+
+    const header = documentRef.createElement('div');
+    header.className = 'agent-command-header';
+
+    const commandLabel = documentRef.createElement('div');
+    commandLabel.className = 'agent-command-label';
+    commandLabel.textContent = description || 'Command preview';
+    header.appendChild(commandLabel);
+
+    if (workingDirectory) {
+      const directory = documentRef.createElement('div');
+      directory.className = 'agent-command-directory';
+      directory.textContent = `Working directory: ${workingDirectory}`;
+      header.appendChild(directory);
+    }
+
+    bubble.appendChild(header);
+
+    if (runText) {
+      const runBlock = createHighlightedCodeBlock(runText, {
+        language: shellText || 'bash',
+        classNames: ['agent-command-run'],
+      });
+      if (runBlock) {
+        bubble.appendChild(runBlock);
+      }
+    }
+
+    if (typeof previewCode === 'string' && previewCode.trim().length > 0) {
+      const previewBlock = createHighlightedCodeBlock(previewCode, {
+        language: previewLanguage,
+        classNames: previewClassNames,
+      });
+      if (previewBlock) {
+        previewBlock.classList.add('agent-command-preview');
+        bubble.appendChild(previewBlock);
+      }
+    }
+
+    wrapper.appendChild(bubble);
+    messageList.appendChild(wrapper);
+    scrollToLatest();
+  }
+
+  function updatePanelState(): void {
+    const active = hasConversation;
+    panelRef.classList.toggle('agent-panel--empty', !active);
+    if (startContainer) {
+      startContainer.classList.toggle('hidden', active);
+    }
+    if (chatContainer) {
+      chatContainer.classList.toggle('hidden', !active);
+    }
+    if (active && chatInput) {
+      windowRef.requestAnimationFrame(() => {
+        chatInput.focus();
+        autoResize(chatInput);
+      });
+    }
+  }
+
+  function handleIncoming(event: MessageEvent<string>): void {
+    if (!event.data) {
+      return;
+    }
+
+    let payload: AgentMessagePayload | null = null;
+    try {
+      const parsed = JSON.parse(event.data);
+      payload = parseAgentPayload(parsed);
+    } catch (error) {
+      console.warn('Failed to parse agent message payload', error);
+      return;
+    }
+
+    if (!payload) {
+      return;
+    }
+
+    const { type = '' } = payload as AgentMessagePayload & { type?: string };
+
+    switch (type) {
+      case 'agent_message': {
+        updateThinkingState(false);
+        const text = normaliseText(payload.text);
+        if (text) {
+          appendMessage('agent', text);
+        }
+        break;
+      }
+      case 'agent_status': {
+        updateThinkingState(false);
+        const text = normaliseText(payload.text);
+        const statusPayload = { ...payload, text };
+        if (isApprovalNotification(statusPayload)) {
+          break;
+        }
+        if (text) {
+          const level = typeof payload.level === 'string' ? payload.level : undefined;
+          setStatus(text, { level });
+        }
+        break;
+      }
+      case 'agent_error': {
+        updateThinkingState(false);
+        const message = normaliseText(payload.message);
+        if (message) {
+          setStatus(message, { level: 'error' });
+          appendMessage('agent', message);
+        }
+        const details = normaliseText(payload.details).trim();
+        if (details && details !== message) {
+          appendMessage('agent', details);
+        }
+        break;
+      }
+      case 'agent_thinking': {
+        if (payload.state === 'start') {
+          updateThinkingState(true);
+        } else if (payload.state === 'stop') {
+          updateThinkingState(false);
+        }
+        break;
+      }
+      case 'agent_request_input': {
+        updateThinkingState(false);
+        const promptText = normaliseText(payload.prompt).trim();
+        if (!promptText || promptText === '▷' || isApprovalText(promptText)) {
+          setStatus('');
+        } else {
+          setStatus(promptText);
+        }
+        break;
+      }
+      case 'agent_plan': {
+        ensureConversationStarted();
+        if (Array.isArray(payload.plan)) {
+          planDisplay?.update(payload.plan);
+        } else {
+          planDisplay?.update([]);
+        }
+        break;
+      }
+      case 'agent_event': {
+        const eventType = typeof payload.eventType === 'string' ? payload.eventType : 'event';
+        appendEvent(eventType, payload);
+        break;
+      }
+      case 'agent_command': {
+        updateThinkingState(false);
+        appendCommand(payload as AgentCommandPayload);
+        break;
+      }
+      default: {
+        console.warn('Received unsupported agent payload', payload);
+        break;
+      }
+    }
+  }
+
+  function handleOpen(event: Event): void {
+    if (socket && event.currentTarget && socket !== event.currentTarget) {
+      return;
+    }
+    if (destroyed || !socket || socket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    isConnected = true;
+    updateThinkingState(false);
+    setStatus('Connected to the agent runtime.', { level: 'info' });
+    flushPending();
+  }
+
+  function handleClose(event: CloseEvent): void {
+    if (socket && event.currentTarget && socket !== event.currentTarget) {
+      return;
+    }
+    if (destroyed) {
+      return;
+    }
+    isConnected = false;
+    updateThinkingState(false);
+    setStatus('Reconnecting to the agent runtime...', { level: 'warn' });
+    scheduleReconnect();
+  }
+
+  function handleError(event: Event): void {
+    if (socket && event.currentTarget && socket !== event.currentTarget) {
+      return;
+    }
+    if (!socket) {
+      return;
+    }
+    updateThinkingState(false);
+    try {
+      socket.close();
+    } catch (error) {
+      console.warn('Failed to close agent socket after error', error);
+    }
+    setStatus('Agent connection encountered an error.', { level: 'error' });
+  }
+
+  function connect(): void {
+    if (destroyed) {
+      return;
+    }
+
+    clearReconnectTimer();
+
+    if (
+      socket &&
+      socket.readyState !== WebSocket.CLOSED &&
+      socket.readyState !== WebSocket.CLOSING
+    ) {
+      try {
+        socket.close();
+      } catch (error) {
+        console.warn('Failed to close existing agent socket', error);
+      }
+    }
+
+    let url: string;
+    try {
+      const protocol = windowRef.location.protocol === 'https:' ? 'wss' : 'ws';
+      url = `${protocol}://${windowRef.location.host}/ws/agent`;
+    } catch (error) {
+      console.error('Failed to resolve agent websocket URL', error);
+      scheduleReconnect();
+      return;
+    }
+
+    setStatus('Connecting to the agent runtime...');
+
+    const nextSocket = new WebSocket(url);
+    socket = nextSocket;
+
+    nextSocket.addEventListener('open', handleOpen);
+    nextSocket.addEventListener('message', handleIncoming as EventListener);
+    nextSocket.addEventListener('close', handleClose);
+    nextSocket.addEventListener('error', handleError);
+  }
+
+  function queueMessage(text: string): void {
+    if (!text) {
+      return;
+    }
+    pendingMessages.push(text);
+    flushPending();
+    if (!isConnected) {
+      if (!socket || socket.readyState === WebSocket.CLOSED) {
+        connect();
+      }
+      scheduleReconnect();
+      setStatus('Waiting for the agent runtime connection...');
+    }
+  }
+
+  function sendUserMessage(rawText: string): boolean {
+    if (typeof rawText !== 'string' || isThinking) {
+      return false;
+    }
+    const trimmed = rawText.trim();
+    if (!trimmed) {
+      return false;
+    }
+
+    appendMessage('user', trimmed);
+    queueMessage(trimmed);
+    return true;
+  }
+
+  function handleStartSubmit(event: SubmitEvent): void {
+    event.preventDefault();
+    const value = startInput?.value || '';
+    const sent = sendUserMessage(value);
+    if (sent && startInput) {
+      startInput.value = '';
+    }
+  }
+
+  function handleChatSubmit(event: SubmitEvent): void {
+    event.preventDefault();
+    const value = chatInput?.value || '';
+    const sent = sendUserMessage(value);
+    if (sent && chatInput) {
+      chatInput.value = '';
+      autoResize(chatInput);
+    }
+  }
+
+  function handleChatKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      handleChatSubmit(event as unknown as SubmitEvent);
+    }
+  }
+
+  addListener(startForm, 'submit', handleStartSubmit as EventListener, cleanupFns);
+  addListener(chatForm, 'submit', handleChatSubmit as EventListener, cleanupFns);
+  addListener(chatInput, 'keydown', handleChatKeydown as EventListener, cleanupFns);
+  addListener(chatInput, 'input', (() => autoResize(chatInput)) as EventListener, cleanupFns);
+
+  if (chatInput) {
+    autoResize(chatInput);
+  }
+
+  updateStatusDisplay();
+  updatePanelState();
+
+  return {
+    connect,
+    dispose(): void {
+      destroyed = true;
+      planDisplay?.reset?.();
+      clearReconnectTimer();
+      updateThinkingState(false);
+      if (socket) {
+        try {
+          socket.close();
+        } catch (error) {
+          console.warn('Failed to close agent socket on dispose', error);
+        }
+        socket = null;
+      }
+      cleanupFns.splice(0).forEach((cleanup) => {
+        try {
+          cleanup();
+        } catch (error) {
+          console.warn('Failed to clean up chat listener', error);
+        }
+      });
+    },
+  };
+}

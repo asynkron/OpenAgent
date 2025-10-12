@@ -1,8 +1,8 @@
-function normaliseSearch(search) {
+function normaliseSearch(search: unknown): string {
   return typeof search === 'string' ? search : '';
 }
 
-function fileFromSearch(search) {
+function fileFromSearch(search: unknown): string {
   const params = new URLSearchParams(normaliseSearch(search));
   const value = params.get('file');
   if (typeof value !== 'string') {
@@ -12,20 +12,38 @@ function fileFromSearch(search) {
   return trimmed === '' ? '' : trimmed;
 }
 
+type RouterHandlers = {
+  appState: {
+    originalPathArgument?: string;
+  };
+  getCurrentFile?: () => string | null;
+  onNavigate?: (targetFile: string, options?: { skipHistory?: boolean; replaceHistory?: boolean }) => void;
+  onFallback?: (options?: { skipHistory?: boolean }) => void;
+  windowRef?: Window & typeof globalThis;
+};
+
+export interface RouterApi {
+  buildQuery(params?: Record<string, string | undefined>): string;
+  push(file: string): void;
+  replace(file: string): void;
+  getCurrent(): string;
+  dispose(): void;
+}
+
 export function createRouter({
   appState,
   getCurrentFile = () => null,
   onNavigate = () => {},
   onFallback = () => {},
   windowRef = window,
-} = {}) {
+}: RouterHandlers): RouterApi {
   if (!appState) {
     throw new Error('appState is required to create the router.');
   }
 
-  const historyRef = windowRef?.history;
+  const historyRef = windowRef?.history ?? null;
 
-  function buildQuery(params = {}) {
+  function buildQuery(params: Record<string, string | undefined> = {}): string {
     const query = new URLSearchParams();
     if (appState.originalPathArgument) {
       query.set('path', appState.originalPathArgument);
@@ -39,7 +57,7 @@ export function createRouter({
     return queryString ? `?${queryString}` : '';
   }
 
-  function updateLocation(file, { replace = false } = {}) {
+  function updateLocation(file: string, { replace = false }: { replace?: boolean } = {}): void {
     if (!windowRef || !historyRef) {
       return;
     }
@@ -55,11 +73,11 @@ export function createRouter({
     }
   }
 
-  function getCurrent() {
+  function getCurrent(): string {
     return fileFromSearch(windowRef?.location?.search);
   }
 
-  function handlePopState() {
+  function handlePopState(): void {
     const targetFile = getCurrent();
     const currentFile = getCurrentFile();
     if (targetFile) {
@@ -75,14 +93,14 @@ export function createRouter({
 
   return {
     buildQuery,
-    push(file) {
+    push(file: string): void {
       updateLocation(file, { replace: false });
     },
-    replace(file) {
+    replace(file: string): void {
       updateLocation(file, { replace: true });
     },
     getCurrent,
-    dispose() {
+    dispose(): void {
       windowRef?.removeEventListener?.('popstate', handlePopState);
     },
   };
