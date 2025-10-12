@@ -15,8 +15,8 @@ type RenderOptions = {
   logger?: (line: string) => void;
 };
 
-function formatPercentage(value: number): string | null {
-  if (!Number.isFinite(value)) {
+function formatPercentage(value: number | null): string | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
     return null;
   }
   if (value >= 10) {
@@ -35,17 +35,20 @@ export function renderRemainingContext(
 
   const { total, used, remaining, percentRemaining } = usage;
 
-  if (!Number.isFinite(total) || total <= 0) {
+  if (typeof total !== 'number' || !Number.isFinite(total) || total <= 0) {
     return undefined;
   }
 
-  const safeRemaining = Number.isFinite(remaining) ? Math.max(remaining, 0) : null;
-  const safeUsed = Number.isFinite(used) ? Math.max(used, 0) : null;
-  const percent = Number.isFinite(percentRemaining)
-    ? Math.max(Math.min(percentRemaining, 100), 0)
+  const safeRemaining =
+    typeof remaining === 'number' && Number.isFinite(remaining) ? Math.max(remaining, 0) : null;
+  const safeUsed =
+    typeof used === 'number' && Number.isFinite(used) ? Math.max(used, 0) : null;
+  const percent =
+    typeof percentRemaining === 'number' && Number.isFinite(percentRemaining)
+      ? Math.max(Math.min(percentRemaining, 100), 0)
       : safeRemaining !== null
-        ? (safeRemaining / total) * 100
-        : null;
+          ? (safeRemaining / total) * 100
+          : null;
 
   const parts = [
     `Context remaining: ${

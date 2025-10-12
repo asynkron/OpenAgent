@@ -19,6 +19,19 @@ export type ProgressState = {
 
 const BAR_WIDTH = 20;
 
+function toFiniteNumber(value: number | string | null | undefined): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
 export function computeProgressState(progress: PlanProgress | null | undefined): ProgressState {
   if (!progress || typeof progress !== 'object') {
     return {
@@ -31,11 +44,13 @@ export function computeProgressState(progress: PlanProgress | null | undefined):
     };
   }
 
-  const total = Number.isFinite(progress.totalSteps) ? Math.max(progress.totalSteps, 0) : 0;
-  const completed = Number.isFinite(progress.completedSteps)
-    ? Math.max(progress.completedSteps, 0)
-    : 0;
-  const providedRatio = Number.isFinite(progress.ratio) ? progress.ratio : null;
+  const totalValue = toFiniteNumber(progress.totalSteps);
+  const completedValue = toFiniteNumber(progress.completedSteps);
+  const ratioValue = toFiniteNumber(progress.ratio);
+
+  const total = totalValue !== null ? Math.max(totalValue, 0) : 0;
+  const completed = completedValue !== null ? Math.max(completedValue, 0) : 0;
+  const providedRatio = ratioValue !== null ? ratioValue : null;
   const ratio = providedRatio !== null ? providedRatio : total > 0 ? completed / total : 0;
   const normalized = Math.min(1, Math.max(0, ratio));
   let filled = Math.round(normalized * BAR_WIDTH);

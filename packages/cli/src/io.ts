@@ -13,7 +13,7 @@
 import * as readline from 'node:readline';
 import chalk from 'chalk';
 
-import { cancel as cancelActive } from '@asynkron/openagent-core';
+import openagentCore from '@asynkron/openagent-core';
 
 export const ESCAPE_EVENT = 'openagent:escape';
 
@@ -22,8 +22,23 @@ type EscapeEventPayload = {
   timestamp: number;
 };
 
+type CancelFn = (reason?: string) => void;
+
+const coreRuntime = openagentCore as unknown as { cancel?: CancelFn };
+
+const cancelActive: CancelFn =
+  coreRuntime && typeof coreRuntime.cancel === 'function'
+    ? (reason?: string) => {
+        coreRuntime.cancel?.(reason);
+      }
+    : () => {};
+
+type InterfaceWithInput = readline.Interface & {
+  input?: NodeJS.ReadStream;
+};
+
 function installEscapeListener(rl: readline.Interface): void {
-  const input = rl.input as NodeJS.ReadStream | null;
+  const { input } = rl as InterfaceWithInput;
   if (!input || typeof input.on !== 'function') {
     return;
   }

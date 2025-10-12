@@ -22,6 +22,7 @@
 - Clear separation between the workspace packages: `packages/core` hosts orchestration/command logic while `packages/cli` owns presentation (Ink) and bootstrapping.
 - Documentation spans architecture, ops, and prompt maintenance, reducing ramp-up time for new contributors (especially AI assistants).
 - CLI unit tests under `packages/cli/src/**/__tests__` use `ink-testing-library` to simulate terminal input when exercising interactive components.
+- Legacy CLI console helpers (rendering, readline IO, spinners, plan/command formatters) are now TypeScript-checked, shrinking the remaining surface that depended on `@ts-nocheck`.
 
 ## Risks / Gaps
 
@@ -40,6 +41,7 @@
 - Jest runs TypeScript sources through `babel-jest` (see `jest.config.mjs`), so suites now execute without the legacy `ts-jest` shim that previously blocked execution.
 - Root `npm test` builds every workspace first (`npm run build --workspaces --if-present`) so Jest can resolve the compiled `dist/` outputs referenced by mocks and module mappers.
 - The root `pretest` hook builds both `@asynkron/openagent-core` and `@asynkron/openagent` so Jest always runs against fresh TypeScript output.
+- Third-party gaps like `marked-terminal` now ship custom declaration stubs under `types/` so strict type-checking keeps working without upstream DefinitelyTyped coverage.
 
 ## Related Context
 

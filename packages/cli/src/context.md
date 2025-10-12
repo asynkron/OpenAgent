@@ -13,6 +13,7 @@
 - `loadCoreModule.ts` — dynamically resolves `@asynkron/openagent-core`, falls back to the local workspace copy when `node_modules` links are absent, and now guards against missing exports at runtime.
 - `render.ts`, `status.ts`, `thinking.ts` — helper utilities for formatting markdown, plan progress, context usage, and spinner indicators.
 - `io.ts` — wraps readline input handling, exposing `askHuman` and ESC detection constants.
+- `components/commandUtils.ts`, `components/planUtils.ts`, `components/progressUtils.ts` — shared formatting utilities that feed both Ink components and legacy console renderers, now exported as typed helpers.
 
 ## Positive Signals
 
@@ -22,6 +23,7 @@
 - Boot probes provide immediate environment diagnostics before the agent runs commands.
 - Timeline view keeps the latest 20 events and the plan now renders beneath the AskHuman prompt, hiding completed steps to highlight remaining work.
 - CLI bootstrap and core loader now pass TypeScript checks instead of being excluded via `@ts-nocheck`.
+- Legacy console utilities (rendering, status lines, readline, thinking indicator) and their supporting helpers now participate in strict TypeScript checks, shrinking the surface still relying on `@ts-nocheck`.
 
 ## Risks / Gaps
 
