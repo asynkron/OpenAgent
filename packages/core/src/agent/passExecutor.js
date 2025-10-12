@@ -857,23 +857,37 @@ export async function executeAgentPass({
 
   if (planMutatedDuringExecution && Array.isArray(activePlan)) {
     emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
+
+    if (invokePlanManager && typeof planManager?.sync === 'function') {
+      try {
+        await invokePlanManager(planManager.sync, activePlan);
+      } catch (error) {
+        emitEvent({
+          type: 'status',
+          level: 'warn',
+          message: 'Failed to persist plan state after execution.',
+          details: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    const planSnapshot = clonePlanForExecution(activePlan);
+    const planObservation = {
+      observation_for_llm: {
+        plan: planSnapshot,
+      },
+      observation_metadata: {
+        timestamp: new Date().toISOString(),
+      },
+    };
+
+    emitDebug(() => ({
+      stage: 'plan-observation',
+      plan: planSnapshot,
+    }));
+
+    history.push(createObservationHistoryEntry({ observation: planObservation, pass: activePass }));
   }
-
-  const planObservation = {
-    observation_for_llm: {
-      plan: clonePlanForExecution(activePlan),
-    },
-    observation_metadata: {
-      timestamp: new Date().toISOString(),
-    },
-  };
-
-  emitDebug(() => ({
-    stage: 'plan-observation',
-    plan: clonePlanForExecution(activePlan),
-  }));
-
-  history.push(createObservationHistoryEntry({ observation: planObservation, pass: activePass }));
 
   return true;
 }

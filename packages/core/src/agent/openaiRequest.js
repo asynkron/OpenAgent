@@ -14,7 +14,7 @@ export async function requestModelCompletion({
   startThinkingFn,
   stopThinkingFn,
   setNoHumanFlag,
-  emitEvent = () => {},
+  emitEvent = () => { },
   passIndex,
 }) {
   const { promise: escPromise, cleanup: cleanupEscWaiter } = createEscWaiter(escState);
@@ -35,9 +35,6 @@ export async function requestModelCompletion({
     tool_choice: {
       type: 'function',
       name: 'open-agent',
-    },
-    response_format: {
-      type: 'json_object', // or "text" / "json_schema"
     },
     options: requestOptions,
   });
