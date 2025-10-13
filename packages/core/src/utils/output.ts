@@ -10,12 +10,13 @@ export type CombinedStreams = {
 export function combineStdStreams(
   filteredStdout: unknown,
   filteredStderr: unknown,
-  exitCode: number,
+  exitCode: number | null | undefined,
 ): CombinedStreams {
   const stdoutText = filteredStdout != null ? String(filteredStdout) : '';
   const stderrText = filteredStderr != null ? String(filteredStderr) : '';
+  const normalizedExitCode = typeof exitCode === 'number' ? exitCode : 0;
 
-  if (exitCode === 0 && stderrText.trim().length > 0) {
+  if (normalizedExitCode === 0 && stderrText.trim().length > 0) {
     const combined = stdoutText ? `${stdoutText}\n${stderrText}` : stderrText;
     return { stdout: combined, stderr: '' };
   }

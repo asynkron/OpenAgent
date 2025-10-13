@@ -1,11 +1,10 @@
-// @ts-nocheck
 import { planHasOpenSteps } from '../utils/plan.js';
 import { incrementCommandCount as defaultIncrementCommandCount } from '../services/commandStatsService.js';
 import {
   combineStdStreams as defaultCombineStdStreams,
   buildPreview as defaultBuildPreview,
 } from '../utils/output.js';
-import ObservationBuilder from './observationBuilder.js';
+import ObservationBuilder, { type ObservationBuilderDeps } from './observationBuilder.js';
 import { parseAssistantResponse as defaultParseAssistantResponse } from './responseParser.js';
 import { requestModelCompletion as defaultRequestModelCompletion } from './openaiRequest.js';
 import { executeAgentCommand as defaultExecuteAgentCommand } from './commandExecution.js';
@@ -19,6 +18,7 @@ import {
   createChatMessageEntry as defaultCreateChatMessageEntry,
   type ChatMessageEntry,
 } from './historyEntry.js';
+import type { ResponsesClient } from '../openai/responses.js';
 import {
   createObservationHistoryEntry,
   createPlanReminderEntry,
@@ -55,16 +55,18 @@ interface PlanManagerLike {
   sync?: (plan: PlanStep[] | null | undefined) => Promise<unknown>;
 }
 
-type PlanManagerMethod = ((...args: unknown[]) => unknown) | null | undefined;
+type PlanManagerMethod = ((plan?: PlanStep[] | null | undefined) => unknown) | null | undefined;
 
 const createPlanManagerInvoker =
   (manager: PlanManagerLike) =>
-  (method: PlanManagerMethod, ...args: unknown[]): unknown => {
+  (method: PlanManagerMethod, plan?: PlanStep[] | null | undefined): unknown => {
     if (typeof method !== 'function') {
       return undefined;
     }
 
-    return method.call(manager, ...args);
+    // Passing an explicit plan argument keeps TypeScript satisfied while still
+    // allowing zero-argument plan manager methods to ignore it at runtime.
+    return method.call(manager, plan);
   };
 
 interface ExecutableCandidate extends ExecutablePlanStep {
@@ -74,6 +76,67 @@ interface ExecutableCandidate extends ExecutablePlanStep {
 
 const PLAN_REMINDER_AUTO_RESPONSE_LIMIT = 3;
 
+interface PlanReminderController {
+  recordAttempt: () => number;
+  reset: () => void;
+  getCount: () => number;
+}
+
+const createPlanReminderController = (
+  tracker: PlanAutoResponseTracker | null | undefined,
+): PlanReminderController => {
+  if (tracker && typeof tracker.increment === 'function' && typeof tracker.reset === 'function') {
+    return {
+      recordAttempt: () => tracker.increment(),
+      reset: () => tracker.reset(),
+      getCount: () => (typeof tracker.getCount === 'function' ? (tracker.getCount() ?? 0) : 0),
+    };
+  }
+
+  // Fallback tracker keeps local state so the reminder limit still applies even when
+  // the caller does not provide a dedicated tracker implementation.
+  let fallbackCount = 0;
+  return {
+    recordAttempt: () => {
+      fallbackCount += 1;
+      return fallbackCount;
+    },
+    reset: () => {
+      fallbackCount = 0;
+    },
+    getCount: () => fallbackCount,
+  };
+};
+
+const pickNextExecutableCandidate = (entries: ExecutablePlanStep[]): ExecutableCandidate | null => {
+  let best: ExecutableCandidate | null = null;
+
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index];
+    const candidate: ExecutableCandidate = {
+      ...entry,
+      index,
+      priority: getPriorityScore(entry.step),
+    };
+
+    if (!best) {
+      best = candidate;
+      continue;
+    }
+
+    if (candidate.priority < best.priority) {
+      best = candidate;
+      continue;
+    }
+
+    if (candidate.priority === best.priority && candidate.index < best.index) {
+      best = candidate;
+    }
+  }
+
+  return best;
+};
+
 const normalizeAssistantMessage = (value: unknown): string =>
   typeof value === 'string' ? value.replace(/[\u2018\u2019]/g, "'") : '';
 // Quick heuristic to detect short apology-style refusals so we can auto-nudge the model.
@@ -81,7 +144,7 @@ const isLikelyRefusalMessage = (message: unknown): boolean =>
   refusalHeuristics.isLikelyRefusalMessage(message);
 
 export interface ExecuteAgentPassOptions {
-  openai: unknown;
+  openai: ResponsesClient;
   model: string;
   history: ChatMessageEntry[];
   emitEvent?: (event: UnknownRecord) => void;
@@ -103,14 +166,9 @@ export interface ExecuteAgentPassOptions {
   passIndex: number;
   requestModelCompletionFn?: typeof defaultRequestModelCompletion;
   executeAgentCommandFn?: typeof defaultExecuteAgentCommand;
-  createObservationBuilderFn?: (deps: {
-    combineStdStreams: typeof defaultCombineStdStreams;
-    applyFilter: (text: string, regex: string) => string;
-    tailLines: (text: string, lines: number) => string;
-    buildPreview: typeof defaultBuildPreview;
-  }) => ObservationBuilder;
-  combineStdStreamsFn?: typeof defaultCombineStdStreams;
-  buildPreviewFn?: typeof defaultBuildPreview;
+  createObservationBuilderFn?: (deps: ObservationBuilderDeps) => ObservationBuilder;
+  combineStdStreamsFn?: ObservationBuilderDeps['combineStdStreams'];
+  buildPreviewFn?: ObservationBuilderDeps['buildPreview'];
   parseAssistantResponseFn?: typeof defaultParseAssistantResponse;
   validateAssistantResponseSchemaFn?: typeof defaultValidateAssistantResponseSchema;
   validateAssistantResponseFn?: typeof defaultValidateAssistantResponse;
@@ -152,8 +210,10 @@ export async function executeAgentPass({
   requestModelCompletionFn = defaultRequestModelCompletion,
   executeAgentCommandFn = defaultExecuteAgentCommand,
   createObservationBuilderFn = (deps) => new ObservationBuilder(deps),
-  combineStdStreamsFn = defaultCombineStdStreams,
-  buildPreviewFn = defaultBuildPreview,
+  combineStdStreamsFn = (stdout, stderr, exitCode) =>
+    // Normalize optional exit codes before delegating so ObservationBuilder sees a consistent signature.
+    defaultCombineStdStreams(stdout, stderr, exitCode ?? 0),
+  buildPreviewFn = (text) => defaultBuildPreview(text),
   parseAssistantResponseFn = defaultParseAssistantResponse,
   validateAssistantResponseSchemaFn = defaultValidateAssistantResponseSchema,
   validateAssistantResponseFn = defaultValidateAssistantResponse,
@@ -326,28 +386,7 @@ export async function executeAgentPass({
 
   const parsed = parseResult.value;
 
-  const planAutoResponder =
-    planAutoResponseTracker &&
-    typeof planAutoResponseTracker.increment === 'function' &&
-    typeof planAutoResponseTracker.reset === 'function'
-      ? planAutoResponseTracker
-      : null;
-
-  const incrementPlanReminder = () => {
-    if (!planAutoResponder || typeof planAutoResponder.increment !== 'function') {
-      return 1;
-    }
-
-    return planAutoResponder.increment();
-  };
-
-  const resetPlanReminder = () => {
-    if (!planAutoResponder || typeof planAutoResponder.reset !== 'function') {
-      return;
-    }
-
-    planAutoResponder.reset();
-  };
+  const planReminder = createPlanReminderController(planAutoResponseTracker);
 
   emitDebug(() => ({
     stage: 'assistant-response',
@@ -493,27 +532,8 @@ export async function executeAgentPass({
 
   let planMutatedDuringExecution = false;
 
-  const selectNextExecutableEntry = (): ExecutableCandidate | null => {
-    const candidates = collectExecutablePlanSteps(activePlan).map((entry, index) => ({
-      ...entry,
-      index,
-      priority: getPriorityScore(entry.step),
-    }));
-
-    if (candidates.length === 0) {
-      return null;
-    }
-
-    candidates.sort((a, b) => {
-      if (a.priority === b.priority) {
-        return a.index - b.index;
-      }
-
-      return a.priority - b.priority;
-    });
-
-    return candidates[0] ?? null;
-  };
+  const selectNextExecutableEntry = (): ExecutableCandidate | null =>
+    pickNextExecutableCandidate(collectExecutablePlanSteps(activePlan));
 
   let nextExecutable = selectNextExecutableEntry();
 
@@ -545,7 +565,7 @@ export async function executeAgentPass({
           pass: activePass,
         }),
       );
-      resetPlanReminder();
+      planReminder.reset();
       return true;
     }
 
@@ -553,7 +573,7 @@ export async function executeAgentPass({
       Array.isArray(activePlan) && activePlan.length > 0 && planHasOpenSteps(activePlan);
 
     if (hasOpenSteps) {
-      const attempt = incrementPlanReminder();
+      const attempt = planReminder.recordAttempt();
 
       if (attempt <= PLAN_REMINDER_AUTO_RESPONSE_LIMIT) {
         emitEvent({
@@ -570,7 +590,7 @@ export async function executeAgentPass({
 
     if (!activePlanEmpty && !hasOpenSteps) {
       // The plan is finished; wipe the snapshot so follow-up prompts start cleanly.
-      if (invokePlanManager) {
+      if (planManager && invokePlanManager) {
         try {
           const cleared = await invokePlanManager(planManager.reset);
           if (Array.isArray(cleared)) {
@@ -594,11 +614,11 @@ export async function executeAgentPass({
       emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
     }
 
-    resetPlanReminder();
+    planReminder.reset();
     return false;
   }
 
-  resetPlanReminder();
+  planReminder.reset();
 
   const manageCommandThinking =
     Boolean(nextExecutable) &&
@@ -817,7 +837,7 @@ export async function executeAgentPass({
   if (planMutatedDuringExecution && Array.isArray(activePlan)) {
     emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
 
-    if (invokePlanManager && typeof planManager?.sync === 'function') {
+    if (planManager && invokePlanManager && typeof planManager.sync === 'function') {
       try {
         await invokePlanManager(planManager.sync, activePlan);
       } catch (error) {
