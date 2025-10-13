@@ -38,6 +38,14 @@ import {
   type ExecutablePlanStep,
 } from './passExecutor/planExecution.js';
 import { refusalHeuristics } from './passExecutor/refusalDetection.js';
+import {
+  guardRequestPayloadSize,
+  compactHistoryIfNeeded,
+  emitContextUsageSummary,
+  requestAssistantCompletion,
+  type CompletionAttempt,
+  type EmitEvent,
+} from './passExecutor/prePassTasks.js';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -262,90 +270,49 @@ export async function executeAgentPass({
   const invokePlanManager =
     planManager && typeof planManager === 'object' ? createPlanManagerInvoker(planManager) : null;
 
-  if (typeof guardRequestPayloadSizeFn === 'function') {
-    try {
-      await guardRequestPayloadSizeFn({ history, model, passIndex: activePass });
-    } catch (error) {
-      emitEvent({
-        type: 'status',
-        level: 'warn',
-        message: '[failsafe] Unable to evaluate request payload size before history compaction.',
-        details: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
+  await guardRequestPayloadSize({
+    guardRequestPayloadSizeFn,
+    history,
+    model,
+    passIndex: activePass,
+    emitEvent,
+  });
 
-  if (historyCompactor && typeof historyCompactor.compactIfNeeded === 'function') {
-    try {
-      await historyCompactor.compactIfNeeded({ history });
-    } catch (error) {
-      emitEvent({
-        type: 'status',
-        level: 'warn',
-        message: '[history-compactor] Unexpected error during history compaction.',
-        details: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
+  await compactHistoryIfNeeded({ historyCompactor, history, emitEvent });
 
-  try {
-    const usage = summarizeContextUsageFn({ history, model });
-    if (usage && usage.total) {
-      emitEvent({ type: 'context-usage', usage });
-    }
-  } catch (error) {
-    emitEvent({
-      type: 'status',
-      level: 'warn',
-      message: 'Failed to summarize context usage.',
-      details: error instanceof Error ? error.message : String(error),
-    });
-  }
+  emitContextUsageSummary({
+    summarizeContextUsageFn,
+    history,
+    model,
+    emitEvent,
+  });
 
-  const completionResult = await requestModelCompletionFn({
+  const completionAttempt = await requestAssistantCompletion({
+    requestModelCompletionFn,
+    extractOpenAgentToolCallFn,
+    createChatMessageEntryFn,
+    emitDebug,
+    emitEvent,
+    observationBuilder,
     openai,
     model,
     history,
-    observationBuilder,
     escState,
     startThinkingFn,
     stopThinkingFn,
     setNoHumanFlag,
-    emitEvent,
     passIndex: activePass,
   });
 
-  if (completionResult.status === 'canceled') {
+  if (completionAttempt.status === 'canceled') {
     return false;
   }
 
-  const { completion } = completionResult;
-  const toolCall = extractOpenAgentToolCallFn(completion);
-  const responseContent =
-    toolCall && typeof toolCall.arguments === 'string' ? toolCall.arguments : '';
-
-  emitDebug(() => ({
-    stage: 'openai-response',
-    toolCall,
-  }));
-
-  if (!responseContent) {
-    emitEvent({
-      type: 'error',
-      message: 'OpenAI response did not include text output.',
-    });
+  if (completionAttempt.status === 'missing-content') {
     return false;
   }
 
-  history.push(
-    createChatMessageEntryFn({
-      eventType: 'chat-message',
-      role: 'assistant',
-      pass: activePass,
-      content: responseContent,
-    }),
-  );
-
+  const responseContent = completionAttempt.responseContent;
   const parseResult = parseAssistantResponseFn(responseContent);
 
   if (!parseResult.ok) {
