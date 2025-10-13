@@ -74,6 +74,69 @@ interface ExecutableCandidate extends ExecutablePlanStep {
 
 const PLAN_REMINDER_AUTO_RESPONSE_LIMIT = 3;
 
+interface PlanReminderController {
+  recordAttempt: () => number;
+  reset: () => void;
+  getCount: () => number;
+}
+
+const createPlanReminderController = (
+  tracker: PlanAutoResponseTracker | null | undefined,
+): PlanReminderController => {
+  if (tracker && typeof tracker.increment === 'function' && typeof tracker.reset === 'function') {
+    return {
+      recordAttempt: () => tracker.increment(),
+      reset: () => tracker.reset(),
+      getCount: () => (typeof tracker.getCount === 'function' ? tracker.getCount() ?? 0 : 0),
+    };
+  }
+
+  // Fallback tracker keeps local state so the reminder limit still applies even when
+  // the caller does not provide a dedicated tracker implementation.
+  let fallbackCount = 0;
+  return {
+    recordAttempt: () => {
+      fallbackCount += 1;
+      return fallbackCount;
+    },
+    reset: () => {
+      fallbackCount = 0;
+    },
+    getCount: () => fallbackCount,
+  };
+};
+
+const pickNextExecutableCandidate = (
+  entries: ExecutablePlanStep[],
+): ExecutableCandidate | null => {
+  let best: ExecutableCandidate | null = null;
+
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index];
+    const candidate: ExecutableCandidate = {
+      ...entry,
+      index,
+      priority: getPriorityScore(entry.step),
+    };
+
+    if (!best) {
+      best = candidate;
+      continue;
+    }
+
+    if (candidate.priority < best.priority) {
+      best = candidate;
+      continue;
+    }
+
+    if (candidate.priority === best.priority && candidate.index < best.index) {
+      best = candidate;
+    }
+  }
+
+  return best;
+};
+
 const normalizeAssistantMessage = (value: unknown): string =>
   typeof value === 'string' ? value.replace(/[\u2018\u2019]/g, "'") : '';
 // Quick heuristic to detect short apology-style refusals so we can auto-nudge the model.
@@ -326,28 +389,7 @@ export async function executeAgentPass({
 
   const parsed = parseResult.value;
 
-  const planAutoResponder =
-    planAutoResponseTracker &&
-    typeof planAutoResponseTracker.increment === 'function' &&
-    typeof planAutoResponseTracker.reset === 'function'
-      ? planAutoResponseTracker
-      : null;
-
-  const incrementPlanReminder = () => {
-    if (!planAutoResponder || typeof planAutoResponder.increment !== 'function') {
-      return 1;
-    }
-
-    return planAutoResponder.increment();
-  };
-
-  const resetPlanReminder = () => {
-    if (!planAutoResponder || typeof planAutoResponder.reset !== 'function') {
-      return;
-    }
-
-    planAutoResponder.reset();
-  };
+  const planReminder = createPlanReminderController(planAutoResponseTracker);
 
   emitDebug(() => ({
     stage: 'assistant-response',
@@ -493,27 +535,8 @@ export async function executeAgentPass({
 
   let planMutatedDuringExecution = false;
 
-  const selectNextExecutableEntry = (): ExecutableCandidate | null => {
-    const candidates = collectExecutablePlanSteps(activePlan).map((entry, index) => ({
-      ...entry,
-      index,
-      priority: getPriorityScore(entry.step),
-    }));
-
-    if (candidates.length === 0) {
-      return null;
-    }
-
-    candidates.sort((a, b) => {
-      if (a.priority === b.priority) {
-        return a.index - b.index;
-      }
-
-      return a.priority - b.priority;
-    });
-
-    return candidates[0] ?? null;
-  };
+  const selectNextExecutableEntry = (): ExecutableCandidate | null =>
+    pickNextExecutableCandidate(collectExecutablePlanSteps(activePlan));
 
   let nextExecutable = selectNextExecutableEntry();
 
@@ -545,7 +568,7 @@ export async function executeAgentPass({
           pass: activePass,
         }),
       );
-      resetPlanReminder();
+      planReminder.reset();
       return true;
     }
 
@@ -553,7 +576,7 @@ export async function executeAgentPass({
       Array.isArray(activePlan) && activePlan.length > 0 && planHasOpenSteps(activePlan);
 
     if (hasOpenSteps) {
-      const attempt = incrementPlanReminder();
+      const attempt = planReminder.recordAttempt();
 
       if (attempt <= PLAN_REMINDER_AUTO_RESPONSE_LIMIT) {
         emitEvent({
@@ -594,11 +617,11 @@ export async function executeAgentPass({
       emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
     }
 
-    resetPlanReminder();
+    planReminder.reset();
     return false;
   }
 
-  resetPlanReminder();
+  planReminder.reset();
 
   const manageCommandThinking =
     Boolean(nextExecutable) &&
