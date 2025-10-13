@@ -29,3 +29,4 @@
 - Streamlined chat, shared context, and bootstrap helpers with stricter TypeScript unions and optional chaining, replacing runtime `typeof` guards with typed utilities for cleaner DOM event handling.
 - Refined chat payload routing with a typed handler map and removed the last `unknown` casts from markdown rendering to keep syntax highlighting and message handling strictly typed.
 - Pruned unused helper typings in shared context/tests so ESLint stays quiet under the expanded repo-wide lint run.
+- Extracted helper utilities inside `services/chat.ts` to normalise event payloads before rendering, reducing duplicated DOM-building logic when displaying agent banners and status messages.
