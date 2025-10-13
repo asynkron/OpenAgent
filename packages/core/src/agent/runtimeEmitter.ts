@@ -44,11 +44,7 @@ export function createRuntimeEmitter({
 }: RuntimeEmitterConfig): RuntimeEmitter {
   let counter = 0;
 
-  const logWithFallback = (
-    level: LoggerLevel,
-    message: string,
-    details: unknown = null,
-  ): void => {
+  const logWithFallback = (level: LoggerLevel, message: string, details: unknown = null): void => {
     const sink = logger ?? console;
     const fn = sink && typeof sink[level] === 'function' ? sink[level].bind(sink) : null;
     if (fn) {

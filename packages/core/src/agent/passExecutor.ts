@@ -165,7 +165,9 @@ export async function executeAgentPass(options: ExecuteAgentPassOptions): Promis
 
   if (!nextExecutable) {
     const assistantMessage =
-      typeof responseResolution.parsed.message === 'string' ? responseResolution.parsed.message : '';
+      typeof responseResolution.parsed.message === 'string'
+        ? responseResolution.parsed.message
+        : '';
     const outcome = await planRuntime.handleNoExecutable({ parsedMessage: assistantMessage });
     return outcome === 'continue';
   }
@@ -214,4 +216,3 @@ export async function executeAgentPass(options: ExecuteAgentPassOptions): Promis
 export default {
   executeAgentPass,
 };
-

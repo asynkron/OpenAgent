@@ -39,8 +39,7 @@ const MISSING_API_KEY_STEPS = [
   '3. Save the file and restart OpenAgent (`npm start` or `npx openagent`).',
 ];
 
-const MISSING_API_KEY_DOCS =
-  'OpenAI users: https://platform.openai.com/api-keys';
+const MISSING_API_KEY_DOCS = 'OpenAI users: https://platform.openai.com/api-keys';
 
 function assertHasStartupFlagApplicator(
   module: LoadedCoreModule,

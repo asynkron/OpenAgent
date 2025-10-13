@@ -1,18 +1,18 @@
 import { describe, expect, jest, test } from '@jest/globals';
 
 // Capture createResponse invocations
-let capturedParams: any | null = null;
+let capturedParams: Record<string, unknown> | null = null;
 
 jest.unstable_mockModule('../../openai/responses.js', () => {
   return {
-    createResponse: jest.fn(async (params: any) => {
+    createResponse: jest.fn(async (params: Record<string, unknown>) => {
       capturedParams = params;
       // Minimal shape of a responses result (text or structured both OK for the wrapper)
       return {
         output_text: JSON.stringify({ message: 'ok', plan: [] }),
         output: [],
         text: undefined,
-      } as any;
+      } as Record<string, unknown>;
     }),
     getConfiguredReasoningEffort: () => null,
   };
@@ -24,16 +24,14 @@ describe('openaiRequest.requestModelCompletion', () => {
   test('invokes createResponse with OPENAGENT_RESPONSE_TOOL and returns success', async () => {
     const { requestModelCompletion } = await import('../openaiRequest.ts');
 
-    const history = [
-      createChatMessageEntry({ role: 'user', content: 'Hello' }),
-    ];
+    const history = [createChatMessageEntry({ role: 'user', content: 'Hello' })];
 
     const observationBuilder = {
       buildCancellationObservation: () => ({}),
-    } as any;
+    } as Record<string, unknown>;
 
     const result = await requestModelCompletion({
-      openai: {} as any,
+      openai: {} as Record<string, unknown>,
       model: 'test-model',
       history,
       observationBuilder,
@@ -58,4 +56,3 @@ describe('openaiRequest.requestModelCompletion', () => {
     expect('jsonSchema' in toolSchema).toBe(true);
   });
 });
-

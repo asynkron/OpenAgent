@@ -64,9 +64,7 @@ describe('runCli', () => {
     expect(logSpy).toHaveBeenCalledWith(
       '3. Save the file and restart OpenAgent (`npm start` or `npx openagent`).',
     );
-    expect(logSpy).toHaveBeenCalledWith(
-      'OpenAI users: https://platform.openai.com/api-keys',
-    );
+    expect(logSpy).toHaveBeenCalledWith('OpenAI users: https://platform.openai.com/api-keys');
 
     expect(process.exitCode).toBe(exitCodeBackup);
   });

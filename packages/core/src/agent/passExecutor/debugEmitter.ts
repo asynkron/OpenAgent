@@ -51,4 +51,3 @@ export const createDebugEmitter = (listener: DebugListener): DebugEmitter => {
     },
   } satisfies DebugEmitter;
 };
-

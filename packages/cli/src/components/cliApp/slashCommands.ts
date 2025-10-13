@@ -33,7 +33,9 @@ export function parseSlashCommandInput(value: string): ParsedSlashCommand | null
   };
 }
 
-export function createSlashCommandRouter(handlers: Map<string, SlashCommandHandler>): SlashCommandRouter {
+export function createSlashCommandRouter(
+  handlers: Map<string, SlashCommandHandler>,
+): SlashCommandRouter {
   return async (submission) => {
     const parsed = parseSlashCommandInput(submission);
     if (!parsed) {
@@ -50,6 +52,8 @@ export function createSlashCommandRouter(handlers: Map<string, SlashCommandHandl
   };
 }
 
-export function useSlashCommandRouter(handlers: Map<string, SlashCommandHandler>): SlashCommandRouter {
+export function useSlashCommandRouter(
+  handlers: Map<string, SlashCommandHandler>,
+): SlashCommandRouter {
   return useMemo(() => createSlashCommandRouter(handlers), [handlers]);
 }

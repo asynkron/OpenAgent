@@ -105,4 +105,3 @@ export const resolveCommandPreview = (
 ): ReturnType<typeof normalisePreview> => normalisePreview(preview);
 
 export const shouldDisplayApprovalText = (content: string): boolean => !isApprovalText(content);
-

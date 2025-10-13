@@ -61,26 +61,25 @@ export type IdGeneratorFn = (context: { counter: number }) => string | number | 
 
 export type HistorySnapshot = ChatMessageEntry[];
 
-export type ExecuteAgentPassDependencies =
-  Partial<
-    Pick<
-      ExecuteAgentPassOptions,
-      | 'executeAgentCommandFn'
-      | 'createObservationBuilderFn'
-      | 'combineStdStreamsFn'
-      | 'buildPreviewFn'
-      | 'parseAssistantResponseFn'
-      | 'validateAssistantResponseSchemaFn'
-      | 'validateAssistantResponseFn'
-      | 'createChatMessageEntryFn'
-      | 'extractOpenAgentToolCallFn'
-      | 'summarizeContextUsageFn'
-      | 'incrementCommandCountFn'
-    >
-  > & {
-    requestModelCompletionFn?: GuardedRequestModelCompletion;
-    guardRequestPayloadSizeFn?: GuardRequestPayloadSizeFn;
-  };
+export type ExecuteAgentPassDependencies = Partial<
+  Pick<
+    ExecuteAgentPassOptions,
+    | 'executeAgentCommandFn'
+    | 'createObservationBuilderFn'
+    | 'combineStdStreamsFn'
+    | 'buildPreviewFn'
+    | 'parseAssistantResponseFn'
+    | 'validateAssistantResponseSchemaFn'
+    | 'validateAssistantResponseFn'
+    | 'createChatMessageEntryFn'
+    | 'extractOpenAgentToolCallFn'
+    | 'summarizeContextUsageFn'
+    | 'incrementCommandCountFn'
+  >
+> & {
+  requestModelCompletionFn?: GuardedRequestModelCompletion;
+  guardRequestPayloadSizeFn?: GuardRequestPayloadSizeFn;
+};
 
 export type PlanManagerFactoryConfig = PlanManagerOptions & {
   getPlanMergeFlag: () => boolean;
@@ -134,9 +133,9 @@ export interface AgentRuntimeOptions {
   createApprovalManagerFn?: (config: ApprovalManagerFactoryConfig) => ApprovalManager;
   logger?: Console | null;
   idGeneratorFn?: IdGeneratorFn | null;
-  applyDementiaPolicyFn?: typeof import('./amnesiaManager.js')['applyDementiaPolicy'];
-  createChatMessageEntryFn?: typeof import('./historyEntry.js')['createChatMessageEntry'];
-  executeAgentPassFn?: typeof import('./passExecutor.js')['executeAgentPass'];
+  applyDementiaPolicyFn?: (typeof import('./amnesiaManager.js'))['applyDementiaPolicy'];
+  createChatMessageEntryFn?: (typeof import('./historyEntry.js'))['createChatMessageEntry'];
+  executeAgentPassFn?: (typeof import('./passExecutor.js'))['executeAgentPass'];
   createPlanAutoResponseTrackerFn?: () => PlanAutoResponseTracker | null;
   cancelFn?: (reason?: unknown) => void;
   planReminderMessage?: string;
@@ -157,7 +156,11 @@ export interface AgentRuntime {
 }
 
 export interface RuntimeLogger {
-  logWithFallback(level: 'log' | 'info' | 'warn' | 'error' | 'debug', message: string, details?: unknown): void;
+  logWithFallback(
+    level: 'log' | 'info' | 'warn' | 'error' | 'debug',
+    message: string,
+    details?: unknown,
+  ): void;
 }
 
 export interface RuntimeEmitter extends RuntimeLogger {

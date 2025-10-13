@@ -236,7 +236,9 @@ export function createChatService({
   function handleAgentPayload<Type extends AgentPayloadType>(
     payload: AgentPayloadByType[Type],
   ): void {
-    const handler = agentPayloadHandlers[payload.type] as (payload: AgentPayloadByType[Type]) => void;
+    const handler = agentPayloadHandlers[payload.type] as (
+      payload: AgentPayloadByType[Type],
+    ) => void;
     handler(payload);
   }
 

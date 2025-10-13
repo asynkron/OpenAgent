@@ -1,7 +1,12 @@
 /* eslint-env jest */
 import { describe, expect, test } from '@jest/globals';
 
-import { cloneValue, coerceRuntime, normalizeStatus, parsePositiveInteger } from '../runtimeUtils.js';
+import {
+  cloneValue,
+  coerceRuntime,
+  normalizeStatus,
+  parsePositiveInteger,
+} from '../runtimeUtils.js';
 
 describe('runtimeUtils.cloneValue', () => {
   test('returns primitives untouched', () => {
@@ -29,7 +34,9 @@ describe('runtimeUtils.cloneValue', () => {
     }
 
     const previous = globalThis.structuredClone;
-    (globalThis as typeof globalThis & { structuredClone: typeof structuredClone }).structuredClone = () => {
+    (
+      globalThis as typeof globalThis & { structuredClone: typeof structuredClone }
+    ).structuredClone = () => {
       throw new Error('boom');
     };
 
@@ -39,7 +46,9 @@ describe('runtimeUtils.cloneValue', () => {
       expect(cloned).toEqual(value);
       expect(cloned).not.toBe(value);
     } finally {
-      (globalThis as typeof globalThis & { structuredClone: typeof structuredClone }).structuredClone = previous;
+      (
+        globalThis as typeof globalThis & { structuredClone: typeof structuredClone }
+      ).structuredClone = previous;
     }
   });
 });

@@ -24,7 +24,7 @@ export const createPlanReminderController = (
         // Call methods on the tracker to preserve `this` binding for stateful implementations.
         recordAttempt: () => tracker.increment(),
         reset: () => tracker.reset(),
-        getCount: () => (typeof tracker.getCount === 'function' ? tracker.getCount() ?? 0 : 0),
+        getCount: () => (typeof tracker.getCount === 'function' ? (tracker.getCount() ?? 0) : 0),
       };
     }
   }

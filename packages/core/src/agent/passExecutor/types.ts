@@ -18,12 +18,8 @@ import type { createChatMessageEntry as CreateChatMessageEntry } from '../histor
 import type { extractOpenAgentToolCall as ExtractOpenAgentToolCall } from '../../openai/responseUtils.js';
 import type { summarizeContextUsage as SummarizeContextUsage } from '../../utils/contextUsage.js';
 import type { incrementCommandCount as IncrementCommandCount } from '../../services/commandStatsService.js';
-import type {
-  CompletionAttempt,
-  EmitEvent,
-  GuardRequestPayloadSizeFn,
-} from './prePassTasks.js';
-import type { PlanManagerAdapter, PlanManagerLike } from './planManagerAdapter.js';
+import type { CompletionAttempt, EmitEvent, GuardRequestPayloadSizeFn } from './prePassTasks.js';
+import type { PlanManagerLike } from './planManagerAdapter.js';
 import type { PlanAutoResponseTracker } from './planReminderController.js';
 
 export type { CompletionAttempt, EmitEvent, GuardRequestPayloadSizeFn };
@@ -83,4 +79,3 @@ export interface AssistantResponseFailure {
 }
 
 export type AssistantResponseResolution = AssistantResponseSuccess | AssistantResponseFailure;
-

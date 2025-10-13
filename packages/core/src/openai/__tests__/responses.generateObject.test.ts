@@ -4,12 +4,12 @@ let generateObjectMock: jest.Mock;
 
 // Mock the AI SDK entrypoints for this suite
 jest.unstable_mockModule('ai', () => {
-  generateObjectMock = jest.fn(async (options: any) => {
+  generateObjectMock = jest.fn(async (_options: Record<string, unknown>) => {
     // Provide a structured object-shaped result similar to the SDK
     return {
       object: { message: 'ok', plan: [] },
       response: { id: 'test-id' },
-    } as any;
+    } as Record<string, unknown>;
   });
 
   return {
@@ -27,10 +27,10 @@ describe('createResponse uses generateObject with tool schema', () => {
     const openaiProvider = (model: string) => ({ model });
 
     const result = await createResponse({
-      openai: openaiProvider as any,
+      openai: openaiProvider as Record<string, unknown>,
       model: 'test-model',
       input: [],
-      tools: [OPENAGENT_RESPONSE_TOOL as any],
+      tools: [OPENAGENT_RESPONSE_TOOL as Record<string, unknown>],
     });
 
     expect(result).toBeTruthy();
@@ -45,10 +45,9 @@ describe('createResponse uses generateObject with tool schema', () => {
     expect(typeof providedSchema).toBe('object');
     expect('jsonSchema' in providedSchema).toBe(true);
 
-    const jsonSchema = (providedSchema as any).jsonSchema;
+    const jsonSchema = (providedSchema as Record<string, unknown>).jsonSchema;
     expect(jsonSchema).toBeTruthy();
     expect(jsonSchema).toHaveProperty('properties');
     expect(jsonSchema.properties).toHaveProperty('plan');
   });
 });
-

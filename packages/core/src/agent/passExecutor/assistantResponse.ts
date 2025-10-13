@@ -1,6 +1,6 @@
 import type { ChatMessageEntry } from '../historyEntry.js';
 import { createObservationHistoryEntry } from '../historyMessageBuilder.js';
-import type { ParseFailure, ParseResult } from '../responseParser.js';
+import type { ParseFailure } from '../responseParser.js';
 import type {
   AssistantResponseValidationResult,
   SchemaValidationResult,
@@ -206,4 +206,3 @@ export const evaluateAssistantResponse = (
 
   return success;
 };
-

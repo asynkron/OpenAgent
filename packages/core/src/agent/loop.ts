@@ -67,7 +67,11 @@ export function createAgentRuntime({
   getDebugFlag = () => false,
   setNoHumanFlag = () => {},
   emitAutoApproveStatus = false,
-  createHistoryCompactorFn = ({ openai: client, currentModel, logger }: CreateHistoryCompactorOptions) =>
+  createHistoryCompactorFn = ({
+    openai: client,
+    currentModel,
+    logger,
+  }: CreateHistoryCompactorOptions) =>
     new HistoryCompactor({
       openai: client,
       model: currentModel,
@@ -132,7 +136,7 @@ export function createAgentRuntime({
     idGeneratorFn,
     isDebugEnabled: () => Boolean(typeof getDebugFlag === 'function' && getDebugFlag()),
   });
-  const { emit, emitFactoryWarning, emitDebug, logWithFallback } = emitter;
+  const { emit, emitDebug } = emitter;
 
   const { buildGuardedRequestModelCompletion } = createPayloadGuard({ emitter });
 
@@ -175,7 +179,6 @@ export function createAgentRuntime({
   });
 
   const escState = escController.state;
-  const triggerEsc = escController.trigger;
   const detachEscListener = escController.detach;
 
   let openai: ResponsesClient;
@@ -237,7 +240,7 @@ export function createAgentRuntime({
   const historyCompactor: HistoryCompactor | HistoryCompactorLike | null =
     typeof createHistoryCompactorFn === 'function'
       ? createHistoryCompactorFn({
-          openai: (openai as unknown) as HistoryCompactorOptions['openai'],
+          openai: openai as unknown as HistoryCompactorOptions['openai'],
           currentModel: model,
           logger: (logger ?? console) as unknown as HistoryCompactorOptions['logger'],
         })

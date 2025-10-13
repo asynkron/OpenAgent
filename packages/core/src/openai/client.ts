@@ -41,9 +41,7 @@ export function getOpenAIClient(): OpenAIProvider {
   if (!memoizedClient) {
     const apiKey = process.env.AGENT_API_KEY || process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      throw new Error(
-        [MISSING_API_KEY_SUMMARY, '', MISSING_API_KEY_GUIDANCE].join('\n'),
-      );
+      throw new Error([MISSING_API_KEY_SUMMARY, '', MISSING_API_KEY_GUIDANCE].join('\n'));
     }
 
     const clientOptions = {

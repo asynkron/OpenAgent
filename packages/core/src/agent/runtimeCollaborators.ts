@@ -27,7 +27,9 @@ export interface PlanManagerBundleOptions {
   emitter: RuntimeEmitter;
   planManagerOptions: PlanManagerOptions;
   getPlanMergeFlag: () => boolean;
-  createPlanManagerFn?: (config: PlanManagerFactoryConfig) => ReturnType<typeof planManagerFactoryFallback>;
+  createPlanManagerFn?: (
+    config: PlanManagerFactoryConfig,
+  ) => ReturnType<typeof planManagerFactoryFallback>;
   createPlanAutoResponseTrackerFn?: () => PlanAutoResponseTracker | null;
 }
 
@@ -49,7 +51,10 @@ export const createPlanManagerBundle = ({
     getPlanMergeFlag,
   };
 
-  const planManager = initializeWithFactory<ReturnType<typeof planManagerFactoryFallback> | null, PlanManagerFactoryConfig>({
+  const planManager = initializeWithFactory<
+    ReturnType<typeof planManagerFactoryFallback> | null,
+    PlanManagerFactoryConfig
+  >({
     factory: createPlanManagerFn,
     fallback: planManagerFactoryFallback,
     config: planManagerConfig,
@@ -64,7 +69,7 @@ export const createPlanManagerBundle = ({
 
   const maybeTracker: PlanAutoResponseTracker | null =
     typeof createPlanAutoResponseTrackerFn === 'function'
-      ? createPlanAutoResponseTrackerFn() ?? null
+      ? (createPlanAutoResponseTrackerFn() ?? null)
       : null;
 
   const planAutoResponseTracker: PlanAutoResponseTracker =
@@ -118,11 +123,11 @@ export const createPromptCoordinatorBundle = ({
         trigger:
           typeof candidate.trigger === 'function'
             ? candidate.trigger
-            : fallbackEscController.trigger ?? null,
+            : (fallbackEscController.trigger ?? null),
         detach:
           typeof candidate.detach === 'function'
             ? candidate.detach
-            : fallbackEscController.detach ?? null,
+            : (fallbackEscController.detach ?? null),
       };
     }
   } catch (error) {
@@ -136,11 +141,17 @@ export const createPromptCoordinatorBundle = ({
 
   const promptCoordinatorConfig: PromptCoordinatorFactoryConfig = {
     emitEvent: (event) => emit(event),
-    escState: { ...escController.state, trigger: escController.trigger ?? escController.state.trigger },
+    escState: {
+      ...escController.state,
+      trigger: escController.trigger ?? escController.state.trigger,
+    },
     cancelFn,
   };
 
-  const promptCoordinator = initializeWithFactory<PromptCoordinatorLike, PromptCoordinatorFactoryConfig>({
+  const promptCoordinator = initializeWithFactory<
+    PromptCoordinatorLike,
+    PromptCoordinatorFactoryConfig
+  >({
     factory: createPromptCoordinatorFn,
     fallback: promptCoordinatorFactoryFallback,
     config: promptCoordinatorConfig,
@@ -169,7 +180,10 @@ export const createApprovalManager = ({
   createApprovalManagerFn,
   config,
 }: ApprovalManagerOptions): ReturnType<typeof approvalManagerFactoryFallback> =>
-  initializeWithFactory<ReturnType<typeof approvalManagerFactoryFallback>, ApprovalManagerFactoryConfig>({
+  initializeWithFactory<
+    ReturnType<typeof approvalManagerFactoryFallback>,
+    ApprovalManagerFactoryConfig
+  >({
     factory: createApprovalManagerFn,
     fallback: approvalManagerFactoryFallback,
     config,

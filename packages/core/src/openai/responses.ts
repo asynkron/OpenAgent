@@ -27,9 +27,7 @@ const RAW_REASONING = process.env.AGENT_REASONING_EFFORT ?? process.env.OPENAI_R
 const ENV_REASONING_EFFORT = normalizeReasoningEffort(RAW_REASONING);
 
 if (RAW_REASONING && !ENV_REASONING_EFFORT) {
-  console.warn(
-    'Reasoning effort env must be one of: low, medium, high. Ignoring invalid value.',
-  );
+  console.warn('Reasoning effort env must be one of: low, medium, high. Ignoring invalid value.');
 }
 
 export function getConfiguredReasoningEffort(): ReasoningEffort | null {

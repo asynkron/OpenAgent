@@ -73,9 +73,8 @@ export const planManagerFactoryFallback = (
 ): ReturnType<typeof createPlanManager> =>
   createPlanManager({ emit: config.emit, emitStatus: config.emitStatus });
 
-export const promptCoordinatorFactoryFallback = (
-  config: PromptCoordinatorFactoryConfig,
-) => new PromptCoordinator(config);
+export const promptCoordinatorFactoryFallback = (config: PromptCoordinatorFactoryConfig) =>
+  new PromptCoordinator(config);
 
 export const approvalManagerFactoryFallback = (config: ApprovalManagerFactoryConfig) =>
   new ApprovalManager(config);

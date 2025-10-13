@@ -17,7 +17,10 @@ import {
 import { refusalHeuristics } from './refusalDetection.js';
 import type { PlanManagerAdapter } from './planManagerAdapter.js';
 import type { PlanAutoResponseTracker } from './planReminderController.js';
-import { PLAN_REMINDER_AUTO_RESPONSE_LIMIT, createPlanReminderController } from './planReminderController.js';
+import {
+  PLAN_REMINDER_AUTO_RESPONSE_LIMIT,
+  createPlanReminderController,
+} from './planReminderController.js';
 import type { ChatMessageEntry } from '../historyEntry.js';
 import type { CommandResult } from '../observationBuilder.js';
 import type { ExecuteAgentPassOptions } from './types.js';
@@ -163,9 +166,7 @@ export class PlanRuntime {
     })();
 
     const exitCode =
-      typeof commandResult?.exit_code === 'number'
-        ? commandResult.exit_code
-        : alternateExitCode;
+      typeof commandResult?.exit_code === 'number' ? commandResult.exit_code : alternateExitCode;
 
     if (exitCode === 0 && planStep) {
       planStep.status = 'completed';
@@ -258,10 +259,13 @@ export class PlanRuntime {
     const trimmedMessage = parsedMessage.trim();
     const normalizedMessage = normalizeAssistantMessage(trimmedMessage);
     const activePlanEmpty = this.activePlan.length === 0;
-    const incomingPlanEmpty =
-      !this.initialIncomingPlan || this.initialIncomingPlan.length === 0;
+    const incomingPlanEmpty = !this.initialIncomingPlan || this.initialIncomingPlan.length === 0;
 
-    if (activePlanEmpty && incomingPlanEmpty && refusalHeuristics.isLikelyRefusalMessage(normalizedMessage)) {
+    if (
+      activePlanEmpty &&
+      incomingPlanEmpty &&
+      refusalHeuristics.isLikelyRefusalMessage(normalizedMessage)
+    ) {
       this.options.emitEvent?.({
         type: 'status',
         level: 'info',
@@ -289,7 +293,10 @@ export class PlanRuntime {
           message: this.options.planReminderMessage,
         });
         this.options.history.push(
-          createPlanReminderEntry({ planReminderMessage: this.options.planReminderMessage, pass: this.options.passIndex }),
+          createPlanReminderEntry({
+            planReminderMessage: this.options.planReminderMessage,
+            pass: this.options.passIndex,
+          }),
         );
         return 'continue';
       }
@@ -331,4 +338,3 @@ export class PlanRuntime {
     );
   }
 }
-

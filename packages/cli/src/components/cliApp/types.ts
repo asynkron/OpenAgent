@@ -8,8 +8,10 @@ import type {
   CommandResult,
 } from '../commandUtils.js';
 
-type RuntimeEventBase<Type extends string, Payload extends Record<string, unknown> = Record<string, unknown>> =
-  Payload & { type: Type; __id?: string | number };
+type RuntimeEventBase<
+  Type extends string,
+  Payload extends Record<string, unknown> = Record<string, unknown>,
+> = Payload & { type: Type; __id?: string | number };
 
 export type BannerRuntimeEvent = RuntimeEventBase<
   'banner',
@@ -28,13 +30,22 @@ export type PassRuntimeEvent = RuntimeEventBase<
 
 export type ThinkingRuntimeEvent = RuntimeEventBase<'thinking', { state?: string }>;
 
-export type AssistantMessageRuntimeEvent = RuntimeEventBase<'assistant-message', { message?: string }>;
+export type AssistantMessageRuntimeEvent = RuntimeEventBase<
+  'assistant-message',
+  { message?: string }
+>;
 
 export type PlanRuntimeEvent = RuntimeEventBase<'plan', { plan?: PlanStep[] | null }>;
 
-export type PlanProgressRuntimeEvent = RuntimeEventBase<'plan-progress', { progress?: PlanProgress | null }>;
+export type PlanProgressRuntimeEvent = RuntimeEventBase<
+  'plan-progress',
+  { progress?: PlanProgress | null }
+>;
 
-export type ContextUsageRuntimeEvent = RuntimeEventBase<'context-usage', { usage?: ContextUsage | null }>;
+export type ContextUsageRuntimeEvent = RuntimeEventBase<
+  'context-usage',
+  { usage?: ContextUsage | null }
+>;
 
 export type CommandResultRuntimeEvent = RuntimeEventBase<
   'command-result',
@@ -60,7 +71,10 @@ export type RequestInputRuntimeEvent = RuntimeEventBase<
   { prompt?: string; metadata?: unknown }
 >;
 
-export type DebugRuntimeEvent = RuntimeEventBase<'debug', { payload?: unknown; id?: string | number }>;
+export type DebugRuntimeEvent = RuntimeEventBase<
+  'debug',
+  { payload?: unknown; id?: string | number }
+>;
 
 export type UnknownRuntimeEvent = RuntimeEventBase<string>;
 
@@ -135,7 +149,10 @@ export type TimelineEntry =
 
 export type TimelineEntryType = TimelineEntry['type'];
 
-export type TimelinePayload<Type extends TimelineEntryType> = Extract<TimelineEntry, { type: Type }>['payload'];
+export type TimelinePayload<Type extends TimelineEntryType> = Extract<
+  TimelineEntry,
+  { type: Type }
+>['payload'];
 
 export type DebugEntry = {
   id: string | number;
@@ -178,4 +195,3 @@ export type CommandPanelEvent = {
   id: string | number;
   content: string;
 };
-

@@ -128,31 +128,48 @@ export class CommandRuntime {
   constructor(private readonly options: CommandRuntimeOptions) {}
 
   async execute(candidate: ExecutableCandidate): Promise<'continue' | 'stop'> {
+    const { planStep, command, normalizedRun } = this.prepareCommand(candidate);
+    
+    const approvalResult = await ensureCommandApproval(this.options, command, planStep);
+    if (approvalResult === 'rejected') {
+      return 'stop';
+    }
+
+    const commandOutcome = await this.executeCommand(command, planStep);
+    const commandResult = commandOutcome.result as CommandResult;
+
+    await this.recordCommandStats(command, normalizedRun);
+    await this.processCommandResult(command, commandResult, commandOutcome, planStep);
+
+    return 'continue';
+  }
+
+  private prepareCommand(candidate: ExecutableCandidate) {
     const { step: planStepCandidate, command } = candidate;
-    const planStep = planStepCandidate && typeof planStepCandidate === 'object' ? planStepCandidate : null;
+    const planStep =
+      planStepCandidate && typeof planStepCandidate === 'object' ? planStepCandidate : null;
 
     const normalizedRun = typeof command.run === 'string' ? command.run.trim() : '';
     if (normalizedRun && command.run !== normalizedRun) {
       command.run = normalizedRun;
     }
 
-    const approvalResult = await ensureCommandApproval(this.options, command, planStep);
-    if (approvalResult === 'rejected') {
-      return 'stop';
-    }
+    return { planStep, command, normalizedRun };
+  }
 
+  private async executeCommand(command: ExecutableCandidate['command'], planStep: ExecutableCandidate['step'] | null) {
     this.options.planRuntime.markCommandRunning(planStep);
     this.options.planRuntime.emitPlanSnapshot();
 
-    const commandOutcome = await executeCommandSafely(
+    return await executeCommandSafely(
       this.options.executeAgentCommandFn,
       this.options.runCommandFn,
       command,
       this.options.emitEvent,
     );
+  }
 
-    const commandResult = commandOutcome.result as CommandResult;
-
+  private async recordCommandStats(command: ExecutableCandidate['command'], normalizedRun: string) {
     try {
       await this.options.incrementCommandCountFn(deriveCommandKey(command, normalizedRun));
     } catch (error) {
@@ -163,7 +180,14 @@ export class CommandRuntime {
         details: error instanceof Error ? error.message : String(error),
       });
     }
+  }
 
+  private async processCommandResult(
+    command: ExecutableCandidate['command'],
+    commandResult: CommandResult,
+    commandOutcome: CommandRunOutcome,
+    planStep: ExecutableCandidate['step'] | null,
+  ) {
     const { renderPayload, observation } = this.options.observationBuilder.build({
       command,
       result: commandResult,
@@ -192,11 +216,8 @@ export class CommandRuntime {
     });
 
     this.options.planRuntime.emitPlanSnapshot();
-
-    return 'continue';
   }
 }
 
 export const createCommandRuntime = (options: CommandRuntimeOptions): CommandRuntime =>
   new CommandRuntime(options);
-

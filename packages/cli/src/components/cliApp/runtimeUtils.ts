@@ -1,4 +1,9 @@
-import type { AgentRuntimeLike, CliAppProps, StatusRuntimeEvent, TimelineStatusPayload } from './types.js';
+import type {
+  AgentRuntimeLike,
+  CliAppProps,
+  StatusRuntimeEvent,
+  TimelineStatusPayload,
+} from './types.js';
 
 /**
  * Clone runtime payloads so downstream React state updates always receive a new
@@ -13,7 +18,7 @@ export function cloneValue<T>(value: T): T {
   if (typeof structuredClone === 'function') {
     try {
       return structuredClone(value);
-    } catch (error) {
+    } catch (_error) {
       // Swallow the error and fall through to the JSON fallback below. Calling
       // `structuredClone` can fail for objects with functions/symbols.
     }
@@ -35,8 +40,7 @@ export function parsePositiveInteger(value: unknown, defaultValue = 1): number {
     return defaultValue;
   }
 
-  const normalized =
-    typeof value === 'number' ? value : Number.parseInt(String(value).trim(), 10);
+  const normalized = typeof value === 'number' ? value : Number.parseInt(String(value).trim(), 10);
 
   if (!Number.isFinite(normalized) || normalized <= 0) {
     return defaultValue;
@@ -50,7 +54,11 @@ export function parsePositiveInteger(value: unknown, defaultValue = 1): number {
  * events without a user-visible message to avoid empty rows in the UI.
  */
 export function normalizeStatus(
-  event: StatusRuntimeEvent | { message?: string; level?: string; details?: unknown } | null | undefined,
+  event:
+    | StatusRuntimeEvent
+    | { message?: string; level?: string; details?: unknown }
+    | null
+    | undefined,
 ): TimelineStatusPayload | null {
   if (!event || typeof event !== 'object') {
     return null;
@@ -87,4 +95,3 @@ export function coerceRuntime(runtime: CliAppProps['runtime']): AgentRuntimeLike
 
   return runtime as AgentRuntimeLike;
 }
-

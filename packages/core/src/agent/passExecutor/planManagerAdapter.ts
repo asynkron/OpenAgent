@@ -2,7 +2,9 @@ import type { PlanStep } from './planExecution.js';
 
 export interface PlanManagerLike {
   isMergingEnabled?: () => boolean | Promise<boolean>;
-  update?: (plan: PlanStep[] | null | undefined) => PlanStep[] | null | undefined | Promise<PlanStep[] | null | undefined>;
+  update?: (
+    plan: PlanStep[] | null | undefined,
+  ) => PlanStep[] | null | undefined | Promise<PlanStep[] | null | undefined>;
   get?: () => PlanStep[] | null | undefined | Promise<PlanStep[] | null | undefined>;
   reset?: () => PlanStep[] | null | undefined | Promise<PlanStep[] | null | undefined>;
   sync?: (plan: PlanStep[] | null | undefined) => void | Promise<void>;
@@ -25,11 +27,8 @@ export const createPlanManagerAdapter = (
   }
 
   const isMergingEnabledFn =
-    typeof manager.isMergingEnabled === 'function'
-      ? manager.isMergingEnabled.bind(manager)
-      : null;
-  const updateFn =
-    typeof manager.update === 'function' ? manager.update.bind(manager) : null;
+    typeof manager.isMergingEnabled === 'function' ? manager.isMergingEnabled.bind(manager) : null;
+  const updateFn = typeof manager.update === 'function' ? manager.update.bind(manager) : null;
   const getFn = typeof manager.get === 'function' ? manager.get.bind(manager) : null;
   const resetFn = typeof manager.reset === 'function' ? manager.reset.bind(manager) : null;
   const syncFn = typeof manager.sync === 'function' ? manager.sync.bind(manager) : null;

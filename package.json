@@ -19,6 +19,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "fta": "fta packages --json | jq 'map(select(.assessment != \"OK\"))'",
+    "fta-table": "fta packages",
     "preformat": "",
     "preformat:check": "",
     "prelint": "",

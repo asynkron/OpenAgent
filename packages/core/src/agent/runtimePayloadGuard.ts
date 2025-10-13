@@ -11,7 +11,10 @@ import type {
   HistorySnapshot,
   RuntimeEmitter,
 } from './runtimeTypes.js';
-import type { GuardRequestPayloadSizeFn, GuardRequestPayloadSizeInput } from './passExecutor/prePassTasks.js';
+import type {
+  GuardRequestPayloadSizeFn,
+  GuardRequestPayloadSizeInput,
+} from './passExecutor/prePassTasks.js';
 
 interface PayloadGuardConfig {
   historyDumpRoot?: string;
@@ -54,9 +57,13 @@ const estimateRequestPayloadSize = (
     const serialized = JSON.stringify(payload);
     return typeof serialized === 'string' ? Buffer.byteLength(serialized, 'utf8') : null;
   } catch (error) {
-    emitter.logWithFallback('warn', '[failsafe] Unable to estimate OpenAI payload size before request.', {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    emitter.logWithFallback(
+      'warn',
+      '[failsafe] Unable to estimate OpenAI payload size before request.',
+      {
+        error: error instanceof Error ? error.message : String(error),
+      },
+    );
     return null;
   }
 };

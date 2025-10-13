@@ -1,10 +1,6 @@
-import {
-  createMarkdownDisplay,
-  type MarkdownDisplayApi,
-} from '../components/markdown_display.js';
+import { createMarkdownDisplay, type MarkdownDisplayApi } from '../components/markdown_display.js';
 import { createPlanDisplay, type PlanStep } from '../components/plan_display.js';
 import {
-  isApprovalNotification,
   normaliseText,
   type AgentCommandPayload,
   type AgentEventPayload,
