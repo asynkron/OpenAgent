@@ -55,6 +55,9 @@ export interface PlanManagerOptions {
 
 const defaultClone = (plan: PlanTree): PlanTree => clonePlanTree(plan);
 
+const isErrorWithCode = (value: unknown): value is { code?: unknown } =>
+  Boolean(value) && typeof value === 'object' && 'code' in value;
+
 function formatStatusEvent(level: string, message: string, details?: unknown) {
   const event: { type: 'status'; level: string; message: string; details?: unknown } = {
     type: 'status',
@@ -135,8 +138,8 @@ export function createPlanManager({
 
       const parsed = deserializePlanFn(raw);
       activePlan = clonePlan(parsed);
-    } catch (error: any) {
-      if (error && typeof error === 'object' && error.code === 'ENOENT') {
+    } catch (error: unknown) {
+      if (isErrorWithCode(error) && typeof error.code === 'string' && error.code === 'ENOENT') {
         return;
       }
 

@@ -16,8 +16,7 @@
 import AjvModule, { type ErrorObject } from 'ajv';
 import { RESPONSE_PARAMETERS_SCHEMA } from './responseToolSchema.js';
 
-const AjvConstructor = AjvModule as unknown as { new (options?: Record<string, unknown>): any };
-const ajv = new AjvConstructor({ allErrors: true, strict: false });
+const ajv = new AjvModule({ allErrors: true, strict: false });
 const schemaValidator = ajv.compile(RESPONSE_PARAMETERS_SCHEMA);
 
 export interface SchemaValidationError {

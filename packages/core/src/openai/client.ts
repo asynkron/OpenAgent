@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * OpenAI client factory shared across the CLI runtime.
  *
@@ -11,7 +10,7 @@
  * - Unit tests call `resetOpenAIClient()` via the root `index.js` re-export when they need a clean slate.
  */
 
-import { createOpenAI } from '@ai-sdk/openai';
+import { createOpenAI, type OpenAIProvider } from '@ai-sdk/openai';
 
 const LEGACY_CHAT_COMPLETION_MODELS = [/^gpt-3\.5-turbo/, /^text-davinci/i];
 
@@ -26,12 +25,19 @@ const MISSING_OPENAI_API_KEY_GUIDANCE = [
   'Need help finding your key? https://platform.openai.com/api-keys',
 ].join('\n');
 
-let memoizedClient = null;
-let resolvedConfig = resolveConfiguration();
+interface ResolvedConfiguration {
+  model: string;
+  baseURL: string | null;
+  timeout: number | undefined;
+  maxRetries: number | undefined;
+}
 
-export let MODEL = resolvedConfig.model;
+let memoizedClient: OpenAIProvider | null = null;
+let resolvedConfig: ResolvedConfiguration = resolveConfiguration();
 
-export function getOpenAIClient() {
+export let MODEL: string = resolvedConfig.model;
+
+export function getOpenAIClient(): OpenAIProvider {
   if (!memoizedClient) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
@@ -43,20 +49,20 @@ export function getOpenAIClient() {
     const clientOptions = {
       apiKey,
       baseURL: resolvedConfig.baseURL || undefined,
-    };
+    } satisfies Parameters<typeof createOpenAI>[0];
 
     memoizedClient = createOpenAI(clientOptions);
   }
   return memoizedClient;
 }
 
-export function resetOpenAIClient() {
+export function resetOpenAIClient(): void {
   memoizedClient = null;
   resolvedConfig = resolveConfiguration();
   MODEL = resolvedConfig.model;
 }
 
-function resolveConfiguration() {
+function resolveConfiguration(): ResolvedConfiguration {
   const { model, baseURL } = validateModelConfiguration();
 
   return {
@@ -67,7 +73,7 @@ function resolveConfiguration() {
   };
 }
 
-function validateModelConfiguration() {
+function validateModelConfiguration(): { model: string; baseURL: string | null } {
   const configuredModel = process.env.OPENAI_MODEL;
   const legacyChatModel = process.env.OPENAI_CHAT_MODEL;
 
@@ -112,7 +118,7 @@ function validateModelConfiguration() {
   return { model: selectedModel, baseURL };
 }
 
-function parseTimeout(rawValue) {
+function parseTimeout(rawValue: string | undefined): number | undefined {
   if (typeof rawValue === 'undefined') {
     return undefined;
   }
@@ -125,7 +131,7 @@ function parseTimeout(rawValue) {
   return parsed;
 }
 
-function parseMaxRetries(rawValue) {
+function parseMaxRetries(rawValue: string | undefined): number | undefined {
   if (typeof rawValue === 'undefined') {
     return undefined;
   }
@@ -144,7 +150,12 @@ export default {
   MODEL,
 };
 
-export function getOpenAIRequestSettings() {
+export interface OpenAIRequestSettings {
+  timeoutMs: number | null;
+  maxRetries: number | null;
+}
+
+export function getOpenAIRequestSettings(): OpenAIRequestSettings {
   return {
     timeoutMs: resolvedConfig.timeout ?? null,
     maxRetries: resolvedConfig.maxRetries ?? null,

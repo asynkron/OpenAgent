@@ -18,6 +18,7 @@ import type {
   ObservationForLLM,
   ObservationMetadata,
 } from './historyMessageBuilder.js';
+import type { AssistantCommand } from './responseParser.js';
 
 export interface ObservationRenderPayload {
   stdout: string;
@@ -32,7 +33,7 @@ export type ObservationPayload = ObservationRecord & {
 };
 
 export interface BuildObservationOptions {
-  command?: Record<string, any>;
+  command?: AssistantCommand | null;
   result: CommandResult;
 }
 

@@ -286,17 +286,14 @@ export function createChatService({
   }
 
   function appendMessage(role: AgentRole, text: string): void {
-    if (!messageList || !text) {
+    if (!text) {
       return;
     }
 
-    ensureConversationStarted();
-
-    const wrapper = documentRef.createElement('div');
-    wrapper.className = `agent-message agent-message--${role}`;
-
-    const bubble = documentRef.createElement('div');
-    bubble.className = 'agent-message-bubble';
+    const { wrapper, bubble } = createMessageContainer(
+      `agent-message agent-message--${role}`,
+      'agent-message-bubble',
+    );
 
     if (role === 'agent') {
       const markdownDisplay: MarkdownDisplayApi = createMarkdownDisplay({
@@ -312,10 +309,7 @@ export function createChatService({
       bubble.textContent = text;
     }
 
-    wrapper.appendChild(bubble);
-    messageList.appendChild(wrapper);
-
-    scrollToLatest();
+    appendMessageWrapper(wrapper);
   }
 
   // Normalise event payload text once so downstream display logic stays consistent.
@@ -402,11 +396,31 @@ export function createChatService({
     container.appendChild(element);
   };
 
-  function appendEvent(eventType: string, payload: AgentEventPayload = {}): void {
+  const createMessageContainer = (
+    wrapperClass: string,
+    bubbleClass: string,
+  ): { wrapper: HTMLElement; bubble: HTMLElement } => {
+    const wrapper = documentRef.createElement('div');
+    wrapper.className = wrapperClass;
+
+    const bubble = documentRef.createElement('div');
+    bubble.className = bubbleClass;
+    wrapper.appendChild(bubble);
+
+    return { wrapper, bubble };
+  };
+
+  const appendMessageWrapper = (wrapper: HTMLElement): void => {
     if (!messageList) {
       return;
     }
 
+    ensureConversationStarted();
+    messageList.appendChild(wrapper);
+    scrollToLatest();
+  };
+
+  function appendEvent(eventType: string, payload: AgentEventPayload = {}): void {
     if (isApprovalNotification(payload)) {
       return;
     }
@@ -418,19 +432,16 @@ export function createChatService({
       return;
     }
 
-    ensureConversationStarted();
-
-    const wrapper = documentRef.createElement('div');
-    wrapper.className = 'agent-message agent-message--event';
+    const { wrapper, bubble } = createMessageContainer(
+      'agent-message agent-message--event',
+      'agent-message-bubble agent-message-bubble--event',
+    );
     if (eventType) {
       wrapper.dataset.eventType = eventType;
     }
     if (payload.level) {
       wrapper.dataset.level = payload.level;
     }
-
-    const bubble = documentRef.createElement('div');
-    bubble.className = 'agent-message-bubble agent-message-bubble--event';
 
     appendTextBlock(bubble, 'agent-event-title', display.header);
     if (display.body && (!display.header || display.body !== display.header)) {
@@ -447,10 +458,7 @@ export function createChatService({
       bubble.appendChild(meta);
     }
 
-    wrapper.appendChild(bubble);
-    messageList.appendChild(wrapper);
-
-    scrollToLatest();
+    appendMessageWrapper(wrapper);
   }
 
   function appendCommand(payload?: AgentCommandPayload | null): void {
@@ -465,13 +473,10 @@ export function createChatService({
     const preview = normalisePreview(command?.preview);
     const workingDirectory = normaliseText(command?.workingDirectory).trim();
 
-    ensureConversationStarted();
-
-    const wrapper = documentRef.createElement('div');
-    wrapper.className = 'agent-message agent-message--command';
-
-    const bubble = documentRef.createElement('div');
-    bubble.className = 'agent-message-bubble agent-message-bubble--command';
+    const { wrapper, bubble } = createMessageContainer(
+      'agent-message agent-message--command',
+      'agent-message-bubble agent-message-bubble--command',
+    );
 
     const header = documentRef.createElement('div');
     header.className = 'agent-command-header';
@@ -511,9 +516,7 @@ export function createChatService({
       }
     }
 
-    wrapper.appendChild(bubble);
-    messageList.appendChild(wrapper);
-    scrollToLatest();
+    appendMessageWrapper(wrapper);
   }
 
   function updatePanelState(): void {

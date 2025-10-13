@@ -25,6 +25,8 @@
 - Plan management persists state to `.openagent/plan.json` and supports optional plan merging while leaving execution-time status changes in memory until the next assistant response.
 - Approval flow separates policy (`services/commandApprovalService.js`) from human interaction logic.
 - Tests now rely on dependency injection to stub the OpenAI client, so local runs do not require a real API key.
+- Lint now runs clean across the runtime: observation building, OpenAI request orchestration, the pass executor, plan manager, and response validator share explicit types and error guards instead of `any` fallbacks.
+- The OpenAI request wrapper now leans on the AI SDK response types so cancellation paths and completion payloads are validated at compile time.
 
 ## Risks / Gaps
 

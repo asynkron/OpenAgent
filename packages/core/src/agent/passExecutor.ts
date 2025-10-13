@@ -25,18 +25,52 @@ import {
   createRefusalAutoResponseEntry,
 } from './historyMessageBuilder.js';
 import type { EscState } from './escState.js';
+import type { AgentCommandContext } from './commandExecution.js';
+import type { ApprovalManager } from './approvalManager.js';
+import type { HistoryCompactor } from './historyCompactor.js';
 import {
   clonePlanForExecution,
   collectExecutablePlanSteps,
   ensurePlanStepAge,
   getPriorityScore,
-  hasCommandPayload,
   incrementRunningPlanStepAges,
   type PlanStep,
+  type ExecutablePlanStep,
 } from './passExecutor/planExecution.js';
 import { refusalHeuristics } from './passExecutor/refusalDetection.js';
 
 type UnknownRecord = Record<string, unknown>;
+
+interface PlanAutoResponseTracker {
+  increment: () => number;
+  reset: () => void;
+  getCount?: () => number;
+}
+
+interface PlanManagerLike {
+  isMergingEnabled?: () => boolean | Promise<boolean>;
+  update?: (plan: PlanStep[] | null | undefined) => Promise<unknown>;
+  get?: () => unknown;
+  reset?: () => Promise<unknown>;
+  sync?: (plan: PlanStep[] | null | undefined) => Promise<unknown>;
+}
+
+type PlanManagerMethod = ((...args: unknown[]) => unknown) | null | undefined;
+
+const createPlanManagerInvoker =
+  (manager: PlanManagerLike) =>
+  (method: PlanManagerMethod, ...args: unknown[]): unknown => {
+    if (typeof method !== 'function') {
+      return undefined;
+    }
+
+    return method.call(manager, ...args);
+  };
+
+interface ExecutableCandidate extends ExecutablePlanStep {
+  index: number;
+  priority: number;
+}
 
 const PLAN_REMINDER_AUTO_RESPONSE_LIMIT = 3;
 
@@ -52,7 +86,7 @@ export interface ExecuteAgentPassOptions {
   history: ChatMessageEntry[];
   emitEvent?: (event: UnknownRecord) => void;
   onDebug?: ((payload: UnknownRecord) => void) | null;
-  runCommandFn: (...args: any[]) => Promise<UnknownRecord>;
+  runCommandFn: AgentCommandContext['runCommandFn'];
   applyFilterFn: (text: string, regex: string) => string;
   tailLinesFn: (text: string, lines: number) => string;
   getNoHumanFlag?: () => boolean;
@@ -61,11 +95,11 @@ export interface ExecuteAgentPassOptions {
   startThinkingFn: () => void;
   stopThinkingFn: () => void;
   escState: EscState | null;
-  approvalManager: any;
-  historyCompactor: any;
-  planManager: any;
+  approvalManager: ApprovalManager | null;
+  historyCompactor: HistoryCompactor | null;
+  planManager: PlanManagerLike | null;
   emitAutoApproveStatus?: boolean;
-  planAutoResponseTracker?: any;
+  planAutoResponseTracker?: PlanAutoResponseTracker | null;
   passIndex: number;
   requestModelCompletionFn?: typeof defaultRequestModelCompletion;
   executeAgentCommandFn?: typeof defaultExecuteAgentCommand;
@@ -166,10 +200,7 @@ export async function executeAgentPass({
   });
 
   const invokePlanManager =
-    planManager && typeof planManager === 'object'
-      ? (method: any, ...args: any[]) =>
-          typeof method === 'function' ? method.call(planManager, ...args) : undefined
-      : null;
+    planManager && typeof planManager === 'object' ? createPlanManagerInvoker(planManager) : null;
 
   if (typeof guardRequestPayloadSizeFn === 'function') {
     try {
@@ -296,7 +327,9 @@ export async function executeAgentPass({
   const parsed = parseResult.value;
 
   const planAutoResponder =
-    planAutoResponseTracker && typeof planAutoResponseTracker === 'object'
+    planAutoResponseTracker &&
+    typeof planAutoResponseTracker.increment === 'function' &&
+    typeof planAutoResponseTracker.reset === 'function'
       ? planAutoResponseTracker
       : null;
 
@@ -460,7 +493,7 @@ export async function executeAgentPass({
 
   let planMutatedDuringExecution = false;
 
-  const selectNextExecutableEntry = (): any => {
+  const selectNextExecutableEntry = (): ExecutableCandidate | null => {
     const candidates = collectExecutablePlanSteps(activePlan).map((entry, index) => ({
       ...entry,
       index,
