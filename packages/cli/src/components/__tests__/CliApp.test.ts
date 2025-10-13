@@ -10,7 +10,7 @@ jest.unstable_mockModule('@asynkron/openagent-core', () => ({
   cancel: cancelMock,
 }));
 
-jest.unstable_mockModule('../AskHuman.ts', () => ({
+jest.unstable_mockModule('../AskHuman.tsx', () => ({
   __esModule: true,
   default: (props) => {
     latestAskHumanProps = props;
@@ -18,7 +18,7 @@ jest.unstable_mockModule('../AskHuman.ts', () => ({
   },
 }));
 
-const { default: CliApp } = await import('../CliApp.ts');
+const { default: CliApp } = await import('../CliApp.tsx');
 
 function createRuntimeHarness() {
   const queue = [];

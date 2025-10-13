@@ -50,12 +50,17 @@ jest.unstable_mockModule = (specifier, factory, options) => {
       }
 
       if (rewrittenSpecifier.endsWith('.js')) {
-        const tsCandidate = targetPath.replace(/\.js$/, '.ts');
         const jsExists = fs.existsSync(targetPath);
-        if (!jsExists && fs.existsSync(tsCandidate)) {
-          // Tests mock against the TypeScript sources; rewrite specifiers when the
-          // compiled JavaScript sibling is absent so Babel can resolve the module.
-          rewrittenSpecifier = rewrittenSpecifier.replace(/\.js$/, '.ts');
+        if (!jsExists) {
+          const replacementExt = ['.ts', '.tsx', '.jsx'].find((extension) =>
+            fs.existsSync(targetPath.replace(/\.js$/, extension)),
+          );
+
+          if (replacementExt) {
+            // Tests mock against the TypeScript/TSX sources; rewrite specifiers when the
+            // compiled JavaScript sibling is absent so Babel can resolve the module.
+            rewrittenSpecifier = rewrittenSpecifier.replace(/\.js$/, replacementExt);
+          }
         }
       }
 

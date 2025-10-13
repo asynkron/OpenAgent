@@ -11,7 +11,7 @@ export default {
   testEnvironment: 'node',
   setupFilesAfterEnv: ['<rootDir>/tests/mockOpenAI.ts'],
   roots: ['<rootDir>/packages', '<rootDir>/tests'],
-  extensionsToTreatAsEsm: ['.ts'],
+  extensionsToTreatAsEsm: ['.ts', '.tsx'],
   moduleNameMapper: {
     '^@asynkron/openagent-core$': '<rootDir>/packages/core/dist/index.js',
     '^ai$': '<rootDir>/tests/stubs/ai.ts',
@@ -24,6 +24,7 @@ export default {
       {
         presets: [
           ['@babel/preset-env', { targets: { node: 'current' }, modules: false }],
+          ['@babel/preset-react', { runtime: 'automatic' }],
           ['@babel/preset-typescript', { allowDeclareFields: true }],
         ],
         plugins: [replaceJsExtensionsPlugin],

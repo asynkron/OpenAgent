@@ -6,23 +6,24 @@
 
 ## Key Components
 
-- `CliApp.js` — top-level Ink tree that wires agent runtime events into UI sections and clears completed plans from the timeline once the human submits a fresh prompt. Auto-response debug payloads (schema/protocol validation failures) now surface as warn-level timeline entries so humans get a concise summary without enabling `--debug`.
+- `CliApp.tsx` — top-level Ink tree that wires agent runtime events into UI sections and clears completed plans from the timeline once the human submits a fresh prompt. Auto-response debug payloads (schema/protocol validation failures) now surface as warn-level timeline entries so humans get a concise summary without enabling `--debug`.
   Incoming runtime payloads are cloned before being stored so late mutations inside the agent loop can’t stall Ink re-renders, including deep-cloning plan updates so React always receives a fresh reference when the runtime mutates the active plan in place. Timeline rows now key off their locally generated identifiers so Ink’s `Static` log never suppresses new events when the runtime reuses ids during streaming updates.
-- `AgentResponse.ts`, `HumanMessage.ts`, `StatusMessage.ts` — render conversational messages with markdown support.
-- `Plan.ts`, `PlanDetail.ts` — visualize plan trees; `Plan.ts` focuses solely on hierarchical steps while the standalone `PlanProgress.ts` helper can still render aggregated progress when a caller opts in. Plan detail rows surface each step's current `age` alongside a truncated `command.run` preview so humans can quickly see what the agent intends to execute, and the status/age metadata now renders inline on the header row using a hyphen separator instead of a secondary bullet line.
-- `Command.ts`, `renderCommand.ts`, `commandUtils.ts` — pretty-print shell commands with highlights and approval status. `Command.ts` now extracts any `*** Begin Patch` / `*** End Patch` sections from `command.run`, renders them in `diff` code fences via the shared markdown renderer, and preserves surrounding text segments.
-- `ContextUsage.ts` — displays token usage (remaining context window) tracked by `contextUsage` utilities.
-- `DebugPanel.ts`, `ThinkingIndicator.ts` — optional diagnostics and spinner overlays; the debug panel renders payloads via the shared markdown renderer using `json` code fences so debug data is syntax-highlighted.
-- `InkTextArea.ts`, `AskHuman.ts` — capture human inputs and approval decisions. The text area memoizes its `useInput` handler so keystrokes always update correctly, tracks terminal resizes to rebuild width-aware rows (with newline handling) via `transformToRows`, expands to the available terminal width, respects horizontal padding when computing wrap width, filters slash menu matches by enforcing that every query token appears in a label/keyword/insertValue (preventing parenthetical examples from matching too broadly), handles Shift+Enter (including escape-based sequences) as a newline insertion rather than a submit, normalizes carriage-return/CRLF breaks when mapping strings to rows, emits explicit ANSI inverse markers for the currently highlighted slash command so the selection remains visible even when chalk-style color detection is disabled, and includes an inline debug readout (caret position, last key, modifier state, effective width from props/stdout). AskHuman seeds default slash-menu shortcuts (model changes, reasoning effort, help) through `HUMAN_SLASH_COMMANDS` so humans get guided completions when typing `/` and now surfaces the active reasoning pass counter alongside the input hint when the runtime emits `pass` events. Supporting helpers now live in `inkTextArea/commands.ts` and `inkTextArea/layout.ts` to keep slash-command parsing and layout math isolated for reuse and testing.
-- `CliApp.ts` — still orchestrates the Ink tree, but reusable utilities (history persistence, debug summarisation, bounded list helpers) now live alongside it under `cliApp/` so event handlers stay lean.
+- `AgentResponse.tsx`, `HumanMessage.tsx`, `StatusMessage.tsx` — render conversational messages with markdown support.
+- `Plan.tsx`, `PlanDetail.tsx` — visualize plan trees; `Plan.tsx` focuses solely on hierarchical steps while the standalone `PlanProgress.tsx` helper can still render aggregated progress when a caller opts in. Plan detail rows surface each step's current `age` alongside a truncated `command.run` preview so humans can quickly see what the agent intends to execute, and the status/age metadata now renders inline on the header row using a hyphen separator instead of a secondary bullet line.
+- `Command.tsx`, `commandUtils.ts` — pretty-print shell commands with highlights and approval status. `Command.tsx` now extracts any `*** Begin Patch` / `*** End Patch` sections from `command.run`, renders them in `diff` code fences via the shared markdown renderer, and preserves surrounding text segments.
+- `ContextUsage.tsx` — displays token usage (remaining context window) tracked by `contextUsage` utilities.
+- `DebugPanel.tsx`, `ThinkingIndicator.tsx` — optional diagnostics and spinner overlays; the debug panel renders payloads via the shared markdown renderer using `json` code fences so debug data is syntax-highlighted.
+- `InkTextArea.tsx`, `AskHuman.tsx` — capture human inputs and approval decisions. The text area memoizes its `useInput` handler so keystrokes always update correctly, tracks terminal resizes to rebuild width-aware rows (with newline handling) via `transformToRows`, expands to the available terminal width, respects horizontal padding when computing wrap width, filters slash menu matches by enforcing that every query token appears in a label/keyword/insertValue (preventing parenthetical examples from matching too broadly), handles Shift+Enter (including escape-based sequences) as a newline insertion rather than a submit, normalizes carriage-return/CRLF breaks when mapping strings to rows, emits explicit ANSI inverse markers for the currently highlighted slash command so the selection remains visible even when chalk-style color detection is disabled, and includes an inline debug readout (caret position, last key, modifier state, effective width from props/stdout). AskHuman seeds default slash-menu shortcuts (model changes, reasoning effort, help) through `HUMAN_SLASH_COMMANDS` so humans get guided completions when typing `/` and now surfaces the active reasoning pass counter alongside the input hint when the runtime emits `pass` events. Supporting helpers now live in `inkTextArea/commands.ts` and `inkTextArea/layout.ts` to keep slash-command parsing and layout math isolated for reuse and testing.
+- `CliApp.tsx` — still orchestrates the Ink tree, but reusable utilities (history persistence, debug summarisation, bounded list helpers) now live alongside it under `cliApp/` so event handlers stay lean.
 
-- `CliApp.js` retains the active input request after local slash commands are handled so that the next human prompt continues to flow to the runtime/OpenAI instead of being intercepted as another slash command.
+- `CliApp.tsx` retains the active input request after local slash commands are handled so that the next human prompt continues to flow to the runtime/OpenAI instead of being intercepted as another slash command.
 
 ## Positive Signals
 
 - Components are decomposed by concern, enabling targeted tests and easier adjustments to CLI layout.
 - Utilities centralize formatting (e.g., `progressUtils.js`) to keep visual logic consistent across components.
 - Display-focused components (plan/command/status renderers) now compile with TypeScript checks, reducing reliance on `@ts-nocheck` to the interactive shells (`CliApp`, `InkTextArea`, `AskHuman`).
+- `PlanDetail` test coverage exercises command preview rendering and age fallbacks directly against the TSX source so Jest/ESM resolution stays aligned with the component.
 
 ## Risks / Gaps
 
@@ -41,9 +42,9 @@
   intrinsic sizing. Locally generated entry ids drive Ink’s `Static` keys so duplicate runtime identifiers from
   streaming updates do not block new rows, and assistant entries still reuse the originating runtime `__id`
   as their React key to prevent memoized subtrees from resetting.
-- `Command.ts` now treats theme-driven style props as typed records instead of loose `any` maps, keeping the lint
+- `Command.tsx` now treats theme-driven style props as typed records instead of loose `any` maps, keeping the lint
   surface clean while preserving the flexible merge behaviour required by theme overrides.
-- `CliApp.ts` keeps lint noise down by only importing the history snapshot helper that remains in use; the unused
+- `CliApp.tsx` keeps lint noise down by only importing the history snapshot helper that remains in use; the unused
   resolver import has been trimmed.
 - InkTextArea regression tests live in focused suites (`InkTextArea.input.test.ts`, `InkTextArea.slash-menu.test.ts`,
   `InkTextArea.transform.test.ts`) with shared helpers under `test-utils/` so caret/command behaviours can evolve

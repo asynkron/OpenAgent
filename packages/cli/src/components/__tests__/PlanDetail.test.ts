@@ -2,7 +2,7 @@
 import React from 'react';
 import { describe, expect, test } from '@jest/globals';
 import { render } from 'ink-testing-library';
-import PlanDetail from '../PlanDetail.ts';
+import PlanDetail from '../PlanDetail.tsx';
 
 const ESC = String.fromCharCode(27);
 const ANSI_ESCAPE_PATTERN = new RegExp(`${ESC}\\[[0-9;]*m`, 'g');

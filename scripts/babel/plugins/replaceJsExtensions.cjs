@@ -4,8 +4,8 @@ const path = require('node:path');
 /**
  * Jest runs directly against the TypeScript sources, but the CLI package keeps
  * `.js` import specifiers so the emitted ESM stays Node-compatible. During the
- * tests there are no `.js` siblings, so we rewrite specifiers to `.ts` when a
- * matching source file exists. At runtime the compiled output still preserves
+ * tests there are no `.js` siblings, so we rewrite specifiers to `.ts`/`.tsx`
+ * when a matching source file exists. At runtime the compiled output still preserves
  * the `.js` extensions because the original TypeScript keeps them intact.
  */
 module.exports = function replaceJsExtensions({ types: t }) {
@@ -26,10 +26,13 @@ module.exports = function replaceJsExtensions({ types: t }) {
       return;
     }
 
-    const tsCandidate = candidate.replace(/\.js$/, '.ts');
-    if (fs.existsSync(tsCandidate)) {
-      const updated = literal.value.replace(/\.js$/, '.ts');
-      return t.stringLiteral(updated);
+    const replacementExtensions = ['.ts', '.tsx'];
+    for (const extension of replacementExtensions) {
+      const candidateWithExtension = candidate.replace(/\.js$/, extension);
+      if (fs.existsSync(candidateWithExtension)) {
+        const updated = literal.value.replace(/\.js$/, extension);
+        return t.stringLiteral(updated);
+      }
     }
 
     return undefined;
