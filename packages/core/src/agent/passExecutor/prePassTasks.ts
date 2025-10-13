@@ -6,8 +6,14 @@ import type { ChatMessageEntry } from '../historyEntry.js';
 
 export type EmitEvent = (event: Record<string, unknown>) => void;
 
-type GuardRequestPayloadSizeFn =
-  | ((options: { history: ChatMessageEntry[]; model: string; passIndex: number }) => Promise<void>)
+export interface GuardRequestPayloadSizeInput {
+  history: ChatMessageEntry[];
+  model: string;
+  passIndex: number;
+}
+
+export type GuardRequestPayloadSizeFn =
+  | ((options: GuardRequestPayloadSizeInput) => Promise<void>)
   | null
   | undefined;
 
@@ -33,7 +39,7 @@ export const guardRequestPayloadSize = async ({
   passIndex: number;
   emitEvent: EmitEvent;
 }): Promise<void> => {
-  if (typeof guardRequestPayloadSizeFn !== 'function') {
+  if (!guardRequestPayloadSizeFn) {
     return;
   }
 
@@ -60,7 +66,7 @@ export const compactHistoryIfNeeded = async ({
   history: ChatMessageEntry[];
   emitEvent: EmitEvent;
 }): Promise<void> => {
-  if (!historyCompactor || typeof historyCompactor.compactIfNeeded !== 'function') {
+  if (!historyCompactor) {
     return;
   }
 

@@ -45,15 +45,15 @@ import {
   requestAssistantCompletion,
   type CompletionAttempt,
   type EmitEvent,
+  type GuardRequestPayloadSizeFn,
 } from './passExecutor/prePassTasks.js';
+import {
+  PLAN_REMINDER_AUTO_RESPONSE_LIMIT,
+  createPlanReminderController,
+  type PlanAutoResponseTracker,
+} from './passExecutor/planReminderController.js';
 
 type UnknownRecord = Record<string, unknown>;
-
-interface PlanAutoResponseTracker {
-  increment: () => number;
-  reset: () => void;
-  getCount?: () => number;
-}
 
 interface PlanManagerLike {
   isMergingEnabled?: () => boolean | Promise<boolean>;
@@ -81,40 +81,6 @@ interface ExecutableCandidate extends ExecutablePlanStep {
   index: number;
   priority: number;
 }
-
-const PLAN_REMINDER_AUTO_RESPONSE_LIMIT = 3;
-
-interface PlanReminderController {
-  recordAttempt: () => number;
-  reset: () => void;
-  getCount: () => number;
-}
-
-const createPlanReminderController = (
-  tracker: PlanAutoResponseTracker | null | undefined,
-): PlanReminderController => {
-  if (tracker && typeof tracker.increment === 'function' && typeof tracker.reset === 'function') {
-    return {
-      recordAttempt: () => tracker.increment(),
-      reset: () => tracker.reset(),
-      getCount: () => (typeof tracker.getCount === 'function' ? (tracker.getCount() ?? 0) : 0),
-    };
-  }
-
-  // Fallback tracker keeps local state so the reminder limit still applies even when
-  // the caller does not provide a dedicated tracker implementation.
-  let fallbackCount = 0;
-  return {
-    recordAttempt: () => {
-      fallbackCount += 1;
-      return fallbackCount;
-    },
-    reset: () => {
-      fallbackCount = 0;
-    },
-    getCount: () => fallbackCount,
-  };
-};
 
 const pickNextExecutableCandidate = (entries: ExecutablePlanStep[]): ExecutableCandidate | null => {
   let best: ExecutableCandidate | null = null;
@@ -184,13 +150,7 @@ export interface ExecuteAgentPassOptions {
   extractOpenAgentToolCallFn?: typeof defaultExtractOpenAgentToolCall;
   summarizeContextUsageFn?: typeof defaultSummarizeContextUsage;
   incrementCommandCountFn?: typeof defaultIncrementCommandCount;
-  guardRequestPayloadSizeFn?:
-    | ((options: {
-        history: ChatMessageEntry[];
-        model: string;
-        passIndex: number;
-      }) => Promise<void>)
-    | null;
+  guardRequestPayloadSizeFn?: GuardRequestPayloadSizeFn;
 }
 
 export async function executeAgentPass({
