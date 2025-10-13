@@ -6,9 +6,7 @@ let mockCreateResponse;
 let mockGetOpenAIRequestSettings;
 
 const loadHistoryHelpers = async () => {
-  const [{ createChatMessageEntry }] = await Promise.all([
-    import('../historyEntry.js'),
-  ]);
+  const [{ createChatMessageEntry }] = await Promise.all([import('../historyEntry.js')]);
 
   return {
     createChatMessageEntry,

@@ -38,10 +38,7 @@ const commandSchema = z
       .min(1)
       .describe('Optional timeout guard for long-running commands.')
       .optional(),
-    filter_regex: z
-      .string()
-      .describe('Optional regex used to filter command output.')
-      .optional(),
+    filter_regex: z.string().describe('Optional regex used to filter command output.').optional(),
     tail_lines: z
       .number()
       .int()
@@ -92,7 +89,9 @@ export const OPENAGENT_RESPONSE_SCHEMA = z
       .describe("List of steps representing the assistant's current plan."),
   })
   .strict()
-  .describe('Return the response envelope that matches the OpenAgent protocol (message, plan, and command fields).');
+  .describe(
+    'Return the response envelope that matches the OpenAgent protocol (message, plan, and command fields).',
+  );
 
 export const RESPONSE_PARAMETERS_SCHEMA = {
   $schema: 'http://json-schema.org/draft-07/schema#',

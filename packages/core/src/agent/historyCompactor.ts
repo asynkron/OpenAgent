@@ -127,9 +127,7 @@ export class HistoryCompactor {
       return false;
     }
 
-    const hasResponsesApi = Boolean(
-      this.openai && typeof this.openai.responses === 'function',
-    );
+    const hasResponsesApi = Boolean(this.openai && typeof this.openai.responses === 'function');
 
     if (!hasResponsesApi) {
       return false;

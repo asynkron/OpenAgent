@@ -14,7 +14,7 @@
  * TypeScript directly.
  */
 import { register as registerCancellation } from '../utils/cancellation.js';
-import { createResponse } from '../openai/responses.js';
+import { createResponse, type ResponseCallOptions } from '../openai/responses.js';
 import { OPENAGENT_RESPONSE_TOOL } from './responseToolSchema.js';
 import { getOpenAIRequestSettings } from '../openai/client.js';
 import { createEscWaiter, resetEscState, type EscState } from './escState.js';
@@ -90,7 +90,7 @@ export async function requestModelCompletion({
 
   const cancellationOp = registerCancellation(cancellationRegistration);
 
-  const requestOptions: Record<string, unknown> = {};
+  const requestOptions: ResponseCallOptions = {};
   if (controller) {
     requestOptions.signal = controller.signal;
   }
@@ -99,14 +99,17 @@ export async function requestModelCompletion({
     requestOptions.maxRetries = maxRetries;
   }
 
-  const normalizedRequestOptions = Object.keys(requestOptions).length > 0 ? requestOptions : undefined;
+  const normalizedRequestOptions =
+    requestOptions.signal !== undefined || requestOptions.maxRetries !== undefined
+      ? requestOptions
+      : undefined;
   const requestPromise = createResponse({
     openai,
     model,
     input: mapHistoryToOpenAIMessages(history),
     tools: [OPENAGENT_RESPONSE_TOOL],
     options: normalizedRequestOptions,
-  } as any);
+  });
 
   try {
     const raceCandidates: Array<

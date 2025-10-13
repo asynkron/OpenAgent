@@ -1,16 +1,27 @@
-// @ts-nocheck
-import { generateObject, generateText } from 'ai';
+import {
+  generateObject,
+  generateText,
+  type CallSettings,
+  type GenerateObjectResult,
+  type GenerateTextResult,
+  type LanguageModel,
+  type ModelMessage,
+  type ToolSet,
+} from 'ai';
+import type { FlexibleSchema } from '@ai-sdk/provider-utils';
 import { OPENAGENT_RESPONSE_TOOL } from '../agent/responseToolSchema.js';
 import { getOpenAIRequestSettings } from './client.js';
 
-const VALID_REASONING_EFFORTS = new Set(['low', 'medium', 'high']);
+type ReasoningEffort = 'low' | 'medium' | 'high';
 
-function normalizeReasoningEffort(value) {
+const VALID_REASONING_EFFORTS = new Set<ReasoningEffort>(['low', 'medium', 'high']);
+
+function normalizeReasoningEffort(value: string | null | undefined): ReasoningEffort | null {
   if (typeof value !== 'string') {
     return null;
   }
 
-  const normalized = value.trim().toLowerCase();
+  const normalized = value.trim().toLowerCase() as ReasoningEffort;
   return VALID_REASONING_EFFORTS.has(normalized) ? normalized : null;
 }
 
@@ -22,23 +33,28 @@ if (process.env.OPENAI_REASONING_EFFORT && !ENV_REASONING_EFFORT) {
   );
 }
 
-export function getConfiguredReasoningEffort() {
+export function getConfiguredReasoningEffort(): ReasoningEffort | null {
   return ENV_REASONING_EFFORT;
 }
 
-function buildCallSettings(options) {
+export interface ResponseCallOptions {
+  signal?: AbortSignal;
+  maxRetries?: number;
+}
+
+type ResponseCallSettings = Pick<CallSettings, 'abortSignal' | 'maxRetries'>;
+
+function buildCallSettings(options: ResponseCallOptions | undefined): ResponseCallSettings {
   const { maxRetries } = getOpenAIRequestSettings();
 
-  const settings = {};
+  const settings: ResponseCallSettings = {};
 
-  if (options && typeof options === 'object') {
-    if (options.signal) {
-      settings.abortSignal = options.signal;
-    }
+  if (options?.signal) {
+    settings.abortSignal = options.signal;
+  }
 
-    if (typeof options.maxRetries === 'number') {
-      settings.maxRetries = options.maxRetries;
-    }
+  if (typeof options?.maxRetries === 'number') {
+    settings.maxRetries = options.maxRetries;
   }
 
   if (typeof settings.maxRetries === 'undefined' && typeof maxRetries === 'number') {
@@ -48,8 +64,8 @@ function buildCallSettings(options) {
   return settings;
 }
 
-function buildProviderOptions(reasoningEffort) {
-  const normalized = normalizeReasoningEffort(reasoningEffort) ?? ENV_REASONING_EFFORT;
+function buildProviderOptions(reasoningEffort?: ReasoningEffort) {
+  const normalized = reasoningEffort ?? ENV_REASONING_EFFORT;
   if (!normalized) {
     return undefined;
   }
@@ -57,7 +73,7 @@ function buildProviderOptions(reasoningEffort) {
   return { openai: { reasoningEffort: normalized } };
 }
 
-function mapToolToSchema(tool) {
+function mapToolToSchema(tool: SupportedTool | null | undefined): SupportedTool | null {
   if (!tool || typeof tool !== 'object') {
     return null;
   }
@@ -73,7 +89,26 @@ function mapToolToSchema(tool) {
   return null;
 }
 
-function resolveResponsesModel(openaiProvider, model) {
+interface StructuredToolDefinition {
+  name?: string;
+  description?: string;
+  schema: FlexibleSchema<unknown>;
+}
+
+type SupportedTool = typeof OPENAGENT_RESPONSE_TOOL | StructuredToolDefinition;
+
+type ResponsesProvider = (model: string) => LanguageModel;
+
+type ResponsesFunction = ResponsesProvider & {
+  responses?: ResponsesProvider;
+};
+
+type ResponsesClient = { responses: ResponsesProvider } | ResponsesFunction;
+
+function resolveResponsesModel(
+  openaiProvider: ResponsesClient | undefined,
+  model: string,
+): LanguageModel | null {
   if (!openaiProvider) {
     return null;
   }
@@ -93,6 +128,49 @@ function resolveResponsesModel(openaiProvider, model) {
   return null;
 }
 
+interface ResponseFunctionCall {
+  type: 'function_call';
+  name: string;
+  arguments: string;
+  call_id: string | null;
+}
+
+interface ResponseMessageContent {
+  type: 'output_text';
+  text: string;
+}
+
+interface ResponseMessage {
+  type: 'message';
+  role: 'assistant';
+  content: ResponseMessageContent[];
+}
+
+type ResponseOutput = ResponseFunctionCall | ResponseMessage;
+
+interface StructuredResponseResult {
+  output_text: string;
+  output: ResponseOutput[];
+  structured: GenerateObjectResult<unknown>;
+}
+
+interface TextResponseResult {
+  output_text: string;
+  output: ResponseOutput[];
+  text: GenerateTextResult<ToolSet, unknown>;
+}
+
+export type CreateResponseResult = StructuredResponseResult | TextResponseResult;
+
+export interface CreateResponseParams {
+  openai: ResponsesClient;
+  model: string;
+  input: ModelMessage[];
+  tools?: SupportedTool[];
+  options?: ResponseCallOptions;
+  reasoningEffort?: ReasoningEffort;
+}
+
 export async function createResponse({
   openai,
   model,
@@ -100,7 +178,7 @@ export async function createResponse({
   tools,
   options,
   reasoningEffort,
-}) {
+}: CreateResponseParams): Promise<CreateResponseResult> {
   const languageModel = resolveResponsesModel(openai, model);
 
   if (!languageModel) {
@@ -109,11 +187,11 @@ export async function createResponse({
 
   const callSettings = buildCallSettings(options);
   const providerOptions = buildProviderOptions(reasoningEffort);
-  const messages = Array.isArray(input) ? input : [];
+  const messages = input;
 
-  const tool = Array.isArray(tools) && tools.length > 0 ? mapToolToSchema(tools[0]) : null;
+  const tool = mapToolToSchema(tools?.[0]);
 
-  if (tool && tool.schema) {
+  if (tool?.schema) {
     const structured = await generateObject({
       model: languageModel,
       messages,
