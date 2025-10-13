@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Text, useInput, useStdout } from 'ink';
+import { Box, Text, useInput } from 'ink';
 import type { Key } from 'ink';
 
 import {
-  BLINK_INTERVAL_MS,
   clamp,
   computeCaretPosition,
   resolveHorizontalPadding,
@@ -20,12 +19,11 @@ import {
   type PreviousKeySnapshot,
 } from './inkTextArea/keyEvents.js';
 import type { SlashCommandDefinition, SlashCommandSourceItem } from './inkTextArea/commands.js';
+import { CommandMenu } from './inkTextArea/CommandMenu.js';
+import { useCaretBlink } from './inkTextArea/useCaretBlink.js';
 import { useCommandMenu } from './inkTextArea/useCommandMenu.js';
-import type { CommandMatch } from './inkTextArea/useCommandMenu.js';
+import { useStdoutWidth } from './inkTextArea/useStdoutWidth.js';
 import type { SlashCommandSelectEvent } from './inkTextArea/types.js';
-
-const ANSI_INVERSE_ON = '\u001B[7m';
-const ANSI_INVERSE_OFF = '\u001B[27m';
 
 type LegacySlashMenuItem = SlashCommandSourceItem;
 
@@ -45,48 +43,6 @@ export interface InkTextAreaProps extends HorizontalPaddingInput {
   showDebugMetrics?: boolean;
   commandMenuTitle?: string;
   [key: string]: unknown;
-}
-
-interface CommandMenuProps {
-  matches: CommandMatch[];
-  activeMatch: CommandMatch | null;
-  isVisible: boolean;
-  title?: string;
-}
-
-function CommandMenu({ matches, activeMatch, isVisible, title }: CommandMenuProps) {
-  if (!isVisible || matches.length === 0) {
-    return null;
-  }
-
-  const items = matches.map(({ item, index }) => ({ item, index }));
-
-  return (
-    <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="cyan">
-      {title ? (
-        <Box marginBottom={1}>
-          <Text color="cyanBright" bold>
-            {title}
-          </Text>
-        </Box>
-      ) : null}
-      {items.map(({ item, index }) => {
-        const isActive = activeMatch?.index === index;
-        const label = isActive ? `${ANSI_INVERSE_ON}${item.label}${ANSI_INVERSE_OFF}` : item.label;
-
-        return (
-          <Box key={String(item.id ?? index)} flexDirection="column" marginBottom={1} width="100%">
-            <Text color={isActive ? 'white' : 'cyan'}>{label}</Text>
-            {item.description ? (
-              <Text color="gray" dimColor>
-                {item.description}
-              </Text>
-            ) : null}
-          </Box>
-        );
-      })}
-    </Box>
-  );
 }
 
 export function InkTextArea(props: InkTextAreaProps) {
@@ -139,7 +95,7 @@ export function InkTextArea(props: InkTextAreaProps) {
 
   const interactive = isActive && !isDisabled;
   const [caretIndex, setCaretIndex] = useState(() => clamp(0, 0, value.length));
-  const [showCaret, setShowCaret] = useState(true);
+  const showCaret = useCaretBlink(interactive);
   const [lastKeyEvent, setLastKeyEvent] = useState<LastKeyEvent>(() => ({
     rawInput: '',
     printableInput: '',
@@ -153,48 +109,7 @@ export function InkTextArea(props: InkTextAreaProps) {
   });
   const desiredColumnRef = useRef<number | null>(null);
 
-  const { stdout } = useStdout();
-  const [measuredWidth, setMeasuredWidth] = useState<number | undefined>(() =>
-    stdout && Number.isFinite(stdout.columns) ? Math.floor(stdout.columns) : undefined,
-  );
-
-  useEffect(() => {
-    if (!stdout) {
-      setMeasuredWidth(undefined);
-      return undefined;
-    }
-
-    const handleResize = () => {
-      if (Number.isFinite(stdout.columns)) {
-        setMeasuredWidth(Math.floor(stdout.columns));
-      } else {
-        setMeasuredWidth(undefined);
-      }
-    };
-
-    handleResize();
-    stdout.on('resize', handleResize);
-
-    return () => {
-      if (typeof stdout.off === 'function') {
-        stdout.off('resize', handleResize);
-      } else {
-        stdout.removeListener?.('resize', handleResize);
-      }
-    };
-  }, [stdout]);
-
-  const normalizedWidth = useMemo(() => {
-    if (typeof width === 'number' && Number.isFinite(width)) {
-      return Math.max(1, Math.floor(width));
-    }
-
-    if (typeof measuredWidth === 'number') {
-      return Math.max(1, Math.floor(measuredWidth));
-    }
-
-    return 60;
-  }, [measuredWidth, width]);
+  const { measuredWidth, normalizedWidth } = useStdoutWidth(width);
 
   const maxIndex = value.length;
 
@@ -235,29 +150,6 @@ export function InkTextArea(props: InkTextAreaProps) {
   const resetDesiredColumn = useCallback(() => {
     desiredColumnRef.current = null;
   }, []);
-
-  useEffect(() => {
-    if (!interactive) {
-      setShowCaret(false);
-      return undefined;
-    }
-
-    // In test environments, avoid allocating a blinking interval that can leak
-    // if a test fails before unmount. Rendering still shows a visible caret.
-    if (process.env.NODE_ENV === 'test') {
-      setShowCaret(true);
-      return undefined;
-    }
-
-    setShowCaret(true);
-    const interval = setInterval(() => {
-      setShowCaret((previous) => !previous);
-    }, BLINK_INTERVAL_MS);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [interactive]);
 
   const updateValue = useCallback(
     (nextValue: string, nextCaretIndex: number) => {
