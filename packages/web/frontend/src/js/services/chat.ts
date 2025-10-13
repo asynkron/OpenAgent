@@ -3,7 +3,6 @@ import { createPlanDisplay, type PlanStep } from '../components/plan_display.js'
 import {
   isApprovalNotification,
   isApprovalText,
-  normaliseClassList,
   normalisePreview,
   normaliseText,
   type AgentCommandPayload,
@@ -319,70 +318,103 @@ export function createChatService({
     scrollToLatest();
   }
 
+  // Normalise event payload text once so downstream display logic stays consistent.
+  interface NormalisedEventFields {
+    text: string;
+    title: string;
+    subtitle: string;
+    description: string;
+    details: string;
+    scope: string;
+  }
+
+  function normaliseEventFields(payload: AgentEventPayload = {}): NormalisedEventFields {
+    return {
+      text: normaliseText(payload.text).trim(),
+      title: normaliseText(payload.title).trim(),
+      subtitle: normaliseText(payload.subtitle).trim(),
+      description: normaliseText(payload.description).trim(),
+      details: normaliseText(payload.details).trim(),
+      scope: normaliseText(payload.metadata?.scope).trim(),
+    };
+  }
+
+  // Compute the header/body that should be rendered for an event while keeping
+  // the legacy fallbacks that ensure banners and status updates stay readable.
+  function resolveEventDisplay(
+    eventType: string,
+    fields: NormalisedEventFields,
+  ): { header: string; body: string } | null {
+    if (eventType === 'request-input') {
+      return null;
+    }
+
+    const detailFallback = fields.subtitle || fields.description || fields.details || '';
+
+    const resolveOrFallback = (
+      header: string,
+      body: string,
+    ): { header: string; body: string } | null => {
+      const resolvedHeader = header;
+      let resolvedBody = body;
+
+      if (!resolvedHeader && !resolvedBody && fields.text) {
+        resolvedBody = fields.text;
+      }
+
+      if (!resolvedHeader && !resolvedBody) {
+        return null;
+      }
+
+      return { header: resolvedHeader, body: resolvedBody };
+    };
+
+    switch (eventType) {
+      case 'banner': {
+        const header = fields.title || fields.text || 'Agent banner';
+        let body = detailFallback;
+        if (!body && fields.text && fields.text !== header) {
+          body = fields.text;
+        }
+        return resolveOrFallback(header, body);
+      }
+      case 'status': {
+        const header = fields.title || 'Status update';
+        const body = detailFallback || fields.text;
+        return resolveOrFallback(header, body);
+      }
+      default: {
+        const header = fields.title || fields.text;
+        const body = detailFallback || fields.text;
+        return resolveOrFallback(header, body);
+      }
+    }
+  }
+
+  // Small helper so we only create DOM nodes for visible, non-approval text blocks.
+  const appendTextBlock = (container: HTMLElement, className: string, content: string): void => {
+    if (!content || isApprovalText(content)) {
+      return;
+    }
+    const element = documentRef.createElement('div');
+    element.className = className;
+    element.textContent = content;
+    container.appendChild(element);
+  };
+
   function appendEvent(eventType: string, payload: AgentEventPayload = {}): void {
     if (!messageList) {
       return;
     }
 
-    const text = normaliseText(payload.text).trim();
-    const title = normaliseText(payload.title).trim();
-    const subtitle = normaliseText(payload.subtitle).trim();
-    const description = normaliseText(payload.description).trim();
-    const details = normaliseText(payload.details).trim();
-
-    if (
-      isApprovalNotification({
-        text,
-        title,
-        subtitle,
-        description,
-        details,
-      })
-    ) {
+    if (isApprovalNotification(payload)) {
       return;
     }
 
-    if (eventType === 'request-input') {
-      return;
-    }
+    const fields = normaliseEventFields(payload);
+    const display = resolveEventDisplay(eventType, fields);
 
-    let headerText = title;
-    let bodyText = '';
-
-    const fallbackTitles = {
-      banner: title || text || 'Agent banner',
-      status: title || 'Status update',
-      'request-input': title || 'Input requested',
-    } as const;
-
-    switch (eventType) {
-      case 'banner': {
-        headerText = fallbackTitles.banner;
-        bodyText = subtitle || description || details || '';
-        if (!bodyText && text && text !== headerText) {
-          bodyText = text;
-        }
-        break;
-      }
-      case 'status':
-      case 'request-input': {
-        headerText = fallbackTitles[eventType as keyof typeof fallbackTitles] ?? headerText;
-        bodyText = subtitle || description || details || text;
-        break;
-      }
-      default: {
-        if (!headerText) {
-          headerText = title || text;
-        }
-        bodyText = subtitle || description || details || text;
-      }
-    }
-
-    if (!headerText && !bodyText && text) {
-      bodyText = text;
-    }
-
-    if (!headerText && !bodyText) {
+    if (!display) {
       return;
     }
 
@@ -400,27 +432,17 @@ export function createChatService({
     const bubble = documentRef.createElement('div');
     bubble.className = 'agent-message-bubble agent-message-bubble--event';
 
-    if (headerText && !isApprovalText(headerText)) {
-      const header = documentRef.createElement('div');
-      header.className = 'agent-event-title';
-      header.textContent = headerText;
-      bubble.appendChild(header);
+    appendTextBlock(bubble, 'agent-event-title', display.header);
+    if (display.body && (!display.header || display.body !== display.header)) {
+      appendTextBlock(bubble, 'agent-event-body', display.body);
     }
 
-    if (bodyText && (!headerText || bodyText !== headerText) && !isApprovalText(bodyText)) {
-      const body = documentRef.createElement('div');
-      body.className = 'agent-event-body';
-      body.textContent = bodyText;
-      bubble.appendChild(body);
-    }
-
-    const scopeText = normaliseText(payload.metadata?.scope).trim();
-    if (scopeText) {
+    if (fields.scope) {
       const meta = documentRef.createElement('div');
       meta.className = 'agent-event-meta';
       const scope = documentRef.createElement('span');
       scope.className = 'agent-event-meta-tag';
-      scope.textContent = `Scope: ${scopeText}`;
+      scope.textContent = `Scope: ${fields.scope}`;
       meta.appendChild(scope);
       bubble.appendChild(meta);
     }
