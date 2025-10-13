@@ -2,8 +2,6 @@ import { createMarkdownDisplay, type MarkdownDisplayApi } from '../components/ma
 import { createPlanDisplay, type PlanStep } from '../components/plan_display.js';
 import {
   isApprovalNotification,
-  isApprovalText,
-  normalisePreview,
   normaliseText,
   type AgentCommandPayload,
   type AgentEventPayload,
@@ -12,6 +10,11 @@ import {
 } from './chat_model.js';
 import { createHighlightedCodeBlock } from './chat_highlight.js';
 import { addListener, autoResize } from './chat_dom.js';
+import {
+  resolveAgentEventDisplay,
+  resolveCommandPreview,
+  shouldDisplayApprovalText,
+} from './chat_eventDisplay.js';
 
 type CleanupFn = () => void;
 
@@ -193,6 +196,19 @@ export function createChatService({
     setPanelActive(true);
   }
 
+  const createElement = <K extends keyof HTMLElementTagNameMap>(
+    tagName: K,
+    className: string,
+    text?: string,
+  ): HTMLElementTagNameMap[K] => {
+    const element = documentRef.createElement(tagName);
+    element.className = className;
+    if (text) {
+      element.textContent = text;
+    }
+    return element;
+  };
+
   function ensureThinkingMessage(): void {
     if (!messageList || thinkingMessage) {
       return;
@@ -200,26 +216,22 @@ export function createChatService({
 
     ensureConversationStarted();
 
-    const wrapper = documentRef.createElement('div');
-    wrapper.className = 'agent-message agent-message--agent agent-message--thinking';
+    const wrapper = createElement(
+      'div',
+      'agent-message agent-message--agent agent-message--thinking',
+    );
 
-    const bubble = documentRef.createElement('div');
-    bubble.className = 'agent-message-bubble agent-message-bubble--thinking';
+    const bubble = createElement('div', 'agent-message-bubble agent-message-bubble--thinking');
     bubble.setAttribute('aria-live', 'polite');
 
-    const indicator = documentRef.createElement('div');
-    indicator.className = 'agent-thinking-indicator';
+    const indicator = createElement('div', 'agent-thinking-indicator');
 
-    const text = documentRef.createElement('span');
-    text.className = 'agent-thinking-text';
-    text.textContent = 'Preparing response';
+    const text = createElement('span', 'agent-thinking-text', 'Preparing response');
     indicator.appendChild(text);
 
-    const dots = documentRef.createElement('span');
-    dots.className = 'agent-thinking-dots';
+    const dots = createElement('span', 'agent-thinking-dots');
     for (let index = 0; index < 3; index += 1) {
-      const dot = documentRef.createElement('span');
-      dot.className = 'agent-thinking-dot';
+      const dot = createElement('span', 'agent-thinking-dot');
       dots.appendChild(dot);
     }
     indicator.appendChild(dots);
@@ -323,88 +335,22 @@ export function createChatService({
     appendMessageWrapper(wrapper);
   }
 
-  // Normalise event payload text once so downstream display logic stays consistent.
-  interface NormalisedEventFields {
-    text: string;
-    title: string;
-    subtitle: string;
-    description: string;
-    details: string;
-    scope: string;
-  }
-
-  function normaliseEventFields(payload: AgentEventPayload = {}): NormalisedEventFields {
-    return {
-      text: normaliseText(payload.text).trim(),
-      title: normaliseText(payload.title).trim(),
-      subtitle: normaliseText(payload.subtitle).trim(),
-      description: normaliseText(payload.description).trim(),
-      details: normaliseText(payload.details).trim(),
-      scope: normaliseText(payload.metadata?.scope).trim(),
-    };
-  }
-
-  // Compute the header/body that should be rendered for an event while keeping
-  // the legacy fallbacks that ensure banners and status updates stay readable.
-  function resolveEventDisplay(
-    eventType: string,
-    fields: NormalisedEventFields,
-  ): { header: string; body: string } | null {
-    if (eventType === 'request-input') {
-      return null;
-    }
-
-    const detailFallback = fields.subtitle || fields.description || fields.details || '';
-
-    const resolveOrFallback = (
-      header: string,
-      body: string,
-    ): { header: string; body: string } | null => {
-      const resolvedHeader = header;
-      let resolvedBody = body;
-
-      if (!resolvedHeader && !resolvedBody && fields.text) {
-        resolvedBody = fields.text;
-      }
-
-      if (!resolvedHeader && !resolvedBody) {
-        return null;
-      }
-
-      return { header: resolvedHeader, body: resolvedBody };
-    };
-
-    switch (eventType) {
-      case 'banner': {
-        const header = fields.title || fields.text || 'Agent banner';
-        let body = detailFallback;
-        if (!body && fields.text && fields.text !== header) {
-          body = fields.text;
-        }
-        return resolveOrFallback(header, body);
-      }
-      case 'status': {
-        const header = fields.title || 'Status update';
-        const body = detailFallback || fields.text;
-        return resolveOrFallback(header, body);
-      }
-      default: {
-        const header = fields.title || fields.text;
-        const body = detailFallback || fields.text;
-        return resolveOrFallback(header, body);
-      }
-    }
-  }
-
   // Small helper so we only create DOM nodes for visible, non-approval text blocks.
   const appendTextBlock = (container: HTMLElement, className: string, content: string): void => {
-    if (!content || isApprovalText(content)) {
+    if (!content || !shouldDisplayApprovalText(content)) {
       return;
     }
-    const element = documentRef.createElement('div');
-    element.className = className;
-    element.textContent = content;
-    container.appendChild(element);
+    container.appendChild(createElement('div', className, content));
+  };
+
+  const appendMetaTag = (container: HTMLElement, label: string, value: string): void => {
+    if (!value) {
+      return;
+    }
+    const meta = createElement('div', 'agent-event-meta');
+    const tag = createElement('span', 'agent-event-meta-tag', `${label}: ${value}`);
+    meta.appendChild(tag);
+    container.appendChild(meta);
   };
 
   const appendHighlightedBlock = (
@@ -455,16 +401,12 @@ export function createChatService({
   };
 
   function appendEvent(eventType: string, payload: AgentEventPayload = {}): void {
-    if (isApprovalNotification(payload)) {
+    const resolved = resolveAgentEventDisplay(eventType, payload);
+    if (!resolved) {
       return;
     }
 
-    const fields = normaliseEventFields(payload);
-    const display = resolveEventDisplay(eventType, fields);
-
-    if (!display) {
-      return;
-    }
+    const { display, level, scope } = resolved;
 
     const { wrapper, bubble } = createMessageContainer(
       'agent-message agent-message--event',
@@ -473,8 +415,8 @@ export function createChatService({
     if (eventType) {
       wrapper.dataset.eventType = eventType;
     }
-    if (payload.level) {
-      wrapper.dataset.level = payload.level;
+    if (level) {
+      wrapper.dataset.level = level;
     }
 
     appendTextBlock(bubble, 'agent-event-title', display.header);
@@ -482,15 +424,7 @@ export function createChatService({
       appendTextBlock(bubble, 'agent-event-body', display.body);
     }
 
-    if (fields.scope) {
-      const meta = documentRef.createElement('div');
-      meta.className = 'agent-event-meta';
-      const scope = documentRef.createElement('span');
-      scope.className = 'agent-event-meta-tag';
-      scope.textContent = `Scope: ${fields.scope}`;
-      meta.appendChild(scope);
-      bubble.appendChild(meta);
-    }
+    appendMetaTag(bubble, 'Scope', scope);
 
     appendMessageWrapper(wrapper);
   }
@@ -504,7 +438,7 @@ export function createChatService({
     const runText = normaliseText(command?.run);
     const description = normaliseText(command?.description).trim();
     const shellText = normaliseText(command?.shell).trim();
-    const preview = normalisePreview(command?.preview);
+    const preview = resolveCommandPreview(command?.preview);
     const workingDirectory = normaliseText(command?.workingDirectory).trim();
 
     const { wrapper, bubble } = createMessageContainer(
@@ -512,19 +446,19 @@ export function createChatService({
       'agent-message-bubble agent-message-bubble--command',
     );
 
-    const header = documentRef.createElement('div');
-    header.className = 'agent-command-header';
+    const header = createElement('div', 'agent-command-header');
 
-    const commandLabel = documentRef.createElement('div');
-    commandLabel.className = 'agent-command-label';
-    commandLabel.textContent = description || 'Command preview';
+    const commandLabel = createElement(
+      'div',
+      'agent-command-label',
+      description || 'Command preview',
+    );
     header.appendChild(commandLabel);
 
     if (workingDirectory) {
-      const directory = documentRef.createElement('div');
-      directory.className = 'agent-command-directory';
-      directory.textContent = `Working directory: ${workingDirectory}`;
-      header.appendChild(directory);
+      header.appendChild(
+        createElement('div', 'agent-command-directory', `Working directory: ${workingDirectory}`),
+      );
     }
 
     bubble.appendChild(header);
@@ -588,7 +522,7 @@ export function createChatService({
     agent_request_input(payload: AgentPayloadByType['agent_request_input']): void {
       updateThinkingState(false);
       const promptText = normaliseText(payload.prompt).trim();
-      if (!promptText || promptText === '▷' || isApprovalText(promptText)) {
+      if (!promptText || promptText === '▷' || !shouldDisplayApprovalText(promptText)) {
         setStatus('');
       } else {
         setStatus(promptText);

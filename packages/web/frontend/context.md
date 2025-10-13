@@ -33,3 +33,5 @@
 - `services/chat.ts` now centralises message container creation/append helpers so message, event, and command renders share the same DOM plumbing instead of repeating wrapper scaffolding.
 - Panel activation toggles now share a dedicated helper so conversation start and reset flows reuse the same DOM updates without duplicating focus/visibility logic.
 - Hardened the chat WebSocket handler with a stale-socket guard and consolidated command preview rendering so reconnects and code blocks reuse shared helpers.
+- Introduced a generic DOM element factory plus event display resolver map inside `services/chat.ts`, trimming repeated node construction and clarifying how banner/status payloads pick their headers and bodies.
+- Split the chat event display heuristics into `services/chat_eventDisplay.ts`, exposing typed helpers for banner/status body selection and command preview normalisation.
