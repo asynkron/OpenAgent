@@ -55,16 +55,18 @@ interface PlanManagerLike {
   sync?: (plan: PlanStep[] | null | undefined) => Promise<unknown>;
 }
 
-type PlanManagerMethod = ((...args: any[]) => unknown) | null | undefined;
+type PlanManagerMethod = ((plan?: PlanStep[] | null | undefined) => unknown) | null | undefined;
 
 const createPlanManagerInvoker =
   (manager: PlanManagerLike) =>
-  (method: PlanManagerMethod, ...args: unknown[]): unknown => {
+  (method: PlanManagerMethod, plan?: PlanStep[] | null | undefined): unknown => {
     if (typeof method !== 'function') {
       return undefined;
     }
 
-    return method.call(manager, ...args);
+    // Passing an explicit plan argument keeps TypeScript satisfied while still
+    // allowing zero-argument plan manager methods to ignore it at runtime.
+    return method.call(manager, plan);
   };
 
 interface ExecutableCandidate extends ExecutablePlanStep {
