@@ -37,7 +37,7 @@
 - Cross-reference sibling directories if behavior spans subsystems (e.g., CLI rendering ↔ agent runtime).
 - TypeScript scaffolding now lives at the workspace root via `tsconfig.json` plus `npm run typecheck` for incremental adoption; compiled JavaScript still ships from package directories until the build pipeline is fully converted.
 - Root TypeScript config now includes `.tsx` sources so JSX-based components (e.g., the CLI) compile without custom overrides.
-- Static analysis via FTA: `npm run fta` wraps the bundled `fta-cli` dev dependency to score the TypeScript in `packages/*` before sizable refactors.
+- Static analysis via FTA: `npm run fta` wraps the bundled `fta-cli` dev dependency to score the TypeScript in `packages/*` before sizable refactors, and now pipes the JSON through `jq` to filter out items with `assessment: "OK"` so the list only shows work-needed hotspots.
 - Latest FTA run (2025-10-13) flagged the core pass executor and web chat service as the highest-risk hotspots; see `docs/fta-hotspots.md` for prioritized remediation notes.
 - Root `npm run build` compiles `@asynkron/openagent-core` first and then fans out to every workspace (`npm run build --workspaces --if-present`) so downstream TypeScript packages resolve its emitted types.
 - The CLI package (`packages/cli`) still compiles TypeScript sources into `dist/` on demand via its own `npm run build`, and the root `npm start` relies on `prestart` running `npm run build` to ensure fresh artifacts before delegating to the CLI.

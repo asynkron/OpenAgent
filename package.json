@@ -18,7 +18,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "fta": "fta packages --json",
+    "fta": "fta packages --json | jq 'map(select(.assessment != \"OK\"))'",
     "preformat": "",
     "preformat:check": "",
     "prelint": "",
