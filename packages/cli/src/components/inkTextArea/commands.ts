@@ -167,7 +167,7 @@ function normalizeQuery(query: string): string[] {
 
 function buildHaystackParts(item: SlashCommandItem): string[] {
   const normalizedDescription = item.description?.replace(/\([^)]*\)/gu, ' ') ?? '';
-  
+
   return [item.label, item.insertValue, normalizedDescription, ...item.keywords]
     .filter((part): part is string => typeof part === 'string' && part.length > 0)
     .map((part) => part.toLowerCase());
@@ -177,7 +177,7 @@ function hasContiguousMatch(haystackParts: string[], contiguousQuery: string): b
   if (contiguousQuery.length === 0) {
     return true;
   }
-  
+
   return haystackParts.some((part) => part.includes(contiguousQuery));
 }
 
@@ -289,7 +289,7 @@ function createActivationContext(
   command: NormalizedSlashCommand,
 ): SlashCommandActivationContext {
   const precedingChar = triggerIndex > 0 ? value.slice(0, caretIndex)[triggerIndex - 1] : '';
-  
+
   return {
     value,
     caretIndex,

@@ -60,7 +60,7 @@ function normalizeCommand(command: AgentCommand | null | undefined): AgentComman
     typeof normalizedCommand.run === 'string' && normalizedCommand.run.trim()
       ? normalizedCommand.run.trim()
       : '';
-  
+
   normalizedCommand.run = rawRun;
   return normalizedCommand;
 }
@@ -85,13 +85,13 @@ function createCommandContext(
 
 function findMatchingHandler(context: AgentCommandContext): CommandHandler {
   const handlers = createCommandHandlers();
-  
+
   for (const handler of handlers) {
     if (handler.isMatch(context)) {
       return handler;
     }
   }
-  
+
   throw new Error('No matching command handler found.');
 }
 
@@ -102,7 +102,7 @@ export async function executeAgentCommand({
   const normalizedCommand = normalizeCommand(command);
   const context = createCommandContext(normalizedCommand, runCommandFn);
   const handler = findMatchingHandler(context);
-  
+
   return handler.execute(context);
 }
 

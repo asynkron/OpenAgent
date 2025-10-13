@@ -111,39 +111,45 @@ function extractFilesFromInput(filesValue: FileEntry[] | FileIndexInput | null):
   if (Array.isArray(filesValue)) {
     return filesValue;
   }
-  
+
   if (filesValue && typeof filesValue === 'object') {
     const candidate = filesValue as FileIndexInput;
     return Array.isArray(candidate.files) ? candidate.files : [];
   }
-  
+
   return [];
 }
 
-function extractTreeFromInput(filesValue: FileEntry[] | FileIndexInput | null, treeValue: FileTreeEntry[] | null): FileTreeEntry[] {
+function extractTreeFromInput(
+  filesValue: FileEntry[] | FileIndexInput | null,
+  treeValue: FileTreeEntry[] | null,
+): FileTreeEntry[] {
   if (filesValue && typeof filesValue === 'object') {
     const candidate = filesValue as FileIndexInput;
     if (Array.isArray(candidate.tree)) {
       return candidate.tree;
     }
   }
-  
+
   if (Array.isArray(treeValue)) {
     return treeValue;
   }
-  
+
   return [];
 }
 
-function ensureBothFilesAndTree(flat: FileEntry[], tree: FileTreeEntry[]): { files: FileEntry[]; tree: FileTreeEntry[] } {
+function ensureBothFilesAndTree(
+  flat: FileEntry[],
+  tree: FileTreeEntry[],
+): { files: FileEntry[]; tree: FileTreeEntry[] } {
   if (tree.length && !flat.length) {
     flat = flattenTree(tree);
   }
-  
+
   if (!tree.length && flat.length) {
     tree = buildTreeFromFlatList(flat);
   }
-  
+
   return { files: flat, tree };
 }
 
@@ -156,9 +162,9 @@ export function normaliseFileIndex({
 }): NormalisedFileIndex {
   const flat = extractFilesFromInput(filesValue);
   const tree = extractTreeFromInput(filesValue, treeValue);
-  
+
   const { files, tree: finalTree } = ensureBothFilesAndTree(flat, tree);
-  
+
   return { files, tree: finalTree };
 }
 
@@ -217,7 +223,12 @@ function createFileNode(file: FileEntry, fileName: string): FileTreeFile {
   };
 }
 
-function ensureDirectory(path: string, name: string, directoryMap: Map<string, FileTreeEntry[]>, root: FileTreeEntry[]): FileTreeEntry[] {
+function ensureDirectory(
+  path: string,
+  name: string,
+  directoryMap: Map<string, FileTreeEntry[]>,
+  root: FileTreeEntry[],
+): FileTreeEntry[] {
   const cached = directoryMap.get(path);
   if (cached) {
     return cached;
@@ -231,7 +242,11 @@ function ensureDirectory(path: string, name: string, directoryMap: Map<string, F
   return node.children;
 }
 
-function processFileSegments(segments: string[], directoryMap: Map<string, FileTreeEntry[]>, root: FileTreeEntry[]): void {
+function processFileSegments(
+  segments: string[],
+  directoryMap: Map<string, FileTreeEntry[]>,
+  root: FileTreeEntry[],
+): void {
   let currentPath = '';
   // Process all segments except the last one (which is the filename)
   for (let i = 0; i < segments.length - 1; i++) {
@@ -244,7 +259,12 @@ function processFileSegments(segments: string[], directoryMap: Map<string, FileT
   }
 }
 
-function addFileToTree(file: FileEntry, segments: string[], directoryMap: Map<string, FileTreeEntry[]>, root: FileTreeEntry[]): void {
+function addFileToTree(
+  file: FileEntry,
+  segments: string[],
+  directoryMap: Map<string, FileTreeEntry[]>,
+  root: FileTreeEntry[],
+): void {
   const fileName = segments[segments.length - 1] ?? file.relativePath;
   const parentPath = segments.slice(0, -1).join('/');
   const parentChildren = directoryMap.get(parentPath) ?? root;
@@ -359,4 +379,3 @@ export function createResetViewToFallback({
 export function fallbackMarkdownFor(path: string): string {
   return `# No markdown files found\n\nThe directory \`${path}\` does not contain any markdown files yet.`;
 }
-

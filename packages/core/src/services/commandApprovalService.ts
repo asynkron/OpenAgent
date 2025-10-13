@@ -100,7 +100,10 @@ export class CommandApprovalService {
         return parsed && parsed.allowlist ? parsed : { allowlist: [] };
       }
     } catch (err) {
-      console.error(chalk.yellow('Warning: Failed to load approved_commands.json:'), (err as Error).message);
+      console.error(
+        chalk.yellow('Warning: Failed to load approved_commands.json:'),
+        (err as Error).message,
+      );
     }
     return { allowlist: [] };
   }
@@ -180,7 +183,10 @@ export class CommandApprovalService {
   /**
    * Find allowlist entry for command base name.
    */
-  private static findAllowlistEntry(base: string, cfg: CommandConfig): { name: string; subcommands?: string[] } | null {
+  private static findAllowlistEntry(
+    base: string,
+    cfg: CommandConfig,
+  ): { name: string; subcommands?: string[] } | null {
     const list = cfg && Array.isArray(cfg.allowlist) ? cfg.allowlist : [];
     return list.find((item) => item && item.name === base) || null;
   }
@@ -201,7 +207,12 @@ export class CommandApprovalService {
   /**
    * Validate subcommand for specific commands.
    */
-  private static validateSubcommand(base: string, sub: string, entry: { subcommands?: string[] }, tokens: string[]): boolean {
+  private static validateSubcommand(
+    base: string,
+    sub: string,
+    entry: { subcommands?: string[] },
+    tokens: string[],
+  ): boolean {
     if (!Array.isArray(entry.subcommands) || entry.subcommands.length === 0) {
       return true;
     }
@@ -237,7 +248,8 @@ export class CommandApprovalService {
    */
   private static validateCurlCommand(joined: string, tokens: string[]): boolean {
     if (/(^|\s)-X\s*(POST|PUT|PATCH|DELETE)\b/i.test(joined)) return false;
-    if (/(^|\s)(--data(-binary|-raw|-urlencode)?|-d|--form|-F|--upload-file|-T)\b/i.test(joined)) return false;
+    if (/(^|\s)(--data(-binary|-raw|-urlencode)?|-d|--form|-F|--upload-file|-T)\b/i.test(joined))
+      return false;
     if (/(^|\s)(-O|--remote-name|--remote-header-name)\b/.test(joined)) return false;
 
     const tokensAfterBase = tokens.slice(1);
@@ -341,7 +353,10 @@ export const loadPreapprovedConfig = CommandApprovalService.loadPreapprovedConfi
 export const isCommandStringSafe = CommandApprovalService.isCommandStringSafe;
 export const commandSignature = CommandApprovalService.commandSignature;
 
-export function isPreapprovedCommand(command: unknown, cfg: unknown = defaultCommandApprovalService.config): boolean {
+export function isPreapprovedCommand(
+  command: unknown,
+  cfg: unknown = defaultCommandApprovalService.config,
+): boolean {
   return CommandApprovalService.isPreapprovedCommand(command as Command, cfg as CommandConfig);
 }
 

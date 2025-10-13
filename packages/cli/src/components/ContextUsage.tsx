@@ -66,9 +66,7 @@ export function ContextUsage({ usage }: ContextUsageProps): ReactElement | null 
     return null;
   }
 
-  return (
-    <Text dimColor>{line}</Text>
-  );
+  return <Text dimColor>{line}</Text>;
 }
 
 export default ContextUsage;

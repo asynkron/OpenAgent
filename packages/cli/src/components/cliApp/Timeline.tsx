@@ -27,7 +27,12 @@ function renderHumanEntry({ message }: TimelineHumanPayload): ReactElement {
   return <MemoHumanMessage message={message} />;
 }
 
-function renderCommandEntry({ command, result, preview, execution }: TimelineCommandPayload): ReactElement {
+function renderCommandEntry({
+  command,
+  result,
+  preview,
+  execution,
+}: TimelineCommandPayload): ReactElement {
   return <MemoCommand command={command} result={result} preview={preview} execution={execution} />;
 }
 

@@ -21,11 +21,7 @@ export interface UseCommandLogOptions {
 /**
  * Manages the recent command payload log and related slash command without bloating CliApp.
  */
-export function useCommandLog({
-  limit,
-  appendCommandResult,
-  appendStatus,
-}: UseCommandLogOptions): {
+export function useCommandLog({ limit, appendCommandResult, appendStatus }: UseCommandLogOptions): {
   commandPanelEvents: CommandPanelEvent[];
   commandPanelKey: number | null;
   handleCommandEvent: (event: CommandResultRuntimeEvent) => void;
@@ -83,7 +79,8 @@ export function useCommandLog({
         if (!Number.isFinite(parsed)) {
           appendStatus({
             level: 'warn',
-            message: 'Command inspector requires a positive integer. Showing the latest command instead.',
+            message:
+              'Command inspector requires a positive integer. Showing the latest command instead.',
           });
         } else {
           requested = parsed;

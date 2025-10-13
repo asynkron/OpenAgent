@@ -236,7 +236,7 @@ function createDetachManager(): {
   detachAll: () => void;
 } {
   const detachFns: Array<() => void> = [];
-  
+
   const detachAll = () => {
     while (detachFns.length > 0) {
       const detach = detachFns.shift();
@@ -434,10 +434,16 @@ export function createWebSocketBinding({
     return state.stopPromise;
   }
 
-  const handleMessage = createMessageHandler(runtime, socket, parseIncoming, formatOutgoing, state.closed);
+  const handleMessage = createMessageHandler(
+    runtime,
+    socket,
+    parseIncoming,
+    formatOutgoing,
+    state.closed,
+  );
   const handleClose = createCloseHandler(stop, cancelOnDisconnect);
   const handleError = createErrorHandler(stop, cancelOnDisconnect, state.closed);
-  
+
   attachSocketListeners(socket, detachFns, handleMessage, handleClose, handleError);
 
   async function start() {
@@ -479,4 +485,8 @@ const defaultExport = { createWebSocketBinding } satisfies Record<string, unknow
 export default defaultExport;
 
 export { defaultParseIncoming } from './websocket/messageUtils.js';
-export type { IncomingStructuredMessage, ParsedIncomingMessage, ParseIncomingFn } from './websocket/messageUtils.js';
+export type {
+  IncomingStructuredMessage,
+  ParsedIncomingMessage,
+  ParseIncomingFn,
+} from './websocket/messageUtils.js';

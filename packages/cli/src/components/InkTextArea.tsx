@@ -29,7 +29,6 @@ const ANSI_INVERSE_OFF = '\u001B[27m';
 
 type LegacySlashMenuItem = SlashCommandSourceItem;
 
-
 export interface InkTextAreaProps extends HorizontalPaddingInput {
   value?: string;
   onChange?: (value: string) => void;
@@ -76,12 +75,7 @@ function CommandMenu({ matches, activeMatch, isVisible, title }: CommandMenuProp
         const label = isActive ? `${ANSI_INVERSE_ON}${item.label}${ANSI_INVERSE_OFF}` : item.label;
 
         return (
-          <Box
-            key={String(item.id ?? index)}
-            flexDirection="column"
-            marginBottom={1}
-            width="100%"
-          >
+          <Box key={String(item.id ?? index)} flexDirection="column" marginBottom={1} width="100%">
             <Text color={isActive ? 'white' : 'cyan'}>{label}</Text>
             {item.description ? (
               <Text color="gray" dimColor>
@@ -390,12 +384,15 @@ export function InkTextArea(props: InkTextAreaProps) {
     [handleBackspace, handleDelete],
   );
 
-  const handleInsertText = useCallback((input: string) => {
-    if (input && input !== '\u0000' && input !== '\n') {
-      const nextValue = `${value.slice(0, caretIndex)}${input}${value.slice(caretIndex)}`;
-      updateValue(nextValue, caretIndex + input.length);
-    }
-  }, [caretIndex, updateValue, value]);
+  const handleInsertText = useCallback(
+    (input: string) => {
+      if (input && input !== '\u0000' && input !== '\n') {
+        const nextValue = `${value.slice(0, caretIndex)}${input}${value.slice(caretIndex)}`;
+        updateValue(nextValue, caretIndex + input.length);
+      }
+    },
+    [caretIndex, updateValue, value],
+  );
 
   const handleInsertNewline = useCallback(() => {
     const nextValue = `${value.slice(0, caretIndex)}\n${value.slice(caretIndex)}`;
@@ -484,7 +481,15 @@ export function InkTextArea(props: InkTextAreaProps) {
     const { dimColor, wrap, ...otherTextProps } = textProps;
 
     return {
-      wrap: (wrap as 'wrap' | 'end' | 'middle' | 'truncate-end' | 'truncate' | 'truncate-middle' | 'truncate-start') ?? 'wrap',
+      wrap:
+        (wrap as
+          | 'wrap'
+          | 'end'
+          | 'middle'
+          | 'truncate-end'
+          | 'truncate'
+          | 'truncate-middle'
+          | 'truncate-start') ?? 'wrap',
       dimColor: (dimColor as boolean) ?? !hasValue,
       ...otherTextProps,
     };

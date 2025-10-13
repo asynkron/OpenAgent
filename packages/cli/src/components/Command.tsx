@@ -161,9 +161,7 @@ function SummaryLine({ line }: { line: SummaryLineValue }): ReactElement {
       const statusKey = line.status === 'success' ? 'success' : 'error';
       const fallbackColor = line.status === 'success' ? 'green' : 'red';
       return (
-        <Text {...(buildProps(statusKey, fallbackColor) as Record<string, unknown>)}>
-          {text}
-        </Text>
+        <Text {...(buildProps(statusKey, fallbackColor) as Record<string, unknown>)}>{text}</Text>
       );
     }
     case 'arrow':

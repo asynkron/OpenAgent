@@ -11,15 +11,17 @@ export interface UseHistoryCommandOptions {
 /**
  * Handles the `/history` slash command by delegating to the runtime and filesystem helper.
  */
-export function useHistoryCommand({
-  getRuntime,
-  appendStatus,
-}: UseHistoryCommandOptions): { handleHistoryCommand: SlashCommandHandler } {
+export function useHistoryCommand({ getRuntime, appendStatus }: UseHistoryCommandOptions): {
+  handleHistoryCommand: SlashCommandHandler;
+} {
   const executeHistoryCommand = useCallback(
     async (pathInput: string) => {
       const runtime = getRuntime();
       if (!runtime || typeof runtime.getHistorySnapshot !== 'function') {
-        appendStatus({ level: 'error', message: 'History snapshot is unavailable for this session.' });
+        appendStatus({
+          level: 'error',
+          message: 'History snapshot is unavailable for this session.',
+        });
         return;
       }
 

@@ -45,9 +45,7 @@ export function DebugPanel({
 
       const markdown = `\`\`\`json\n${content}\n\`\`\``;
       const rendered = renderMarkdownMessage(markdown);
-      return (
-        <Text key={key}>{rendered}</Text>
-      );
+      return <Text key={key}>{rendered}</Text>;
     })
     .filter((node): node is ReactElement => Boolean(node));
 
