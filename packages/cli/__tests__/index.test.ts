@@ -32,10 +32,14 @@ async function loadModule(
   }
 
   const mockResponsesCreate = jest.fn();
-  const MockOpenAI = jest.fn().mockImplementation((config) => ({
-    config,
-    responses: { create: mockResponsesCreate },
-  }));
+  const MockOpenAI = jest.fn().mockImplementation((config) => {
+    const provider = jest.fn(() => ({ __providerCall: true }));
+    provider.responses = jest.fn(() => ({ create: mockResponsesCreate }));
+    provider.languageModel = provider;
+    provider.chat = provider;
+    provider.__config = config;
+    return provider;
+  });
 
   jest.unstable_mockModule('dotenv/config', () => ({}));
   jest.unstable_mockModule('@ai-sdk/openai', () => ({ createOpenAI: MockOpenAI }));

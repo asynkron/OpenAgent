@@ -73,6 +73,26 @@ function mapToolToSchema(tool) {
   return null;
 }
 
+function resolveResponsesModel(openaiProvider, model) {
+  if (!openaiProvider) {
+    return null;
+  }
+
+  if (typeof openaiProvider === 'function') {
+    if (typeof openaiProvider.responses === 'function') {
+      return openaiProvider.responses(model);
+    }
+
+    return openaiProvider(model);
+  }
+
+  if (typeof openaiProvider === 'object' && typeof openaiProvider.responses === 'function') {
+    return openaiProvider.responses(model);
+  }
+
+  return null;
+}
+
 export async function createResponse({
   openai,
   model,
@@ -81,14 +101,15 @@ export async function createResponse({
   options,
   reasoningEffort,
 }) {
-  if (!openai || typeof openai !== 'object' || typeof openai.responses !== 'function') {
+  const languageModel = resolveResponsesModel(openai, model);
+
+  if (!languageModel) {
     throw new Error('Invalid OpenAI client instance provided.');
   }
 
   const callSettings = buildCallSettings(options);
   const providerOptions = buildProviderOptions(reasoningEffort);
   const messages = Array.isArray(input) ? input : [];
-  const languageModel = openai.responses(model);
 
   const tool = Array.isArray(tools) && tools.length > 0 ? mapToolToSchema(tools[0]) : null;
 
