@@ -11,7 +11,7 @@
  * - History compactor when summarizing past conversation entries.
  */
 import { z } from 'zod';
-import { jsonSchema as buildJsonSchema } from '@ai-sdk/provider-utils';
+import { jsonSchema as asJsonSchema } from '@ai-sdk/provider-utils';
 
 const commandSchema = z
   .object({
@@ -189,13 +189,12 @@ export const RESPONSE_PARAMETERS_SCHEMA = {
   },
 };
 
-const OPENAGENT_RESPONSE_JSON_SCHEMA = buildJsonSchema(() => RESPONSE_PARAMETERS_SCHEMA);
-
 export const OPENAGENT_RESPONSE_TOOL = Object.freeze({
   name: 'open-agent',
   description:
     'Return the response envelope that matches the OpenAgent protocol (message, plan, and command fields).',
-  schema: OPENAGENT_RESPONSE_JSON_SCHEMA,
+  // Use stable JSON Schema adapter for provider-agnostic structured generation
+  schema: asJsonSchema(() => RESPONSE_PARAMETERS_SCHEMA),
 });
 
 export default OPENAGENT_RESPONSE_TOOL;
