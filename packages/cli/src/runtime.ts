@@ -21,6 +21,7 @@ import {
 } from '@asynkron/openagent-core';
 
 import CliApp from './components/CliApp.js';
+import type { AgentRuntimeLike } from './components/cliApp/types.js';
 
 type RunCommandInput = string | readonly string[];
 
@@ -36,7 +37,7 @@ type CliAgentRuntimeDependencies = {
   isPreapprovedCommandFn: NonNullable<AgentRuntimeConfig['isPreapprovedCommandFn']>;
   isSessionApprovedFn: NonNullable<AgentRuntimeConfig['isSessionApprovedFn']>;
   approveForSessionFn: NonNullable<AgentRuntimeConfig['approveForSessionFn']>;
-  preapprovedCfg: NonNullable<AgentRuntimeConfig['preapprovedCfg']>;
+  preapprovedCfg: AgentRuntimeConfig['preapprovedCfg'];
 };
 
 type RuntimeOptions = AgentRuntimeConfig;
@@ -74,7 +75,7 @@ function normalizeRuntimeOptions(
     isPreapprovedCommandFn: isPreapprovedCommand,
     isSessionApprovedFn: isSessionApproved,
     approveForSessionFn: approveForSession,
-    preapprovedCfg: PREAPPROVED_CFG,
+    preapprovedCfg: PREAPPROVED_CFG as CliAgentRuntimeDependencies['preapprovedCfg'],
   };
 
   const normalized: AgentRuntimeConfig & CliAgentRuntimeDependencies = {
@@ -128,7 +129,7 @@ async function runAgentLoopWithCurrentDependencies(
 
     const app: Instance = render(
       React.createElement(CliApp, {
-        runtime,
+        runtime: runtime as unknown as AgentRuntimeLike,
         onRuntimeComplete: handleResolve,
         onRuntimeError: handleReject,
       }),

@@ -8,7 +8,7 @@
 
 ## Key Components
 
-- `src/js/` — TypeScript sources for chat services, plan renderer, and unified application bootstrap logic. Chat wiring now reuses `services/chat_highlight.ts` and `services/chat_dom.ts` to keep markdown rendering and DOM listener utilities isolated from the main chat orchestrator.
+- `src/js/` — TypeScript sources for chat services, plan renderer, and unified application bootstrap logic. Chat wiring now reuses `services/chat_highlight.ts`, `services/chat_dom.ts`, and `services/chat_domController.ts` to keep markdown rendering, DOM listener utilities, and UI mutations isolated from the main chat orchestrator.
 - `src/css/` — Stylesheets bundled alongside JavaScript for the frontend UI.
 - `scripts/ensure-esbuild.mjs` — Rebuild helper guaranteeing esbuild binary compatibility before bundling.
 
@@ -35,3 +35,5 @@
 - Hardened the chat WebSocket handler with a stale-socket guard and consolidated command preview rendering so reconnects and code blocks reuse shared helpers.
 - Introduced a generic DOM element factory plus event display resolver map inside `services/chat.ts`, trimming repeated node construction and clarifying how banner/status payloads pick their headers and bodies.
 - Split the chat event display heuristics into `services/chat_eventDisplay.ts`, exposing typed helpers for banner/status body selection and command preview normalisation.
+- WebSocket lifecycle cleanup now removes listeners and ignores stale socket messages in `services/chat.ts`, preventing duplicate renders after reconnects and reducing memory pressure during repeated reconnect cycles.
+- Extracted DOM mutations into `services/chat_domController.ts` so `services/chat.ts` focuses on socket orchestration while the controller manages message rendering, status updates, and plan display resets.
