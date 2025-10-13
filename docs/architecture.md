@@ -110,7 +110,7 @@ CLI-->>U: Render output [Ink components]
   - Runtime wires keyboard input (ESC, approvals) into the agent loop.
 
 - **Agent Runtime (`src/agent`)**
-  - Maintains conversation history and plan snapshots (`.openagent/plan.json`).
+  - Maintains conversation history and a transient in-memory plan snapshot (no on-disk persistence).
   - Orchestrates multi-pass reasoning, filtering, and cancellation logic.
   - Coordinates OpenAI calls, command execution, and approval lifecycle.
 
@@ -130,18 +130,17 @@ CLI-->>U: Render output [Ink components]
 ```mermaid
 graph TB
     subgraph Runtime State
-        Plan["Plan Snapshot\n.openagent/plan.json"]
         TempDir["Temp Artifacts\n.openagent/temp"]
         Approvals["Approved Commands\napproved_commands.json"]
     end
 
-    Loop((Agent Loop)) -->|Persist plan| Plan
+    Loop((Agent Loop)) --> CLI((CLI Runtime))
     CmdExec((Command Execution)) --> TempDir
     ApprovalSvc((Approval Service)) --> Approvals
-    CLI((CLI Runtime)) -->|Displays| Plan
+    CLI -->|Displays| Loop
 ```
 
-- **Plan snapshots** persist multi-step execution state and must be managed to avoid stale data.
+- **Plan state** is transient and kept in memory only; no on-disk snapshots are written.
 - **Temporary artifacts** capture large command outputs for later inspection and should be cleaned when sessions end.
 - **Approval data** ties runtime policy to a JSON configuration that services use to vet commands.
 

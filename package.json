@@ -25,7 +25,8 @@
     "prelint": "",
     "prepare": "",
     "postinstall": "",
-    "release:verify-tag": "npm run build:scripts && node ./scripts/dist/verify-release-tag.js"
+    "release:verify-tag": "npm run build:scripts && node ./scripts/dist/verify-release-tag.js",
+    "knip": "knip"
   },
   "keywords": [],
   "author": "",
@@ -36,7 +37,7 @@
     "@babel/preset-react": "^7.27.1",
     "@babel/preset-typescript": "^7.26.0",
     "@eslint/js": "^9.37.0",
-    "@types/node": "^22.9.3",
+    "@types/node": "^22.18.10",
     "@types/react": "^19.0.1",
     "@typescript-eslint/eslint-plugin": "^8.16.0",
     "@typescript-eslint/parser": "^8.16.0",
@@ -53,10 +54,11 @@
     "globals": "^16.4.0",
     "ink-testing-library": "^4.0.0",
     "jest": "^29.7.0",
+    "knip": "^5.65.0",
     "lint-staged": "^16.2.3",
     "prettier": "^3.2.5",
     "ts-morph": "^23.0.0",
-    "typescript": "^5.6.3"
+    "typescript": "^5.9.3"
   },
   "lint-staged": {
     "*.{js,mjs,cjs,ts,tsx}": [

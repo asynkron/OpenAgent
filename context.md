@@ -26,7 +26,7 @@
 
 ## Risks / Gaps
 
-- Runtime behavior depends on persisted state in `.openagent/plan.json`; stale snapshots can confuse follow-up sessions and tests if not cleaned between runs even though the file is now gitignored.
+- Plans are transient-only now; the runtime no longer reads or writes `.openagent/plan.json`, eliminating cross-run state bleed. Tests and tooling should not assume on-disk plan snapshots.
 - Node dependencies are vendored via `node_modules/`; context indexing intentionally excludes them to avoid noise, so consult package docs when diving into third-party APIs.
 - No single architectural diagram ties the subsystems together—use the directory contexts plus `docs/` to reconstitute mental models.
 

@@ -1,20 +1,11 @@
 // @ts-nocheck
 /**
- * Plan persistence and progress tracking helpers.
+ * Plan manager and progress tracking helpers.
  *
- * Responsibilities:
- * - Persist the active plan to `.openagent/plan.json` between passes.
- * - Track progress events and emit structured notifications when completion changes.
- *
- * Consumers:
- * - Agent loop to synchronize plan snapshots with the filesystem.
- *
- * Note: The runtime still imports the compiled `planManager.js`; run `tsc`
- * to regenerate it after editing this source until the build pipeline emits from
- * TypeScript directly.
+ * Transient-only: All filesystem persistence has been removed.
+ * The active plan is kept in-memory for the duration of the runtime
+ * session and never written to or read from disk.
  */
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 
 import { mergePlanTrees, computePlanProgress, clonePlanTree } from '../utils/plan.js';
 
@@ -42,15 +33,8 @@ export type EmitStatusFn = (event: {
 export interface PlanManagerOptions {
   emit: EmitFn;
   emitStatus: EmitStatusFn;
-  planDirectoryPath?: string;
-  planFilePath?: string;
   clonePlan?: (plan: PlanTree) => PlanTree;
-  mkdirFn?: typeof mkdir;
-  readFileFn?: typeof readFile;
-  writeFileFn?: typeof writeFile;
   computeProgress?: (plan: PlanTree) => PlanProgress;
-  serializePlanFn?: (plan: PlanTree) => string;
-  deserializePlanFn?: (raw: string) => PlanTree;
 }
 
 const defaultClone = (plan: PlanTree): PlanTree => clonePlanTree(plan);
@@ -73,15 +57,8 @@ function formatStatusEvent(level: string, message: string, details?: unknown) {
 export function createPlanManager({
   emit,
   emitStatus,
-  planDirectoryPath = resolve(process.cwd(), '.openagent'),
-  planFilePath = resolve(planDirectoryPath, 'plan.json'),
   clonePlan = defaultClone,
-  mkdirFn = mkdir,
-  readFileFn = readFile,
-  writeFileFn = writeFile,
   computeProgress = computePlanProgress,
-  serializePlanFn = (plan) => `${JSON.stringify(plan, null, 2)}\n`,
-  deserializePlanFn = (raw) => JSON.parse(raw) as PlanTree,
 }: PlanManagerOptions) {
   if (typeof emit !== 'function') {
     throw new TypeError('createPlanManager requires an emit function.');
@@ -113,45 +90,11 @@ export function createPlanManager({
   };
 
   const persistPlanSnapshot = async () => {
-    try {
-      await mkdirFn(planDirectoryPath, { recursive: true });
-      const snapshot = serializePlanFn(activePlan);
-      await writeFileFn(planFilePath, snapshot, 'utf8');
-    } catch (error) {
-      emitStatus(
-        formatStatusEvent(
-          'warn',
-          'Failed to persist plan snapshot to .openagent/plan.json.',
-          error instanceof Error ? error.message : String(error),
-        ),
-      );
-    }
+    // no-op (transient plan; no persistence)
   };
 
   const loadPlanSnapshot = async () => {
-    try {
-      const raw = await readFileFn(planFilePath, 'utf8');
-      if (!raw.trim()) {
-        activePlan = [];
-        return;
-      }
-
-      const parsed = deserializePlanFn(raw);
-      activePlan = clonePlan(parsed);
-    } catch (error: unknown) {
-      if (isErrorWithCode(error) && typeof error.code === 'string' && error.code === 'ENOENT') {
-        return;
-      }
-
-      emitStatus(
-        formatStatusEvent(
-          'warn',
-          'Failed to load plan snapshot from .openagent/plan.json.',
-          error instanceof Error ? error.message : String(error),
-        ),
-      );
-      activePlan = [];
-    }
+    // no-op (transient plan; no persistence)
   };
 
   return {

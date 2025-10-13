@@ -117,7 +117,6 @@ describe('executeAgentPass', () => {
     expect(result).toBe(true);
     expect(executeAgentCommand).toHaveBeenCalledTimes(1);
     expect(planManager.update).toHaveBeenCalledTimes(1);
-    expect(planManager.sync).toHaveBeenCalledTimes(1);
 
     const planEvents = emitEvent.mock.calls
       .map(([event]) => event)

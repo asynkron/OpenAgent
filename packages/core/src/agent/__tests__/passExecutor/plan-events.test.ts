@@ -66,7 +66,7 @@ describe('executeAgentPass', () => {
 
     expect(result).toBe(true);
     expect(executeAgentCommand).toHaveBeenCalledTimes(1);
-    expect(planManager.sync).toHaveBeenCalledTimes(1);
+    // With transient plans, persistence sync is no longer invoked.
 
     const planEvents = emitEvent.mock.calls
       .map(([event]) => event)

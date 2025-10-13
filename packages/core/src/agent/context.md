@@ -24,7 +24,7 @@
 - `modelRequest.ts` (emits `modelRequest.js`) — wraps the AI SDK responses client with ESC cancellation support and emits cancellation observations when humans abort requests.
 - `historyEntry.ts`, `historyCompactor.ts`, and `runtimePayloadGuard.ts` normalize chat history into the AI SDK message shape so downstream helpers stay provider-agnostic.
 - `modelRequestPayload.ts` — builds the strongly typed request envelope (model, messages, tool definition) consumed by `modelRequest.ts` so tests and runtime code can reason about AI calls without ad-hoc casting.
-- `planManager.ts` (emits `planManager.js`) — persists plan snapshots to `.openagent/plan.json`, merges assistant updates, and emits plan progress events.
+- `planManager.ts` (emits `planManager.js`) — manages plan snapshots in-memory only, merges assistant updates, and emits plan progress events. All filesystem persistence has been removed.
 - `promptCoordinator.ts` (emits `promptCoordinator.js`) — buffers prompt responses from the UI and relays cancellation signals through the shared ESC state.
 - `responseParser.ts`, `responseValidator.ts`, and `responseToolSchema.ts` (emit their `.js` companions) — parse assistant JSON, normalize plan/command payloads, and enforce schema plus semantic validations for the OpenAgent tool response. The AI SDK `generateObject()` is configured with a provider-agnostic JSON Schema wrapper (`jsonSchema(() => RESPONSE_PARAMETERS_SCHEMA)`), while runtime validation uses the same JSON Schema via AJV. The `responseValidator.ts` surface now re-exports helpers from `responseValidation/`, where AJV wiring, schema error formatting, and plan semantics live in smaller typed modules. The Zod schema remains for developer ergonomics but is not used at runtime.
 - `historyEntry.ts`, `historyMessageBuilder.ts`, and `historyCompactor.ts` — previously migrated helpers that the runtime still imports via their compiled `.js` outputs.
@@ -32,7 +32,7 @@
 ## Positive Signals
 
 - Extensive unit coverage ensures protocol parsing/validation logic stays aligned with prompts.
-- Plan management persists state to `.openagent/plan.json` and supports optional plan merging while leaving execution-time status changes in memory until the next assistant response.
+- Plan management is transient; no on-disk persistence. Optional plan merging remains, while execution-time status changes stay in memory until the next assistant response.
 - Approval flow separates policy (`services/commandApprovalService.js`) from human interaction logic.
 - Tests now rely on dependency injection to stub the OpenAI client, so local runs do not require a real API key.
 - Lint now runs clean across the runtime: observation building, OpenAI request orchestration, the pass executor, plan manager, and response validator share explicit types and error guards instead of `any` fallbacks.

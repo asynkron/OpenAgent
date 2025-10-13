@@ -15,7 +15,7 @@
 
 ## Positive Signals
 
-- Integration harness (`agentRuntimeTestHarness.ts`) simulates CLI runtime, ensuring plan updates, command execution, and cancellation all cooperate while now isolating plan state in-memory so suites do not depend on `.openagent/plan.json`.
+- Integration harness (`agentRuntimeTestHarness.ts`) simulates CLI runtime, ensuring plan updates, command execution, and cancellation all cooperate. Plan state is in-memory and never persisted to `.openagent/plan.json`.
 - Package-level unit suites now live under `packages/core/src/**/__tests__` and `packages/cli/src/**/__tests__` (now authored in TypeScript), so regression
   coverage travels with the implementation modules.
 - Recent unit tests under each package assert tool-only OpenAI responses remain parseable, guard the CLI renderers, and cover
