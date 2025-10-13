@@ -155,7 +155,7 @@ export async function loadAgentWithMockedModules() {
     return modelCompletionQueue.shift();
   });
 
-  jest.unstable_mockModule('../../packages/core/dist/src/agent/openaiRequest.js', () => ({
+  jest.unstable_mockModule('../../packages/core/dist/src/agent/modelRequest.js', () => ({
     requestModelCompletion: requestModelCompletionMock,
   }));
 

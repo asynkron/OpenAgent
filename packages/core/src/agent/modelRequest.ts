@@ -1,18 +1,17 @@
 /**
- * Wrapper around the OpenAI Responses API with ESC cancellation support.
+ * Wrapper around the AI SDK responses client with ESC cancellation support.
  *
  * Responsibilities:
- * - Issue the completion request using the provided OpenAI client.
+ * - Issue the completion request using the provided AI SDK responses client.
  * - Race the network request against ESC cancellation and surface structured outcomes.
  *
  * Consumers:
  * - Agent pass executor during the thinking phase.
  *
- * Note: The runtime still imports the compiled `openaiRequest.js`; run `tsc`
+ * Note: The runtime still imports the compiled `modelRequest.js`; run `tsc`
  * to regenerate it after editing this source until the build pipeline emits from
  * TypeScript directly.
  */
-import type { ModelMessage } from 'ai';
 import { register as registerCancellation } from '../utils/cancellation.js';
 import {
   createResponse,
@@ -20,11 +19,10 @@ import {
   type ResponseCallOptions,
   type ResponsesClient,
 } from '../openai/responses.js';
-import { OPENAGENT_RESPONSE_TOOL } from './responseToolSchema.js';
 import { getOpenAIRequestSettings } from '../openai/client.js';
 import { createEscWaiter, resetEscState, type EscState } from './escState.js';
 import { createObservationHistoryEntry, type ObservationRecord } from './historyMessageBuilder.js';
-import { mapHistoryToOpenAIMessages } from './historyEntry.js';
+import { buildOpenAgentRequestPayload } from './modelRequestPayload.js';
 import type { ObservationBuilder } from './observationBuilder.js';
 import type { ChatMessageEntry } from './historyEntry.js';
 
@@ -93,7 +91,7 @@ export async function requestModelCompletion({
   passIndex,
 }: RequestModelCompletionOptions): Promise<ModelCompletionResult> {
   if (!openai) {
-    throw new Error('requestModelCompletion requires an OpenAI Responses client.');
+    throw new Error('requestModelCompletion requires an AI SDK responses client.');
   }
   const { promise: escPromise, cleanup: cleanupEscWaiter } = createEscWaiter(escState);
 
@@ -134,13 +132,18 @@ export async function requestModelCompletion({
     requestOptions.signal !== undefined || requestOptions.maxRetries !== undefined
       ? requestOptions
       : undefined;
+  const requestPayload = buildOpenAgentRequestPayload({
+    model,
+    history,
+    options: normalizedRequestOptions,
+  });
+
   const requestPromise = createResponse({
     openai,
-    model,
-    // The history helper normalizes role/content pairs so the cast is safe.
-    input: mapHistoryToOpenAIMessages(history) as ModelMessage[],
-    tools: [OPENAGENT_RESPONSE_TOOL],
-    options: normalizedRequestOptions,
+    model: requestPayload.model,
+    input: requestPayload.messages,
+    tools: [requestPayload.tool],
+    options: requestPayload.options,
   });
 
   try {

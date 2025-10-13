@@ -54,7 +54,7 @@ const createMockRequestModelCompletion = () => {
   const requestModelCompletion = jest
     .fn()
     .mockResolvedValue({ status: 'success', completion: { id: 'cmpl_1' } });
-  jest.unstable_mockModule('../openaiRequest.js', () => ({
+  jest.unstable_mockModule('../modelRequest.js', () => ({
     requestModelCompletion,
     default: { requestModelCompletion },
   }));

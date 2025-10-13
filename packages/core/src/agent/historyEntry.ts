@@ -4,15 +4,18 @@
  *
  * Responsibilities:
  * - Normalize chat history entries into a consistent payload structure.
- * - Project the normalized history into the OpenAI Responses API shape.
+ * - Project the normalized history into the AI SDK message shape expected by
+ *   the configured language model provider.
  *
  * Consumers:
- * - History compaction, pass execution, and OpenAI request builders.
+ * - History compaction, pass execution, and model request builders.
  *
  * Note: The runtime still imports the compiled `historyEntry.js`; run `tsc` to
  * regenerate it after editing this source until the build pipeline emits from
  * TypeScript directly.
  */
+
+import type { ModelMessage } from 'ai';
 
 const DEFAULT_EVENT_TYPE = 'chat-message' as const;
 
@@ -37,10 +40,7 @@ export interface ChatMessageEntry extends JsonLikeObject {
   content?: unknown;
 }
 
-export interface OpenAIMessage {
-  role: string;
-  content: unknown;
-}
+export type ModelChatMessage = ModelMessage;
 
 const buildPayload = ({ role, content }: ChatMessagePayload): ChatMessagePayload => {
   const payload: ChatMessagePayload = {};
@@ -90,7 +90,7 @@ export function createChatMessageEntry(entry: ChatMessageEntryInput = {}): ChatM
   } as ChatMessageEntry;
 }
 
-export function mapHistoryToOpenAIMessages(history: unknown): OpenAIMessage[] {
+export function mapHistoryToModelMessages(history: unknown): ModelChatMessage[] {
   if (!Array.isArray(history)) {
     return [];
   }
@@ -125,12 +125,12 @@ export function mapHistoryToOpenAIMessages(history: unknown): OpenAIMessage[] {
         content = '';
       }
 
-      return { role, content } satisfies OpenAIMessage;
+      return { role, content } satisfies ModelChatMessage;
     })
-    .filter((message): message is OpenAIMessage => Boolean(message));
+    .filter((message): message is ModelChatMessage => Boolean(message));
 }
 
 export default {
   createChatMessageEntry,
-  mapHistoryToOpenAIMessages,
+  mapHistoryToModelMessages,
 };
