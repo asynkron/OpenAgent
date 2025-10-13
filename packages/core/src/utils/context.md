@@ -11,7 +11,7 @@
 - `contextUsage.ts` — tracks token usage metrics for display in the CLI.
 - `fetch.ts` — thin wrapper around `undici`/`node-fetch` semantics with timeout & error normalization; now prefers the global Fetch API with typed fallbacks to Node's `http`/`https` modules.
 - `jsonAssetValidator.ts` — validates JSON files against provided schemas; leveraged by scripts/tests.
-- `output.ts` — formatting helpers for CLI output and logs, now typed to guarantee string outputs.
+- `output.ts` — formatting helpers for CLI output and logs, now typed to guarantee string outputs. The `combineStdStreams` helper tolerates missing exit codes so observation builders can share the same implementation across typed and untyped callers.
 - `plan.ts` — plan tree clone/merge/progress utilities used by agent runtime & UI.
   - Incoming items with `status: 'abandoned'` now remove the matching plan branch during merge.
   - Steps waiting on dependencies now remain blocked if any dependency failed instead of treating failure as completion.

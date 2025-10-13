@@ -1,11 +1,10 @@
-// @ts-nocheck
 import { planHasOpenSteps } from '../utils/plan.js';
 import { incrementCommandCount as defaultIncrementCommandCount } from '../services/commandStatsService.js';
 import {
   combineStdStreams as defaultCombineStdStreams,
   buildPreview as defaultBuildPreview,
 } from '../utils/output.js';
-import ObservationBuilder from './observationBuilder.js';
+import ObservationBuilder, { type ObservationBuilderDeps } from './observationBuilder.js';
 import { parseAssistantResponse as defaultParseAssistantResponse } from './responseParser.js';
 import { requestModelCompletion as defaultRequestModelCompletion } from './openaiRequest.js';
 import { executeAgentCommand as defaultExecuteAgentCommand } from './commandExecution.js';
@@ -19,6 +18,7 @@ import {
   createChatMessageEntry as defaultCreateChatMessageEntry,
   type ChatMessageEntry,
 } from './historyEntry.js';
+import type { ResponsesClient } from '../openai/responses.js';
 import {
   createObservationHistoryEntry,
   createPlanReminderEntry,
@@ -55,7 +55,7 @@ interface PlanManagerLike {
   sync?: (plan: PlanStep[] | null | undefined) => Promise<unknown>;
 }
 
-type PlanManagerMethod = ((...args: unknown[]) => unknown) | null | undefined;
+type PlanManagerMethod = ((...args: any[]) => unknown) | null | undefined;
 
 const createPlanManagerInvoker =
   (manager: PlanManagerLike) =>
@@ -87,7 +87,7 @@ const createPlanReminderController = (
     return {
       recordAttempt: () => tracker.increment(),
       reset: () => tracker.reset(),
-      getCount: () => (typeof tracker.getCount === 'function' ? tracker.getCount() ?? 0 : 0),
+      getCount: () => (typeof tracker.getCount === 'function' ? (tracker.getCount() ?? 0) : 0),
     };
   }
 
@@ -106,9 +106,7 @@ const createPlanReminderController = (
   };
 };
 
-const pickNextExecutableCandidate = (
-  entries: ExecutablePlanStep[],
-): ExecutableCandidate | null => {
+const pickNextExecutableCandidate = (entries: ExecutablePlanStep[]): ExecutableCandidate | null => {
   let best: ExecutableCandidate | null = null;
 
   for (let index = 0; index < entries.length; index += 1) {
@@ -144,7 +142,7 @@ const isLikelyRefusalMessage = (message: unknown): boolean =>
   refusalHeuristics.isLikelyRefusalMessage(message);
 
 export interface ExecuteAgentPassOptions {
-  openai: unknown;
+  openai: ResponsesClient;
   model: string;
   history: ChatMessageEntry[];
   emitEvent?: (event: UnknownRecord) => void;
@@ -166,14 +164,9 @@ export interface ExecuteAgentPassOptions {
   passIndex: number;
   requestModelCompletionFn?: typeof defaultRequestModelCompletion;
   executeAgentCommandFn?: typeof defaultExecuteAgentCommand;
-  createObservationBuilderFn?: (deps: {
-    combineStdStreams: typeof defaultCombineStdStreams;
-    applyFilter: (text: string, regex: string) => string;
-    tailLines: (text: string, lines: number) => string;
-    buildPreview: typeof defaultBuildPreview;
-  }) => ObservationBuilder;
-  combineStdStreamsFn?: typeof defaultCombineStdStreams;
-  buildPreviewFn?: typeof defaultBuildPreview;
+  createObservationBuilderFn?: (deps: ObservationBuilderDeps) => ObservationBuilder;
+  combineStdStreamsFn?: ObservationBuilderDeps['combineStdStreams'];
+  buildPreviewFn?: ObservationBuilderDeps['buildPreview'];
   parseAssistantResponseFn?: typeof defaultParseAssistantResponse;
   validateAssistantResponseSchemaFn?: typeof defaultValidateAssistantResponseSchema;
   validateAssistantResponseFn?: typeof defaultValidateAssistantResponse;
@@ -215,8 +208,10 @@ export async function executeAgentPass({
   requestModelCompletionFn = defaultRequestModelCompletion,
   executeAgentCommandFn = defaultExecuteAgentCommand,
   createObservationBuilderFn = (deps) => new ObservationBuilder(deps),
-  combineStdStreamsFn = defaultCombineStdStreams,
-  buildPreviewFn = defaultBuildPreview,
+  combineStdStreamsFn = (stdout, stderr, exitCode) =>
+    // Normalize optional exit codes before delegating so ObservationBuilder sees a consistent signature.
+    defaultCombineStdStreams(stdout, stderr, exitCode ?? 0),
+  buildPreviewFn = (text) => defaultBuildPreview(text),
   parseAssistantResponseFn = defaultParseAssistantResponse,
   validateAssistantResponseSchemaFn = defaultValidateAssistantResponseSchema,
   validateAssistantResponseFn = defaultValidateAssistantResponse,
@@ -593,7 +588,7 @@ export async function executeAgentPass({
 
     if (!activePlanEmpty && !hasOpenSteps) {
       // The plan is finished; wipe the snapshot so follow-up prompts start cleanly.
-      if (invokePlanManager) {
+      if (planManager && invokePlanManager) {
         try {
           const cleared = await invokePlanManager(planManager.reset);
           if (Array.isArray(cleared)) {
@@ -840,7 +835,7 @@ export async function executeAgentPass({
   if (planMutatedDuringExecution && Array.isArray(activePlan)) {
     emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
 
-    if (invokePlanManager && typeof planManager?.sync === 'function') {
+    if (planManager && invokePlanManager && typeof planManager.sync === 'function') {
       try {
         await invokePlanManager(planManager.sync, activePlan);
       } catch (error) {
