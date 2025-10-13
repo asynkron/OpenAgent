@@ -1,39 +1,37 @@
-// @ts-nocheck
 import { createAgentRuntime } from '../loop.js';
 import { QUEUE_DONE } from '../../utils/asyncQueue.js';
+import type { ResponsesClient, ResponsesProvider } from '../../openai/responses.js';
 
 class TestOutputsQueue {
-  constructor() {
-    this.items = [];
-    this.closed = false;
-  }
+  readonly items: Array<Record<string, unknown>> = [];
 
-  push(value) {
+  closed = false;
+
+  push(value: Record<string, unknown>): void {
     this.items.push(value);
   }
 
-  close() {
+  close(): void {
     this.closed = true;
   }
 
-  async next() {
+  async next(): Promise<typeof QUEUE_DONE> {
     return QUEUE_DONE;
   }
 }
 
 class TestInputsQueue {
-  constructor() {
-    this.closed = false;
-    this.done = false;
-  }
+  closed = false;
 
-  push() {}
+  private done = false;
 
-  close() {
+  push(): void {}
+
+  close(): void {
     this.closed = true;
   }
 
-  async next() {
+  async next(): Promise<typeof QUEUE_DONE> {
     if (this.done) {
       return QUEUE_DONE;
     }
@@ -43,21 +41,28 @@ class TestInputsQueue {
 }
 
 class StubPromptCoordinator {
-  constructor({ emitEvent }) {
+  private readonly emitEvent: (event: Record<string, unknown>) => void;
+
+  constructor({ emitEvent }: { emitEvent: (event: Record<string, unknown>) => void }) {
     this.emitEvent = emitEvent;
   }
 
-  async request(prompt, metadata = {}) {
+  async request(prompt: string, metadata: Record<string, unknown> = {}): Promise<string> {
     this.emitEvent({ type: 'request-input', prompt, metadata });
     return 'exit';
   }
 
-  handlePrompt() {}
+  handlePrompt(): void {}
 
-  handleCancel() {}
+  handleCancel(): void {}
 
-  close() {}
+  close(): void {}
 }
+
+const createStubResponsesClient = (): ResponsesClient => {
+  const responses = (() => ({})) as unknown as ResponsesProvider;
+  return { responses } as ResponsesClient;
+};
 
 describe('createAgentRuntime', () => {
   it('deep clones emitted events so downstream mutations are isolated', async () => {
@@ -69,7 +74,7 @@ describe('createAgentRuntime', () => {
       createInputsQueueFn: () => new TestInputsQueue(),
       createPromptCoordinatorFn: (config) => new StubPromptCoordinator(config),
       // Provide a stubbed client so tests do not require a real OpenAI API key.
-      getClient: () => ({ responses: {} }),
+      getClient: () => createStubResponsesClient(),
       // Disable history compaction since it depends on the real client instance.
       createHistoryCompactorFn: () => null,
       createPlanManagerFn: ({ emit }) => ({
