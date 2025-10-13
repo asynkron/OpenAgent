@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 import type { Key } from 'ink';
 
@@ -19,8 +19,6 @@ import type { SlashCommandDefinition, SlashCommandSourceItem } from './inkTextAr
 import { useCommandMenu } from './inkTextArea/useCommandMenu.js';
 import type { CommandMatch } from './inkTextArea/useCommandMenu.js';
 import type { SlashCommandSelectEvent } from './inkTextArea/types.js';
-
-const h = React.createElement;
 
 const ANSI_INVERSE_ON = '\u001B[7m';
 const ANSI_INVERSE_OFF = '\u001B[27m';
@@ -59,28 +57,34 @@ function CommandMenu({ matches, activeMatch, isVisible, title }: CommandMenuProp
 
   const items = matches.map(({ item, index }) => ({ item, index }));
 
-  return h(
-    Box,
-    { flexDirection: 'column', marginTop: 1, borderStyle: 'round', borderColor: 'cyan' },
-    title
-      ? h(Text, { key: 'title', color: 'cyanBright', bold: true, marginBottom: 1 }, title)
-      : null,
-    ...items.map(({ item, index }) => {
-      const isActive = activeMatch?.index === index;
-      const label = isActive ? `${ANSI_INVERSE_ON}${item.label}${ANSI_INVERSE_OFF}` : item.label;
+  return (
+    <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="cyan">
+      {title ? (
+        <Text color="cyanBright" bold marginBottom={1}>
+          {title}
+        </Text>
+      ) : null}
+      {items.map(({ item, index }) => {
+        const isActive = activeMatch?.index === index;
+        const label = isActive ? `${ANSI_INVERSE_ON}${item.label}${ANSI_INVERSE_OFF}` : item.label;
 
-      return h(
-        Box,
-        {
-          key: String(item.id ?? index),
-          flexDirection: 'column',
-          marginBottom: 1,
-          width: '100%',
-        },
-        h(Text, { color: isActive ? 'white' : 'cyan' }, label),
-        item.description ? h(Text, { color: 'gray', dimColor: true }, item.description) : null,
-      );
-    }),
+        return (
+          <Box
+            key={String(item.id ?? index)}
+            flexDirection="column"
+            marginBottom={1}
+            width="100%"
+          >
+            <Text color={isActive ? 'white' : 'cyan'}>{label}</Text>
+            {item.description ? (
+              <Text color="gray" dimColor>
+                {item.description}
+              </Text>
+            ) : null}
+          </Box>
+        );
+      })}
+    </Box>
   );
 }
 
@@ -474,39 +478,36 @@ export function InkTextArea(props: InkTextAreaProps) {
   const rowElements = displayRows.map((row: TextRow, index: number) => {
     const isCaretRow = caretVisible && index === caretRowIndex;
     const caretColumn = caretPosition.column;
+    const key = `row-${row.startIndex}-${index}`;
 
     if (!isCaretRow) {
       const textContent = row.text.length > 0 ? row.text : ' ';
-      return h(
-        Box,
-        {
-          key: `row-${row.startIndex}-${index}`,
-          flexDirection: 'row',
-          width: '100%',
-          alignSelf: 'stretch',
-        },
-        h(Text, { key: 'row', ...computedTextProps }, textContent),
+      return (
+        <Box key={key} flexDirection="row" width="100%" alignSelf="stretch">
+          <Text {...computedTextProps}>{textContent}</Text>
+        </Box>
       );
     }
 
     if (!hasValue) {
       const segments = [
-        h(Text, { key: 'caret', inverse: caretVisible, ...computedTextProps }, ' '),
+        <Text key="caret" inverse={caretVisible} {...computedTextProps}>
+          {' '}
+        </Text>,
       ];
 
       if (row.text.length > 0) {
-        segments.push(h(Text, { key: 'placeholder', ...computedTextProps }, row.text));
+        segments.push(
+          <Text key="placeholder" {...computedTextProps}>
+            {row.text}
+          </Text>,
+        );
       }
 
-      return h(
-        Box,
-        {
-          key: `row-${row.startIndex}-${index}`,
-          flexDirection: 'row',
-          width: '100%',
-          alignSelf: 'stretch',
-        },
-        ...segments,
+      return (
+        <Box key={key} flexDirection="row" width="100%" alignSelf="stretch">
+          {segments}
+        </Box>
       );
     }
 
@@ -515,42 +516,53 @@ export function InkTextArea(props: InkTextAreaProps) {
     const caretDisplay = caretChar ?? ' ';
     const afterStart = caretChar ? caretColumn + 1 : caretColumn;
     const afterCaret = row.text.slice(afterStart);
-    const segments = [] as React.ReactNode[];
+    const segments = [];
 
     if (beforeCaret.length > 0) {
-      segments.push(h(Text, { key: 'before', ...computedTextProps }, beforeCaret));
+      segments.push(
+        <Text key="before" {...computedTextProps}>
+          {beforeCaret}
+        </Text>,
+      );
     }
 
     segments.push(
-      h(Text, { key: 'caret', inverse: caretVisible, ...computedTextProps }, caretDisplay),
+      <Text key="caret" inverse={caretVisible} {...computedTextProps}>
+        {caretDisplay}
+      </Text>,
     );
 
     if (afterCaret.length > 0) {
-      segments.push(h(Text, { key: 'after', ...computedTextProps }, afterCaret));
+      segments.push(
+        <Text key="after" {...computedTextProps}>
+          {afterCaret}
+        </Text>,
+      );
     }
 
     if (segments.length === 1 && caretDisplay === ' ') {
-      segments.push(h(Text, { key: 'padding', ...computedTextProps }, ''));
+      segments.push(
+        <Text key="padding" {...computedTextProps}>
+          {''}
+        </Text>,
+      );
     }
 
-    return h(
-      Box,
-      {
-        key: `row-${row.startIndex}-${index}`,
-        flexDirection: 'row',
-        width: '100%',
-        alignSelf: 'stretch',
-      },
-      ...segments,
+    return (
+      <Box key={key} flexDirection="row" width="100%" alignSelf="stretch">
+        {segments}
+      </Box>
     );
   });
 
-  const commandMenuElement = h(CommandMenu, {
-    matches: commandMatches,
-    activeMatch: resolvedCommandHighlight,
-    isVisible: commandMenuVisible,
-    title: commandMenuTitle,
-  });
+  const commandMenuElement = (
+    <CommandMenu
+      matches={commandMatches}
+      activeMatch={resolvedCommandHighlight}
+      isVisible={commandMenuVisible}
+      title={commandMenuTitle}
+    />
+  );
 
   const shouldRenderDebug = debug || showDebugMetrics || process.env.NODE_ENV === 'test';
   const modifierKeys = lastKeyEvent.specialKeys;
@@ -558,29 +570,17 @@ export function InkTextArea(props: InkTextAreaProps) {
   const measuredWidthDisplay = measuredWidth ? String(measuredWidth) : 'n/a';
   const lastKeyDisplay = lastKeyEvent.printableInput || lastKeyEvent.rawInput || 'none';
 
-  const debugElement = shouldRenderDebug
-    ? h(
-        Box,
-        { flexDirection: 'column', marginTop: 1 },
-        h(Text, { color: 'gray', dimColor: true, key: 'debug-heading' }, 'Debug info'),
-        h(
-          Text,
-          { color: 'gray', key: 'debug-width' },
-          `Width: ${normalizedWidth} (effective: ${effectiveWidth}, prop: ${widthPropDisplay}, measured: ${measuredWidthDisplay})`,
-        ),
-        h(
-          Text,
-          { color: 'gray', key: 'debug-caret' },
-          `Caret: line ${caretLineDisplay}, column ${caretColumnDisplay}, index ${caretIndex}`,
-        ),
-        h(Text, { color: 'gray', key: 'debug-last-key' }, `Last key: ${lastKeyDisplay}`),
-        h(
-          Text,
-          { color: 'gray', key: 'debug-modifiers' },
-          `Special keys: ${modifierKeys.length > 0 ? modifierKeys.join(', ') : 'none'}`,
-        ),
-      )
-    : null;
+  const debugElement = shouldRenderDebug ? (
+    <Box flexDirection="column" marginTop={1}>
+      <Text color="gray" dimColor>
+        Debug info
+      </Text>
+      <Text color="gray">{`Width: ${normalizedWidth} (effective: ${effectiveWidth}, prop: ${widthPropDisplay}, measured: ${measuredWidthDisplay})`}</Text>
+      <Text color="gray">{`Caret: line ${caretLineDisplay}, column ${caretColumnDisplay}, index ${caretIndex}`}</Text>
+      <Text color="gray">{`Last key: ${lastKeyDisplay}`}</Text>
+      <Text color="gray">{`Special keys: ${modifierKeys.length > 0 ? modifierKeys.join(', ') : 'none'}`}</Text>
+    </Box>
+  ) : null;
 
   const containerStyle: Record<string, unknown> = {
     flexDirection: 'column',
@@ -617,12 +617,14 @@ export function InkTextArea(props: InkTextAreaProps) {
     }
   }
 
-  return h(
-    Box,
-    containerStyle,
-    h(Box, { flexDirection: 'column', width: '100%' }, ...rowElements),
-    commandMenuElement,
-    debugElement,
+  return (
+    <Box {...containerStyle}>
+      <Box flexDirection="column" width="100%">
+        {rowElements}
+      </Box>
+      {commandMenuElement}
+      {debugElement}
+    </Box>
   );
 }
 

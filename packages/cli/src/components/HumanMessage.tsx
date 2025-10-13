@@ -1,10 +1,8 @@
-import React from 'react';
+import type { ReactElement } from 'react';
 import { Box, Text } from 'ink';
 
 import { wrapStructuredContent } from '../render.js';
 import theme from '../theme.js';
-
-const h = React.createElement;
 
 const { human } = theme;
 const humanColors = human.colors;
@@ -20,7 +18,7 @@ type InkTextProps = Record<string, unknown>;
 /**
  * Renders human-provided inputs within the timeline so conversations stay paired.
  */
-export function HumanMessage({ message }: HumanMessageProps): React.ReactElement | null {
+export function HumanMessage({ message }: HumanMessageProps): ReactElement | null {
   const prepared = wrapStructuredContent(message);
 
   if (!prepared) {
@@ -37,7 +35,11 @@ export function HumanMessage({ message }: HumanMessageProps): React.ReactElement
     textProps.color = humanColors.fg;
   }
 
-  return h(Box, containerProps, h(Text, textProps, prepared)) as React.ReactElement;
+  return (
+    <Box {...(containerProps as Record<string, unknown>)}>
+      <Text {...(textProps as Record<string, unknown>)}>{prepared}</Text>
+    </Box>
+  );
 }
 
 export default HumanMessage;

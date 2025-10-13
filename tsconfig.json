@@ -11,13 +11,16 @@
     "skipLibCheck": true,
     "strict": true,
     "isolatedModules": true,
-    "noEmitOnError": true
+    "noEmitOnError": true,
+    "jsx": "react-jsx"
   },
   "include": [
     "packages/**/*.ts",
+    "packages/**/*.tsx",
     "packages/**/*.d.ts",
     "types/**/*.d.ts",
     "tests/**/*.ts",
+    "tests/**/*.tsx",
     "scripts/**/*.ts",
     "scripts/**/*.cts",
     "index.ts"

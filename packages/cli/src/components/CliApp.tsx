@@ -21,8 +21,6 @@ const MAX_TIMELINE_ENTRIES = 20;
 const MAX_DEBUG_ENTRIES = 20;
 const MAX_COMMAND_LOG_ENTRIES = 50;
 
-const h = React.createElement;
-
 const MemoPlan = React.memo(Plan);
 const MemoAgentResponse = React.memo(AgentResponse);
 const MemoHumanMessage = React.memo(HumanMessage);
@@ -35,85 +33,84 @@ const Timeline = React.memo(function Timeline({ entries }) {
     return null;
   }
 
-  return h(
-    Box,
-    { width: '100%', alignSelf: 'stretch', flexDirection: 'column', flexGrow: 1 },
-    h(
-      Static,
-      {
-        items: entries,
-        // Always rely on the local entry id so Ink treats every timeline event as
-        // distinct. Runtime payloads sometimes reuse their own identifiers when
-        // streaming updates, and deferring to those ids caused `Static` to
-        // ignore fresh entries and stall the visible timeline.
-        itemKey: (item) => item.id,
-        style: { width: '100%', flexGrow: 1 },
-      },
-      (entry) => {
-        let content = null;
+  return (
+    <Box width="100%" alignSelf="stretch" flexDirection="column" flexGrow={1}>
+      <Static
+        items={entries}
+        itemKey={(item) => item.id}
+        style={{ width: '100%', flexGrow: 1 }}
+      >
+        {(entry) => {
+          let content = null;
 
-        switch (entry.type) {
-          case 'assistant-message':
-            content = h(MemoAgentResponse, {
-              key: entry.payload.eventId ?? entry.id,
-              message: entry.payload.message,
-            });
-            break;
-          case 'human-message':
-            content = h(MemoHumanMessage, { message: entry.payload.message });
-            break;
-          case 'command-result':
-            content = h(MemoCommand, {
-              command: entry.payload.command,
-              result: entry.payload.result,
-              preview: entry.payload.preview,
-              execution: entry.payload.execution,
-            });
-            break;
-          case 'banner': {
-            const elements = [];
-            if (entry.payload?.title) {
-              elements.push(
-                h(Text, { color: 'blueBright', bold: true, key: 'title' }, entry.payload.title),
+          switch (entry.type) {
+            case 'assistant-message':
+              content = (
+                <MemoAgentResponse
+                  key={entry.payload.eventId ?? entry.id}
+                  message={entry.payload.message}
+                />
               );
-            }
-            if (entry.payload?.subtitle) {
-              elements.push(h(Text, { dimColor: true, key: 'subtitle' }, entry.payload.subtitle));
-            }
-            if (elements.length === 0) {
+              break;
+            case 'human-message':
+              content = <MemoHumanMessage message={entry.payload.message} />;
+              break;
+            case 'command-result':
+              content = (
+                <MemoCommand
+                  command={entry.payload.command}
+                  result={entry.payload.result}
+                  preview={entry.payload.preview}
+                  execution={entry.payload.execution}
+                />
+              );
+              break;
+            case 'banner': {
+              const hasTitle = Boolean(entry.payload?.title);
+              const hasSubtitle = Boolean(entry.payload?.subtitle);
+              if (!hasTitle && !hasSubtitle) {
+                break;
+              }
+
+              content = (
+                <Box flexDirection="column" marginBottom={1} width="100%" alignSelf="stretch">
+                  {hasTitle ? (
+                    <Text color="blueBright" bold>
+                      {entry.payload.title}
+                    </Text>
+                  ) : null}
+                  {hasSubtitle ? (
+                    <Text dimColor>{entry.payload.subtitle}</Text>
+                  ) : null}
+                </Box>
+              );
               break;
             }
-            content = h(
-              Box,
-              { flexDirection: 'column', marginBottom: 1, width: '100%', alignSelf: 'stretch' },
-              elements,
-            );
-            break;
+            case 'status':
+              content = <MemoStatusMessage status={entry.payload} />;
+              break;
+            default:
+              break;
           }
-          case 'status':
-            content = h(MemoStatusMessage, { status: entry.payload });
-            break;
-          default:
-            break;
-        }
 
-        if (!content) {
-          return null;
-        }
+          if (!content) {
+            return null;
+          }
 
-        return h(
-          Box,
-          {
-            key: entry.id,
-            width: '100%',
-            flexGrow: 1,
-            alignSelf: 'stretch',
-            flexDirection: 'column',
-          },
-          content,
-        );
-      },
-    ),
+          return (
+            <Box
+              key={entry.id}
+              width="100%"
+              flexGrow={1}
+              alignSelf="stretch"
+              flexDirection="column"
+            >
+              {content}
+            </Box>
+          );
+        }}
+      </Static>
+    </Box>
   );
 });
 
@@ -596,27 +593,29 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
   }, [commandInspector, commandLog]);
 
   const sections = [
-    h(Timeline, { entries, key: `timeline-${timelineKey}` }),
-    debugEvents.length > 0 &&
-      h(MemoDebugPanel, { events: debugEvents, heading: 'Debug', key: 'debug' }),
-    commandPanelEvents.length > 0 &&
-      h(MemoDebugPanel, {
-        events: commandPanelEvents,
-        heading: 'Recent commands',
-        key: `command-${commandInspector?.token ?? 'command-inspector'}`,
-      }),
-    h(AskHuman, {
-      prompt: inputRequest?.prompt,
-      onSubmit: inputRequest ? handleSubmitPrompt : undefined,
-      thinking,
-      contextUsage,
-      passCounter,
-      key: 'ask-human',
-    }),
-    h(MemoPlan, { plan, progress: planProgress.value, key: 'plan' }),
+    <Timeline entries={entries} key={`timeline-${timelineKey}`} />,
+    debugEvents.length > 0 ? (
+      <MemoDebugPanel events={debugEvents} heading="Debug" key="debug" />
+    ) : null,
+    commandPanelEvents.length > 0 ? (
+      <MemoDebugPanel
+        events={commandPanelEvents}
+        heading="Recent commands"
+        key={`command-${commandInspector?.token ?? 'command-inspector'}`}
+      />
+    ) : null,
+    <AskHuman
+      prompt={inputRequest?.prompt}
+      onSubmit={inputRequest ? handleSubmitPrompt : undefined}
+      thinking={thinking}
+      contextUsage={contextUsage}
+      passCounter={passCounter}
+      key="ask-human"
+    />,
+    <MemoPlan plan={plan} progress={planProgress.value} key="plan" />,
   ].filter(Boolean);
 
-  return h(Box, { flexDirection: 'column' }, sections);
+  return <Box flexDirection="column">{sections}</Box>;
 }
 
 export default CliApp;

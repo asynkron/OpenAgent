@@ -36,6 +36,7 @@
 - README now opens with `![Screenshot](./screenshot.png)` to preview the CLI.
 - Cross-reference sibling directories if behavior spans subsystems (e.g., CLI rendering ↔ agent runtime).
 - TypeScript scaffolding now lives at the workspace root via `tsconfig.json` plus `npm run typecheck` for incremental adoption; compiled JavaScript still ships from package directories until the build pipeline is fully converted.
+- Root TypeScript config now includes `.tsx` sources so JSX-based components (e.g., the CLI) compile without custom overrides.
 - Static analysis via FTA: `npm run fta` wraps the bundled `fta-cli` dev dependency to score the TypeScript in `packages/*` before sizable refactors.
 - Latest FTA run (2025-03-17) flagged CLI ink components, the core pass executor, and web chat service as top hotspots; see `todo.md` for remediation tasks tracking those files.
 - Root `npm run build` compiles `@asynkron/openagent-core` first and then fans out to every workspace (`npm run build --workspaces --if-present`) so downstream TypeScript packages resolve its emitted types.

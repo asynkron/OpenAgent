@@ -1,4 +1,4 @@
-import React from 'react';
+import type { ReactElement } from 'react';
 import { Box, Text } from 'ink';
 
 import {
@@ -13,28 +13,28 @@ import {
 import theme from '../theme.js';
 import { renderMarkdownMessage } from '../render.js';
 
-const h = React.createElement;
 const { command } = theme;
-type StyleProps = Record<string, unknown>;
-type SummaryLineStyleMap = Record<string, StyleProps> & { base?: StyleProps };
+type TextStyleProps = Record<string, unknown>;
+type BoxStyleProps = Record<string, unknown>;
+type SummaryLineStyleMap = Record<string, TextStyleProps> & { base?: TextStyleProps };
 
 type CommandThemeProps = {
-  container?: StyleProps;
-  heading?: StyleProps;
-  headingBadge?: StyleProps;
-  headingDetail?: StyleProps;
+  container?: BoxStyleProps;
+  heading?: TextStyleProps;
+  headingBadge?: TextStyleProps;
+  headingDetail?: TextStyleProps;
   summaryLine?: SummaryLineStyleMap;
-  runContainer?: StyleProps;
+  runContainer?: BoxStyleProps;
 };
 
 const commandThemeProps = (command.props ?? {}) as CommandThemeProps;
 const commandColors = command.colors;
-const commandContainerProps: StyleProps = commandThemeProps.container ?? {};
-const commandHeadingProps: StyleProps = commandThemeProps.heading ?? {};
-const commandHeadingBadgeProps: StyleProps = commandThemeProps.headingBadge ?? {};
-const commandHeadingDetailProps: StyleProps = commandThemeProps.headingDetail ?? {};
+const commandContainerProps: BoxStyleProps = { ...(commandThemeProps.container ?? {}) };
+const commandHeadingProps: TextStyleProps = { ...(commandThemeProps.heading ?? {}) };
+const commandHeadingBadgeProps: TextStyleProps = { ...(commandThemeProps.headingBadge ?? {}) };
+const commandHeadingDetailProps: TextStyleProps = { ...(commandThemeProps.headingDetail ?? {}) };
 const commandSummaryLineProps: SummaryLineStyleMap = commandThemeProps.summaryLine ?? {};
-const commandRunContainerProps: StyleProps = commandThemeProps.runContainer ?? {};
+const commandRunContainerProps: BoxStyleProps = { ...(commandThemeProps.runContainer ?? {}) };
 
 const BEGIN_PATCH_MARKER = '*** Begin Patch';
 const END_PATCH_MARKER = '*** End Patch';
@@ -103,7 +103,7 @@ function splitRunSegments(runValue: string | null | undefined): RunSegment[] | n
   return segments.some((segment) => segment.type === 'diff') ? segments : null;
 }
 
-function renderPlainRunLines(content: string | null, baseKey: string): React.ReactElement[] {
+function renderPlainRunLines(content: string | null, baseKey: string): ReactElement[] {
   if (!content) {
     return [];
   }
@@ -115,38 +115,34 @@ function renderPlainRunLines(content: string | null, baseKey: string): React.Rea
         return null;
       }
       const displayText = line === '' ? ' ' : line;
-      return h(
-        Text,
-        { key: `${baseKey}-${index}`, dimColor: true },
-        displayText,
-      ) as React.ReactElement;
+      return (
+        <Text key={`${baseKey}-${index}`} dimColor>
+          {displayText}
+        </Text>
+      );
     })
-    .filter((node): node is React.ReactElement => Boolean(node));
+    .filter((node): node is ReactElement => Boolean(node));
 }
 
-function renderDiffSegment(content: string, key: string): React.ReactElement {
+function renderDiffSegment(content: string, key: string): ReactElement {
   const normalized = typeof content === 'string' ? content.trimEnd() : '';
   const markdown = `\`\`\`diff\n${normalized}\n\`\`\``;
   const rendered = renderMarkdownMessage(markdown);
-  return h(Text, { key }, rendered) as React.ReactElement;
+  return <Text key={key}>{rendered}</Text>;
 }
 
-function SummaryLine({
-  line,
-  index,
-}: {
-  line: SummaryLineValue;
-  index: number;
-}): React.ReactElement {
-  const baseProps: Record<string, unknown> = {
-    key: index,
+function SummaryLine({ line }: { line: SummaryLineValue }): ReactElement {
+  const baseProps: TextStyleProps = {
     ...(commandSummaryLineProps.base ?? {}),
   };
   const baseColor = baseProps.color ?? commandColors.fg;
 
-  const buildProps = (styleKey: keyof typeof commandSummaryLineProps, fallbackColor?: string) => {
+  const buildProps = (
+    styleKey: keyof SummaryLineStyleMap,
+    fallbackColor?: string,
+  ): TextStyleProps => {
     const style = commandSummaryLineProps[styleKey] ?? {};
-    const merged: Record<string, unknown> = { ...baseProps, ...style };
+    const merged: TextStyleProps = { ...baseProps, ...style };
     if (!merged.color) {
       merged.color = fallbackColor ?? baseColor;
     }
@@ -158,18 +154,22 @@ function SummaryLine({
   switch (line.kind) {
     case 'error-arrow':
     case 'error-indent':
-      return h(Text, buildProps('error', 'red'), text) as React.ReactElement;
+      return <Text {...(buildProps('error', 'red') as Record<string, unknown>)}>{text}</Text>;
     case 'indent':
-      return h(Text, buildProps('indent'), text) as React.ReactElement;
+      return <Text {...(buildProps('indent') as Record<string, unknown>)}>{text}</Text>;
     case 'exit-code': {
       const statusKey = line.status === 'success' ? 'success' : 'error';
       const fallbackColor = line.status === 'success' ? 'green' : 'red';
-      return h(Text, buildProps(statusKey, fallbackColor), text) as React.ReactElement;
+      return (
+        <Text {...(buildProps(statusKey, fallbackColor) as Record<string, unknown>)}>
+          {text}
+        </Text>
+      );
     }
     case 'arrow':
-      return h(Text, buildProps('arrow'), text) as React.ReactElement;
+      return <Text {...(buildProps('arrow') as Record<string, unknown>)}>{text}</Text>;
     default:
-      return h(Text, buildProps('default'), text) as React.ReactElement;
+      return <Text {...(buildProps('default') as Record<string, unknown>)}>{text}</Text>;
   }
 }
 
@@ -194,7 +194,7 @@ export function Command({
   result,
   preview = {},
   execution = {},
-}: CommandProps): React.ReactElement | null {
+}: CommandProps): ReactElement | null {
   const data: CommandRenderData | null = buildCommandRenderData(
     commandData ?? undefined,
     result ?? undefined,
@@ -207,14 +207,13 @@ export function Command({
   }
 
   const { type, detail, summaryLines } = data;
-  const children: React.ReactElement[] = [];
 
-  const headingProps: Record<string, unknown> = { key: 'heading', ...commandHeadingProps };
+  const headingProps: TextStyleProps = { ...commandHeadingProps };
   if (headingProps.color === undefined) {
     headingProps.color = commandColors.fg;
   }
 
-  const headingBadgeProps = { ...commandHeadingBadgeProps };
+  const headingBadgeProps: TextStyleProps = { ...commandHeadingBadgeProps };
   if (!headingBadgeProps.backgroundColor) {
     headingBadgeProps.backgroundColor = commandColors.headerBg;
   }
@@ -225,24 +224,16 @@ export function Command({
     headingBadgeProps.bold = true;
   }
 
-  const headingDetailProps = { ...commandHeadingDetailProps };
-
-  children.push(
-    h(
-      Text,
-      headingProps,
-      h(Text, headingBadgeProps, ` ${type} `),
-      h(Text, headingDetailProps, ` ${detail}`),
-    ) as React.ReactElement,
-  );
+  const headingDetailProps: TextStyleProps = { ...commandHeadingDetailProps };
 
   const runValue = extractRunValue(commandData ?? undefined, execution ?? undefined);
   const runSegments = splitRunSegments(runValue);
 
+  let runElements: ReactElement[] | null = null;
   if (runSegments) {
-    const runElements = runSegments.flatMap((segment, index) => {
+    const segments = runSegments.flatMap((segment, index) => {
       if (!segment.content) {
-        return [];
+        return [] as ReactElement[];
       }
       if (segment.type === 'diff') {
         return [renderDiffSegment(segment.content, `run-diff-${index}`)];
@@ -250,46 +241,50 @@ export function Command({
       return renderPlainRunLines(segment.content, `run-text-${index}`);
     });
 
-    if (runElements.length > 0) {
-      const runContainerProps: Record<string, unknown> = Object.assign(
-        {
-          key: 'command-run',
-          flexDirection: 'column',
-          marginTop: 1,
-        },
-        commandRunContainerProps,
-      );
-      if (!runContainerProps.flexDirection) {
-        runContainerProps.flexDirection = 'column';
-      }
-
-      children.push(h(Box, runContainerProps, runElements) as React.ReactElement);
+    if (segments.length > 0) {
+      runElements = segments;
     }
   }
 
-  summaryLines.forEach((line, index) => {
-    children.push(SummaryLine({ line, index }));
-  });
-
-  const containerProps: Record<string, unknown> = Object.assign(
-    {
-      flexDirection: 'column',
-      marginTop: 1,
-      paddingX: 1,
-      paddingY: 1,
-      width: '100%',
-      alignSelf: 'stretch',
-      flexGrow: 1,
-      borderStyle: 'round',
-    },
-    commandContainerProps,
-  );
+  const containerProps: BoxStyleProps = {
+    flexDirection: 'column',
+    marginTop: 1,
+    paddingX: 1,
+    paddingY: 1,
+    width: '100%',
+    alignSelf: 'stretch',
+    flexGrow: 1,
+    borderStyle: 'round',
+    ...commandContainerProps,
+  };
 
   if (!containerProps.color) {
     containerProps.color = commandColors.fg;
   }
 
-  return h(Box, containerProps, children) as React.ReactElement;
+  const runContainerProps: BoxStyleProps = {
+    flexDirection: 'column',
+    marginTop: 1,
+    ...commandRunContainerProps,
+  };
+  if (!runContainerProps.flexDirection) {
+    runContainerProps.flexDirection = 'column';
+  }
+
+  return (
+    <Box {...(containerProps as Record<string, unknown>)}>
+      <Text {...(headingProps as Record<string, unknown>)}>
+        <Text {...(headingBadgeProps as Record<string, unknown>)}>{` ${type} `}</Text>
+        <Text {...(headingDetailProps as Record<string, unknown>)}>{` ${detail}`}</Text>
+      </Text>
+      {runElements ? (
+        <Box {...(runContainerProps as Record<string, unknown>)}>{runElements}</Box>
+      ) : null}
+      {summaryLines.map((line, index) => (
+        <SummaryLine key={index} line={line} />
+      ))}
+    </Box>
+  );
 }
 
 export default Command;

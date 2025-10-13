@@ -1,10 +1,8 @@
-import React from 'react';
+import type { ReactElement } from 'react';
 import { Box, Text } from 'ink';
 
 import { renderMarkdownMessage, wrapStructuredContent } from '../render.js';
 import theme from '../theme.js';
-
-const h = React.createElement;
 
 const { agent } = theme;
 const agentColors = agent.colors;
@@ -21,7 +19,7 @@ type InkTextProps = Record<string, unknown>;
  * Renders assistant messages using Ink so Markdown formatting carries through to
  * the terminal UI.
  */
-export function AgentResponse({ message }: AgentResponseProps): React.ReactElement | null {
+export function AgentResponse({ message }: AgentResponseProps): ReactElement | null {
   const prepared = wrapStructuredContent(message);
 
   if (!prepared) {
@@ -40,7 +38,11 @@ export function AgentResponse({ message }: AgentResponseProps): React.ReactEleme
     textProps.color = agentColors.fg;
   }
 
-  return h(Box, containerProps, h(Text, textProps, rendered)) as React.ReactElement;
+  return (
+    <Box {...(containerProps as Record<string, unknown>)}>
+      <Text {...(textProps as Record<string, unknown>)}>{rendered}</Text>
+    </Box>
+  );
 }
 
 export default AgentResponse;
