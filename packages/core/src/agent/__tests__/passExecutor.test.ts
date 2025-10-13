@@ -9,7 +9,7 @@ import {
   createComplexPlanHasOpenStepsMock,
   createComplexBuildPlanLookupMock,
   createComplexPlanStepIsBlockedMock,
-} from './passExecutor.testHelpers.js';
+} from '../__testUtils__/passExecutor.js';
 
 afterEach(() => {
   jest.resetModules();
