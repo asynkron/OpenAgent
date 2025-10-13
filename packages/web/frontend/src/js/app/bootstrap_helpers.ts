@@ -107,6 +107,46 @@ export function createViewerApi(markdownTarget: MarkdownTarget): {
   };
 }
 
+function extractFilesFromInput(filesValue: FileEntry[] | FileIndexInput | null): FileEntry[] {
+  if (Array.isArray(filesValue)) {
+    return filesValue;
+  }
+  
+  if (filesValue && typeof filesValue === 'object') {
+    const candidate = filesValue as FileIndexInput;
+    return Array.isArray(candidate.files) ? candidate.files : [];
+  }
+  
+  return [];
+}
+
+function extractTreeFromInput(filesValue: FileEntry[] | FileIndexInput | null, treeValue: FileTreeEntry[] | null): FileTreeEntry[] {
+  if (filesValue && typeof filesValue === 'object') {
+    const candidate = filesValue as FileIndexInput;
+    if (Array.isArray(candidate.tree)) {
+      return candidate.tree;
+    }
+  }
+  
+  if (Array.isArray(treeValue)) {
+    return treeValue;
+  }
+  
+  return [];
+}
+
+function ensureBothFilesAndTree(flat: FileEntry[], tree: FileTreeEntry[]): { files: FileEntry[]; tree: FileTreeEntry[] } {
+  if (tree.length && !flat.length) {
+    flat = flattenTree(tree);
+  }
+  
+  if (!tree.length && flat.length) {
+    tree = buildTreeFromFlatList(flat);
+  }
+  
+  return { files: flat, tree };
+}
+
 export function normaliseFileIndex({
   filesValue,
   treeValue,
@@ -114,34 +154,29 @@ export function normaliseFileIndex({
   filesValue?: FileEntry[] | FileIndexInput | null;
   treeValue?: FileTreeEntry[] | null;
 }): NormalisedFileIndex {
-  let flat: FileEntry[] = [];
-  let tree: FileTreeEntry[] = [];
+  const flat = extractFilesFromInput(filesValue);
+  const tree = extractTreeFromInput(filesValue, treeValue);
+  
+  const { files, tree: finalTree } = ensureBothFilesAndTree(flat, tree);
+  
+  return { files, tree: finalTree };
+}
 
-  if (Array.isArray(filesValue)) {
-    flat = filesValue;
-  } else if (filesValue && typeof filesValue === 'object') {
-    const candidate = filesValue as FileIndexInput;
-    if (Array.isArray(candidate.files)) {
-      flat = candidate.files;
-    }
-    if (Array.isArray(candidate.tree)) {
-      tree = candidate.tree;
-    }
+function createFileEntryFromNode(node: FileTreeFile): FileEntry {
+  return {
+    name: node.name,
+    relativePath: node.relativePath,
+    size: node.size,
+    updated: node.updated,
+  };
+}
+
+function processNode(node: FileTreeEntry, stack: FileTreeEntry[], result: FileEntry[]): void {
+  if (node.type === 'file') {
+    result.push(createFileEntryFromNode(node));
+  } else {
+    stack.unshift(...node.children);
   }
-
-  if (!tree.length && Array.isArray(treeValue)) {
-    tree = treeValue;
-  }
-
-  if (tree.length && !flat.length) {
-    flat = flattenTree(tree);
-  }
-
-  if (!tree.length && flat.length) {
-    tree = buildTreeFromFlatList(flat);
-  }
-
-  return { files: flat, tree };
 }
 
 export function flattenTree(nodes: readonly FileTreeEntry[] | null | undefined): FileEntry[] {
@@ -157,20 +192,64 @@ export function flattenTree(nodes: readonly FileTreeEntry[] | null | undefined):
       continue;
     }
 
-    if (node.type === 'file') {
-      result.push({
-        name: node.name,
-        relativePath: node.relativePath,
-        size: node.size,
-        updated: node.updated,
-      });
-      continue;
-    }
-
-    stack.unshift(...node.children);
+    processNode(node, stack, result);
   }
 
   return result;
+}
+
+function createDirectoryNode(name: string, path: string): FileTreeDirectory {
+  return {
+    type: 'directory',
+    name,
+    relativePath: path,
+    children: [],
+  };
+}
+
+function createFileNode(file: FileEntry, fileName: string): FileTreeFile {
+  return {
+    type: 'file',
+    name: fileName,
+    relativePath: file.relativePath!,
+    size: file.size,
+    updated: file.updated,
+  };
+}
+
+function ensureDirectory(path: string, name: string, directoryMap: Map<string, FileTreeEntry[]>, root: FileTreeEntry[]): FileTreeEntry[] {
+  const cached = directoryMap.get(path);
+  if (cached) {
+    return cached;
+  }
+
+  const parentPath = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+  const parentChildren = directoryMap.get(parentPath) ?? root;
+  const node = createDirectoryNode(name, path);
+  parentChildren.push(node);
+  directoryMap.set(path, node.children);
+  return node.children;
+}
+
+function processFileSegments(segments: string[], directoryMap: Map<string, FileTreeEntry[]>, root: FileTreeEntry[]): void {
+  let currentPath = '';
+  // Process all segments except the last one (which is the filename)
+  for (let i = 0; i < segments.length - 1; i++) {
+    const segment = segments[i];
+    if (!segment) {
+      continue;
+    }
+    currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+    ensureDirectory(currentPath, segment, directoryMap, root);
+  }
+}
+
+function addFileToTree(file: FileEntry, segments: string[], directoryMap: Map<string, FileTreeEntry[]>, root: FileTreeEntry[]): void {
+  const fileName = segments[segments.length - 1] ?? file.relativePath;
+  const parentPath = segments.slice(0, -1).join('/');
+  const parentChildren = directoryMap.get(parentPath) ?? root;
+  const entry = createFileNode(file, fileName);
+  parentChildren.push(entry);
 }
 
 export function buildTreeFromFlatList(
@@ -184,51 +263,14 @@ export function buildTreeFromFlatList(
   const directoryMap = new Map<string, FileTreeEntry[]>();
   directoryMap.set('', root);
 
-  function ensureDirectory(path: string, name: string): FileTreeEntry[] {
-    const cached = directoryMap.get(path);
-    if (cached) {
-      return cached;
-    }
-
-    const parentPath = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
-    const parentChildren = directoryMap.get(parentPath) ?? root;
-    const node: FileTreeDirectory = {
-      type: 'directory',
-      name,
-      relativePath: path,
-      children: [],
-    };
-    parentChildren.push(node);
-    directoryMap.set(path, node.children);
-    return node.children;
-  }
-
   flatList.forEach((file) => {
     if (!file || typeof file.relativePath !== 'string') {
       return;
     }
 
     const segments = file.relativePath.split('/');
-    const fileName = segments.pop() ?? file.relativePath;
-    let currentPath = '';
-    segments.forEach((segment: string) => {
-      if (!segment) {
-        return;
-      }
-      currentPath = currentPath ? `${currentPath}/${segment}` : segment;
-      ensureDirectory(currentPath, segment);
-    });
-
-    const parentPath = segments.join('/');
-    const parentChildren = directoryMap.get(parentPath) ?? root;
-    const entry: FileTreeFile = {
-      type: 'file',
-      name: fileName,
-      relativePath: file.relativePath,
-      size: file.size,
-      updated: file.updated,
-    };
-    parentChildren.push(entry);
+    processFileSegments(segments, directoryMap, root);
+    addFileToTree(file, segments, directoryMap, root);
   });
 
   sortTree(root);
@@ -317,3 +359,4 @@ export function createResetViewToFallback({
 export function fallbackMarkdownFor(path: string): string {
   return `# No markdown files found\n\nThe directory \`${path}\` does not contain any markdown files yet.`;
 }
+

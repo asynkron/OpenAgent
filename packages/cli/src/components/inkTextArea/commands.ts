@@ -96,39 +96,57 @@ function toStringValue(value: unknown, fallback: string): string {
   return fallback;
 }
 
+function createSimpleItem(item: string | number, index: number): SlashCommandItem {
+  return {
+    id: index,
+    label: String(item),
+    keywords: [],
+    source: item,
+  };
+}
+
+function extractLabel(item: Record<string, unknown>, index: number): string {
+  const labelSource =
+    item.label ?? item.title ?? item.name ?? item.id ?? item.key ?? `item-${index}`;
+  return toStringValue(labelSource, `item-${index}`);
+}
+
+function extractDescription(item: Record<string, unknown>): string | undefined {
+  return typeof item.description === 'string' && item.description.length > 0
+    ? item.description
+    : undefined;
+}
+
+function extractKeywords(item: Record<string, unknown>): string[] {
+  return Array.isArray(item.keywords)
+    ? item.keywords.filter((keyword): keyword is string => typeof keyword === 'string')
+    : [];
+}
+
+function extractInsertValue(item: Record<string, unknown>): string | undefined {
+  return typeof item.insertValue === 'string'
+    ? item.insertValue
+    : typeof item.replacement === 'string'
+      ? item.replacement
+      : undefined;
+}
+
 export function normalizeSlashItem(
   item: SlashCommandSourceItem,
   index: number,
 ): SlashCommandItem | null {
   if (!item || typeof item !== 'object') {
     if (typeof item === 'string' || typeof item === 'number') {
-      return {
-        id: index,
-        label: String(item),
-        keywords: [],
-        source: item,
-      };
+      return createSimpleItem(item, index);
     }
 
     return null;
   }
 
-  const labelSource =
-    item.label ?? item.title ?? item.name ?? item.id ?? item.key ?? `item-${index}`;
-  const label = toStringValue(labelSource, `item-${index}`);
-  const description =
-    typeof item.description === 'string' && item.description.length > 0
-      ? item.description
-      : undefined;
-  const keywords = Array.isArray(item.keywords)
-    ? item.keywords.filter((keyword): keyword is string => typeof keyword === 'string')
-    : [];
-  const insertValue =
-    typeof item.insertValue === 'string'
-      ? item.insertValue
-      : typeof item.replacement === 'string'
-        ? item.replacement
-        : undefined;
+  const label = extractLabel(item, index);
+  const description = extractDescription(item);
+  const keywords = extractKeywords(item);
+  const insertValue = extractInsertValue(item);
 
   return {
     id: (item.id ?? index) as string | number,
@@ -138,6 +156,33 @@ export function normalizeSlashItem(
     insertValue,
     source: item,
   };
+}
+
+function normalizeQuery(query: string): string[] {
+  return query
+    .split(/\s+/u)
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
+function buildHaystackParts(item: SlashCommandItem): string[] {
+  const normalizedDescription = item.description?.replace(/\([^)]*\)/gu, ' ') ?? '';
+  
+  return [item.label, item.insertValue, normalizedDescription, ...item.keywords]
+    .filter((part): part is string => typeof part === 'string' && part.length > 0)
+    .map((part) => part.toLowerCase());
+}
+
+function hasContiguousMatch(haystackParts: string[], contiguousQuery: string): boolean {
+  if (contiguousQuery.length === 0) {
+    return true;
+  }
+  
+  return haystackParts.some((part) => part.includes(contiguousQuery));
+}
+
+function hasTokenMatches(tokens: string[], haystackParts: string[]): boolean {
+  return tokens.every((token) => haystackParts.some((part) => part.includes(token)));
 }
 
 export function defaultFilterItem(
@@ -154,20 +199,13 @@ export function defaultFilterItem(
     return true;
   }
 
-  const tokens = normalizedQuery
-    .split(/\s+/u)
-    .map((token) => token.trim())
-    .filter(Boolean);
+  const tokens = normalizeQuery(normalizedQuery);
 
   if (tokens.length === 0) {
     return true;
   }
 
-  const normalizedDescription = item.description?.replace(/\([^)]*\)/gu, ' ') ?? '';
-
-  const haystackParts = [item.label, item.insertValue, normalizedDescription, ...item.keywords]
-    .filter((part): part is string => typeof part === 'string' && part.length > 0)
-    .map((part) => part.toLowerCase());
+  const haystackParts = buildHaystackParts(item);
 
   if (haystackParts.length === 0) {
     return false;
@@ -176,16 +214,12 @@ export function defaultFilterItem(
   if (tokens.length > 1) {
     const contiguousQuery = normalizedQuery.trim().replace(/\s+/gu, ' ');
 
-    if (contiguousQuery.length > 0) {
-      const hasContiguousMatch = haystackParts.some((part) => part.includes(contiguousQuery));
-
-      if (!hasContiguousMatch) {
-        return false;
-      }
+    if (!hasContiguousMatch(haystackParts, contiguousQuery)) {
+      return false;
     }
   }
 
-  return tokens.every((token) => haystackParts.some((part) => part.includes(token)));
+  return hasTokenMatches(tokens, haystackParts);
 }
 
 export function normalizeCommandDefinition(
@@ -235,6 +269,57 @@ export function normalizeCommandDefinition(
   };
 }
 
+function isValidQuery(query: string, command: NormalizedSlashCommand): boolean {
+  if (!command.allowNewlines && query.includes('\n')) {
+    return false;
+  }
+
+  if (query.includes('\u0000')) {
+    return false;
+  }
+
+  return true;
+}
+
+function createActivationContext(
+  value: string,
+  caretIndex: number,
+  triggerIndex: number,
+  query: string,
+  command: NormalizedSlashCommand,
+): SlashCommandActivationContext {
+  const precedingChar = triggerIndex > 0 ? value.slice(0, caretIndex)[triggerIndex - 1] : '';
+  
+  return {
+    value,
+    caretIndex,
+    triggerIndex,
+    query,
+    precedingChar,
+    command: command.source ?? command,
+  };
+}
+
+function isBetterMatch(
+  currentMatch: ActiveSlashCommand | null,
+  triggerIndex: number,
+  command: NormalizedSlashCommand,
+): boolean {
+  if (!currentMatch) {
+    return true;
+  }
+
+  if (triggerIndex > currentMatch.startIndex) {
+    return true;
+  }
+
+  if (triggerIndex === currentMatch.startIndex && command.order > currentMatch.command.order) {
+    return true;
+  }
+
+  return false;
+}
+
 export function computeActiveCommand(
   value: string,
   caretIndex: number,
@@ -267,34 +352,17 @@ export function computeActiveCommand(
 
     const query = textToCaret.slice(queryStart);
 
-    if (!command.allowNewlines && query.includes('\n')) {
+    if (!isValidQuery(query, command)) {
       continue;
     }
 
-    if (query.includes('\u0000')) {
-      continue;
-    }
-
-    const precedingChar = triggerIndex > 0 ? textToCaret[triggerIndex - 1] : '';
-
-    const context: SlashCommandActivationContext = {
-      value,
-      caretIndex: clampedIndex,
-      triggerIndex,
-      query,
-      precedingChar,
-      command: command.source ?? command,
-    };
+    const context = createActivationContext(value, clampedIndex, triggerIndex, query, command);
 
     if (!command.shouldActivate(context)) {
       continue;
     }
 
-    if (
-      !bestMatch ||
-      triggerIndex > bestMatch.startIndex ||
-      (triggerIndex === bestMatch.startIndex && command.order > bestMatch.command.order)
-    ) {
+    if (isBetterMatch(bestMatch, triggerIndex, command)) {
       bestMatch = {
         command,
         startIndex: triggerIndex,
