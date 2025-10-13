@@ -1,135 +1,56 @@
-// @ts-nocheck
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Static, Text, useApp, useInput } from 'ink';
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactElement,
+} from 'react';
+import { Box, useApp, useInput } from 'ink';
 
 import { cancel as cancelActive } from '@asynkron/openagent-core';
-import AgentResponse from './AgentResponse.js';
+
 import AskHuman from './AskHuman.js';
-import HumanMessage from './HumanMessage.js';
-import Command from './Command.js';
 import Plan from './Plan.js';
 import DebugPanel from './DebugPanel.js';
-import StatusMessage from './StatusMessage.js';
+import { Timeline } from './cliApp/Timeline.js';
+import { useSlashCommandRouter } from './cliApp/slashCommands.js';
 import {
-  appendWithLimit,
-  formatDebugPayload,
-  summarizeAutoResponseDebug,
-} from './cliApp/logging.js';
+  type AgentRuntimeLike,
+  type AssistantMessageRuntimeEvent,
+  type CliAppProps,
+  type CommandInspectorState,
+  type CommandLogEntry,
+  type CommandPanelEvent,
+  type CommandResultRuntimeEvent,
+  type DebugEntry,
+  type DebugRuntimeEvent,
+  type ExitState,
+  type InputRequestState,
+  type PlanProgressState,
+  type RuntimeEvent,
+  type SlashCommandHandler,
+  type StatusRuntimeEvent,
+  type TimelineEntry,
+  type TimelineEntryType,
+  type TimelinePayload,
+  type TimelineStatusPayload,
+} from './cliApp/types.js';
+import { appendWithLimit, formatDebugPayload, summarizeAutoResponseDebug } from './cliApp/logging.js';
 import { writeHistorySnapshot } from './cliApp/history.js';
+import type { PlanStep } from './planUtils.js';
+import type { PlanProgress } from './progressUtils.js';
+import type { ContextUsage } from '../status.js';
 
 const MAX_TIMELINE_ENTRIES = 20;
 const MAX_DEBUG_ENTRIES = 20;
 const MAX_COMMAND_LOG_ENTRIES = 50;
 
-const MemoPlan = React.memo(Plan);
-const MemoAgentResponse = React.memo(AgentResponse);
-const MemoHumanMessage = React.memo(HumanMessage);
-const MemoCommand = React.memo(Command);
-const MemoStatusMessage = React.memo(StatusMessage);
-const MemoDebugPanel = React.memo(DebugPanel);
+const MemoPlan = memo(Plan);
+const MemoDebugPanel = memo(DebugPanel);
 
-const Timeline = React.memo(function Timeline({ entries }) {
-  if (!entries || entries.length === 0) {
-    return null;
-  }
-
-  return (
-    <Box width="100%" alignSelf="stretch" flexDirection="column" flexGrow={1}>
-      <Static
-        items={entries}
-        itemKey={(item) => item.id}
-        style={{ width: '100%', flexGrow: 1 }}
-      >
-        {(entry) => {
-          let content = null;
-
-          switch (entry.type) {
-            case 'assistant-message':
-              content = (
-                <MemoAgentResponse
-                  key={entry.payload.eventId ?? entry.id}
-                  message={entry.payload.message}
-                />
-              );
-              break;
-            case 'human-message':
-              content = <MemoHumanMessage message={entry.payload.message} />;
-              break;
-            case 'command-result':
-              content = (
-                <MemoCommand
-                  command={entry.payload.command}
-                  result={entry.payload.result}
-                  preview={entry.payload.preview}
-                  execution={entry.payload.execution}
-                />
-              );
-              break;
-            case 'banner': {
-              const hasTitle = Boolean(entry.payload?.title);
-              const hasSubtitle = Boolean(entry.payload?.subtitle);
-              if (!hasTitle && !hasSubtitle) {
-                break;
-              }
-
-              content = (
-                <Box flexDirection="column" marginBottom={1} width="100%" alignSelf="stretch">
-                  {hasTitle ? (
-                    <Text color="blueBright" bold>
-                      {entry.payload.title}
-                    </Text>
-                  ) : null}
-                  {hasSubtitle ? (
-                    <Text dimColor>{entry.payload.subtitle}</Text>
-                  ) : null}
-                </Box>
-              );
-              break;
-            }
-            case 'status':
-              content = <MemoStatusMessage status={entry.payload} />;
-              break;
-            default:
-              break;
-          }
-
-          if (!content) {
-            return null;
-          }
-
-          return (
-            <Box
-              key={entry.id}
-              width="100%"
-              flexGrow={1}
-              alignSelf="stretch"
-              flexDirection="column"
-            >
-              {content}
-            </Box>
-          );
-        }}
-      </Static>
-    </Box>
-  );
-});
-
-function normalizeStatus(event) {
-  const message = event.message ?? '';
-  if (!message) {
-    return null;
-  }
-  const normalized = {
-    level: event.level ?? 'info',
-    message,
-  };
-  if (event.details !== undefined && event.details !== null) {
-    normalized.details = String(event.details);
-  }
-  return normalized;
-}
-
-function cloneValue(value) {
+function cloneValue<T>(value: T): T {
   if (value === undefined || value === null) {
     return value;
   }
@@ -141,26 +62,28 @@ function cloneValue(value) {
   if (typeof structuredClone === 'function') {
     try {
       return structuredClone(value);
-    } catch (_error) {
+    } catch (error) {
       // Fall through to JSON fallback when structured cloning fails (e.g., non-cloneable values).
     }
   }
 
   try {
-    return JSON.parse(JSON.stringify(value));
+    return JSON.parse(JSON.stringify(value)) as T;
   } catch (_error) {
-    // As a last resort, return the original reference so we at least render something.
     return value;
   }
 }
 
-function parsePositiveInteger(value, defaultValue = 1) {
+function parsePositiveInteger(value: unknown, defaultValue = 1): number {
   if (value === undefined || value === null) {
     return defaultValue;
   }
 
-  const normalized = typeof value === 'number' ? value : Number.parseInt(String(value).trim(), 10);
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.max(1, Math.floor(value));
+  }
 
+  const normalized = Number.parseInt(String(value).trim(), 10);
   if (!Number.isFinite(normalized) || normalized <= 0) {
     return defaultValue;
   }
@@ -168,47 +91,88 @@ function parsePositiveInteger(value, defaultValue = 1) {
   return Math.floor(normalized);
 }
 
-/**
- * Main Ink container responsible for driving the CLI experience.
- */
-export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
-  const runtimeRef = useRef(runtime);
+function normalizeStatus(
+  event: StatusRuntimeEvent | { message?: string; level?: string; details?: unknown } | null | undefined,
+): TimelineStatusPayload | null {
+  if (!event || typeof event !== 'object') {
+    return null;
+  }
+
+  const message = typeof event.message === 'string' ? event.message : '';
+  if (!message) {
+    return null;
+  }
+
+  const normalized: TimelineStatusPayload = {
+    message,
+  };
+
+  if (typeof event.level === 'string' && event.level.trim()) {
+    normalized.level = event.level;
+  }
+
+  if (event.details !== undefined && event.details !== null) {
+    normalized.details = String(event.details);
+  }
+
+  return normalized;
+}
+
+function coerceRuntime(runtime: CliAppProps['runtime']): AgentRuntimeLike | null {
+  if (!runtime || typeof runtime !== 'object') {
+    return null;
+  }
+  return runtime as AgentRuntimeLike;
+}
+
+export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): ReactElement {
+  const runtimeRef = useRef<AgentRuntimeLike | null>(coerceRuntime(runtime));
+  runtimeRef.current = coerceRuntime(runtime);
+
   const { exit } = useApp();
   const entryIdRef = useRef(0);
   const debugEventIdRef = useRef(0);
   const commandLogIdRef = useRef(0);
-  const [plan, setPlan] = useState([]);
-  const [planProgress, setPlanProgress] = useState({ seen: false, value: null });
-  const [contextUsage, setContextUsage] = useState(null);
+
+  const [plan, setPlan] = useState<PlanStep[]>([]);
+  const [planProgress, setPlanProgress] = useState<PlanProgressState>({ seen: false, value: null });
+  const [contextUsage, setContextUsage] = useState<ContextUsage | null>(null);
   const [thinking, setThinking] = useState(false);
-  const [inputRequest, setInputRequest] = useState(null);
-  const [entries, setEntries] = useState([]);
+  const [inputRequest, setInputRequest] = useState<InputRequestState | null>(null);
+  const [entries, setEntries] = useState<TimelineEntry[]>([]);
   const [timelineKey, setTimelineKey] = useState(0);
-  const [debugEvents, setDebugEvents] = useState([]);
-  const [commandLog, setCommandLog] = useState([]);
-  const [commandInspector, setCommandInspector] = useState(null);
-  const [exitState, setExitState] = useState(null);
+  const [debugEvents, setDebugEvents] = useState<DebugEntry[]>([]);
+  const [commandLog, setCommandLog] = useState<CommandLogEntry[]>([]);
+  const [commandInspector, setCommandInspector] = useState<CommandInspectorState | null>(null);
+  const [exitState, setExitState] = useState<ExitState | null>(null);
   const [passCounter, setPassCounter] = useState(0);
 
-  const appendEntry = useCallback((type, payload) => {
-    const id = ++entryIdRef.current;
-    let trimmed = false;
-    setEntries((prev) => {
-      const result = appendWithLimit(prev, { id, type, payload }, MAX_TIMELINE_ENTRIES);
-      trimmed = result.trimmed;
-      return result.next;
-    });
-    if (trimmed) {
-      setTimelineKey((value) => value + 1);
-    }
-  }, []);
+  const appendEntry = useCallback(
+    <Type extends TimelineEntryType>(type: Type, payload: TimelinePayload<Type>): void => {
+      const id = entryIdRef.current + 1;
+      entryIdRef.current = id;
 
-  const safeSetExitState = useCallback((next) => {
+      let trimmed = false;
+      const entry = { id, type, payload } as TimelineEntry;
+      setEntries((prev) => {
+        const { next, trimmed: wasTrimmed } = appendWithLimit(prev, entry, MAX_TIMELINE_ENTRIES);
+        trimmed = wasTrimmed;
+        return next;
+      });
+
+      if (trimmed) {
+        setTimelineKey((value) => value + 1);
+      }
+    },
+    [],
+  );
+
+  const safeSetExitState = useCallback((next: ExitState): void => {
     setExitState((prev) => prev ?? next);
   }, []);
 
   const handleCommandEvent = useCallback(
-    (event) => {
+    (event: CommandResultRuntimeEvent): void => {
       const commandPayload = cloneValue(event.command ?? null);
       const resultPayload = cloneValue(event.result ?? null);
       const previewPayload = cloneValue(event.preview ?? {});
@@ -217,16 +181,18 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
       appendEntry('command-result', {
         command: commandPayload,
         result: resultPayload,
-        preview: previewPayload || {},
+        preview: previewPayload,
         execution: executionPayload,
       });
+
       if (commandPayload) {
         setCommandLog((prev) => {
           const entry = {
-            id: ++commandLogIdRef.current,
+            id: commandLogIdRef.current + 1,
             command: cloneValue(commandPayload),
             receivedAt: Date.now(),
-          };
+          } satisfies CommandLogEntry;
+          commandLogIdRef.current = entry.id;
           return appendWithLimit(prev, entry, MAX_COMMAND_LOG_ENTRIES).next;
         });
       }
@@ -235,16 +201,18 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
   );
 
   const handleAssistantMessage = useCallback(
-    (event) => {
+    (event: AssistantMessageRuntimeEvent): void => {
+      const rawId = event.__id;
       const eventId =
-        typeof event.__id === 'string' || typeof event.__id === 'number' ? event.__id : null;
-      appendEntry('assistant-message', { message: event.message ?? '', eventId });
+        typeof rawId === 'string' || typeof rawId === 'number' ? (rawId as string | number) : null;
+      const message = typeof event.message === 'string' ? event.message : '';
+      appendEntry('assistant-message', { message, eventId });
     },
     [appendEntry],
   );
 
   const handleStatusEvent = useCallback(
-    (event) => {
+    (event: StatusRuntimeEvent | { message?: string; level?: string; details?: unknown }): void => {
       const status = normalizeStatus(event);
       if (!status) {
         return;
@@ -255,23 +223,28 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
   );
 
   const handleDebugEvent = useCallback(
-    (event) => {
+    (event: DebugRuntimeEvent): void => {
       setDebugEvents((prev) => {
         const formatted = formatDebugPayload(event.payload);
         if (!formatted) {
           return prev;
         }
 
-        const entry = {
-          id:
-            typeof event.id === 'string' || typeof event.id === 'number'
-              ? event.id
-              : ++debugEventIdRef.current,
-          content: formatted,
-        };
+        const entryId =
+          typeof event.id === 'string' || typeof event.id === 'number'
+            ? (event.id as string | number)
+            : debugEventIdRef.current + 1;
 
+        if (typeof entryId === 'number') {
+          debugEventIdRef.current = entryId;
+        } else {
+          debugEventIdRef.current += 1;
+        }
+
+        const entry: DebugEntry = { id: entryId, content: formatted };
         return appendWithLimit(prev, entry, MAX_DEBUG_ENTRIES).next;
       });
+
       const summary = summarizeAutoResponseDebug(event.payload);
       if (summary) {
         appendEntry('status', { level: 'warn', message: summary });
@@ -280,106 +253,111 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
     [appendEntry],
   );
 
-  const handleSlashCommand = useCallback(
-    async (submission) => {
-      if (typeof submission !== 'string' || !submission.trim().startsWith('/')) {
-        return false;
+  const handleHistoryCommand = useCallback<SlashCommandHandler>(
+    async (pathInput) => {
+      const activeRuntime = runtimeRef.current;
+      if (!activeRuntime || typeof activeRuntime.getHistorySnapshot !== 'function') {
+        handleStatusEvent({
+          type: 'status',
+          level: 'error',
+          message: 'History snapshot is unavailable for this session.',
+        });
+        return true;
       }
 
-      const normalized = submission.trim();
-      const withoutPrefix = normalized.slice(1).trim();
-
-      if (!withoutPrefix) {
-        return false;
+      let history: unknown;
+      try {
+        history = activeRuntime.getHistorySnapshot();
+      } catch (error) {
+        handleStatusEvent({
+          type: 'status',
+          level: 'error',
+          message: 'Failed to read history from the runtime.',
+          details: error,
+        });
+        return true;
       }
 
-      const [rawName, ...restParts] = withoutPrefix.split(/\s+/u);
-      const commandName = rawName.toLowerCase();
-      const rest = restParts.join(' ').trim();
+      try {
+        const targetPath = await writeHistorySnapshot({
+          history: Array.isArray(history) ? history : [],
+          filePath: pathInput,
+        });
+        handleStatusEvent({
+          type: 'status',
+          level: 'info',
+          message: `Saved history to ${targetPath}.`,
+        });
+      } catch (error) {
+        handleStatusEvent({
+          type: 'status',
+          level: 'error',
+          message: 'Failed to write history file.',
+          details: error,
+        });
+      }
 
-      switch (commandName) {
-        case 'history': {
-          const activeRuntime = runtimeRef.current;
-          if (!activeRuntime || typeof activeRuntime.getHistorySnapshot !== 'function') {
-            handleStatusEvent({
-              level: 'error',
-              message: 'History snapshot is unavailable for this session.',
-            });
-            return true;
-          }
+      return true;
+    },
+    [handleStatusEvent],
+  );
 
-          let history;
-          try {
-            history = activeRuntime.getHistorySnapshot();
-          } catch (error) {
-            handleStatusEvent({
-              level: 'error',
-              message: 'Failed to read history from the runtime.',
-              details: error,
-            });
-            return true;
-          }
+  const handleCommandInspectorCommand = useCallback<SlashCommandHandler>(
+    (rest) => {
+      if (!commandLog || commandLog.length === 0) {
+        handleStatusEvent({
+          type: 'status',
+          level: 'info',
+          message: 'No commands have been received yet.',
+        });
+        setCommandInspector(null);
+        return true;
+      }
 
-          try {
-            const targetPath = await writeHistorySnapshot({ history, filePath: rest });
-            handleStatusEvent({
-              level: 'info',
-              message: `Saved history to ${targetPath}.`,
-            });
-          } catch (error) {
-            handleStatusEvent({
-              level: 'error',
-              message: 'Failed to write history file.',
-              details: error,
-            });
-          }
-          return true;
-        }
-        case 'command': {
-          if (!commandLog || commandLog.length === 0) {
-            handleStatusEvent({
-              level: 'info',
-              message: 'No commands have been received yet.',
-            });
-            setCommandInspector(null);
-            return true;
-          }
-
-          let requested = 1;
-          if (rest.length > 0) {
-            const parsed = parsePositiveInteger(rest, Number.NaN);
-            if (!Number.isFinite(parsed)) {
-              handleStatusEvent({
-                level: 'warn',
-                message:
-                  'Command inspector requires a positive integer. Showing the latest command instead.',
-              });
-            } else {
-              requested = parsed;
-            }
-          }
-
-          const safeCount = Math.max(1, Math.min(commandLog.length, requested));
-          const panelKey = Date.now();
-          setCommandInspector({ requested: safeCount, token: panelKey });
+      let requested = 1;
+      if (rest.length > 0) {
+        const parsed = parsePositiveInteger(rest, Number.NaN);
+        if (!Number.isFinite(parsed)) {
           handleStatusEvent({
-            level: 'info',
+            type: 'status',
+            level: 'warn',
             message:
-              safeCount === 1
-                ? 'Showing the most recent command payload.'
-                : `Showing the ${safeCount} most recent command payloads.`,
+              'Command inspector requires a positive integer. Showing the latest command instead.',
           });
-          return true;
+        } else {
+          requested = parsed;
         }
-        default:
-          return false;
       }
+
+      const safeCount = Math.max(1, Math.min(commandLog.length, requested));
+      const panelKey = Date.now();
+      setCommandInspector({ requested: safeCount, token: panelKey });
+
+      handleStatusEvent({
+        type: 'status',
+        level: 'info',
+        message:
+          safeCount === 1
+            ? 'Showing the most recent command payload.'
+            : `Showing the ${safeCount} most recent command payloads.`,
+      });
+
+      return true;
     },
     [commandLog, handleStatusEvent],
   );
 
+  const slashCommandHandlers = useMemo(() => {
+    const handlers = new Map<string, SlashCommandHandler>();
+    handlers.set('history', handleHistoryCommand);
+    handlers.set('command', handleCommandInspectorCommand);
+    return handlers;
+  }, [handleCommandInspectorCommand, handleHistoryCommand]);
+
+  const routeSlashCommand = useSlashCommandRouter(slashCommandHandlers);
+
   const handleSubmitPrompt = useCallback(
-    async (value) => {
+    async (value: string) => {
       const submission = value.trim();
       if (submission.length > 0) {
         appendEntry('human-message', { message: submission });
@@ -387,10 +365,11 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
 
       let handledLocally = false;
       try {
-        handledLocally = await handleSlashCommand(submission);
+        handledLocally = await routeSlashCommand(submission);
       } catch (error) {
         handledLocally = true;
         handleStatusEvent({
+          type: 'status',
           level: 'error',
           message: 'Slash command processing failed.',
           details: error,
@@ -399,62 +378,74 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
 
       if (!handledLocally) {
         const progressValue = planProgress?.value ?? null;
+        const totalSteps =
+          typeof progressValue?.totalSteps === 'number' && Number.isFinite(progressValue.totalSteps)
+            ? progressValue.totalSteps
+            : null;
+        const completedSteps =
+          typeof progressValue?.completedSteps === 'number' &&
+          Number.isFinite(progressValue.completedSteps)
+            ? progressValue.completedSteps
+            : null;
         const planCompleted =
           planProgress?.seen === true &&
-          progressValue &&
-          Number.isFinite(progressValue.totalSteps) &&
-          progressValue.totalSteps > 0 &&
-          Number.isFinite(progressValue.completedSteps) &&
-          progressValue.completedSteps >= progressValue.totalSteps;
+          totalSteps !== null &&
+          completedSteps !== null &&
+          totalSteps > 0 &&
+          completedSteps >= totalSteps;
 
         if (planCompleted) {
-          // Once every leaf step is marked complete, clear the rendered plan so the
-          // next human turn starts with a fresh slate.
           setPlan((prevPlan) => (Array.isArray(prevPlan) && prevPlan.length === 0 ? prevPlan : []));
           setPlanProgress((prev) => {
             if (!prev?.seen && (prev?.value === null || typeof prev?.value === 'undefined')) {
               return prev;
             }
-            return { seen: false, value: null };
+            return { seen: false, value: null } satisfies PlanProgressState;
           });
         }
 
         try {
           runtimeRef.current?.submitPrompt?.(submission);
         } catch (error) {
-          handleStatusEvent({ level: 'error', message: 'Failed to submit input.', details: error });
+          handleStatusEvent({
+            type: 'status',
+            level: 'error',
+            message: 'Failed to submit input.',
+            details: error,
+          });
         }
+
         setInputRequest(null);
         return;
       }
-
-      // When a slash command is handled locally, the runtime is still waiting for
-      // input. Keep the current request active so the next human prompt is routed
-      // to OpenAI instead of being treated as another local command.
+      // Slash commands keep the runtime waiting for further input.
     },
-    [appendEntry, handleSlashCommand, handleStatusEvent, planProgress],
+    [appendEntry, handleStatusEvent, planProgress, routeSlashCommand],
   );
 
   const handleEvent = useCallback(
-    (event) => {
+    (event: RuntimeEvent) => {
       if (!event || typeof event !== 'object') {
         return;
       }
 
       switch (event.type) {
         case 'banner':
-          appendEntry('banner', { title: event.title ?? null, subtitle: event.subtitle ?? null });
+          appendEntry('banner', {
+            title: typeof event.title === 'string' ? event.title : null,
+            subtitle: typeof event.subtitle === 'string' ? event.subtitle : null,
+          });
           break;
         case 'status':
-          handleStatusEvent(event);
+          handleStatusEvent(event as StatusRuntimeEvent);
           break;
         case 'pass': {
           const numericPass = Number.isFinite(event.pass)
-            ? event.pass
+            ? Number(event.pass)
             : Number.isFinite(event.index)
-              ? event.index
+              ? Number(event.index)
               : Number.isFinite(event.value)
-                ? event.value
+                ? Number(event.value)
                 : null;
           setPassCounter(numericPass && numericPass > 0 ? Math.floor(numericPass) : 0);
           break;
@@ -463,7 +454,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
           setThinking(event.state === 'start');
           break;
         case 'assistant-message':
-          handleAssistantMessage(event);
+          handleAssistantMessage(event as AssistantMessageRuntimeEvent);
           break;
         case 'plan':
           setPlan(Array.isArray(event.plan) ? cloneValue(event.plan) : []);
@@ -471,25 +462,29 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
         case 'plan-progress':
           setPlanProgress({
             seen: true,
-            value: event.progress ? cloneValue(event.progress) : null,
+            value: event.progress ? (cloneValue(event.progress) as PlanProgress) : null,
           });
           break;
         case 'context-usage':
-          setContextUsage(event.usage ? cloneValue(event.usage) : null);
+          setContextUsage(event.usage ? (cloneValue(event.usage) as ContextUsage) : null);
           break;
         case 'command-result':
-          handleCommandEvent(event);
+          handleCommandEvent(event as CommandResultRuntimeEvent);
           break;
         case 'error':
           handleStatusEvent({
+            type: 'status',
             level: 'error',
-            message: event.message || 'Agent error encountered.',
-            details: event.details || event.raw,
+            message:
+              typeof event.message === 'string' && event.message.trim().length > 0
+                ? event.message
+                : 'Agent error encountered.',
+            details: event.details ?? event.raw,
           });
           break;
         case 'request-input':
           setInputRequest({
-            prompt: event.prompt ?? '▷',
+            prompt: typeof event.prompt === 'string' ? event.prompt : '▷',
             metadata:
               event.metadata === undefined || event.metadata === null
                 ? null
@@ -497,7 +492,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
           });
           break;
         case 'debug':
-          handleDebugEvent(event);
+          handleDebugEvent(event as DebugRuntimeEvent);
           break;
         default:
           break;
@@ -521,7 +516,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
           if (canceled) {
             break;
           }
-          handleEvent(event);
+          handleEvent(event as RuntimeEvent);
         }
         await startPromise;
         if (!canceled) {
@@ -548,7 +543,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
         // Ignore cancellation failures.
       }
     };
-  }, [handleEvent, safeSetExitState]);
+  }, [handleEvent, runtime, safeSetExitState]);
 
   useEffect(() => {
     if (!exitState) {
@@ -570,13 +565,13 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
       runtimeRef.current?.cancel?.({ reason: 'escape-key' });
       return;
     }
-    if (key.ctrl && (key.name === 'c' || input === 'c')) {
+    if (key.ctrl && (input === 'c' || input === 'C')) {
       runtimeRef.current?.cancel?.({ reason: 'ctrl-c' });
       safeSetExitState({ status: 'success' });
     }
   });
 
-  const commandPanelEvents = useMemo(() => {
+  const commandPanelEvents = useMemo<CommandPanelEvent[]>(() => {
     if (!commandInspector || !commandLog?.length) {
       return [];
     }
@@ -592,30 +587,27 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }) {
       .map((entry) => ({ id: entry.id, content: formatDebugPayload(entry.command) }));
   }, [commandInspector, commandLog]);
 
-  const sections = [
-    <Timeline entries={entries} key={`timeline-${timelineKey}`} />,
-    debugEvents.length > 0 ? (
-      <MemoDebugPanel events={debugEvents} heading="Debug" key="debug" />
-    ) : null,
-    commandPanelEvents.length > 0 ? (
-      <MemoDebugPanel
-        events={commandPanelEvents}
-        heading="Recent commands"
-        key={`command-${commandInspector?.token ?? 'command-inspector'}`}
+  return (
+    <Box flexDirection="column">
+      <Timeline entries={entries} key={`timeline-${timelineKey}`} />
+      {debugEvents.length > 0 ? <MemoDebugPanel events={debugEvents} heading="Debug" /> : null}
+      {commandPanelEvents.length > 0 ? (
+        <MemoDebugPanel
+          events={commandPanelEvents}
+          heading="Recent commands"
+          key={`command-${commandInspector?.token ?? 'command-inspector'}`}
+        />
+      ) : null}
+      <AskHuman
+        onSubmit={inputRequest ? handleSubmitPrompt : undefined}
+        thinking={thinking}
+        contextUsage={contextUsage as any}
+        passCounter={passCounter}
+        key="ask-human"
       />
-    ) : null,
-    <AskHuman
-      prompt={inputRequest?.prompt}
-      onSubmit={inputRequest ? handleSubmitPrompt : undefined}
-      thinking={thinking}
-      contextUsage={contextUsage}
-      passCounter={passCounter}
-      key="ask-human"
-    />,
-    <MemoPlan plan={plan} progress={planProgress.value} key="plan" />,
-  ].filter(Boolean);
-
-  return <Box flexDirection="column">{sections}</Box>;
+      <MemoPlan plan={plan} key="plan" />
+    </Box>
+  );
 }
 
 export default CliApp;
