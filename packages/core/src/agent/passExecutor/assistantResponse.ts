@@ -6,11 +6,8 @@ import type {
   SchemaValidationResult,
 } from '../responseValidator.js';
 import type { DebugEmitter } from './debugEmitter.js';
-import type {
-  AssistantResponseResolution,
-  AssistantResponseSuccess,
-  ExecuteAgentPassOptions,
-} from './types.js';
+import type { AssistantResponseResolution, ExecuteAgentPassOptions } from './types.js';
+import type { OpenAgentToolResponse } from '../../contracts/index.js';
 
 interface ResponseEvaluationContext {
   responseContent: string;
@@ -198,11 +195,11 @@ export const evaluateAssistantResponse = (
     });
   }
 
-  const success: AssistantResponseSuccess = {
+  const success = {
     status: 'success',
-    parsed: parseResult.value as AssistantResponseSuccess['parsed'],
+    parsed: parseResult.value as OpenAgentToolResponse,
     responseContent: context.responseContent,
-  };
+  } as const satisfies AssistantResponseResolution;
 
   return success;
 };

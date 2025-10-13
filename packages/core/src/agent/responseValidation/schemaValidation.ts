@@ -2,12 +2,12 @@
  * AJV-backed schema validator for assistant responses with readable errors.
  */
 import { Ajv, type ErrorObject } from 'ajv';
-import { RESPONSE_PARAMETERS_SCHEMA } from '../responseToolSchema.js';
+import { OpenAgentToolJsonSchema } from '../../contracts/index.js';
 import { describeSchemaError } from './schemaErrors.js';
 import type { SchemaValidationResult } from './types.js';
 
 const ajv = new Ajv({ allErrors: true, strict: false });
-const schemaValidator = ajv.compile(RESPONSE_PARAMETERS_SCHEMA);
+const schemaValidator = ajv.compile(OpenAgentToolJsonSchema);
 
 export function validateAssistantResponseSchema(payload: unknown): SchemaValidationResult {
   const valid = schemaValidator(payload);

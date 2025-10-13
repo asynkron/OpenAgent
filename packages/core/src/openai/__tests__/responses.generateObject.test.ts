@@ -18,7 +18,7 @@ jest.unstable_mockModule('ai', () => {
   };
 });
 
-import { OPENAGENT_RESPONSE_TOOL } from '../../agent/responseToolSchema.js';
+import { OpenAgentTool } from '../../contracts/index.js';
 
 describe('createResponse uses generateObject with tool schema', () => {
   test('passes provider-agnostic schema wrapper to AI SDK', async () => {
@@ -30,7 +30,7 @@ describe('createResponse uses generateObject with tool schema', () => {
       openai: openaiProvider as Record<string, unknown>,
       model: 'test-model',
       input: [],
-      tools: [OPENAGENT_RESPONSE_TOOL as Record<string, unknown>],
+      tools: [OpenAgentTool as Record<string, unknown>],
     });
 
     expect(result).toBeTruthy();

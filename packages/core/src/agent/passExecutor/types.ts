@@ -6,6 +6,7 @@ import type { ApprovalManager } from '../approvalManager.js';
 import type { HistoryCompactor } from '../historyCompactor.js';
 import type { AgentCommandContext, CommandExecutionResult } from '../commandExecution.js';
 import type { PlanStep } from './planExecution.js';
+import type { OpenAgentToolResponse } from '../../contracts/index.js';
 import type { ChatMessageEntry } from '../historyEntry.js';
 import type { requestModelCompletion as RequestModelCompletion } from '../modelRequest.js';
 import type { executeAgentCommand as ExecuteAgentCommand } from '../commandExecution.js';
@@ -70,7 +71,7 @@ export type PlanHistory = ChatMessageEntry[];
 
 export interface AssistantResponseSuccess {
   status: 'success';
-  parsed: Record<string, unknown> & { plan?: PlanStep[] | null; message?: string | null };
+  parsed: OpenAgentToolResponse;
   responseContent: string;
 }
 

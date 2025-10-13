@@ -11,8 +11,8 @@
  * - Tests that assert the request envelope emitted by the runtime.
  */
 import type { ModelMessage } from 'ai';
-import type { ResponseCallOptions } from '../openai/responses.js';
-import { OPENAGENT_RESPONSE_TOOL } from './responseToolSchema.js';
+import type { AiCallOptions } from '../contracts/index.js';
+import { OpenAgentTool } from '../contracts/index.js';
 import { mapHistoryToModelMessages, type ChatMessageEntry } from './historyEntry.js';
 
 export interface OpenAgentRequestPayload {
@@ -25,15 +25,15 @@ export interface OpenAgentRequestPayload {
    */
   messages: ModelMessage[];
   /** Tool contract the model must target when producing structured output. */
-  tool: typeof OPENAGENT_RESPONSE_TOOL;
+  tool: typeof OpenAgentTool;
   /** Optional call-level overrides (abort signal, retry policy, etc.). */
-  options?: ResponseCallOptions;
+  options?: AiCallOptions;
 }
 
 export interface BuildOpenAgentRequestPayloadOptions {
   model: string;
   history: ChatMessageEntry[];
-  options?: ResponseCallOptions;
+  options?: AiCallOptions;
 }
 
 export function buildOpenAgentRequestPayload({
@@ -46,7 +46,7 @@ export function buildOpenAgentRequestPayload({
   return {
     model,
     messages,
-    tool: OPENAGENT_RESPONSE_TOOL,
+    tool: OpenAgentTool,
     options,
   };
 }

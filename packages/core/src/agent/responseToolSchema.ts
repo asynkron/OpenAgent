@@ -198,3 +198,8 @@ export const OPENAGENT_RESPONSE_TOOL = Object.freeze({
 });
 
 export default OPENAGENT_RESPONSE_TOOL;
+
+// Convenience TypeScript types inferred from the Zod schemas.
+export type OpenAgentCommand = z.infer<typeof commandSchema>;
+export type OpenAgentPlanStep = z.infer<typeof planStepSchema>;
+export type OpenAgentResponse = z.infer<typeof OPENAGENT_RESPONSE_SCHEMA>;

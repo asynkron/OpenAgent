@@ -1,13 +1,13 @@
 import { describe, expect, test } from '@jest/globals';
 
-import { OPENAGENT_RESPONSE_TOOL, RESPONSE_PARAMETERS_SCHEMA } from '../responseToolSchema.js';
+import { OpenAgentTool, OpenAgentToolJsonSchema } from '../../contracts/index.js';
 
 describe('responseToolSchema integration', () => {
   test('tool exposes provider-agnostic JSON schema wrapper', () => {
     const schemaContainer =
-      typeof (OPENAGENT_RESPONSE_TOOL as Record<string, unknown>).schema === 'function'
-        ? (OPENAGENT_RESPONSE_TOOL as Record<string, unknown>).schema()
-        : (OPENAGENT_RESPONSE_TOOL as Record<string, unknown>).schema;
+      typeof (OpenAgentTool as Record<string, unknown>).schema === 'function'
+        ? (OpenAgentTool as Record<string, unknown>).schema()
+        : (OpenAgentTool as Record<string, unknown>).schema;
 
     expect(schemaContainer).toBeTruthy();
     expect(typeof schemaContainer).toBe('object');
@@ -16,7 +16,7 @@ describe('responseToolSchema integration', () => {
     const jsonSchema = (schemaContainer as Record<string, unknown>).jsonSchema;
     expect(jsonSchema).toBeTruthy();
     // Basic shape checks — we rely on the canonical export
-    expect(jsonSchema).toMatchObject(RESPONSE_PARAMETERS_SCHEMA);
+    expect(jsonSchema).toMatchObject(OpenAgentToolJsonSchema);
     expect(jsonSchema.properties).toHaveProperty('message');
     expect(jsonSchema.properties).toHaveProperty('plan');
   });

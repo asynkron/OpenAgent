@@ -9,7 +9,7 @@ import {
   type ToolSet,
 } from 'ai';
 import type { FlexibleSchema } from '@ai-sdk/provider-utils';
-import { OPENAGENT_RESPONSE_TOOL } from '../agent/responseToolSchema.js';
+import { OpenAgentTool } from '../contracts/index.js';
 import { getOpenAIRequestSettings } from './client.js';
 
 type ReasoningEffort = 'low' | 'medium' | 'high';
@@ -71,8 +71,8 @@ function mapToolToSchema(tool: SupportedTool | null | undefined): SupportedTool 
     return null;
   }
 
-  if (tool === OPENAGENT_RESPONSE_TOOL) {
-    return OPENAGENT_RESPONSE_TOOL;
+  if (tool === OpenAgentTool) {
+    return OpenAgentTool;
   }
 
   if (tool.schema) {
@@ -88,7 +88,7 @@ interface StructuredToolDefinition {
   schema: FlexibleSchema<unknown>;
 }
 
-type SupportedTool = typeof OPENAGENT_RESPONSE_TOOL | StructuredToolDefinition;
+type SupportedTool = typeof OpenAgentTool | StructuredToolDefinition;
 
 export type ResponsesProvider = (model: string) => LanguageModel;
 
