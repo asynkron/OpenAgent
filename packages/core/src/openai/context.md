@@ -7,7 +7,7 @@
 ## Key Files
 
 - `client.js` — lazily instantiates the OpenAI SDK client based on environment variables, validates models, surfaces setup guidance when configuration is missing, and exposes `MODEL`, `getOpenAIClient`, `resetOpenAIClient`.
-- `responses.js` — constructs structured responses API calls, attaches tool schemas, handles retries, and normalizes errors (now resolving both object- and function-shaped providers returned by the AI SDK) while exposing typed call options so downstream callers no longer rely on defensive runtime checks.
+- `responses.js` — constructs structured responses API calls, attaches tool schemas, handles retries, and normalizes errors (now resolving both object- and function-shaped providers returned by the AI SDK) while exposing typed call options so downstream callers no longer rely on defensive runtime checks. Call settings now use a partial type so default retry/abort behavior compiles cleanly when no overrides are provided.
 - `responseUtils.js` — normalizes OpenAI Responses payloads, exposing helpers to pull the sanitized `open-agent` tool call (for protocol validation) while still providing a text fallback for legacy/plain-text replies.
 
 ## Positive Signals

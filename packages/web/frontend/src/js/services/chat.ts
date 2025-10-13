@@ -169,24 +169,28 @@ export function createChatService({
     }
   }
 
-  function ensureConversationStarted(): void {
-    if (hasConversation) {
-      return;
-    }
-    hasConversation = true;
-    panelRef.classList.toggle('agent-panel--empty', false);
+  function setPanelActive(active: boolean): void {
+    panelRef.classList.toggle('agent-panel--empty', !active);
     if (startContainer) {
-      startContainer.classList.toggle('hidden', true);
+      startContainer.classList.toggle('hidden', active);
     }
     if (chatContainer) {
-      chatContainer.classList.toggle('hidden', false);
+      chatContainer.classList.toggle('hidden', !active);
     }
-    if (chatInput) {
+    if (active && chatInput) {
       windowRef.requestAnimationFrame(() => {
         chatInput.focus();
         autoResize(chatInput);
       });
     }
+  }
+
+  function ensureConversationStarted(): void {
+    if (hasConversation) {
+      return;
+    }
+    hasConversation = true;
+    setPanelActive(true);
   }
 
   function ensureThinkingMessage(): void {
@@ -520,20 +524,7 @@ export function createChatService({
   }
 
   function updatePanelState(): void {
-    const active = hasConversation;
-    panelRef.classList.toggle('agent-panel--empty', !active);
-    if (startContainer) {
-      startContainer.classList.toggle('hidden', active);
-    }
-    if (chatContainer) {
-      chatContainer.classList.toggle('hidden', !active);
-    }
-    if (active && chatInput) {
-      windowRef.requestAnimationFrame(() => {
-        chatInput.focus();
-        autoResize(chatInput);
-      });
-    }
+    setPanelActive(hasConversation);
   }
 
   /**

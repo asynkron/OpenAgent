@@ -42,7 +42,7 @@ export interface ResponseCallOptions {
   maxRetries?: number;
 }
 
-type ResponseCallSettings = Pick<CallSettings, 'abortSignal' | 'maxRetries'>;
+type ResponseCallSettings = Partial<Pick<CallSettings, 'abortSignal' | 'maxRetries'>>;
 
 function buildCallSettings(options: ResponseCallOptions | undefined): ResponseCallSettings {
   const { maxRetries } = getOpenAIRequestSettings();
