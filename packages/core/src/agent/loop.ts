@@ -27,34 +27,23 @@ import type {
   ApprovalManagerFactoryConfig,
   AsyncQueueLike,
   CreateHistoryCompactorOptions,
-  EscController,
   ExecuteAgentPassDependencies,
   HistoryCompactorLike,
   HistorySnapshot,
-  PlanAutoResponseTracker,
-  PlanManagerFactoryConfig,
-  PromptCoordinatorLike,
-  PromptCoordinatorFactoryConfig,
   RuntimeEvent,
   RuntimeEventObserver,
-  UnknownRecord,
 } from './runtimeTypes.js';
 import type { PlanManagerOptions } from './planManager.js';
-import { createEscState } from './escState.js';
-import type { EscStateController } from './escState.js';
-import type { AmnesiaManager as AmnesiaManagerType, ChatHistoryEntry as AmnesiaHistoryEntry } from './amnesiaManager.js';
 import { createChatMessageEntry } from './historyEntry.js';
-import type { PlanManagerLike as ExecutorPlanManagerLike } from './passExecutor/planManagerAdapter.js';
 import type { HistoryCompactorOptions } from './historyCompactor.js';
 import { createRuntimeEmitter } from './runtimeEmitter.js';
 import { createPayloadGuard } from './runtimePayloadGuard.js';
 import {
-  approvalManagerFactoryFallback,
-  defaultPlanAutoResponseTracker,
-  initializeWithFactory,
-  planManagerFactoryFallback,
-  promptCoordinatorFactoryFallback,
-} from './runtimeFactories.js';
+  createPlanManagerBundle,
+  createPromptCoordinatorBundle,
+  createApprovalManager,
+} from './runtimeCollaborators.js';
+import { createMemoryPolicyController } from './runtimeMemory.js';
 import { NO_HUMAN_AUTO_MESSAGE, PLAN_PENDING_REMINDER } from './runtimeSharedConstants.js';
 
 export function createAgentRuntime({
@@ -89,10 +78,10 @@ export function createAgentRuntime({
   createAmnesiaManagerFn = (config) => new AmnesiaManager(config),
   createOutputsQueueFn = () => new AsyncQueue<RuntimeEvent>(),
   createInputsQueueFn = () => new AsyncQueue<AgentInputEvent>(),
-  createPlanManagerFn = (config) => planManagerFactoryFallback(config),
-  createEscStateFn = () => createEscState(),
-  createPromptCoordinatorFn = (config) => promptCoordinatorFactoryFallback(config),
-  createApprovalManagerFn = (config) => approvalManagerFactoryFallback(config),
+  createPlanManagerFn,
+  createEscStateFn,
+  createPromptCoordinatorFn,
+  createApprovalManagerFn,
   // New DI hooks
   logger = console,
   idGeneratorFn = null,
@@ -106,7 +95,7 @@ export function createAgentRuntime({
   userInputPrompt = '\n ▷ ',
   noHumanAutoMessage = NO_HUMAN_AUTO_MESSAGE,
   // New additions
-  eventObservers = null,
+  eventObservers = null as RuntimeEventObserver[] | null,
   idPrefix = 'key',
   // Dependency bag forwarded to executeAgentPass for deeper DI customization
   passExecutorDeps = null,
@@ -158,40 +147,14 @@ export function createAgentRuntime({
     emitStatus: (event) => emit(event),
   };
 
-  const planManagerConfig: PlanManagerFactoryConfig = {
-    ...planManagerOptions,
-    getPlanMergeFlag,
-  };
-
-  const planManager = initializeWithFactory<ReturnType<typeof planManagerFactoryFallback> | null, PlanManagerFactoryConfig>({
-    factory: createPlanManagerFn,
-    fallback: planManagerFactoryFallback,
-    config: planManagerConfig,
-    warnMessage: 'Failed to initialize plan manager via factory.',
-    onInvalid: (candidate) =>
-      emitFactoryWarning(
-        'Plan manager factory returned an invalid value.',
-        candidate == null ? String(candidate) : `typeof candidate === ${typeof candidate}`,
-      ),
+  // Collate plan manager wiring (factory + auto-response tracker) in one place.
+  const { planManager, planManagerForExecutor, planAutoResponseTracker } = createPlanManagerBundle({
     emitter,
+    planManagerOptions,
+    getPlanMergeFlag,
+    createPlanManagerFn,
+    createPlanAutoResponseTrackerFn,
   });
-
-  const maybeTracker: PlanAutoResponseTracker | null =
-    typeof createPlanAutoResponseTrackerFn === 'function'
-      ? createPlanAutoResponseTrackerFn() ?? null
-      : null;
-  const planAutoResponseTracker: PlanAutoResponseTracker =
-    maybeTracker &&
-    typeof maybeTracker.increment === 'function' &&
-    typeof maybeTracker.reset === 'function' &&
-    typeof maybeTracker.getCount === 'function'
-      ? maybeTracker
-      : defaultPlanAutoResponseTracker();
-
-  const planManagerForExecutor: ExecutorPlanManagerLike | null =
-    planManager && typeof planManager === 'object'
-      ? (planManager as unknown as ExecutorPlanManagerLike)
-      : null;
 
   const normalizedPassExecutorDeps: ExecuteAgentPassDependencies =
     passExecutorDeps && typeof passExecutorDeps === 'object' ? { ...passExecutorDeps } : {};
@@ -202,59 +165,18 @@ export function createAgentRuntime({
   normalizedPassExecutorDeps.guardRequestPayloadSizeFn =
     guardedRequestModelCompletion.guardRequestPayloadSize;
 
-  const fallbackEscController: EscStateController = createEscState();
-  let escController: EscController = {
-    state: fallbackEscController.state,
-    trigger: fallbackEscController.trigger ?? null,
-    detach: fallbackEscController.detach ?? null,
-  };
-
-  try {
-    const candidate = createEscStateFn();
-    if (candidate && typeof candidate === 'object') {
-      escController = {
-        state: candidate.state ?? fallbackEscController.state,
-        trigger:
-          typeof candidate.trigger === 'function'
-            ? candidate.trigger
-            : fallbackEscController.trigger ?? null,
-        detach:
-          typeof candidate.detach === 'function'
-            ? candidate.detach
-            : fallbackEscController.detach ?? null,
-      };
-    }
-  } catch (error) {
-    emit({
-      type: 'status',
-      level: 'warn',
-      message: 'Failed to initialize ESC state via factory.',
-      details: error instanceof Error ? error.message : String(error),
-    });
-  }
+  // Prompt coordinator + ESC controller share DI hooks, so delegate to the helper.
+  const { promptCoordinator, escController } = createPromptCoordinatorBundle({
+    emitter,
+    emit,
+    cancelFn,
+    createEscStateFn,
+    createPromptCoordinatorFn,
+  });
 
   const escState = escController.state;
   const triggerEsc = escController.trigger;
   const detachEscListener = escController.detach;
-
-  const promptCoordinatorConfig: PromptCoordinatorFactoryConfig = {
-    emitEvent: (event: UnknownRecord) => emit(event),
-    escState: { ...escState, trigger: triggerEsc ?? escState.trigger },
-    cancelFn,
-  };
-
-  const promptCoordinator = initializeWithFactory<PromptCoordinatorLike, PromptCoordinatorFactoryConfig>({
-    factory: createPromptCoordinatorFn,
-    fallback: promptCoordinatorFactoryFallback,
-    config: promptCoordinatorConfig,
-    warnMessage: 'Failed to initialize prompt coordinator via factory.',
-    onInvalid: (candidate) =>
-      emitFactoryWarning(
-        'Prompt coordinator factory returned an invalid value.',
-        candidate == null ? String(candidate) : `typeof candidate === ${typeof candidate}`,
-      ),
-    emitter,
-  });
 
   let openai: ResponsesClient;
   try {
@@ -281,17 +203,10 @@ export function createAgentRuntime({
     logSuccess: (message) => emit({ type: 'status', level: 'info', message }),
   };
 
-  const approvalManager = initializeWithFactory<ReturnType<typeof approvalManagerFactoryFallback> | null, ApprovalManagerFactoryConfig>({
-    factory: createApprovalManagerFn,
-    fallback: approvalManagerFactoryFallback,
-    config: approvalManagerConfig,
-    warnMessage: 'Failed to initialize approval manager via factory.',
-    onInvalid: (candidate) =>
-      emitFactoryWarning(
-        'Approval manager factory returned an invalid value.',
-        candidate == null ? String(candidate) : `typeof candidate === ${typeof candidate}`,
-      ),
+  const approvalManager = createApprovalManager({
     emitter,
+    createApprovalManagerFn,
+    config: approvalManagerConfig,
   });
 
   const augmentation =
@@ -307,29 +222,17 @@ export function createAgentRuntime({
     }),
   ];
 
-  const normalizedAmnesiaLimit =
-    typeof amnesiaLimit === 'number' && Number.isFinite(amnesiaLimit) && amnesiaLimit > 0
-      ? Math.floor(amnesiaLimit)
-      : 0;
-
-  let amnesiaManager: AmnesiaManagerType | null = null;
-  if (normalizedAmnesiaLimit > 0 && typeof createAmnesiaManagerFn === 'function') {
-    try {
-      amnesiaManager = createAmnesiaManagerFn({ threshold: normalizedAmnesiaLimit });
-    } catch (error) {
-      emit({
-        type: 'status',
-        level: 'warn',
-        message: '[memory] Failed to initialize amnesia manager.',
-        details: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
-  const normalizedDementiaLimit =
-    typeof dementiaLimit === 'number' && Number.isFinite(dementiaLimit) && dementiaLimit > 0
-      ? Math.floor(dementiaLimit)
-      : 0;
+  // Memory policies mutate the shared history; keep the bookkeeping outside the loop.
+  const { enforcePolicies: enforceMemoryPolicies } = createMemoryPolicyController({
+    history,
+    emitter,
+    emitDebug,
+    amnesiaLimit,
+    dementiaLimit,
+    createAmnesiaManagerFn,
+    applyDementiaPolicyFn,
+    defaultApplyDementiaPolicy: applyDementiaPolicy,
+  });
 
   const historyCompactor: HistoryCompactor | HistoryCompactorLike | null =
     typeof createHistoryCompactorFn === 'function'
@@ -378,56 +281,6 @@ export function createAgentRuntime({
       });
     }
   }
-
-  const enforceMemoryPolicies = (currentPass: number): void => {
-    if (!Number.isFinite(currentPass) || currentPass <= 0) {
-      return;
-    }
-
-    let mutated = false;
-
-    if (amnesiaManager && typeof amnesiaManager.apply === 'function') {
-      try {
-        mutated =
-          amnesiaManager.apply({
-            history: history as unknown as AmnesiaHistoryEntry[],
-            currentPass,
-          }) || mutated;
-      } catch (error) {
-        emit({
-          type: 'status',
-          level: 'warn',
-          message: '[memory] Failed to apply amnesia filter.',
-          details: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-
-    if (normalizedDementiaLimit > 0) {
-      try {
-        mutated =
-          (applyDementiaPolicyFn || applyDementiaPolicy)({
-            history: history as unknown as AmnesiaHistoryEntry[],
-            currentPass,
-            limit: normalizedDementiaLimit,
-          }) || mutated;
-      } catch (error) {
-        emit({
-          type: 'status',
-          level: 'warn',
-          message: '[memory] Failed to apply dementia pruning.',
-          details: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-
-    if (mutated) {
-      emitDebug(() => ({
-        stage: 'memory-policy-applied',
-        historyLength: history.length,
-      }));
-    }
-  };
 
   async function start(): Promise<void> {
     if (running) {
