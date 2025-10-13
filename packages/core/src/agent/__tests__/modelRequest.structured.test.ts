@@ -20,9 +20,9 @@ jest.unstable_mockModule('../../openai/responses.js', () => {
 
 import { createChatMessageEntry } from '../historyEntry.js';
 
-describe('openaiRequest.requestModelCompletion', () => {
+describe('modelRequest.requestModelCompletion', () => {
   test('invokes createResponse with OPENAGENT_RESPONSE_TOOL and returns success', async () => {
-    const { requestModelCompletion } = await import('../openaiRequest.ts');
+    const { requestModelCompletion } = await import('../modelRequest.ts');
 
     const history = [createChatMessageEntry({ role: 'user', content: 'Hello' })];
 
@@ -46,6 +46,9 @@ describe('openaiRequest.requestModelCompletion', () => {
     expect(Array.isArray(capturedParams.tools)).toBe(true);
     expect(capturedParams.tools[0]).toBeTruthy();
     expect(capturedParams.tools[0].name).toBe('open-agent');
+    expect(capturedParams.input).toEqual([
+      { role: 'user', content: 'Hello' },
+    ]);
 
     const toolSchema =
       typeof capturedParams.tools[0].schema === 'function'

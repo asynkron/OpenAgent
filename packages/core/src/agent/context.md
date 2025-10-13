@@ -21,7 +21,9 @@
 - `commandExecution.ts` (emits `commandExecution.js`) and `commands/ExecuteCommand.ts` — normalize assistant command payloads and delegate to the injected shell runner.
 - `escState.ts` (emits `escState.js`) — tracks ESC-triggered cancellations and lets consumers await the next cancellation event.
 - `observationBuilder.ts` (emits `observationBuilder.js`) — formats command results into preview payloads and observation envelopes while guarding against oversized outputs.
-- `openaiRequest.ts` (emits `openaiRequest.js`) — wraps the OpenAI Responses API with ESC cancellation support and emits cancellation observations when humans abort requests.
+- `modelRequest.ts` (emits `modelRequest.js`) — wraps the AI SDK responses client with ESC cancellation support and emits cancellation observations when humans abort requests.
+- `historyEntry.ts`, `historyCompactor.ts`, and `runtimePayloadGuard.ts` normalize chat history into the AI SDK message shape so downstream helpers stay provider-agnostic.
+- `modelRequestPayload.ts` — builds the strongly typed request envelope (model, messages, tool definition) consumed by `modelRequest.ts` so tests and runtime code can reason about AI calls without ad-hoc casting.
 - `planManager.ts` (emits `planManager.js`) — persists plan snapshots to `.openagent/plan.json`, merges assistant updates, and emits plan progress events.
 - `promptCoordinator.ts` (emits `promptCoordinator.js`) — buffers prompt responses from the UI and relays cancellation signals through the shared ESC state.
 - `responseParser.ts`, `responseValidator.ts`, and `responseToolSchema.ts` (emit their `.js` companions) — parse assistant JSON, normalize plan/command payloads, and enforce schema plus semantic validations for the OpenAgent tool response. The AI SDK `generateObject()` is configured with a provider-agnostic JSON Schema wrapper (`jsonSchema(() => RESPONSE_PARAMETERS_SCHEMA)`), while runtime validation uses the same JSON Schema via AJV. The Zod schema remains for developer ergonomics but is not used at runtime.

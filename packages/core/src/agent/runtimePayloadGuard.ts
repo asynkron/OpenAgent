@@ -1,8 +1,8 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { mapHistoryToOpenAIMessages } from './historyEntry.js';
-import { requestModelCompletion as defaultRequestModelCompletion } from './openaiRequest.js';
+import { mapHistoryToModelMessages } from './historyEntry.js';
+import { requestModelCompletion as defaultRequestModelCompletion } from './modelRequest.js';
 import { MAX_REQUEST_GROWTH_FACTOR } from './runtimeSharedConstants.js';
 import type {
   GuardableRequestModelCompletion,
@@ -51,7 +51,7 @@ const estimateRequestPayloadSize = (
   try {
     const payload = {
       model: modelName,
-      input: mapHistoryToOpenAIMessages(historySnapshot),
+      input: mapHistoryToModelMessages(historySnapshot),
       tool_choice: { type: 'function', name: 'open-agent' },
     };
     const serialized = JSON.stringify(payload);

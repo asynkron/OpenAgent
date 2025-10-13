@@ -15,7 +15,7 @@ import { summarizeContextUsage } from '../utils/contextUsage.js';
 import { extractResponseText } from '../openai/responseUtils.js';
 import { createResponse } from '../openai/responses.js';
 import { getOpenAIRequestSettings } from '../openai/client.js';
-import { createChatMessageEntry, mapHistoryToOpenAIMessages } from './historyEntry.js';
+import { createChatMessageEntry, mapHistoryToModelMessages } from './historyEntry.js';
 import type { ChatMessageEntry } from './historyEntry.js';
 
 const DEFAULT_USAGE_THRESHOLD = 0.5;
@@ -210,7 +210,7 @@ export class HistoryCompactor {
     const response = await createResponse({
       openai: this.openai,
       model: this.model ?? undefined,
-      input: mapHistoryToOpenAIMessages(input),
+      input: mapHistoryToModelMessages(input),
       tools: undefined,
       options:
         typeof maxRetries === 'number'

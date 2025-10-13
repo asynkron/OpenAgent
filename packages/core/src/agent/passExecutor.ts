@@ -5,7 +5,7 @@ import {
 } from '../utils/output.js';
 import ObservationBuilder from './observationBuilder.js';
 import { parseAssistantResponse as defaultParseAssistantResponse } from './responseParser.js';
-import { requestModelCompletion as defaultRequestModelCompletion } from './openaiRequest.js';
+import { requestModelCompletion as defaultRequestModelCompletion } from './modelRequest.js';
 import { executeAgentCommand as defaultExecuteAgentCommand } from './commandExecution.js';
 import { summarizeContextUsage as defaultSummarizeContextUsage } from '../utils/contextUsage.js';
 import { extractOpenAgentToolCall as defaultExtractOpenAgentToolCall } from '../openai/responseUtils.js';
