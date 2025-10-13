@@ -52,30 +52,13 @@ import {
   createPlanReminderController,
   type PlanAutoResponseTracker,
 } from './passExecutor/planReminderController.js';
+import {
+  createPlanManagerAdapter,
+  type PlanManagerAdapter,
+  type PlanManagerLike,
+} from './passExecutor/planManagerAdapter.js';
 
 type UnknownRecord = Record<string, unknown>;
-
-interface PlanManagerLike {
-  isMergingEnabled?: () => boolean | Promise<boolean>;
-  update?: (plan: PlanStep[] | null | undefined) => Promise<unknown>;
-  get?: () => unknown;
-  reset?: () => Promise<unknown>;
-  sync?: (plan: PlanStep[] | null | undefined) => Promise<unknown>;
-}
-
-type PlanManagerMethod = ((plan?: PlanStep[] | null | undefined) => unknown) | null | undefined;
-
-const createPlanManagerInvoker =
-  (manager: PlanManagerLike) =>
-  (method: PlanManagerMethod, plan?: PlanStep[] | null | undefined): unknown => {
-    if (typeof method !== 'function') {
-      return undefined;
-    }
-
-    // Passing an explicit plan argument keeps TypeScript satisfied while still
-    // allowing zero-argument plan manager methods to ignore it at runtime.
-    return method.call(manager, plan);
-  };
 
 interface ExecutableCandidate extends ExecutablePlanStep {
   index: number;
@@ -227,8 +210,7 @@ export async function executeAgentPass({
     buildPreview: buildPreviewFn,
   });
 
-  const invokePlanManager =
-    planManager && typeof planManager === 'object' ? createPlanManagerInvoker(planManager) : null;
+  const planManagerAdapter: PlanManagerAdapter | null = createPlanManagerAdapter(planManager);
 
   await guardRequestPayloadSize({
     guardRequestPayloadSizeFn,
@@ -414,29 +396,11 @@ export async function executeAgentPass({
     : null;
   let activePlan: PlanStep[] = incomingPlan ?? [];
 
-  if (planManager) {
+  if (planManagerAdapter) {
     try {
-      // The plan manager is only consulted when the model sends a fresh plan payload.
-      // We let it merge new steps/tasks from the assistant response but avoid using it
-      // for post-execution persistence so local status updates stay in memory only.
-      const mergePreference = await invokePlanManager?.(planManager.isMergingEnabled);
-      const shouldMerge = mergePreference !== false;
-
-      if (incomingPlan) {
-        const updated = await invokePlanManager?.(planManager.update, incomingPlan);
-        if (Array.isArray(updated)) {
-          activePlan = updated as PlanStep[];
-        }
-      } else if (shouldMerge) {
-        const snapshot = await invokePlanManager?.(planManager.get);
-        if (Array.isArray(snapshot)) {
-          activePlan = snapshot as PlanStep[];
-        }
-      } else {
-        const cleared = await invokePlanManager?.(planManager.reset);
-        if (Array.isArray(cleared)) {
-          activePlan = cleared as PlanStep[];
-        }
+      const resolvedPlan = await planManagerAdapter.resolveActivePlan(incomingPlan);
+      if (Array.isArray(resolvedPlan)) {
+        activePlan = resolvedPlan;
       }
     } catch (error) {
       emitEvent({
@@ -517,14 +481,10 @@ export async function executeAgentPass({
 
     if (!activePlanEmpty && !hasOpenSteps) {
       // The plan is finished; wipe the snapshot so follow-up prompts start cleanly.
-      if (planManager && invokePlanManager) {
+      if (planManagerAdapter) {
         try {
-          const cleared = await invokePlanManager(planManager.reset);
-          if (Array.isArray(cleared)) {
-            activePlan = cleared;
-          } else {
-            activePlan = [];
-          }
+          const cleared = await planManagerAdapter.resetPlanSnapshot();
+          activePlan = Array.isArray(cleared) ? cleared : [];
         } catch (error) {
           emitEvent({
             type: 'status',
@@ -764,9 +724,9 @@ export async function executeAgentPass({
   if (planMutatedDuringExecution && Array.isArray(activePlan)) {
     emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
 
-    if (planManager && invokePlanManager && typeof planManager.sync === 'function') {
+    if (planManagerAdapter) {
       try {
-        await invokePlanManager(planManager.sync, activePlan);
+        await planManagerAdapter.syncPlanSnapshot(activePlan);
       } catch (error) {
         emitEvent({
           type: 'status',
