@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 import type { Key } from 'ink';
@@ -24,6 +23,7 @@ const ANSI_INVERSE_ON = '\u001B[7m';
 const ANSI_INVERSE_OFF = '\u001B[27m';
 
 type LegacySlashMenuItem = SlashCommandSourceItem;
+
 
 export interface InkTextAreaProps extends HorizontalPaddingInput {
   value?: string;
@@ -60,9 +60,11 @@ function CommandMenu({ matches, activeMatch, isVisible, title }: CommandMenuProp
   return (
     <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor="cyan">
       {title ? (
-        <Text color="cyanBright" bold marginBottom={1}>
-          {title}
-        </Text>
+        <Box marginBottom={1}>
+          <Text color="cyanBright" bold>
+            {title}
+          </Text>
+        </Box>
       ) : null}
       {items.map(({ item, index }) => {
         const isActive = activeMatch?.index === index;
@@ -241,6 +243,13 @@ export function InkTextArea(props: InkTextAreaProps) {
       return undefined;
     }
 
+    // In test environments, avoid allocating a blinking interval that can leak
+    // if a test fails before unmount. Rendering still shows a visible caret.
+    if (process.env.NODE_ENV === 'test') {
+      setShowCaret(true);
+      return undefined;
+    }
+
     setShowCaret(true);
     const interval = setInterval(() => {
       setShowCaret((previous) => !previous);
@@ -275,6 +284,81 @@ export function InkTextArea(props: InkTextAreaProps) {
     updateValue,
   });
 
+  const handleArrowUp = useCallback(() => {
+    const currentRowIndex = caretPosition.rowIndex;
+    if (currentRowIndex === 0) {
+      return;
+    }
+    const targetRow = rows[currentRowIndex - 1];
+    const desiredColumn = desiredColumnRef.current ?? caretPosition.column;
+    desiredColumnRef.current = desiredColumn;
+    const nextColumn = Math.min(desiredColumn, targetRow.text.length);
+    const nextIndex = targetRow.startIndex + nextColumn;
+    setCaretIndex(nextIndex);
+  }, [caretPosition, rows, desiredColumnRef, setCaretIndex]);
+
+  const handleArrowDown = useCallback(() => {
+    const currentRowIndex = caretPosition.rowIndex;
+    if (currentRowIndex >= rows.length - 1) {
+      return;
+    }
+    const targetRow = rows[currentRowIndex + 1];
+    const desiredColumn = desiredColumnRef.current ?? caretPosition.column;
+    desiredColumnRef.current = desiredColumn;
+    const nextColumn = Math.min(desiredColumn, targetRow.text.length);
+    const nextIndex = targetRow.startIndex + nextColumn;
+    setCaretIndex(nextIndex);
+  }, [caretPosition, rows, desiredColumnRef, setCaretIndex]);
+
+  const handleArrowLeft = useCallback(() => {
+    setCaretIndex((prev) => Math.max(0, prev - 1));
+  }, [setCaretIndex]);
+
+  const handleArrowRight = useCallback(() => {
+    setCaretIndex((prev) => Math.min(value.length, prev + 1));
+  }, [setCaretIndex, value.length]);
+
+  const handleHome = useCallback(() => {
+    const rowStart = caretPosition.row.startIndex;
+    const nextIndex = clamp(rowStart, 0, value.length);
+    setCaretIndex(nextIndex);
+  }, [caretPosition, setCaretIndex, value.length]);
+
+  const handleEnd = useCallback(() => {
+    const rowStart = caretPosition.row.startIndex;
+    const rowEnd = clamp(rowStart + caretPosition.row.text.length, 0, value.length);
+    const nextIndex = Math.max(rowStart, rowEnd);
+    setCaretIndex(nextIndex);
+  }, [caretPosition, setCaretIndex, value.length]);
+
+  const handleBackspace = useCallback(() => {
+    if (caretIndex === 0) {
+      return;
+    }
+    const nextValue = `${value.slice(0, caretIndex - 1)}${value.slice(caretIndex)}`;
+    updateValue(nextValue, caretIndex - 1);
+  }, [caretIndex, updateValue, value]);
+
+  const handleDelete = useCallback(() => {
+    if (caretIndex >= value.length) {
+      return;
+    }
+    const nextValue = `${value.slice(0, caretIndex)}${value.slice(caretIndex + 1)}`;
+    updateValue(nextValue, caretIndex);
+  }, [caretIndex, updateValue, value]);
+
+  const handleInsertText = useCallback((input: string) => {
+    if (input && input !== '\u0000' && input !== '\n') {
+      const nextValue = `${value.slice(0, caretIndex)}${input}${value.slice(caretIndex)}`;
+      updateValue(nextValue, caretIndex + input.length);
+    }
+  }, [caretIndex, updateValue, value]);
+
+  const handleInsertNewline = useCallback(() => {
+    const nextValue = `${value.slice(0, caretIndex)}\n${value.slice(caretIndex)}`;
+    updateValue(nextValue, caretIndex + 1);
+  }, [caretIndex, updateValue, value]);
+
   const handleInput = useCallback(
     (input: string, key: Key) => {
       if (!interactive) {
@@ -284,7 +368,7 @@ export function InkTextArea(props: InkTextAreaProps) {
       const printableInput = input && input !== '\u0000' ? input : '';
       const specialKeys = extractSpecialKeys(key);
       const shiftModifierActive = Boolean(
-        key?.shift || key?.isShiftPressed || specialKeys.includes('shift'),
+        key?.shift || (key as any)?.isShiftPressed || specialKeys.includes('shift'),
       );
       const isLineFeedInput = printableInput === '\n';
       const isCarriageReturnInput = printableInput === '\r';
@@ -347,93 +431,56 @@ export function InkTextArea(props: InkTextAreaProps) {
         return;
       }
 
-      if (shouldInsertNewline) {
-        const nextValue = `${value.slice(0, caretIndex)}\n${value.slice(caretIndex)}`;
-        updateValue(nextValue, caretIndex + 1);
-        return;
-      }
+           if (shouldInsertNewline) {
+             handleInsertNewline();
+             return;
+           }
 
-      if (key.upArrow) {
-        const currentRowIndex = caretPosition.rowIndex;
+           if (key.upArrow) {
+             handleArrowUp();
+             return;
+           }
 
-        if (currentRowIndex === 0) {
-          return;
-        }
-        const targetRow = rows[currentRowIndex - 1];
-        const desiredColumn = desiredColumnRef.current ?? caretPosition.column;
-        desiredColumnRef.current = desiredColumn;
-        const nextColumn = Math.min(desiredColumn, targetRow.text.length);
-        const nextIndex = targetRow.startIndex + nextColumn;
-        setCaretIndex(nextIndex);
-        return;
-      }
+           if (key.downArrow) {
+             handleArrowDown();
+             return;
+           }
 
-      if (key.downArrow) {
-        const currentRowIndex = caretPosition.rowIndex;
+           if (key.leftArrow) {
+             desiredColumnRef.current = null;
+             handleArrowLeft();
+             return;
+           }
 
-        if (currentRowIndex >= rows.length - 1) {
-          return;
-        }
-        const targetRow = rows[currentRowIndex + 1];
-        const desiredColumn = desiredColumnRef.current ?? caretPosition.column;
-        desiredColumnRef.current = desiredColumn;
-        const nextColumn = Math.min(desiredColumn, targetRow.text.length);
-        const nextIndex = targetRow.startIndex + nextColumn;
-        setCaretIndex(nextIndex);
-        return;
-      }
+           if (key.rightArrow) {
+             desiredColumnRef.current = null;
+             handleArrowRight();
+             return;
+           }
 
-      desiredColumnRef.current = null;
+           if ((key as any).home) {
+             handleHome();
+             return;
+           }
 
-      if (key.leftArrow) {
-        setCaretIndex((previous) => Math.max(0, previous - 1));
-        return;
-      }
+           if ((key as any).end) {
+             handleEnd();
+             return;
+           }
 
-      if (key.rightArrow) {
-        setCaretIndex((previous) => Math.min(value.length, previous + 1));
-        return;
-      }
+           const isBackwardDelete = key.backspace || (key.delete && !(key as any).code);
 
-      if (key.home) {
-        const rowStart = caretPosition.row.startIndex;
-        const nextIndex = clamp(rowStart, 0, value.length);
-        setCaretIndex(nextIndex);
-        return;
-      }
+           if (isBackwardDelete) {
+             handleBackspace();
+             return;
+           }
 
-      if (key.end) {
-        const rowStart = caretPosition.row.startIndex;
-        const rowEnd = clamp(rowStart + caretPosition.row.text.length, 0, value.length);
-        const nextIndex = Math.max(rowStart, rowEnd);
-        setCaretIndex(nextIndex);
-        return;
-      }
+           if (key.delete) {
+             handleDelete();
+             return;
+           }
 
-      const isBackwardDelete = key.backspace || (key.delete && !key.code);
-
-      if (isBackwardDelete) {
-        if (caretIndex === 0) {
-          return;
-        }
-        const nextValue = `${value.slice(0, caretIndex - 1)}${value.slice(caretIndex)}`;
-        updateValue(nextValue, caretIndex - 1);
-        return;
-      }
-
-      if (key.delete) {
-        if (caretIndex >= value.length) {
-          return;
-        }
-        const nextValue = `${value.slice(0, caretIndex)}${value.slice(caretIndex + 1)}`;
-        updateValue(nextValue, caretIndex);
-        return;
-      }
-
-      if (input && input !== '\u0000' && input !== '\n') {
-        const nextValue = `${value.slice(0, caretIndex)}${input}${value.slice(caretIndex)}`;
-        updateValue(nextValue, caretIndex + input.length);
-      }
+           handleInsertText(input);
     },
     [
       caretIndex,
@@ -444,6 +491,16 @@ export function InkTextArea(props: InkTextAreaProps) {
       rows,
       updateValue,
       value,
+      handleArrowUp,
+      handleArrowDown,
+      handleArrowLeft,
+      handleArrowRight,
+      handleHome,
+      handleEnd,
+      handleBackspace,
+      handleDelete,
+      handleInsertText,
+      handleInsertNewline,
     ],
   );
 
@@ -465,8 +522,8 @@ export function InkTextArea(props: InkTextAreaProps) {
     const { dimColor, wrap, ...otherTextProps } = textProps;
 
     return {
-      wrap: wrap ?? 'wrap',
-      dimColor: dimColor ?? !hasValue,
+      wrap: (wrap as 'wrap' | 'end' | 'middle' | 'truncate-end' | 'truncate' | 'truncate-middle' | 'truncate-start') ?? 'wrap',
+      dimColor: (dimColor as boolean) ?? !hasValue,
       ...otherTextProps,
     };
   }, [hasValue, textProps]);
@@ -483,7 +540,7 @@ export function InkTextArea(props: InkTextAreaProps) {
     if (!isCaretRow) {
       const textContent = row.text.length > 0 ? row.text : ' ';
       return (
-        <Box key={key} flexDirection="row" width="100%" alignSelf="stretch">
+        <Box key={key} flexDirection="row" width="100%">
           <Text {...computedTextProps}>{textContent}</Text>
         </Box>
       );
@@ -505,7 +562,7 @@ export function InkTextArea(props: InkTextAreaProps) {
       }
 
       return (
-        <Box key={key} flexDirection="row" width="100%" alignSelf="stretch">
+        <Box key={key} flexDirection="row" width="100%">
           {segments}
         </Box>
       );
@@ -549,7 +606,7 @@ export function InkTextArea(props: InkTextAreaProps) {
     }
 
     return (
-      <Box key={key} flexDirection="row" width="100%" alignSelf="stretch">
+      <Box key={key} flexDirection="row" width="100%">
         {segments}
       </Box>
     );

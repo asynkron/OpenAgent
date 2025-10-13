@@ -93,6 +93,52 @@ function pluralize(word: string, count: number): string {
   return `${word}${count === 1 ? '' : 's'}`;
 }
 
+function buildEditDetail(spec: Record<string, unknown>): string {
+  const parts: string[] = [];
+  if (typeof spec.path === 'string') {
+    parts.push(spec.path);
+  }
+  if (typeof spec.encoding === 'string') {
+    parts.push(spec.encoding);
+  }
+  const edits = Array.isArray(spec.edits) ? spec.edits : [];
+  const editCount = edits.length;
+  parts.push(`${editCount} ${pluralize('edit', editCount)}`);
+  return `(${parts.join(', ')})`;
+}
+
+function buildReplaceDetail(spec: Record<string, unknown>): string {
+  const parts: string[] = [];
+  if ('pattern' in spec) {
+    parts.push(`pattern: ${JSON.stringify(spec.pattern ?? '')}`);
+  }
+  if ('replacement' in spec) {
+    parts.push(`replacement: ${JSON.stringify(spec.replacement ?? '')}`);
+  }
+  const files = Array.isArray(spec.files) ? spec.files.filter(Boolean) : [];
+  if (files.length > 0) {
+    parts.push(`[${files.join(', ')}]`);
+  }
+  if (spec.dry_run || spec.dryRun) {
+    parts.push('dry-run');
+  }
+  return `(${parts.join(', ')})`;
+}
+
+function buildExecuteDetail(
+  execution: CommandExecution | null | undefined,
+  command: Command | null | undefined,
+): string {
+  const runValue =
+    (execution?.command && typeof execution.command.run === 'string'
+      ? execution.command.run
+      : typeof command?.run === 'string'
+        ? command.run
+        : '') || '';
+  const trimmed = runValue.trim();
+  return `(${trimmed || 'shell command'})`;
+}
+
 export function buildHeadingDetail(
   type: string,
   execution: CommandExecution | null | undefined,
@@ -101,48 +147,17 @@ export function buildHeadingDetail(
   switch (type) {
     case 'EDIT': {
       const spec = (execution?.spec as Record<string, unknown>) || command?.edit || {};
-      const parts: string[] = [];
-      if (typeof spec.path === 'string') {
-        parts.push(spec.path);
-      }
-      if (typeof spec.encoding === 'string') {
-        parts.push(spec.encoding);
-      }
-      const edits = Array.isArray(spec.edits) ? spec.edits : [];
-      const editCount = edits.length;
-      parts.push(`${editCount} ${pluralize('edit', editCount)}`);
-      return `(${parts.join(', ')})`;
+      return buildEditDetail(spec);
     }
     case 'REPLACE': {
       const spec =
         (execution?.spec as Record<string, unknown>) ||
         command?.replace ||
         ({} as Record<string, unknown>);
-      const parts: string[] = [];
-      if ('pattern' in spec) {
-        parts.push(`pattern: ${JSON.stringify(spec.pattern ?? '')}`);
-      }
-      if ('replacement' in spec) {
-        parts.push(`replacement: ${JSON.stringify(spec.replacement ?? '')}`);
-      }
-      const files = Array.isArray(spec.files) ? spec.files.filter(Boolean) : [];
-      if (files.length > 0) {
-        parts.push(`[${files.join(', ')}]`);
-      }
-      if (spec.dry_run || spec.dryRun) {
-        parts.push('dry-run');
-      }
-      return `(${parts.join(', ')})`;
+      return buildReplaceDetail(spec);
     }
     default: {
-      const runValue =
-        (execution?.command && typeof execution.command.run === 'string'
-          ? execution.command.run
-          : typeof command?.run === 'string'
-            ? command.run
-            : '') || '';
-      const trimmed = runValue.trim();
-      return `(${trimmed || 'shell command'})`;
+      return buildExecuteDetail(execution, command);
     }
   }
 }

@@ -96,6 +96,16 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
     setExitState((prev) => prev ?? next);
   }, []);
 
+  const createCommandLogEntry = useCallback((commandPayload: unknown): CommandLogEntry => {
+    const entry = {
+      id: commandLogIdRef.current + 1,
+      command: cloneValue(commandPayload),
+      receivedAt: Date.now(),
+    } satisfies CommandLogEntry;
+    commandLogIdRef.current = entry.id;
+    return entry;
+  }, []);
+
   const handleCommandEvent = useCallback(
     (event: CommandResultRuntimeEvent): void => {
       const commandPayload = cloneValue(event.command ?? null);
@@ -112,17 +122,12 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
 
       if (commandPayload) {
         setCommandLog((prev) => {
-          const entry = {
-            id: commandLogIdRef.current + 1,
-            command: cloneValue(commandPayload),
-            receivedAt: Date.now(),
-          } satisfies CommandLogEntry;
-          commandLogIdRef.current = entry.id;
+          const entry = createCommandLogEntry(commandPayload);
           return appendWithLimit(prev, entry, MAX_COMMAND_LOG_ENTRIES).next;
         });
       }
     },
-    [appendEntry],
+    [appendEntry, createCommandLogEntry],
   );
 
   const handleAssistantMessage = useCallback(
@@ -147,26 +152,33 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
     [appendEntry],
   );
 
+  const createDebugEntry = useCallback((event: DebugRuntimeEvent): DebugEntry | null => {
+    const formatted = formatDebugPayload(event.payload);
+    if (!formatted) {
+      return null;
+    }
+
+    const entryId =
+      typeof event.id === 'string' || typeof event.id === 'number'
+        ? (event.id as string | number)
+        : debugEventIdRef.current + 1;
+
+    if (typeof entryId === 'number') {
+      debugEventIdRef.current = entryId;
+    } else {
+      debugEventIdRef.current += 1;
+    }
+
+    return { id: entryId, content: formatted };
+  }, []);
+
   const handleDebugEvent = useCallback(
     (event: DebugRuntimeEvent): void => {
       setDebugEvents((prev) => {
-        const formatted = formatDebugPayload(event.payload);
-        if (!formatted) {
+        const entry = createDebugEntry(event);
+        if (!entry) {
           return prev;
         }
-
-        const entryId =
-          typeof event.id === 'string' || typeof event.id === 'number'
-            ? (event.id as string | number)
-            : debugEventIdRef.current + 1;
-
-        if (typeof entryId === 'number') {
-          debugEventIdRef.current = entryId;
-        } else {
-          debugEventIdRef.current += 1;
-        }
-
-        const entry: DebugEntry = { id: entryId, content: formatted };
         return appendWithLimit(prev, entry, MAX_DEBUG_ENTRIES).next;
       });
 
@@ -175,11 +187,11 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
         appendEntry('status', { level: 'warn', message: summary });
       }
     },
-    [appendEntry],
+    [appendEntry, createDebugEntry],
   );
 
-  const handleHistoryCommand = useCallback<SlashCommandHandler>(
-    async (pathInput) => {
+  const executeHistoryCommand = useCallback(
+    async (pathInput: string): Promise<void> => {
       const activeRuntime = runtimeRef.current;
       if (!activeRuntime || typeof activeRuntime.getHistorySnapshot !== 'function') {
         handleStatusEvent({
@@ -187,7 +199,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
           level: 'error',
           message: 'History snapshot is unavailable for this session.',
         });
-        return true;
+        return;
       }
 
       let history: unknown;
@@ -200,7 +212,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
           message: 'Failed to read history from the runtime.',
           details: error,
         });
-        return true;
+        return;
       }
 
       try {
@@ -221,14 +233,20 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
           details: error,
         });
       }
-
-      return true;
     },
     [handleStatusEvent],
   );
 
-  const handleCommandInspectorCommand = useCallback<SlashCommandHandler>(
-    (rest) => {
+  const handleHistoryCommand = useCallback<SlashCommandHandler>(
+    async (pathInput) => {
+      await executeHistoryCommand(pathInput);
+      return true;
+    },
+    [executeHistoryCommand],
+  );
+
+  const executeCommandInspectorCommand = useCallback(
+    (rest: string): void => {
       if (!commandLog || commandLog.length === 0) {
         handleStatusEvent({
           type: 'status',
@@ -236,7 +254,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
           message: 'No commands have been received yet.',
         });
         setCommandInspector(null);
-        return true;
+        return;
       }
 
       let requested = 1;
@@ -266,10 +284,16 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
             ? 'Showing the most recent command payload.'
             : `Showing the ${safeCount} most recent command payloads.`,
       });
-
-      return true;
     },
     [commandLog, handleStatusEvent],
+  );
+
+  const handleCommandInspectorCommand = useCallback<SlashCommandHandler>(
+    (rest) => {
+      executeCommandInspectorCommand(rest);
+      return true;
+    },
+    [executeCommandInspectorCommand],
   );
 
   const slashCommandHandlers = useMemo(() => {
@@ -280,6 +304,35 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
   }, [handleCommandInspectorCommand, handleHistoryCommand]);
 
   const routeSlashCommand = useSlashCommandRouter(slashCommandHandlers);
+
+  const checkAndResetPlanIfCompleted = useCallback((): void => {
+    const progressValue = planProgress?.value ?? null;
+    const totalSteps =
+      typeof progressValue?.totalSteps === 'number' && Number.isFinite(progressValue.totalSteps)
+        ? progressValue.totalSteps
+        : null;
+    const completedSteps =
+      typeof progressValue?.completedSteps === 'number' &&
+      Number.isFinite(progressValue.completedSteps)
+        ? progressValue.completedSteps
+        : null;
+    const planCompleted =
+      planProgress?.seen === true &&
+      totalSteps !== null &&
+      completedSteps !== null &&
+      totalSteps > 0 &&
+      completedSteps >= totalSteps;
+
+    if (planCompleted) {
+      setPlan((prevPlan) => (Array.isArray(prevPlan) && prevPlan.length === 0 ? prevPlan : []));
+      setPlanProgress((prev) => {
+        if (!prev?.seen && (prev?.value === null || typeof prev?.value === 'undefined')) {
+          return prev;
+        }
+        return { seen: false, value: null } satisfies PlanProgressState;
+      });
+    }
+  }, [planProgress]);
 
   const handleSubmitPrompt = useCallback(
     async (value: string) => {
@@ -302,32 +355,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
       }
 
       if (!handledLocally) {
-        const progressValue = planProgress?.value ?? null;
-        const totalSteps =
-          typeof progressValue?.totalSteps === 'number' && Number.isFinite(progressValue.totalSteps)
-            ? progressValue.totalSteps
-            : null;
-        const completedSteps =
-          typeof progressValue?.completedSteps === 'number' &&
-          Number.isFinite(progressValue.completedSteps)
-            ? progressValue.completedSteps
-            : null;
-        const planCompleted =
-          planProgress?.seen === true &&
-          totalSteps !== null &&
-          completedSteps !== null &&
-          totalSteps > 0 &&
-          completedSteps >= totalSteps;
-
-        if (planCompleted) {
-          setPlan((prevPlan) => (Array.isArray(prevPlan) && prevPlan.length === 0 ? prevPlan : []));
-          setPlanProgress((prev) => {
-            if (!prev?.seen && (prev?.value === null || typeof prev?.value === 'undefined')) {
-              return prev;
-            }
-            return { seen: false, value: null } satisfies PlanProgressState;
-          });
-        }
+        checkAndResetPlanIfCompleted();
 
         try {
           runtimeRef.current?.submitPrompt?.(submission);
@@ -345,8 +373,76 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
       }
       // Slash commands keep the runtime waiting for further input.
     },
-    [appendEntry, handleStatusEvent, planProgress, routeSlashCommand],
+    [appendEntry, handleStatusEvent, checkAndResetPlanIfCompleted, routeSlashCommand],
   );
+
+  const handleBannerEvent = useCallback(
+    (event: RuntimeEvent): void => {
+      const bannerEvent = event as any;
+      appendEntry('banner', {
+        title: typeof bannerEvent.title === 'string' ? bannerEvent.title : null,
+        subtitle: typeof bannerEvent.subtitle === 'string' ? bannerEvent.subtitle : null,
+      });
+    },
+    [appendEntry],
+  );
+
+  const handlePassEvent = useCallback((event: RuntimeEvent): void => {
+    const passEvent = event as any;
+    const numericPass = Number.isFinite(passEvent.pass)
+      ? Number(passEvent.pass)
+      : Number.isFinite(passEvent.index)
+        ? Number(passEvent.index)
+        : Number.isFinite(passEvent.value)
+          ? Number(passEvent.value)
+          : null;
+    setPassCounter(numericPass && numericPass > 0 ? Math.floor(numericPass) : 0);
+  }, []);
+
+  const handlePlanEvent = useCallback((event: RuntimeEvent): void => {
+    const planEvent = event as any;
+    setPlan(Array.isArray(planEvent.plan) ? cloneValue(planEvent.plan) : []);
+  }, []);
+
+  const handlePlanProgressEvent = useCallback((event: RuntimeEvent): void => {
+    const progressEvent = event as any;
+    setPlanProgress({
+      seen: true,
+      value: progressEvent.progress ? (cloneValue(progressEvent.progress) as PlanProgress) : null,
+    });
+  }, []);
+
+  const handleContextUsageEvent = useCallback((event: RuntimeEvent): void => {
+    const usageEvent = event as any;
+    setContextUsage(usageEvent.usage ? (cloneValue(usageEvent.usage) as ContextUsage) : null);
+  }, []);
+
+  const handleErrorEvent = useCallback(
+    (event: RuntimeEvent): void => {
+      const errorEvent = event as any;
+      handleStatusEvent({
+        type: 'status',
+        level: 'error',
+        message:
+          typeof errorEvent.message === 'string' && errorEvent.message.trim().length > 0
+            ? errorEvent.message
+            : 'Agent error encountered.',
+        details: errorEvent.details ?? errorEvent.raw,
+      });
+    },
+    [handleStatusEvent],
+  );
+
+  const handleRequestInputEvent = useCallback((event: RuntimeEvent): void => {
+    const inputEvent = event as any;
+    setInputRequest({
+      prompt: typeof inputEvent.prompt === 'string' ? inputEvent.prompt : '▷',
+      metadata:
+        inputEvent.metadata === undefined || inputEvent.metadata === null
+          ? null
+          : cloneValue(inputEvent.metadata),
+    });
+  }, []);
 
   const handleEvent = useCallback(
     (event: RuntimeEvent) => {
@@ -356,25 +452,14 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
 
       switch (event.type) {
         case 'banner':
-          appendEntry('banner', {
-            title: typeof event.title === 'string' ? event.title : null,
-            subtitle: typeof event.subtitle === 'string' ? event.subtitle : null,
-          });
+          handleBannerEvent(event);
           break;
         case 'status':
           handleStatusEvent(event as StatusRuntimeEvent);
           break;
-        case 'pass': {
-          const numericPass = Number.isFinite(event.pass)
-            ? Number(event.pass)
-            : Number.isFinite(event.index)
-              ? Number(event.index)
-              : Number.isFinite(event.value)
-                ? Number(event.value)
-                : null;
-          setPassCounter(numericPass && numericPass > 0 ? Math.floor(numericPass) : 0);
+        case 'pass':
+          handlePassEvent(event);
           break;
-        }
         case 'thinking':
           setThinking(event.state === 'start');
           break;
@@ -382,39 +467,22 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
           handleAssistantMessage(event as AssistantMessageRuntimeEvent);
           break;
         case 'plan':
-          setPlan(Array.isArray(event.plan) ? cloneValue(event.plan) : []);
+          handlePlanEvent(event);
           break;
         case 'plan-progress':
-          setPlanProgress({
-            seen: true,
-            value: event.progress ? (cloneValue(event.progress) as PlanProgress) : null,
-          });
+          handlePlanProgressEvent(event);
           break;
         case 'context-usage':
-          setContextUsage(event.usage ? (cloneValue(event.usage) as ContextUsage) : null);
+          handleContextUsageEvent(event);
           break;
         case 'command-result':
           handleCommandEvent(event as CommandResultRuntimeEvent);
           break;
         case 'error':
-          handleStatusEvent({
-            type: 'status',
-            level: 'error',
-            message:
-              typeof event.message === 'string' && event.message.trim().length > 0
-                ? event.message
-                : 'Agent error encountered.',
-            details: event.details ?? event.raw,
-          });
+          handleErrorEvent(event);
           break;
         case 'request-input':
-          setInputRequest({
-            prompt: typeof event.prompt === 'string' ? event.prompt : '▷',
-            metadata:
-              event.metadata === undefined || event.metadata === null
-                ? null
-                : cloneValue(event.metadata),
-          });
+          handleRequestInputEvent(event);
           break;
         case 'debug':
           handleDebugEvent(event as DebugRuntimeEvent);
@@ -423,7 +491,19 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
           break;
       }
     },
-    [appendEntry, handleAssistantMessage, handleCommandEvent, handleDebugEvent, handleStatusEvent],
+    [
+      handleBannerEvent,
+      handleStatusEvent,
+      handlePassEvent,
+      handleAssistantMessage,
+      handlePlanEvent,
+      handlePlanProgressEvent,
+      handleContextUsageEvent,
+      handleCommandEvent,
+      handleErrorEvent,
+      handleRequestInputEvent,
+      handleDebugEvent,
+    ],
   );
 
   useEffect(() => {

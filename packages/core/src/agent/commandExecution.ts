@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Command dispatcher used by the agent runtime.
  *
@@ -55,38 +54,56 @@ export interface ExecuteAgentCommandOptions {
   runCommandFn: AgentCommandContext['runCommandFn'];
 }
 
-export async function executeAgentCommand({
-  command,
-  runCommandFn,
-}: ExecuteAgentCommandOptions): Promise<CommandExecutionResult> {
+function normalizeCommand(command: AgentCommand | null | undefined): AgentCommand {
   const normalizedCommand: AgentCommand = command || {};
+  const rawRun =
+    typeof normalizedCommand.run === 'string' && normalizedCommand.run.trim()
+      ? normalizedCommand.run.trim()
+      : '';
+  
+  normalizedCommand.run = rawRun;
+  return normalizedCommand;
+}
+
+function createCommandContext(
+  normalizedCommand: AgentCommand,
+  runCommandFn: AgentCommandContext['runCommandFn'],
+): AgentCommandContext {
   const cwd = normalizedCommand.cwd || '.';
   const timeout =
     typeof normalizedCommand.timeout_sec === 'number'
       ? normalizedCommand.timeout_sec
       : DEFAULT_TIMEOUT_SEC;
-  const rawRun =
-    typeof normalizedCommand.run === 'string' && normalizedCommand.run.trim()
-      ? normalizedCommand.run.trim()
-      : '';
 
-  normalizedCommand.run = rawRun;
-
-  const handlers = createCommandHandlers();
-  const context: AgentCommandContext = {
+  return {
     command: normalizedCommand,
     cwd,
     timeout,
     runCommandFn,
   };
+}
 
+function findMatchingHandler(context: AgentCommandContext): CommandHandler {
+  const handlers = createCommandHandlers();
+  
   for (const handler of handlers) {
     if (handler.isMatch(context)) {
-      return handler.execute(context);
+      return handler;
     }
   }
-
+  
   throw new Error('No matching command handler found.');
+}
+
+export async function executeAgentCommand({
+  command,
+  runCommandFn,
+}: ExecuteAgentCommandOptions): Promise<CommandExecutionResult> {
+  const normalizedCommand = normalizeCommand(command);
+  const context = createCommandContext(normalizedCommand, runCommandFn);
+  const handler = findMatchingHandler(context);
+  
+  return handler.execute(context);
 }
 
 export default {

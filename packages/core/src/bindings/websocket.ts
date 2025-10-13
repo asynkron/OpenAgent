@@ -375,30 +375,21 @@ async function safeSend(
   }
 }
 
-export function createWebSocketBinding({
-  socket,
-  runtimeOptions = {},
-  createRuntime = createAgentRuntime as RuntimeFactory,
-  parseIncoming = defaultParseIncoming,
-  formatOutgoing = defaultFormatOutgoing,
-  autoStart = true,
-  cancelOnDisconnect = true,
-}: CreateWebSocketBindingOptions): WebSocketBinding {
+function validateSocket(socket: WebSocketLike): void {
   if (!socket || typeof socket !== 'object') {
     throw new Error('createWebSocketUi requires a WebSocket-like socket instance.');
   }
   if (!isFunction(socket.send)) {
     throw new Error('Provided socket must implement send().');
   }
+}
 
-  const runtime = createRuntime(runtimeOptions ?? {});
+function createDetachManager(): {
+  detachFns: Array<() => void>;
+  detachAll: () => void;
+} {
   const detachFns: Array<() => void> = [];
-  let started = false;
-  let closed = false;
-  let startPromise: Promise<void> | null = null;
-  let stopPromise: Promise<void> | null = null;
-  let pumpPromise: Promise<void> | null = null;
-
+  
   const detachAll = () => {
     while (detachFns.length > 0) {
       const detach = detachFns.shift();
@@ -410,8 +401,18 @@ export function createWebSocketBinding({
     }
   };
 
-  const handleMessage: EventHandler = (...args) => {
-    if (closed) return;
+  return { detachFns, detachAll };
+}
+
+function createMessageHandler(
+  runtime: AgentRuntime,
+  socket: WebSocketLike,
+  parseIncoming: ParseIncomingFn,
+  formatOutgoing: FormatOutgoingFn,
+  closed: { current: boolean },
+): EventHandler {
+  return (...args) => {
+    if (closed.current) return;
 
     let parsed: ParsedIncomingMessage;
     try {
@@ -442,17 +443,36 @@ export function createWebSocketBinding({
 
     runtime.submitPrompt(envelope.prompt);
   };
+}
 
-  const handleClose: EventHandler = () => {
+function createCloseHandler(
+  stop: (options?: StopOptions) => Promise<void>,
+  cancelOnDisconnect: boolean,
+): EventHandler {
+  return () => {
     void stop({ reason: 'socket-close', cancel: cancelOnDisconnect });
   };
+}
 
-  const handleError: EventHandler = (error) => {
-    if (closed) return;
+function createErrorHandler(
+  stop: (options?: StopOptions) => Promise<void>,
+  cancelOnDisconnect: boolean,
+  closed: { current: boolean },
+): EventHandler {
+  return (error) => {
+    if (closed.current) return;
     console.error('[openagent:websocket-binding] Socket error encountered:', error);
     void stop({ reason: 'socket-error', cancel: cancelOnDisconnect });
   };
+}
 
+function attachSocketListeners(
+  socket: WebSocketLike,
+  detachFns: Array<() => void>,
+  handleMessage: EventHandler,
+  handleClose: EventHandler,
+  handleError: EventHandler,
+): void {
   try {
     detachFns.push(attachListener(socket, 'message', handleMessage));
   } catch (error) {
@@ -472,8 +492,15 @@ export function createWebSocketBinding({
   } catch {
     // Optional; not all implementations expose an error event.
   }
+}
 
-  const pumpOutputs = async () => {
+function createPumpOutputs(
+  runtime: AgentRuntime,
+  socket: WebSocketLike,
+  formatOutgoing: FormatOutgoingFn,
+  closed: { current: boolean },
+): () => Promise<void> {
+  return async () => {
     const iterable = createOutputIterable(runtime.outputs ?? null);
 
     if (!iterable) {
@@ -482,12 +509,12 @@ export function createWebSocketBinding({
 
     try {
       for await (const event of iterable) {
-        if (closed) break;
+        if (closed.current) break;
         if (!isRuntimeEvent(event)) continue;
         await safeSend(socket, formatOutgoing, event);
       }
     } catch (error) {
-      if (!closed) {
+      if (!closed.current) {
         await safeSend(
           socket,
           formatOutgoing,
@@ -502,13 +529,37 @@ export function createWebSocketBinding({
       throw error;
     }
   };
+}
+
+export function createWebSocketBinding({
+  socket,
+  runtimeOptions = {},
+  createRuntime = createAgentRuntime as RuntimeFactory,
+  parseIncoming = defaultParseIncoming,
+  formatOutgoing = defaultFormatOutgoing,
+  autoStart = true,
+  cancelOnDisconnect = true,
+}: CreateWebSocketBindingOptions): WebSocketBinding {
+  validateSocket(socket);
+
+  const runtime = createRuntime(runtimeOptions ?? {});
+  const { detachFns, detachAll } = createDetachManager();
+  const state = {
+    started: false,
+    closed: { current: false },
+    startPromise: null as Promise<void> | null,
+    stopPromise: null as Promise<void> | null,
+    pumpPromise: null as Promise<void> | null,
+  };
+
+  const pumpOutputs = createPumpOutputs(runtime, socket, formatOutgoing, state.closed);
 
   async function stop({ reason = 'manual-stop', cancel = cancelOnDisconnect }: StopOptions = {}) {
-    if (stopPromise) {
-      return stopPromise;
+    if (state.stopPromise) {
+      return state.stopPromise;
     }
 
-    closed = true;
+    state.closed.current = true;
     detachAll();
 
     if (cancel) {
@@ -525,28 +576,34 @@ export function createWebSocketBinding({
       // Ignore close failures on custom queues.
     }
 
-    stopPromise = (async () => {
+    state.stopPromise = (async () => {
       try {
-        await pumpPromise?.catch(() => {});
+        await state.pumpPromise?.catch(() => {});
       } finally {
         // no-op placeholder for future cleanup hooks
       }
     })();
 
-    return stopPromise;
+    return state.stopPromise;
   }
 
+  const handleMessage = createMessageHandler(runtime, socket, parseIncoming, formatOutgoing, state.closed);
+  const handleClose = createCloseHandler(stop, cancelOnDisconnect);
+  const handleError = createErrorHandler(stop, cancelOnDisconnect, state.closed);
+  
+  attachSocketListeners(socket, detachFns, handleMessage, handleClose, handleError);
+
   async function start() {
-    if (startPromise) {
-      return startPromise;
+    if (state.startPromise) {
+      return state.startPromise;
     }
-    if (started) {
+    if (state.started) {
       throw new Error('WebSocket UI already started.');
     }
-    started = true;
-    pumpPromise = pumpOutputs();
+    state.started = true;
+    state.pumpPromise = pumpOutputs();
 
-    startPromise = (async () => {
+    state.startPromise = (async () => {
       try {
         await runtime.start();
       } finally {
@@ -554,7 +611,7 @@ export function createWebSocketBinding({
       }
     })();
 
-    return startPromise;
+    return state.startPromise;
   }
 
   if (autoStart) {

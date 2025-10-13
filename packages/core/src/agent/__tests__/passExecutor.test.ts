@@ -1,15 +1,8 @@
-// @ts-nocheck
 /* eslint-env jest */
 import { jest } from '@jest/globals';
 
-const setupPassExecutor = async (options = {}) => {
-  const {
-    executeAgentCommandImpl = () => {
-      throw new Error('executeAgentCommand should not run for blank commands');
-    },
-  } = options;
-  jest.resetModules();
-
+// Mock setup helpers
+const createMockRequestModelCompletion = () => {
   const requestModelCompletion = jest
     .fn()
     .mockResolvedValue({ status: 'success', completion: { id: 'cmpl_1' } });
@@ -17,7 +10,10 @@ const setupPassExecutor = async (options = {}) => {
     requestModelCompletion,
     default: { requestModelCompletion },
   }));
+  return requestModelCompletion;
+};
 
+const createMockResponseUtils = () => {
   const extractOpenAgentToolCall = jest.fn().mockReturnValue({
     name: 'open-agent',
     call_id: 'call_mock_1',
@@ -30,7 +26,10 @@ const setupPassExecutor = async (options = {}) => {
     extractResponseText,
     default: { extractOpenAgentToolCall, extractResponseText },
   }));
+  return { extractOpenAgentToolCall, extractResponseText };
+};
 
+const createMockResponseParser = () => {
   const parseAssistantResponse = jest.fn(() => ({
     ok: true,
     value: {
@@ -50,7 +49,10 @@ const setupPassExecutor = async (options = {}) => {
     parseAssistantResponse,
     default: { parseAssistantResponse },
   }));
+  return parseAssistantResponse;
+};
 
+const createMockResponseValidator = () => {
   const validateAssistantResponseSchema = jest.fn(() => ({ valid: true, errors: [] }));
   const validateAssistantResponse = jest.fn(() => ({ valid: true, errors: [] }));
   jest.unstable_mockModule('../responseValidator.js', () => ({
@@ -58,13 +60,19 @@ const setupPassExecutor = async (options = {}) => {
     validateAssistantResponse,
     default: { validateAssistantResponseSchema, validateAssistantResponse },
   }));
+  return { validateAssistantResponseSchema, validateAssistantResponse };
+};
 
+const createMockCommandExecution = (executeAgentCommandImpl: () => unknown) => {
   const executeAgentCommand = jest.fn(executeAgentCommandImpl);
   jest.unstable_mockModule('../commandExecution.js', () => ({
     executeAgentCommand,
     default: { executeAgentCommand },
   }));
+  return executeAgentCommand;
+};
 
+const createMockUtils = () => {
   const summarizeContextUsage = jest.fn(() => null);
   jest.unstable_mockModule('../../utils/contextUsage.js', () => ({
     summarizeContextUsage,
@@ -95,6 +103,18 @@ const setupPassExecutor = async (options = {}) => {
     default: { combineStdStreams, buildPreview },
   }));
 
+  return {
+    summarizeContextUsage,
+    planHasOpenSteps,
+    planStepIsBlocked,
+    buildPlanLookup,
+    incrementCommandCount,
+    combineStdStreams,
+    buildPreview,
+  };
+};
+
+const createMockObservationBuilder = () => {
   class FakeObservationBuilder {
     constructor() {}
     buildCancellationObservation() {
@@ -107,12 +127,35 @@ const setupPassExecutor = async (options = {}) => {
   jest.unstable_mockModule('../observationBuilder.js', () => ({
     default: FakeObservationBuilder,
   }));
+};
+
+const setupPassExecutor = async (options: { executeAgentCommandImpl?: () => unknown } = {}) => {
+  const {
+    executeAgentCommandImpl = () => {
+      throw new Error('executeAgentCommand should not run for blank commands');
+    },
+  } = options;
+  jest.resetModules();
+
+  const requestModelCompletion = createMockRequestModelCompletion();
+  const { extractOpenAgentToolCall, extractResponseText } = createMockResponseUtils();
+  const parseAssistantResponse = createMockResponseParser();
+  const { validateAssistantResponseSchema, validateAssistantResponse } = createMockResponseValidator();
+  const executeAgentCommand = createMockCommandExecution(executeAgentCommandImpl);
+  const {
+    summarizeContextUsage,
+    planHasOpenSteps,
+    planStepIsBlocked,
+    buildPlanLookup,
+  } = createMockUtils();
+  createMockObservationBuilder();
 
   const mod = await import('../passExecutor.js');
   return {
     executeAgentPass: mod.executeAgentPass,
     requestModelCompletion,
     extractOpenAgentToolCall,
+    extractResponseText,
     parseAssistantResponse,
     validateAssistantResponseSchema,
     validateAssistantResponse,
@@ -122,6 +165,122 @@ const setupPassExecutor = async (options = {}) => {
     planStepIsBlocked,
     buildPlanLookup,
   };
+};
+
+// Test helper functions
+const createTestContext = (passIndex: number) => ({
+  openai: {},
+  model: 'gpt-5-codex',
+  history: [] as unknown[],
+  emitEvent: jest.fn(),
+  runCommandFn: jest.fn(),
+  applyFilterFn: jest.fn(),
+  tailLinesFn: jest.fn(),
+  getNoHumanFlag: () => false,
+  setNoHumanFlag: () => {},
+  planReminderMessage: 'remember the plan',
+  startThinkingFn: jest.fn(),
+  stopThinkingFn: jest.fn(),
+  escState: {},
+  approvalManager: null,
+  historyCompactor: null as { compactIfNeeded?: jest.Mock } | null,
+  planManager: null,
+  emitAutoApproveStatus: false,
+  passIndex,
+  guardRequestPayloadSizeFn: undefined as jest.Mock | undefined,
+  planAutoResponseTracker: undefined as ReturnType<typeof createPlanAutoResponseTracker> | undefined,
+});
+
+const createPlanManager = () => ({
+  isMergingEnabled: jest.fn().mockReturnValue(true),
+  update: jest.fn().mockImplementation(async (plan: unknown) => plan),
+  get: jest.fn(),
+  reset: jest.fn(),
+  sync: jest.fn(),
+});
+
+const createPlanAutoResponseTracker = () => ({
+  count: 0,
+  increment() {
+    this.count += 1;
+    return this.count;
+  },
+  reset() {
+    this.count = 0;
+  },
+  getCount() {
+    return this.count;
+  },
+});
+
+// Complex mock implementations
+const createComplexPlanHasOpenStepsMock = () => {
+  return jest.fn((plan: unknown[] = []) =>
+    Array.isArray(plan)
+      ? plan.some((item) => {
+          if (!item || typeof item !== 'object') {
+            return false;
+          }
+          const status = typeof item.status === 'string' ? item.status.trim().toLowerCase() : '';
+          return status !== 'completed' && status !== 'failed' && status !== 'abandoned';
+        })
+      : false,
+  );
+};
+
+const createComplexBuildPlanLookupMock = () => {
+  return jest.fn((plan: unknown[] = []) => {
+    const map = new Map();
+    if (!Array.isArray(plan)) {
+      return map;
+    }
+    plan.forEach((item, index) => {
+      if (!item || typeof item !== 'object') {
+        return;
+      }
+      const id =
+        typeof item.id === 'string' && item.id.trim().length > 0
+          ? item.id.trim()
+          : `index:${index}`;
+      if (!map.has(id)) {
+        map.set(id, item);
+      }
+    });
+    return map;
+  });
+};
+
+const createComplexPlanStepIsBlockedMock = () => {
+  return jest.fn((step: unknown, planOrLookup: unknown) => {
+    if (!step || typeof step !== 'object') {
+      return false;
+    }
+
+    const dependencies = Array.isArray(step.waitingForId) ? step.waitingForId : [];
+    if (dependencies.length === 0) {
+      return false;
+    }
+
+    const lookup = planOrLookup instanceof Map ? planOrLookup : new Map();
+
+    if (!lookup || lookup.size === 0) {
+      return true;
+    }
+
+    return dependencies.some((rawId) => {
+      if (typeof rawId !== 'string' || !rawId.trim()) {
+        return true;
+      }
+
+      const dependency = lookup.get(rawId.trim());
+      if (!dependency || typeof dependency.status !== 'string') {
+        return true;
+      }
+
+      const normalized = dependency.status.trim().toLowerCase();
+      return normalized !== 'completed' && normalized !== 'failed';
+    });
+  });
 };
 
 afterEach(() => {
@@ -141,31 +300,9 @@ describe('executeAgentPass', () => {
       executeAgentCommand,
     } = await setupPassExecutor();
 
-    const emitEvent = jest.fn();
-    const history = [];
-
-    // The mocked payload only contains whitespace for both run and shell fields.
     const PASS_INDEX = 11;
-    const result = await executeAgentPass({
-      openai: {},
-      model: 'gpt-5-codex',
-      history,
-      emitEvent,
-      runCommandFn: jest.fn(),
-      applyFilterFn: jest.fn(),
-      tailLinesFn: jest.fn(),
-      getNoHumanFlag: () => false,
-      setNoHumanFlag: () => {},
-      planReminderMessage: 'remember the plan',
-      startThinkingFn: jest.fn(),
-      stopThinkingFn: jest.fn(),
-      escState: {},
-      approvalManager: null,
-      historyCompactor: null,
-      planManager: null,
-      emitAutoApproveStatus: false,
-      passIndex: PASS_INDEX,
-    });
+    const context = createTestContext(PASS_INDEX);
+    const result = await executeAgentPass(context);
 
     expect(result).toBe(false);
     expect(requestModelCompletion).toHaveBeenCalledTimes(1);
@@ -175,7 +312,7 @@ describe('executeAgentPass', () => {
     expect(validateAssistantResponse).toHaveBeenCalledTimes(1);
     expect(executeAgentCommand).not.toHaveBeenCalled();
 
-    expect(history.every((entry) => entry.pass === PASS_INDEX)).toBe(true);
+    expect(context.history.every((entry) => entry.pass === PASS_INDEX)).toBe(true);
     expect(requestModelCompletion).toHaveBeenCalledWith(
       expect.objectContaining({ passIndex: PASS_INDEX }),
     );
@@ -186,7 +323,7 @@ describe('executeAgentPass', () => {
 
     requestModelCompletion.mockResolvedValueOnce({ status: 'canceled' });
 
-    const callOrder = [];
+    const callOrder: string[] = [];
     const guardRequestPayloadSizeFn = jest.fn(async () => {
       callOrder.push('guard');
     });
@@ -194,35 +331,16 @@ describe('executeAgentPass', () => {
       callOrder.push('compactor');
     });
 
-    const emitEvent = jest.fn();
-    const history = [];
     const PASS_INDEX = 7;
+    const context = createTestContext(PASS_INDEX);
+    context.historyCompactor = { compactIfNeeded };
+    context.guardRequestPayloadSizeFn = guardRequestPayloadSizeFn;
 
-    await executeAgentPass({
-      openai: {},
-      model: 'gpt-5-codex',
-      history,
-      emitEvent,
-      runCommandFn: jest.fn(),
-      applyFilterFn: jest.fn(),
-      tailLinesFn: jest.fn(),
-      getNoHumanFlag: () => false,
-      setNoHumanFlag: () => {},
-      planReminderMessage: 'remember the plan',
-      startThinkingFn: jest.fn(),
-      stopThinkingFn: jest.fn(),
-      escState: {},
-      approvalManager: null,
-      historyCompactor: { compactIfNeeded },
-      planManager: null,
-      emitAutoApproveStatus: false,
-      passIndex: PASS_INDEX,
-      guardRequestPayloadSizeFn,
-    });
+    await executeAgentPass(context);
 
     expect(guardRequestPayloadSizeFn).toHaveBeenCalledTimes(1);
     expect(guardRequestPayloadSizeFn).toHaveBeenCalledWith({
-      history,
+      history: context.history,
       model: 'gpt-5-codex',
       passIndex: PASS_INDEX,
     });
@@ -258,35 +376,14 @@ describe('executeAgentPass', () => {
       recovery: { strategy: 'direct' },
     }));
 
-    const emitEvent = jest.fn();
-    const history = [];
-
     const PASS_INDEX = 5;
-    const result = await executeAgentPass({
-      openai: {},
-      model: 'gpt-5-codex',
-      history,
-      emitEvent,
-      runCommandFn: jest.fn(),
-      applyFilterFn: jest.fn(),
-      tailLinesFn: jest.fn(),
-      getNoHumanFlag: () => false,
-      setNoHumanFlag: () => {},
-      planReminderMessage: 'remember the plan',
-      startThinkingFn: jest.fn(),
-      stopThinkingFn: jest.fn(),
-      escState: {},
-      approvalManager: null,
-      historyCompactor: null,
-      planManager: null,
-      emitAutoApproveStatus: false,
-      passIndex: PASS_INDEX,
-    });
+    const context = createTestContext(PASS_INDEX);
+    const result = await executeAgentPass(context);
 
     expect(result).toBe(true);
     expect(executeAgentCommand).toHaveBeenCalledTimes(1);
 
-    const planEvents = emitEvent.mock.calls
+    const planEvents = context.emitEvent.mock.calls
       .map(([event]) => event)
       .filter((event) => event && event.type === 'plan');
     expect(planEvents.length).toBeGreaterThanOrEqual(3);
@@ -328,35 +425,14 @@ describe('executeAgentPass', () => {
       recovery: { strategy: 'direct' },
     }));
 
-    const emitEvent = jest.fn();
-    const history = [];
-
     const PASS_INDEX = 13;
-    const result = await executeAgentPass({
-      openai: {},
-      model: 'gpt-5-codex',
-      history,
-      emitEvent,
-      runCommandFn: jest.fn(),
-      applyFilterFn: jest.fn(),
-      tailLinesFn: jest.fn(),
-      getNoHumanFlag: () => false,
-      setNoHumanFlag: () => {},
-      planReminderMessage: 'remember the plan',
-      startThinkingFn: jest.fn(),
-      stopThinkingFn: jest.fn(),
-      escState: {},
-      approvalManager: null,
-      historyCompactor: null,
-      planManager: null,
-      emitAutoApproveStatus: false,
-      passIndex: PASS_INDEX,
-    });
+    const context = createTestContext(PASS_INDEX);
+    const result = await executeAgentPass(context);
 
     expect(result).toBe(true);
     expect(executeAgentCommand).toHaveBeenCalledTimes(1);
 
-    const planEvents = emitEvent.mock.calls
+    const planEvents = context.emitEvent.mock.calls
       .map(([event]) => event)
       .filter((event) => event && event.type === 'plan');
 
@@ -408,74 +484,24 @@ describe('executeAgentPass', () => {
       recovery: { strategy: 'direct' },
     }));
 
-    planHasOpenSteps.mockImplementation((plan = []) =>
-      Array.isArray(plan)
-        ? plan.some((item) => {
-            if (!item || typeof item !== 'object') {
-              return false;
-            }
-            const status = typeof item.status === 'string' ? item.status.trim().toLowerCase() : '';
-            return status !== 'completed' && status !== 'failed' && status !== 'abandoned';
-          })
-        : false,
-    );
-
-    buildPlanLookup.mockImplementation((plan = []) => {
-      const map = new Map();
-      if (!Array.isArray(plan)) {
-        return map;
-      }
-      plan.forEach((item, index) => {
-        if (!item || typeof item !== 'object') {
-          return;
-        }
-        const id =
-          typeof item.id === 'string' && item.id.trim().length > 0
-            ? item.id.trim()
-            : `index:${index}`;
-        if (!map.has(id)) {
-          map.set(id, item);
-        }
-      });
-      return map;
-    });
-
-    const emitEvent = jest.fn();
-    const history = [];
+    planHasOpenSteps.mockImplementation(createComplexPlanHasOpenStepsMock());
+    buildPlanLookup.mockImplementation(createComplexBuildPlanLookupMock());
 
     const PASS_INDEX = 9;
-    const result = await executeAgentPass({
-      openai: {},
-      model: 'gpt-5-codex',
-      history,
-      emitEvent,
-      runCommandFn: jest.fn(),
-      applyFilterFn: jest.fn(),
-      tailLinesFn: jest.fn(),
-      getNoHumanFlag: () => false,
-      setNoHumanFlag: () => {},
-      planReminderMessage: 'remember the plan',
-      startThinkingFn: jest.fn(),
-      stopThinkingFn: jest.fn(),
-      escState: {},
-      approvalManager: null,
-      historyCompactor: null,
-      planManager: null,
-      emitAutoApproveStatus: false,
-      passIndex: PASS_INDEX,
-    });
+    const context = createTestContext(PASS_INDEX);
+    const result = await executeAgentPass(context);
 
     expect(result).toBe(true);
     expect(executeAgentCommand).toHaveBeenCalledTimes(2);
 
-    const commandResultEvents = emitEvent.mock.calls
+    const commandResultEvents = context.emitEvent.mock.calls
       .map(([event]) => event)
       .filter((event) => event && event.type === 'command-result');
     expect(commandResultEvents).toHaveLength(2);
     expect(commandResultEvents[0].result.exit_code).toBe(1);
     expect(commandResultEvents[1].result.exit_code).toBe(0);
 
-    const statusErrorEvent = emitEvent.mock.calls
+    const statusErrorEvent = context.emitEvent.mock.calls
       .map(([event]) => event)
       .find((event) => event && event.type === 'status' && event.level === 'error');
     expect(statusErrorEvent).toMatchObject({
@@ -484,7 +510,7 @@ describe('executeAgentPass', () => {
   });
 
   test('executes every ready plan step in priority order during a single pass', async () => {
-    const commandRuns = [];
+    const commandRuns: string[] = [];
     const {
       executeAgentPass,
       parseAssistantResponse,
@@ -500,58 +526,8 @@ describe('executeAgentPass', () => {
     });
 
     planHasOpenSteps.mockReturnValue(true);
-
-    buildPlanLookup.mockImplementation((plan) => {
-      const lookup = new Map();
-      if (!Array.isArray(plan)) {
-        return lookup;
-      }
-
-      plan.forEach((item, index) => {
-        if (!item || typeof item !== 'object') {
-          return;
-        }
-
-        const key =
-          typeof item.id === 'string' && item.id.trim() ? item.id.trim() : `index:${index}`;
-        if (!lookup.has(key)) {
-          lookup.set(key, item);
-        }
-      });
-
-      return lookup;
-    });
-
-    planStepIsBlocked.mockImplementation((step, planOrLookup) => {
-      if (!step || typeof step !== 'object') {
-        return false;
-      }
-
-      const dependencies = Array.isArray(step.waitingForId) ? step.waitingForId : [];
-      if (dependencies.length === 0) {
-        return false;
-      }
-
-      const lookup = planOrLookup instanceof Map ? planOrLookup : buildPlanLookup(planOrLookup);
-
-      if (!lookup || lookup.size === 0) {
-        return true;
-      }
-
-      return dependencies.some((rawId) => {
-        if (typeof rawId !== 'string' || !rawId.trim()) {
-          return true;
-        }
-
-        const dependency = lookup.get(rawId.trim());
-        if (!dependency || typeof dependency.status !== 'string') {
-          return true;
-        }
-
-        const normalized = dependency.status.trim().toLowerCase();
-        return normalized !== 'completed' && normalized !== 'failed';
-      });
-    });
+    buildPlanLookup.mockImplementation(createComplexBuildPlanLookupMock());
+    planStepIsBlocked.mockImplementation(createComplexPlanStepIsBlockedMock());
 
     parseAssistantResponse.mockImplementation(() => ({
       ok: true,
@@ -585,30 +561,9 @@ describe('executeAgentPass', () => {
       recovery: { strategy: 'direct' },
     }));
 
-    const emitEvent = jest.fn();
-    const history = [];
-
     const PASS_INDEX = 17;
-    const result = await executeAgentPass({
-      openai: {},
-      model: 'gpt-5-codex',
-      history,
-      emitEvent,
-      runCommandFn: jest.fn(),
-      applyFilterFn: jest.fn(),
-      tailLinesFn: jest.fn(),
-      getNoHumanFlag: () => false,
-      setNoHumanFlag: () => {},
-      planReminderMessage: 'remember the plan',
-      startThinkingFn: jest.fn(),
-      stopThinkingFn: jest.fn(),
-      escState: {},
-      approvalManager: null,
-      historyCompactor: null,
-      planManager: null,
-      emitAutoApproveStatus: false,
-      passIndex: PASS_INDEX,
-    });
+    const context = createTestContext(PASS_INDEX);
+    const result = await executeAgentPass(context);
 
     expect(result).toBe(true);
     expect(executeAgentCommand).toHaveBeenCalledTimes(3);

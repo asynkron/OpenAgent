@@ -129,7 +129,7 @@ export class CommandRuntime {
 
   async execute(candidate: ExecutableCandidate): Promise<'continue' | 'stop'> {
     const { planStep, command, normalizedRun } = this.prepareCommand(candidate);
-    
+
     const approvalResult = await ensureCommandApproval(this.options, command, planStep);
     if (approvalResult === 'rejected') {
       return 'stop';
@@ -157,7 +157,10 @@ export class CommandRuntime {
     return { planStep, command, normalizedRun };
   }
 
-  private async executeCommand(command: ExecutableCandidate['command'], planStep: ExecutableCandidate['step'] | null) {
+  private async executeCommand(
+    command: ExecutableCandidate['command'],
+    planStep: ExecutableCandidate['step'] | null,
+  ) {
     this.options.planRuntime.markCommandRunning(planStep);
     this.options.planRuntime.emitPlanSnapshot();
 
