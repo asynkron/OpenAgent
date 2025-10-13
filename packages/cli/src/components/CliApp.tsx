@@ -20,25 +20,21 @@ import {
   type AgentRuntimeLike,
   type AssistantMessageRuntimeEvent,
   type CliAppProps,
-  type CommandInspectorState,
-  type CommandLogEntry,
-  type CommandPanelEvent,
   type CommandResultRuntimeEvent,
-  type DebugEntry,
   type DebugRuntimeEvent,
   type ExitState,
   type InputRequestState,
   type PlanProgressState,
   type RuntimeEvent,
   type SlashCommandHandler,
-  type TimelineEntry,
-  type TimelineEntryType,
   type TimelinePayload,
   type StatusRuntimeEvent,
 } from './cliApp/types.js';
-import { appendWithLimit, formatDebugPayload, summarizeAutoResponseDebug } from './cliApp/logging.js';
-import { writeHistorySnapshot } from './cliApp/history.js';
-import { coerceRuntime, cloneValue, normalizeStatus, parsePositiveInteger } from './cliApp/runtimeUtils.js';
+import { coerceRuntime, cloneValue, normalizeStatus } from './cliApp/runtimeUtils.js';
+import { useCommandLog } from './cliApp/useCommandLog.js';
+import { useDebugPanel } from './cliApp/useDebugPanel.js';
+import { useHistoryCommand } from './cliApp/useHistoryCommand.js';
+import { useTimeline } from './cliApp/useTimeline.js';
 import type { PlanStep } from './planUtils.js';
 import type { PlanProgress } from './progressUtils.js';
 import type { ContextUsage } from '../status.js';
@@ -55,80 +51,43 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
   runtimeRef.current = coerceRuntime(runtime);
 
   const { exit } = useApp();
-  const entryIdRef = useRef(0);
-  const debugEventIdRef = useRef(0);
-  const commandLogIdRef = useRef(0);
-
   const [plan, setPlan] = useState<PlanStep[]>([]);
   const [planProgress, setPlanProgress] = useState<PlanProgressState>({ seen: false, value: null });
   const [contextUsage, setContextUsage] = useState<ContextUsage | null>(null);
   const [thinking, setThinking] = useState(false);
   const [inputRequest, setInputRequest] = useState<InputRequestState | null>(null);
-  const [entries, setEntries] = useState<TimelineEntry[]>([]);
-  const [timelineKey, setTimelineKey] = useState(0);
-  const [debugEvents, setDebugEvents] = useState<DebugEntry[]>([]);
-  const [commandLog, setCommandLog] = useState<CommandLogEntry[]>([]);
-  const [commandInspector, setCommandInspector] = useState<CommandInspectorState | null>(null);
   const [exitState, setExitState] = useState<ExitState | null>(null);
   const [passCounter, setPassCounter] = useState(0);
 
-  const appendEntry = useCallback(
-    <Type extends TimelineEntryType>(type: Type, payload: TimelinePayload<Type>): void => {
-      const id = entryIdRef.current + 1;
-      entryIdRef.current = id;
+  const { entries, timelineKey, appendEntry } = useTimeline(MAX_TIMELINE_ENTRIES);
 
-      let trimmed = false;
-      const entry = { id, type, payload } as TimelineEntry;
-      setEntries((prev) => {
-        const { next, trimmed: wasTrimmed } = appendWithLimit(prev, entry, MAX_TIMELINE_ENTRIES);
-        trimmed = wasTrimmed;
-        return next;
-      });
-
-      if (trimmed) {
-        setTimelineKey((value) => value + 1);
-      }
+  const appendStatus = useCallback(
+    (status: TimelinePayload<'status'>): void => {
+      appendEntry('status', status);
     },
-    [],
+    [appendEntry],
   );
+
+  const { debugEvents, handleDebugEvent } = useDebugPanel({
+    limit: MAX_DEBUG_ENTRIES,
+    appendStatus,
+  });
+
+  const { commandPanelEvents, commandPanelKey, handleCommandEvent, handleCommandInspectorCommand } =
+    useCommandLog({
+      limit: MAX_COMMAND_LOG_ENTRIES,
+      appendCommandResult: appendEntry,
+      appendStatus,
+    });
+
+  const { handleHistoryCommand } = useHistoryCommand({
+    getRuntime: () => runtimeRef.current,
+    appendStatus,
+  });
 
   const safeSetExitState = useCallback((next: ExitState): void => {
     setExitState((prev) => prev ?? next);
   }, []);
-
-  const createCommandLogEntry = useCallback((commandPayload: unknown): CommandLogEntry => {
-    const entry = {
-      id: commandLogIdRef.current + 1,
-      command: cloneValue(commandPayload),
-      receivedAt: Date.now(),
-    } satisfies CommandLogEntry;
-    commandLogIdRef.current = entry.id;
-    return entry;
-  }, []);
-
-  const handleCommandEvent = useCallback(
-    (event: CommandResultRuntimeEvent): void => {
-      const commandPayload = cloneValue(event.command ?? null);
-      const resultPayload = cloneValue(event.result ?? null);
-      const previewPayload = cloneValue(event.preview ?? {});
-      const executionPayload = cloneValue(event.execution ?? null);
-
-      appendEntry('command-result', {
-        command: commandPayload,
-        result: resultPayload,
-        preview: previewPayload,
-        execution: executionPayload,
-      });
-
-      if (commandPayload) {
-        setCommandLog((prev) => {
-          const entry = createCommandLogEntry(commandPayload);
-          return appendWithLimit(prev, entry, MAX_COMMAND_LOG_ENTRIES).next;
-        });
-      }
-    },
-    [appendEntry, createCommandLogEntry],
-  );
 
   const handleAssistantMessage = useCallback(
     (event: AssistantMessageRuntimeEvent): void => {
@@ -147,153 +106,9 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
       if (!status) {
         return;
       }
-      appendEntry('status', status);
+      appendStatus(status);
     },
-    [appendEntry],
-  );
-
-  const createDebugEntry = useCallback((event: DebugRuntimeEvent): DebugEntry | null => {
-    const formatted = formatDebugPayload(event.payload);
-    if (!formatted) {
-      return null;
-    }
-
-    const entryId =
-      typeof event.id === 'string' || typeof event.id === 'number'
-        ? (event.id as string | number)
-        : debugEventIdRef.current + 1;
-
-    if (typeof entryId === 'number') {
-      debugEventIdRef.current = entryId;
-    } else {
-      debugEventIdRef.current += 1;
-    }
-
-    return { id: entryId, content: formatted };
-  }, []);
-
-  const handleDebugEvent = useCallback(
-    (event: DebugRuntimeEvent): void => {
-      setDebugEvents((prev) => {
-        const entry = createDebugEntry(event);
-        if (!entry) {
-          return prev;
-        }
-        return appendWithLimit(prev, entry, MAX_DEBUG_ENTRIES).next;
-      });
-
-      const summary = summarizeAutoResponseDebug(event.payload);
-      if (summary) {
-        appendEntry('status', { level: 'warn', message: summary });
-      }
-    },
-    [appendEntry, createDebugEntry],
-  );
-
-  const executeHistoryCommand = useCallback(
-    async (pathInput: string): Promise<void> => {
-      const activeRuntime = runtimeRef.current;
-      if (!activeRuntime || typeof activeRuntime.getHistorySnapshot !== 'function') {
-        handleStatusEvent({
-          type: 'status',
-          level: 'error',
-          message: 'History snapshot is unavailable for this session.',
-        });
-        return;
-      }
-
-      let history: unknown;
-      try {
-        history = activeRuntime.getHistorySnapshot();
-      } catch (error) {
-        handleStatusEvent({
-          type: 'status',
-          level: 'error',
-          message: 'Failed to read history from the runtime.',
-          details: error,
-        });
-        return;
-      }
-
-      try {
-        const targetPath = await writeHistorySnapshot({
-          history: Array.isArray(history) ? history : [],
-          filePath: pathInput,
-        });
-        handleStatusEvent({
-          type: 'status',
-          level: 'info',
-          message: `Saved history to ${targetPath}.`,
-        });
-      } catch (error) {
-        handleStatusEvent({
-          type: 'status',
-          level: 'error',
-          message: 'Failed to write history file.',
-          details: error,
-        });
-      }
-    },
-    [handleStatusEvent],
-  );
-
-  const handleHistoryCommand = useCallback<SlashCommandHandler>(
-    async (pathInput) => {
-      await executeHistoryCommand(pathInput);
-      return true;
-    },
-    [executeHistoryCommand],
-  );
-
-  const executeCommandInspectorCommand = useCallback(
-    (rest: string): void => {
-      if (!commandLog || commandLog.length === 0) {
-        handleStatusEvent({
-          type: 'status',
-          level: 'info',
-          message: 'No commands have been received yet.',
-        });
-        setCommandInspector(null);
-        return;
-      }
-
-      let requested = 1;
-      if (rest.length > 0) {
-        const parsed = parsePositiveInteger(rest, Number.NaN);
-        if (!Number.isFinite(parsed)) {
-          handleStatusEvent({
-            type: 'status',
-            level: 'warn',
-            message:
-              'Command inspector requires a positive integer. Showing the latest command instead.',
-          });
-        } else {
-          requested = parsed;
-        }
-      }
-
-      const safeCount = Math.max(1, Math.min(commandLog.length, requested));
-      const panelKey = Date.now();
-      setCommandInspector({ requested: safeCount, token: panelKey });
-
-      handleStatusEvent({
-        type: 'status',
-        level: 'info',
-        message:
-          safeCount === 1
-            ? 'Showing the most recent command payload.'
-            : `Showing the ${safeCount} most recent command payloads.`,
-      });
-    },
-    [commandLog, handleStatusEvent],
-  );
-
-  const handleCommandInspectorCommand = useCallback<SlashCommandHandler>(
-    (rest) => {
-      executeCommandInspectorCommand(rest);
-      return true;
-    },
-    [executeCommandInspectorCommand],
+    [appendStatus],
   );
 
   const slashCommandHandlers = useMemo(() => {
@@ -576,22 +391,6 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
     }
   });
 
-  const commandPanelEvents = useMemo<CommandPanelEvent[]>(() => {
-    if (!commandInspector || !commandLog?.length) {
-      return [];
-    }
-
-    const safeCount = Math.max(
-      1,
-      Math.min(commandLog.length, parsePositiveInteger(commandInspector.requested, 1)),
-    );
-
-    return commandLog
-      .slice(commandLog.length - safeCount)
-      .reverse()
-      .map((entry) => ({ id: entry.id, content: formatDebugPayload(entry.command) }));
-  }, [commandInspector, commandLog]);
-
   return (
     <Box flexDirection="column">
       <Timeline entries={entries} key={`timeline-${timelineKey}`} />
@@ -600,7 +399,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
         <MemoDebugPanel
           events={commandPanelEvents}
           heading="Recent commands"
-          key={`command-${commandInspector?.token ?? 'command-inspector'}`}
+          key={`command-${commandPanelKey ?? 'command-inspector'}`}
         />
       ) : null}
       <AskHuman

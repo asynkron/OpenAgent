@@ -6,7 +6,6 @@ import {
   BLINK_INTERVAL_MS,
   clamp,
   computeCaretPosition,
-  extractSpecialKeys,
   resolveHorizontalPadding,
   transformToRows,
   type CaretPosition,
@@ -14,6 +13,12 @@ import {
   type LastKeyEvent,
   type TextRow,
 } from './inkTextArea/layout.js';
+import {
+  createDeletionHandler,
+  createMovementHandler,
+  evaluateKeyEvent,
+  type PreviousKeySnapshot,
+} from './inkTextArea/keyEvents.js';
 import type { SlashCommandDefinition, SlashCommandSourceItem } from './inkTextArea/commands.js';
 import { useCommandMenu } from './inkTextArea/useCommandMenu.js';
 import type { CommandMatch } from './inkTextArea/useCommandMenu.js';
@@ -147,7 +152,7 @@ export function InkTextArea(props: InkTextAreaProps) {
     specialKeys: [],
     shiftModifierActive: false,
   }));
-  const lastKeyEventRef = useRef({
+  const lastKeyEventRef = useRef<PreviousKeySnapshot>({
     printableInput: '',
     wasReturnKey: false,
     shiftModifierActive: false,
@@ -331,6 +336,34 @@ export function InkTextArea(props: InkTextAreaProps) {
     setCaretIndex(nextIndex);
   }, [caretPosition, setCaretIndex, value.length]);
 
+  // Consolidate navigation keys so the input handler just routes high-level actions.
+  const handleMovementKey = useMemo(
+    () =>
+      createMovementHandler({
+        onUp: handleArrowUp,
+        onDown: handleArrowDown,
+        onLeft: () => {
+          desiredColumnRef.current = null;
+          handleArrowLeft();
+        },
+        onRight: () => {
+          desiredColumnRef.current = null;
+          handleArrowRight();
+        },
+        onHome: handleHome,
+        onEnd: handleEnd,
+      }),
+    [
+      desiredColumnRef,
+      handleArrowDown,
+      handleArrowLeft,
+      handleArrowRight,
+      handleArrowUp,
+      handleEnd,
+      handleHome,
+    ],
+  );
+
   const handleBackspace = useCallback(() => {
     if (caretIndex === 0) {
       return;
@@ -346,6 +379,16 @@ export function InkTextArea(props: InkTextAreaProps) {
     const nextValue = `${value.slice(0, caretIndex)}${value.slice(caretIndex + 1)}`;
     updateValue(nextValue, caretIndex);
   }, [caretIndex, updateValue, value]);
+
+  // Normalize backward/forward delete handling before mutating the buffer.
+  const handleDeletionKey = useMemo(
+    () =>
+      createDeletionHandler({
+        onBackwardDelete: handleBackspace,
+        onDelete: handleDelete,
+      }),
+    [handleBackspace, handleDelete],
+  );
 
   const handleInsertText = useCallback((input: string) => {
     if (input && input !== '\u0000' && input !== '\n') {
@@ -365,58 +408,22 @@ export function InkTextArea(props: InkTextAreaProps) {
         return;
       }
 
-      const printableInput = input && input !== '\u0000' ? input : '';
-      const specialKeys = extractSpecialKeys(key);
-      const shiftModifierActive = Boolean(
-        key?.shift || (key as any)?.isShiftPressed || specialKeys.includes('shift'),
-      );
-      const isLineFeedInput = printableInput === '\n';
-      const isCarriageReturnInput = printableInput === '\r';
-      const isShiftOnlySequence =
-        shiftModifierActive &&
-        !key?.return &&
-        printableInput.length === 0 &&
-        !key?.tab &&
-        !key?.escape &&
-        !key?.upArrow &&
-        !key?.downArrow &&
-        !key?.leftArrow &&
-        !key?.rightArrow &&
-        !key?.pageUp &&
-        !key?.pageDown &&
-        !key?.delete &&
-        !key?.backspace;
-      const previousKeyEvent = lastKeyEventRef.current;
-
-      const isShiftEnter =
-        isLineFeedInput ||
-        (key?.return && shiftModifierActive) ||
-        (isCarriageReturnInput && shiftModifierActive) ||
-        isShiftOnlySequence;
-
-      const isPlainReturnFollowedByLineFeed =
-        isLineFeedInput &&
-        !shiftModifierActive &&
-        !key?.return &&
-        previousKeyEvent?.wasReturnKey &&
-        !previousKeyEvent.shiftModifierActive;
-
-      const shouldInsertNewline = isShiftEnter && !isPlainReturnFollowedByLineFeed;
+      const evaluation = evaluateKeyEvent(input, key, lastKeyEventRef.current);
 
       lastKeyEventRef.current = {
-        printableInput,
+        printableInput: evaluation.printableInput,
         wasReturnKey: Boolean(key?.return),
-        shiftModifierActive,
+        shiftModifierActive: evaluation.shiftModifierActive,
       };
 
       setLastKeyEvent({
         rawInput: input,
-        printableInput,
-        specialKeys,
-        shiftModifierActive,
+        printableInput: evaluation.printableInput,
+        specialKeys: evaluation.specialKeys,
+        shiftModifierActive: evaluation.shiftModifierActive,
       });
 
-      const commandNavigationHandled = handleCommandNavigation(key, shouldInsertNewline);
+      const commandNavigationHandled = handleCommandNavigation(key, evaluation.shouldInsertNewline);
 
       if (commandNavigationHandled) {
         return;
@@ -426,81 +433,36 @@ export function InkTextArea(props: InkTextAreaProps) {
         return;
       }
 
-      if (key.return && !shouldInsertNewline) {
+      if (key.return && !evaluation.shouldInsertNewline) {
         onSubmit?.(value);
         return;
       }
 
-           if (shouldInsertNewline) {
-             handleInsertNewline();
-             return;
-           }
+      if (evaluation.shouldInsertNewline) {
+        handleInsertNewline();
+        return;
+      }
 
-           if (key.upArrow) {
-             handleArrowUp();
-             return;
-           }
+      if (handleMovementKey(key)) {
+        return;
+      }
 
-           if (key.downArrow) {
-             handleArrowDown();
-             return;
-           }
+      if (handleDeletionKey(key)) {
+        return;
+      }
 
-           if (key.leftArrow) {
-             desiredColumnRef.current = null;
-             handleArrowLeft();
-             return;
-           }
-
-           if (key.rightArrow) {
-             desiredColumnRef.current = null;
-             handleArrowRight();
-             return;
-           }
-
-           if ((key as any).home) {
-             handleHome();
-             return;
-           }
-
-           if ((key as any).end) {
-             handleEnd();
-             return;
-           }
-
-           const isBackwardDelete = key.backspace || (key.delete && !(key as any).code);
-
-           if (isBackwardDelete) {
-             handleBackspace();
-             return;
-           }
-
-           if (key.delete) {
-             handleDelete();
-             return;
-           }
-
-           handleInsertText(input);
+      handleInsertText(input);
     },
     [
-      caretIndex,
-      caretPosition,
       handleCommandNavigation,
       interactive,
       onSubmit,
-      rows,
-      updateValue,
       value,
-      handleArrowUp,
-      handleArrowDown,
-      handleArrowLeft,
-      handleArrowRight,
-      handleHome,
-      handleEnd,
-      handleBackspace,
-      handleDelete,
-      handleInsertText,
       handleInsertNewline,
+      handleMovementKey,
+      handleDeletionKey,
+      handleInsertText,
+      setLastKeyEvent,
     ],
   );
 
