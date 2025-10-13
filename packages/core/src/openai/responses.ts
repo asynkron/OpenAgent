@@ -17,19 +17,18 @@ type ReasoningEffort = 'low' | 'medium' | 'high';
 const VALID_REASONING_EFFORTS = new Set<ReasoningEffort>(['low', 'medium', 'high']);
 
 function normalizeReasoningEffort(value: string | null | undefined): ReasoningEffort | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-
+  if (typeof value !== 'string') return null;
   const normalized = value.trim().toLowerCase() as ReasoningEffort;
   return VALID_REASONING_EFFORTS.has(normalized) ? normalized : null;
 }
 
-const ENV_REASONING_EFFORT = normalizeReasoningEffort(process.env.OPENAI_REASONING_EFFORT);
+// Provider-agnostic env var with backward-compatible alias
+const RAW_REASONING = process.env.AGENT_REASONING_EFFORT ?? process.env.OPENAI_REASONING_EFFORT;
+const ENV_REASONING_EFFORT = normalizeReasoningEffort(RAW_REASONING);
 
-if (process.env.OPENAI_REASONING_EFFORT && !ENV_REASONING_EFFORT) {
+if (RAW_REASONING && !ENV_REASONING_EFFORT) {
   console.warn(
-    'OPENAI_REASONING_EFFORT is set but must be one of: low, medium, high. Ignoring invalid value.',
+    'Reasoning effort env must be one of: low, medium, high. Ignoring invalid value.',
   );
 }
 
@@ -64,13 +63,9 @@ function buildCallSettings(options: ResponseCallOptions | undefined): ResponseCa
   return settings;
 }
 
-function buildProviderOptions(reasoningEffort?: ReasoningEffort) {
-  const normalized = reasoningEffort ?? ENV_REASONING_EFFORT;
-  if (!normalized) {
-    return undefined;
-  }
-
-  return { openai: { reasoningEffort: normalized } };
+// Intentionally avoid provider-specific options to keep the core provider-agnostic
+function buildProviderOptions(_reasoningEffort?: ReasoningEffort) {
+  return undefined;
 }
 
 function mapToolToSchema(tool: SupportedTool | null | undefined): SupportedTool | null {

@@ -13,11 +13,12 @@ describe('runCli', () => {
     jest.restoreAllMocks();
   });
 
-  test('guides the user when OPENAI_API_KEY is missing', async () => {
+  test('guides the user when API key is missing', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
     delete process.env.OPENAI_API_KEY;
+    delete process.env.AGENT_API_KEY;
 
     const agentLoopMock = jest.fn();
     const runCommandAndTrackMock = jest.fn();
@@ -47,7 +48,7 @@ describe('runCli', () => {
     expect(normalizedBanner).toBe(
       [
         '-----',
-        'OPENAI_API_KEY is missing. Action required: copy .env.example to packages/cli/.env and set OPENAI_API_KEY=<your key> before re-running OpenAgent.',
+        'No API key found. Action required: copy .env.example to packages/cli/.env and set AGENT_API_KEY=<your key> (or OPENAI_API_KEY for OpenAI) before re-running OpenAgent.',
         '-----',
       ].join('\n'),
     );
@@ -58,13 +59,13 @@ describe('runCli', () => {
       '1. Copy the template env file: cp packages/cli/.env.example packages/cli/.env',
     );
     expect(logSpy).toHaveBeenCalledWith(
-      '2. Open packages/cli/.env and set OPENAI_API_KEY=<your OpenAI API key>.',
+      '2. Open packages/cli/.env and set AGENT_API_KEY (or OPENAI_API_KEY).',
     );
     expect(logSpy).toHaveBeenCalledWith(
       '3. Save the file and restart OpenAgent (`npm start` or `npx openagent`).',
     );
     expect(logSpy).toHaveBeenCalledWith(
-      'Need help finding your key? https://platform.openai.com/api-keys',
+      'OpenAI users: https://platform.openai.com/api-keys',
     );
 
     expect(process.exitCode).toBe(exitCodeBackup);

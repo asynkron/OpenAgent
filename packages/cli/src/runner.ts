@@ -30,17 +30,17 @@ function resolveIo(io?: CliIo): ResolvedCliIo {
   return { stdout, stderr };
 }
 
-const MISSING_OPENAI_API_KEY_SUMMARY =
-  'OPENAI_API_KEY is missing. Action required: copy .env.example to packages/cli/.env and set OPENAI_API_KEY=<your key> before re-running OpenAgent.';
+const MISSING_API_KEY_SUMMARY =
+  'No API key found. Action required: copy .env.example to packages/cli/.env and set AGENT_API_KEY=<your key> (or OPENAI_API_KEY for OpenAI) before re-running OpenAgent.';
 
-const MISSING_OPENAI_API_KEY_STEPS = [
+const MISSING_API_KEY_STEPS = [
   '1. Copy the template env file: cp packages/cli/.env.example packages/cli/.env',
-  '2. Open packages/cli/.env and set OPENAI_API_KEY=<your OpenAI API key>.',
+  '2. Open packages/cli/.env and set AGENT_API_KEY (or OPENAI_API_KEY).',
   '3. Save the file and restart OpenAgent (`npm start` or `npx openagent`).',
 ];
 
-const MISSING_OPENAI_API_KEY_DOCS =
-  'Need help finding your key? https://platform.openai.com/api-keys';
+const MISSING_API_KEY_DOCS =
+  'OpenAI users: https://platform.openai.com/api-keys';
 
 function assertHasStartupFlagApplicator(
   module: LoadedCoreModule,
@@ -54,16 +54,16 @@ function assertHasStartupFlagApplicator(
 
 export async function runCli(argv: string[] = process.argv, io?: CliIo): Promise<void> {
   const { stdout, stderr } = resolveIo(io);
-  if (!process.env.OPENAI_API_KEY) {
-    const banner = ['-----', MISSING_OPENAI_API_KEY_SUMMARY, '-----'].join('\n');
+  if (!process.env.AGENT_API_KEY && !process.env.OPENAI_API_KEY) {
+    const banner = ['-----', MISSING_API_KEY_SUMMARY, '-----'].join('\n');
     stderr(chalk.red(banner));
     stdout('');
     stdout('How to fix it:');
-    for (const step of MISSING_OPENAI_API_KEY_STEPS) {
+    for (const step of MISSING_API_KEY_STEPS) {
       stdout(step);
     }
     stdout('');
-    stdout(MISSING_OPENAI_API_KEY_DOCS);
+    stdout(MISSING_API_KEY_DOCS);
     return;
   }
 

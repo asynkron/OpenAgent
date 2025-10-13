@@ -14,15 +14,15 @@ import { createOpenAI, type OpenAIProvider } from '@ai-sdk/openai';
 
 const LEGACY_CHAT_COMPLETION_MODELS = [/^gpt-3\.5-turbo/, /^text-davinci/i];
 
-const MISSING_OPENAI_API_KEY_SUMMARY =
-  'OPENAI_API_KEY is missing. Action required: copy .env.example to packages/cli/.env and set OPENAI_API_KEY=<your key> before re-running OpenAgent.';
+const MISSING_API_KEY_SUMMARY =
+  'No API key found. Action required: copy .env.example to packages/cli/.env and set AGENT_API_KEY=<your key> (or OPENAI_API_KEY for OpenAI) before re-running OpenAgent.';
 
-const MISSING_OPENAI_API_KEY_GUIDANCE = [
+const MISSING_API_KEY_GUIDANCE = [
   'How to fix it:',
   '1. Copy the template env file: cp packages/cli/.env.example packages/cli/.env',
-  '2. Open packages/cli/.env and set OPENAI_API_KEY=<your OpenAI API key>.',
+  '2. Open packages/cli/.env and set AGENT_API_KEY (or OPENAI_API_KEY).',
   '3. Save the file and restart OpenAgent (`npm start` or `npx openagent`).',
-  'Need help finding your key? https://platform.openai.com/api-keys',
+  'OpenAI users: https://platform.openai.com/api-keys',
 ].join('\n');
 
 interface ResolvedConfiguration {
@@ -39,10 +39,10 @@ export let MODEL: string = resolvedConfig.model;
 
 export function getOpenAIClient(): OpenAIProvider {
   if (!memoizedClient) {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.AGENT_API_KEY || process.env.OPENAI_API_KEY;
     if (!apiKey) {
       throw new Error(
-        [MISSING_OPENAI_API_KEY_SUMMARY, '', MISSING_OPENAI_API_KEY_GUIDANCE].join('\n'),
+        [MISSING_API_KEY_SUMMARY, '', MISSING_API_KEY_GUIDANCE].join('\n'),
       );
     }
 
@@ -74,7 +74,7 @@ function resolveConfiguration(): ResolvedConfiguration {
 }
 
 function validateModelConfiguration(): { model: string; baseURL: string | null } {
-  const configuredModel = process.env.OPENAI_MODEL;
+  const configuredModel = process.env.AGENT_MODEL ?? process.env.OPENAI_MODEL;
   const legacyChatModel = process.env.OPENAI_CHAT_MODEL;
 
   if (configuredModel && legacyChatModel && configuredModel !== legacyChatModel) {
@@ -97,7 +97,7 @@ function validateModelConfiguration(): { model: string; baseURL: string | null }
     );
   }
 
-  const baseURL = process.env.OPENAI_BASE_URL || null;
+  const baseURL = process.env.AGENT_BASE_URL || process.env.OPENAI_BASE_URL || null;
 
   if (baseURL) {
     let parsed;

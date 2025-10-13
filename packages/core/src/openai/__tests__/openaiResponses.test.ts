@@ -52,13 +52,11 @@ describe('createResponse', () => {
     expect(mockGenerateObject).not.toHaveBeenCalled();
   });
 
-  test('includes reasoning effort sourced from the environment', async () => {
-    process.env.OPENAI_REASONING_EFFORT = 'High';
+  test('parses AGENT_REASONING_EFFORT env for configured reasoning effort (no providerOptions)', async () => {
+    process.env.AGENT_REASONING_EFFORT = 'High';
     mockGenerateText.mockResolvedValue({ text: 'ok' });
     const modelRef = {};
-    const openai = {
-      responses: jest.fn().mockReturnValue(modelRef),
-    };
+    const openai = { responses: jest.fn().mockReturnValue(modelRef) };
 
     const { createResponse, getConfiguredReasoningEffort } = await import('../responses.js');
     await createResponse({ openai, model: 'gpt-5-codex', input: [] });
@@ -66,31 +64,24 @@ describe('createResponse', () => {
     expect(mockGenerateText).toHaveBeenCalledWith({
       model: modelRef,
       messages: [],
-      providerOptions: { openai: { reasoningEffort: 'high' } },
+      providerOptions: undefined,
     });
     expect(getConfiguredReasoningEffort()).toBe('high');
   });
 
-  test('prefers explicit reasoning effort over environment value', async () => {
-    process.env.OPENAI_REASONING_EFFORT = 'low';
+  test('prefers explicit reasoning effort over environment value (still no providerOptions)', async () => {
+    process.env.AGENT_REASONING_EFFORT = 'low';
     mockGenerateText.mockResolvedValue({ text: 'ok' });
     const modelRef = {};
-    const openai = {
-      responses: jest.fn().mockReturnValue(modelRef),
-    };
+    const openai = { responses: jest.fn().mockReturnValue(modelRef) };
 
     const { createResponse } = await import('../responses.js');
-    await createResponse({
-      openai,
-      model: 'gpt-5-codex',
-      input: [],
-      reasoningEffort: 'medium',
-    });
+    await createResponse({ openai, model: 'gpt-5-codex', input: [], reasoningEffort: 'medium' });
 
     expect(mockGenerateText).toHaveBeenCalledWith({
       model: modelRef,
       messages: [],
-      providerOptions: { openai: { reasoningEffort: 'medium' } },
+      providerOptions: undefined,
     });
   });
 
