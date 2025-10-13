@@ -1,9 +1,7 @@
-import React from 'react';
+import type { ReactElement } from 'react';
 import { Box, Text } from 'ink';
 
 import type { PlanNode } from './planUtils.js';
-
-const h = React.createElement;
 
 type PlanDetailProps = {
   node?: PlanNode | null;
@@ -12,7 +10,7 @@ type PlanDetailProps = {
 /**
  * Displays a single plan entry with indentation that mirrors the hierarchy.
  */
-export function PlanDetail({ node }: PlanDetailProps): React.ReactElement | null {
+export function PlanDetail({ node }: PlanDetailProps): ReactElement | null {
   if (!node) {
     return null;
   }
@@ -33,22 +31,23 @@ export function PlanDetail({ node }: PlanDetailProps): React.ReactElement | null
   metaParts.push(`age ${age}`);
   const metaSuffix = metaParts.length > 0 ? ` -  ${metaParts.join(' • ')}` : '';
 
-  return h(
-    Box,
-    { marginLeft: node.depth * 2, flexDirection: 'column' },
-    h(
-      Text,
-      null,
-      h(Text, { color: node.color }, `${node.symbol} `),
-      h(Text, { color: 'cyan' }, node.label),
-      h(Text, { color: 'gray' }, '.'),
-      node.title ? h(Text, null, ` ${node.title}`) : null,
-      metaSuffix ? h(Text, { color: 'gray' }, metaSuffix) : null,
-    ),
-    hasCommandPreview
-      ? h(Text, { color: 'gray' }, '  ↳ ', h(Text, { color: 'white' }, node.commandPreview))
-      : null,
-  ) as React.ReactElement;
+  return (
+    <Box marginLeft={node.depth * 2} flexDirection="column">
+      <Text>
+        <Text color={node.color}>{`${node.symbol} `}</Text>
+        <Text color="cyan">{node.label}</Text>
+        <Text color="gray">.</Text>
+        {node.title ? <Text>{` ${node.title}`}</Text> : null}
+        {metaSuffix ? <Text color="gray">{metaSuffix}</Text> : null}
+      </Text>
+      {hasCommandPreview ? (
+        <Text color="gray">
+          {'  ↳ '}
+          <Text color="white">{node.commandPreview}</Text>
+        </Text>
+      ) : null}
+    </Box>
+  );
 }
 
 export default PlanDetail;

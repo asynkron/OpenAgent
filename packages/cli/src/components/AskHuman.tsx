@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import ContextUsage from './ContextUsage.js';
@@ -66,7 +66,6 @@ export const HUMAN_SLASH_COMMANDS = [
   },
 ];
 
-const h = React.createElement;
 const { human } = theme;
 const { colors: humanColors, props: humanProps } = human;
 const askHumanProps = humanProps?.askHuman ?? {};
@@ -122,22 +121,21 @@ export function AskHuman({ onSubmit, thinking = false, contextUsage = null, pass
     ...(askHumanProps.textArea ?? {}),
   };
 
-  const inputDisplay = thinking
-    ? h(Text, { key: 'spinner', ...spinnerProps, color: spinnerColor }, [
-        h(Spinner, { type: 'dots', key: 'spinner-icon' }),
-        ' Thinking…',
-      ])
-    : h(InkTextArea, {
-        key: 'value',
-        ...textAreaProps,
-        value,
-        onChange: setValue,
-        onSubmit: handleSubmit,
-        slashMenuItems: HUMAN_SLASH_COMMANDS,
-
-        isActive: interactive,
-        isDisabled: locked,
-      });
+  const inputDisplay = thinking ? (
+    <Text {...spinnerProps} color={spinnerColor}>
+      <Spinner type="dots" key="spinner-icon" /> Thinking…
+    </Text>
+  ) : (
+    <InkTextArea
+      {...textAreaProps}
+      value={value}
+      onChange={setValue}
+      onSubmit={handleSubmit}
+      slashMenuItems={HUMAN_SLASH_COMMANDS}
+      isActive={interactive}
+      isDisabled={locked}
+    />
+  );
 
   const normalizedPassCounter = Number.isFinite(passCounter)
     ? Math.max(0, Math.floor(passCounter))
@@ -153,23 +151,6 @@ export function AskHuman({ onSubmit, thinking = false, contextUsage = null, pass
   };
   const footerHintColor = footerHintProps.color ?? humanColors.fg;
   const footerHintDimColor = footerHintProps.dimColor ?? true;
-
-  const footerChildren = [
-    h(
-      Text,
-      {
-        key: 'hint',
-        ...footerHintProps,
-        dimColor: footerHintDimColor,
-        color: footerHintColor,
-      },
-      hintMessage,
-    ),
-  ];
-
-  if (contextUsage) {
-    footerChildren.push(h(ContextUsage, { usage: contextUsage, key: 'context-usage' }));
-  }
 
   const containerProps = {
     flexDirection: 'column',
@@ -198,10 +179,17 @@ export function AskHuman({ onSubmit, thinking = false, contextUsage = null, pass
     ...(askHumanProps.footer ?? {}),
   };
 
-  return h(Box, containerProps, [
-    h(Box, { key: 'inputRow', ...inputRowProps }, [inputDisplay]),
-    h(Box, { key: 'footer', ...footerProps }, footerChildren),
-  ]);
+  return (
+    <Box {...containerProps}>
+      <Box {...inputRowProps}>{inputDisplay}</Box>
+      <Box {...footerProps}>
+        <Text {...footerHintProps} dimColor={footerHintDimColor} color={footerHintColor}>
+          {hintMessage}
+        </Text>
+        {contextUsage ? <ContextUsage usage={contextUsage} /> : null}
+      </Box>
+    </Box>
+  );
 }
 
 export default AskHuman;

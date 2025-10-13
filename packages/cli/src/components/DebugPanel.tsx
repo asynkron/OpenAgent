@@ -1,9 +1,7 @@
-import React from 'react';
+import type { ReactElement } from 'react';
 import { Box, Text } from 'ink';
 
 import { renderMarkdownMessage } from '../render.js';
-
-const h = React.createElement;
 
 type DebugEvent =
   | {
@@ -23,7 +21,7 @@ type DebugPanelProps = {
 export function DebugPanel({
   events = [],
   heading = 'Debug',
-}: DebugPanelProps): React.ReactElement | null {
+}: DebugPanelProps): ReactElement | null {
   if (!Array.isArray(events) || events.length === 0) {
     return null;
   }
@@ -47,20 +45,24 @@ export function DebugPanel({
 
       const markdown = `\`\`\`json\n${content}\n\`\`\``;
       const rendered = renderMarkdownMessage(markdown);
-      return h(Text, { key }, rendered) as React.ReactElement;
+      return (
+        <Text key={key}>{rendered}</Text>
+      );
     })
-    .filter((node): node is React.ReactElement => Boolean(node));
+    .filter((node): node is ReactElement => Boolean(node));
 
   if (renderedEvents.length === 0) {
     return null;
   }
 
-  const children: React.ReactElement[] = [
-    h(Text, { color: 'gray', bold: true, key: 'heading' }, heading) as React.ReactElement,
-    ...renderedEvents,
-  ];
-
-  return h(Box, { flexDirection: 'column', marginTop: 1 }, children) as React.ReactElement;
+  return (
+    <Box flexDirection="column" marginTop={1}>
+      <Text color="gray" bold>
+        {heading}
+      </Text>
+      {renderedEvents}
+    </Box>
+  );
 }
 
 export default DebugPanel;

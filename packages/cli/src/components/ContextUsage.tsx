@@ -1,9 +1,7 @@
-import React, { useMemo } from 'react';
 import { Text } from 'ink';
+import { useMemo, type ReactElement } from 'react';
 
 import type { ContextUsage as ContextUsageValue } from '../status.js';
-
-const h = React.createElement;
 
 function formatPercentage(value: number | null): string | null {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -22,7 +20,7 @@ type ContextUsageProps = {
 /**
  * Mirrors the legacy context usage status line.
  */
-export function ContextUsage({ usage }: ContextUsageProps): React.ReactElement | null {
+export function ContextUsage({ usage }: ContextUsageProps): ReactElement | null {
   const line = useMemo(() => {
     if (!usage || typeof usage !== 'object') {
       return '';
@@ -68,7 +66,9 @@ export function ContextUsage({ usage }: ContextUsageProps): React.ReactElement |
     return null;
   }
 
-  return h(Text, { dimColor: true }, line) as React.ReactElement;
+  return (
+    <Text dimColor>{line}</Text>
+  );
 }
 
 export default ContextUsage;

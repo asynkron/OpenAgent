@@ -12,8 +12,9 @@
     "tsBuildInfoFile": "./dist/.tsbuildinfo",
     "strict": false,
     "noImplicitAny": false,
-    "useUnknownInCatchVariables": false
+    "useUnknownInCatchVariables": false,
+    "jsx": "react-jsx"
   },
-  "include": ["index.ts", "bin/**/*.ts", "src/**/*.ts", "../../types/**/*.d.ts"],
+  "include": ["index.ts", "bin/**/*.ts", "src/**/*.ts", "src/**/*.tsx", "../../types/**/*.d.ts"],
   "exclude": ["dist", "node_modules", "**/__tests__/**"]
 }

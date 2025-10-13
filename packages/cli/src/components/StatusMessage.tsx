@@ -1,7 +1,5 @@
-import React from 'react';
 import { Box, Text } from 'ink';
-
-const h = React.createElement;
+import { useMemo, type ReactElement } from 'react';
 
 type StatusLevel = 'warn' | 'error' | 'success' | 'info' | string;
 
@@ -31,7 +29,7 @@ export function StatusMessage({
   status,
 }: {
   status?: StatusPayload | null;
-}): React.ReactElement | null {
+}): ReactElement | null {
   if (!status || typeof status !== 'object') {
     return null;
   }
@@ -40,15 +38,20 @@ export function StatusMessage({
   const message = status.message ?? '';
   const details = status.details ? String(status.details) : '';
 
-  const keySuffix = React.useMemo(() => Math.random().toString(36).slice(2, 10), []);
+  const keySuffix = useMemo(() => Math.random().toString(36).slice(2, 10), []);
 
-  const children = [h(Text, { color, key: `message-${keySuffix}` }, message)];
-
-  if (details) {
-    children.push(h(Text, { dimColor: true, key: `details-${keySuffix}` }, details));
-  }
-
-  return h(Box, { flexDirection: 'column' }, children) as React.ReactElement;
+  return (
+    <Box flexDirection="column">
+      <Text color={color} key={`message-${keySuffix}`}>
+        {message}
+      </Text>
+      {details ? (
+        <Text dimColor key={`details-${keySuffix}`}>
+          {details}
+        </Text>
+      ) : null}
+    </Box>
+  );
 }
 
 export default StatusMessage;
