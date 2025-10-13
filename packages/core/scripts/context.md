@@ -11,6 +11,8 @@
 - `edit-lines.mjs` — targeted line replacement utility with dry-run/rollback safeguards.
 - `read.mjs` — base64-encoded batch file reader used by the `read` command helper.
 - `rename-identifier.mjs` — scope-aware identifier renamer for single-file refactors.
+- `replace-node.ts` — jscodeshift entry point that now shells out to the `replace-node/` helper suite so option parsing, file loading, AST matching, and source rewriting stay independently testable.
+- `replace-node/args.ts`, `replace-node/fileCache.ts`, `replace-node/matches.ts`, `replace-node/ranges.ts`, `replace-node/types.ts` — typed helpers that normalise CLI flags, cache replacement file contents, collect AST match ranges, convert location metadata into byte offsets, and expose a minimal jscodeshift type surface so the transform runs without `@ts-nocheck`.
 - `gitpush.sh`, `gitpop.sh`, `gitdrop.sh` — git-stack helpers now installed with executable permissions plus `gitpush`, `gitpop`, `gitdrop` symlinks for command-style invocation.
 
 ## Related Context
