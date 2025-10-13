@@ -1,105 +1,146 @@
 // @ts-nocheck
 /**
- * JSON schema describing the OpenAgent tool payload.
+ * Zod schema describing the OpenAgent structured response payload.
  *
  * Responsibilities:
- * - Freeze the schema so runtime consumers cannot mutate it at runtime.
- * - Export the tool descriptor used when calling the OpenAI Responses API.
+ * - Encode the assistant response contract using the schema primitives supported by Vercel's AI SDK.
+ * - Export the schema alongside a tool descriptor used when invoking structured generation helpers.
  *
- * Note: The runtime still imports the compiled `responseToolSchema.js`; run `tsc`
- * to regenerate it after editing this source until the build pipeline emits from
- * TypeScript directly.
+ * Consumers:
+ * - Agent pass executor during the thinking phase.
+ * - History compactor when summarizing past conversation entries.
  */
-export type JsonSchema = Record<string, unknown>;
+import { z } from 'zod';
+import { jsonSchema as buildJsonSchema } from '@ai-sdk/provider-utils';
 
-function deepFreeze<T>(value: T): T {
-  if (!value || typeof value !== 'object' || Object.isFrozen(value)) {
-    return value;
-  }
+const commandSchema = z
+  .object({
+    reason: z
+      .string()
+      .describe(
+        'Explain why this shell command is required for the plan step. If only shell or run is provided, justify the omission.',
+      )
+      .optional(),
+    shell: z
+      .string()
+      .describe(
+        'Shell executable to launch when running commands. May only contain value if "run" contains an actual command to run.',
+      ),
+    run: z
+      .string()
+      .describe(
+        'Command string to execute in the provided shell. Must be set if "shell" has a value; may NOT be set if "shell" has no value.',
+      ),
+    cwd: z.string().describe('Working directory for shell execution.').optional(),
+    timeout_sec: z
+      .number()
+      .int()
+      .min(1)
+      .describe('Optional timeout guard for long-running commands.')
+      .optional(),
+    filter_regex: z.string().describe('Optional regex used to filter command output.').optional(),
+    tail_lines: z
+      .number()
+      .int()
+      .min(1)
+      .describe('Optional number of trailing lines to return from output.')
+      .optional(),
+  })
+  .strict()
+  .describe(
+    'MUST be on an element of the plan array. Next tool invocation to execute for this plan step. This command should complete the task if successful.',
+  );
 
-  Object.freeze(value);
-  for (const nestedValue of Object.values(value as Record<string, unknown>)) {
-    deepFreeze(nestedValue);
-  }
+const planStepSchema = z
+  .object({
+    id: z.string().describe('Random ID assigned by AI.'),
+    title: z.string(),
+    status: z
+      .enum(['pending', 'completed', 'failed', 'abandoned'])
+      .describe('Current execution status for the plan step.'),
+    age: z
+      .number()
+      .int()
+      .min(0)
+      .describe(
+        'Number of assistant responses observed while this step has been running; increments once per response when status remains running.',
+      )
+      .optional(),
+    waitingForId: z
+      .array(z.string())
+      .describe('IDs this task has to wait for before it can be executed (dependencies).')
+      .optional(),
+    command: commandSchema,
+    observation: z
+      .record(z.unknown())
+      .describe(
+        'Latest command observation for this step, including stdout/stderr and metadata so the LLM can evaluate progress.',
+      )
+      .optional(),
+  })
+  .strict()
+  .describe('Represents a single plan step.');
 
-  return value;
-}
+export const OPENAGENT_RESPONSE_SCHEMA = z
+  .object({
+    message: z.string().describe('Markdown formatted message to the user.'),
+    plan: z
+      .array(planStepSchema)
+      .describe("List of steps representing the assistant's current plan."),
+  })
+  .strict()
+  .describe(
+    'Return the response envelope that matches the OpenAgent protocol (message, plan, and command fields).',
+  );
 
-export const RESPONSE_PARAMETERS_SCHEMA: JsonSchema = {
+export const RESPONSE_PARAMETERS_SCHEMA = {
+  $schema: 'http://json-schema.org/draft-07/schema#',
   type: 'object',
-  description: `Example payload:
-  {
-    message: "Executing the requested command.",
-    plan: [
-      //task
-      {
-        id: "unique-id",
-        description: "Run the user-requested shell command to print a greeting.",
-        status: "pending",
-        priority: 1,
-        //optional, AI can decide if this task must wait for other tasks to complete first
-        waitingForId: ["this-id-must-complete-first", "and-this-id-too"],
-        command: {
-            reason: "Run the user-requested shell command to print a greeting.",
-            shell: "/bin/bash",
-            run: "some command that helps progress to the end goal.. never do noop operations such as echo",
-            cwd: "/Users/rogerjohansson/git/asynkron/OpenAgent",
-            timeout_sec: 30
-          }
-      },
-      {
-        id: "this-id-must-complete-first",
-        description: "Do something...",
-
-        ...
-      }
-    ],
-  }
-  `,
   additionalProperties: false,
   required: ['message', 'plan'],
   properties: {
     message: {
       type: 'string',
-      description: 'Markdown formatted message to the user',
+      description: 'Markdown formatted message to the user.',
     },
     plan: {
       type: 'array',
       description: "List of steps representing the assistant's current plan.",
       items: {
         type: 'object',
-        description: 'Represents a single plan step.',
-        required: ['id', 'title', 'status', 'command'],
         additionalProperties: false,
+        required: ['id', 'title', 'status', 'command'],
         properties: {
           id: {
             type: 'string',
             description: 'Random ID assigned by AI.',
           },
-          title: { type: 'string' },
+          title: {
+            type: 'string',
+            description: 'Human readable summary of the plan step.',
+          },
           status: {
             type: 'string',
             enum: ['pending', 'completed', 'failed', 'abandoned'],
-            description: '',
+            description: 'Current execution status for the plan step.',
           },
           age: {
             type: 'integer',
             minimum: 0,
-            default: 0,
             description:
               'Number of assistant responses observed while this step has been running; increments once per response when status remains running.',
           },
           waitingForId: {
             type: 'array',
-            description: 'IDs this task has to wait for before it can be executed (dependencies).',
             items: { type: 'string' },
+            description: 'IDs this task has to wait for before it can be executed (dependencies).',
           },
           command: {
             type: 'object',
-            required: ['shell', 'run'],
-            description:
-              'MUST be on an element of the plan array. Next tool invocation to execute for this plan step. This command should complete the task if successful. Must NOT be a raw string (e.g. command: "ls"). Must follow this format: {"shell":"/bin/bash","run":"ls -la","cwd":"/home/user","timeout_sec":30,"filter_regex":".*\\.txt$","tail_lines":10}',
             additionalProperties: false,
+            description:
+              'Next tool invocation to execute for this plan step. This command should complete the task if successful.',
+            required: ['shell', 'run'],
             properties: {
               reason: {
                 type: 'string',
@@ -140,6 +181,7 @@ export const RESPONSE_PARAMETERS_SCHEMA: JsonSchema = {
             type: 'object',
             description:
               'Latest command observation for this step, including stdout/stderr and metadata so the LLM can evaluate progress.',
+            additionalProperties: true,
           },
         },
       },
@@ -147,14 +189,13 @@ export const RESPONSE_PARAMETERS_SCHEMA: JsonSchema = {
   },
 };
 
-deepFreeze(RESPONSE_PARAMETERS_SCHEMA);
+const OPENAGENT_RESPONSE_JSON_SCHEMA = buildJsonSchema(() => RESPONSE_PARAMETERS_SCHEMA);
 
-export const OPENAGENT_RESPONSE_TOOL = deepFreeze({
-  type: 'function',
+export const OPENAGENT_RESPONSE_TOOL = Object.freeze({
   name: 'open-agent',
   description:
     'Return the response envelope that matches the OpenAgent protocol (message, plan, and command fields).',
-  parameters: RESPONSE_PARAMETERS_SCHEMA,
+  schema: OPENAGENT_RESPONSE_JSON_SCHEMA,
 });
 
 export default OPENAGENT_RESPONSE_TOOL;

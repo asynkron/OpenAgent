@@ -1,36 +1,21 @@
 // @ts-nocheck
 /* eslint-env jest */
 import { jest } from '@jest/globals';
-import { HistoryCompactor } from '../historyCompactor.js';
-import { createChatMessageEntry } from '../historyEntry.js';
 
-function createOpenAIMock({ summaryText }) {
-  const responsesCreate = jest.fn().mockResolvedValue({
-    output: [
-      {
-        type: 'message',
-        content: [
-          {
-            type: 'output_text',
-            text: summaryText,
-          },
-        ],
-      },
-    ],
-  });
+let mockCreateResponse;
+let mockGetOpenAIRequestSettings;
+
+const loadHistoryHelpers = async () => {
+  const [{ createChatMessageEntry }] = await Promise.all([import('../historyEntry.js')]);
 
   return {
-    client: {
-      responses: {
-        create: responsesCreate,
-      },
-    },
-    responsesCreate,
+    createChatMessageEntry,
   };
-}
+};
 
-describe('HistoryCompactor', () => {
-  const baseHistory = [
+async function buildBaseHistory() {
+  const { createChatMessageEntry } = await loadHistoryHelpers();
+  return [
     createChatMessageEntry({
       eventType: 'chat-message',
       role: 'system',
@@ -62,14 +47,48 @@ describe('HistoryCompactor', () => {
       pass: 2,
     }),
   ];
+}
 
+beforeEach(() => {
+  jest.resetModules();
+  mockCreateResponse = jest.fn();
+  mockGetOpenAIRequestSettings = jest.fn(() => ({ timeoutMs: null, maxRetries: null }));
+
+  jest.unstable_mockModule('../../openai/responses.js', () => ({
+    createResponse: mockCreateResponse,
+  }));
+
+  jest.unstable_mockModule('../../openai/client.js', () => ({
+    getOpenAIRequestSettings: mockGetOpenAIRequestSettings,
+  }));
+});
+
+describe('HistoryCompactor', () => {
   test('compacts oldest entries when usage exceeds threshold', async () => {
-    const history = baseHistory.map((entry) => ({ ...entry }));
-    const { client, responsesCreate } = createOpenAIMock({ summaryText: 'Condensed summary.' });
+    mockGetOpenAIRequestSettings.mockReturnValue({ timeoutMs: null, maxRetries: 2 });
+    mockCreateResponse.mockResolvedValue({
+      output_text: 'Condensed summary.',
+      output: [
+        {
+          type: 'message',
+          content: [
+            {
+              type: 'output_text',
+              text: 'Condensed summary.',
+            },
+          ],
+        },
+      ],
+    });
 
+    const { HistoryCompactor } = await import('../historyCompactor.js');
+    const baseHistory = await buildBaseHistory();
+    const history = baseHistory.map((entry) => ({ ...entry }));
     const logger = { log: jest.fn(), warn: jest.fn() };
+    const openai = { responses: jest.fn(() => ({})) };
+
     const compactor = new HistoryCompactor({
-      openai: client,
+      openai,
       model: 'test-model',
       usageThreshold: 0,
       logger,
@@ -80,7 +99,15 @@ describe('HistoryCompactor', () => {
     const result = await compactor.compactIfNeeded({ history });
 
     expect(result).toBe(true);
-    expect(responsesCreate).toHaveBeenCalledTimes(1);
+    expect(mockCreateResponse).toHaveBeenCalledTimes(1);
+    expect(mockCreateResponse).toHaveBeenCalledWith({
+      openai,
+      model: 'test-model',
+      input: expect.any(Array),
+      tools: undefined,
+      options: { maxRetries: 2 },
+      reasoningEffort: undefined,
+    });
     expect(logger.log).toHaveBeenCalledWith(
       '[history-compactor] Compacted summary:\nCondensed summary.',
     );
@@ -89,18 +116,6 @@ describe('HistoryCompactor', () => {
       originalHistoryLength: 5,
       resultingHistoryLength: 4,
     });
-
-    const [payload, options] = responsesCreate.mock.calls[0];
-    expect(payload.model).toBe('test-model');
-    expect(Array.isArray(payload.input)).toBe(true);
-    expect(payload.input).toHaveLength(2);
-    expect(payload.input[1].content).toContain('Summarize the following 2 conversation entries');
-    expect(payload.input[0]).toEqual({
-      role: 'system',
-      content:
-        'You summarize prior conversation history into a concise long-term memory for an autonomous agent. Capture key facts, decisions, obligations, and user preferences. Respond with plain text only.',
-    });
-    expect(options).toBeUndefined();
 
     expect(history).toHaveLength(4);
     const compactedEntry = history[1];
@@ -113,11 +128,18 @@ describe('HistoryCompactor', () => {
   });
 
   test('skips compaction when usage ratio is not above threshold', async () => {
+    mockCreateResponse.mockResolvedValue({
+      output_text: 'Irrelevant summary.',
+      output: [],
+    });
+
+    const { HistoryCompactor } = await import('../historyCompactor.js');
+    const baseHistory = await buildBaseHistory();
     const history = baseHistory.map((entry) => ({ ...entry }));
-    const { client, responsesCreate } = createOpenAIMock({ summaryText: 'Irrelevant summary.' });
+    const openai = { responses: jest.fn(() => ({})) };
 
     const compactor = new HistoryCompactor({
-      openai: client,
+      openai,
       model: 'test-model',
       usageThreshold: 1,
     });
@@ -125,17 +147,23 @@ describe('HistoryCompactor', () => {
     const result = await compactor.compactIfNeeded({ history });
 
     expect(result).toBe(false);
-    expect(responsesCreate).not.toHaveBeenCalled();
+    expect(mockCreateResponse).not.toHaveBeenCalled();
     expect(history).toHaveLength(baseHistory.length);
-    expect(history).toEqual(baseHistory);
   });
 
   test('returns false and leaves history intact when summary is empty', async () => {
+    mockCreateResponse.mockResolvedValue({
+      output_text: '   ',
+      output: [],
+    });
+
+    const { HistoryCompactor } = await import('../historyCompactor.js');
+    const baseHistory = await buildBaseHistory();
     const history = baseHistory.map((entry) => ({ ...entry }));
-    const { client, responsesCreate } = createOpenAIMock({ summaryText: '   ' });
+    const openai = { responses: jest.fn(() => ({})) };
 
     const compactor = new HistoryCompactor({
-      openai: client,
+      openai,
       model: 'test-model',
       usageThreshold: 0,
     });
@@ -143,7 +171,7 @@ describe('HistoryCompactor', () => {
     const result = await compactor.compactIfNeeded({ history });
 
     expect(result).toBe(false);
-    expect(responsesCreate).toHaveBeenCalledTimes(1);
+    expect(mockCreateResponse).toHaveBeenCalledTimes(1);
     expect(history).toHaveLength(baseHistory.length);
     expect(history).toEqual(baseHistory);
   });

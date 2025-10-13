@@ -11,7 +11,7 @@
  * - Unit tests call `resetOpenAIClient()` via the root `index.js` re-export when they need a clean slate.
  */
 
-import OpenAI from 'openai';
+import { createOpenAI } from '@ai-sdk/openai';
 
 const LEGACY_CHAT_COMPLETION_MODELS = [/^gpt-3\.5-turbo/, /^text-davinci/i];
 
@@ -45,15 +45,7 @@ export function getOpenAIClient() {
       baseURL: resolvedConfig.baseURL || undefined,
     };
 
-    if (typeof resolvedConfig.timeout === 'number') {
-      clientOptions.timeout = resolvedConfig.timeout;
-    }
-
-    if (typeof resolvedConfig.maxRetries === 'number') {
-      clientOptions.maxRetries = resolvedConfig.maxRetries;
-    }
-
-    memoizedClient = new OpenAI(clientOptions);
+    memoizedClient = createOpenAI(clientOptions);
   }
   return memoizedClient;
 }
@@ -151,3 +143,10 @@ export default {
   resetOpenAIClient,
   MODEL,
 };
+
+export function getOpenAIRequestSettings() {
+  return {
+    timeoutMs: resolvedConfig.timeout ?? null,
+    maxRetries: resolvedConfig.maxRetries ?? null,
+  };
+}

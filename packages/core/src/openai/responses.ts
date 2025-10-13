@@ -1,12 +1,27 @@
-// @ts-nocheck
-const VALID_REASONING_EFFORTS = new Set(['low', 'medium', 'high']);
+import {
+  generateObject,
+  generateText,
+  type CallSettings,
+  type GenerateObjectResult,
+  type GenerateTextResult,
+  type LanguageModel,
+  type ModelMessage,
+  type ToolSet,
+} from 'ai';
+import type { FlexibleSchema } from '@ai-sdk/provider-utils';
+import { OPENAGENT_RESPONSE_TOOL } from '../agent/responseToolSchema.js';
+import { getOpenAIRequestSettings } from './client.js';
 
-function normalizeReasoningEffort(value) {
+type ReasoningEffort = 'low' | 'medium' | 'high';
+
+const VALID_REASONING_EFFORTS = new Set<ReasoningEffort>(['low', 'medium', 'high']);
+
+function normalizeReasoningEffort(value: string | null | undefined): ReasoningEffort | null {
   if (typeof value !== 'string') {
     return null;
   }
 
-  const normalized = value.trim().toLowerCase();
+  const normalized = value.trim().toLowerCase() as ReasoningEffort;
   return VALID_REASONING_EFFORTS.has(normalized) ? normalized : null;
 }
 
@@ -18,34 +33,220 @@ if (process.env.OPENAI_REASONING_EFFORT && !ENV_REASONING_EFFORT) {
   );
 }
 
-export function getConfiguredReasoningEffort() {
+export function getConfiguredReasoningEffort(): ReasoningEffort | null {
   return ENV_REASONING_EFFORT;
 }
 
-export function createResponse({ openai, model, input, tools, options, reasoningEffort }) {
-  if (!openai || !openai.responses || typeof openai.responses.create !== 'function') {
+export interface ResponseCallOptions {
+  signal?: AbortSignal;
+  maxRetries?: number;
+}
+
+type ResponseCallSettings = Pick<CallSettings, 'abortSignal' | 'maxRetries'>;
+
+function buildCallSettings(options: ResponseCallOptions | undefined): ResponseCallSettings {
+  const { maxRetries } = getOpenAIRequestSettings();
+
+  const settings: ResponseCallSettings = {};
+
+  if (options?.signal) {
+    settings.abortSignal = options.signal;
+  }
+
+  if (typeof options?.maxRetries === 'number') {
+    settings.maxRetries = options.maxRetries;
+  }
+
+  if (typeof settings.maxRetries === 'undefined' && typeof maxRetries === 'number') {
+    settings.maxRetries = maxRetries;
+  }
+
+  return settings;
+}
+
+function buildProviderOptions(reasoningEffort?: ReasoningEffort) {
+  const normalized = reasoningEffort ?? ENV_REASONING_EFFORT;
+  if (!normalized) {
+    return undefined;
+  }
+
+  return { openai: { reasoningEffort: normalized } };
+}
+
+function mapToolToSchema(tool: SupportedTool | null | undefined): SupportedTool | null {
+  if (!tool || typeof tool !== 'object') {
+    return null;
+  }
+
+  if (tool === OPENAGENT_RESPONSE_TOOL) {
+    return OPENAGENT_RESPONSE_TOOL;
+  }
+
+  if (tool.schema) {
+    return tool;
+  }
+
+  return null;
+}
+
+interface StructuredToolDefinition {
+  name?: string;
+  description?: string;
+  schema: FlexibleSchema<unknown>;
+}
+
+type SupportedTool = typeof OPENAGENT_RESPONSE_TOOL | StructuredToolDefinition;
+
+type ResponsesProvider = (model: string) => LanguageModel;
+
+type ResponsesFunction = ResponsesProvider & {
+  responses?: ResponsesProvider;
+};
+
+type ResponsesClient = { responses: ResponsesProvider } | ResponsesFunction;
+
+function resolveResponsesModel(
+  openaiProvider: ResponsesClient | undefined,
+  model: string,
+): LanguageModel | null {
+  if (!openaiProvider) {
+    return null;
+  }
+
+  if (typeof openaiProvider === 'function') {
+    if (typeof openaiProvider.responses === 'function') {
+      return openaiProvider.responses(model);
+    }
+
+    return openaiProvider(model);
+  }
+
+  if (typeof openaiProvider === 'object' && typeof openaiProvider.responses === 'function') {
+    return openaiProvider.responses(model);
+  }
+
+  return null;
+}
+
+interface ResponseFunctionCall {
+  type: 'function_call';
+  name: string;
+  arguments: string;
+  call_id: string | null;
+}
+
+interface ResponseMessageContent {
+  type: 'output_text';
+  text: string;
+}
+
+interface ResponseMessage {
+  type: 'message';
+  role: 'assistant';
+  content: ResponseMessageContent[];
+}
+
+type ResponseOutput = ResponseFunctionCall | ResponseMessage;
+
+interface StructuredResponseResult {
+  output_text: string;
+  output: ResponseOutput[];
+  structured: GenerateObjectResult<unknown>;
+}
+
+interface TextResponseResult {
+  output_text: string;
+  output: ResponseOutput[];
+  text: GenerateTextResult<ToolSet, unknown>;
+}
+
+export type CreateResponseResult = StructuredResponseResult | TextResponseResult;
+
+export interface CreateResponseParams {
+  openai: ResponsesClient;
+  model: string;
+  input: ModelMessage[];
+  tools?: SupportedTool[];
+  options?: ResponseCallOptions;
+  reasoningEffort?: ReasoningEffort;
+}
+
+export async function createResponse({
+  openai,
+  model,
+  input,
+  tools,
+  options,
+  reasoningEffort,
+}: CreateResponseParams): Promise<CreateResponseResult> {
+  const languageModel = resolveResponsesModel(openai, model);
+
+  if (!languageModel) {
     throw new Error('Invalid OpenAI client instance provided.');
   }
 
-  const payload = {
-    model,
-    input,
-  };
+  const callSettings = buildCallSettings(options);
+  const providerOptions = buildProviderOptions(reasoningEffort);
+  const messages = input;
 
-  if (Array.isArray(tools) && tools.length > 0) {
-    payload.tools = tools;
-    payload.tool_choice = {
-      type: 'function',
-      name: 'open-agent',
+  const tool = mapToolToSchema(tools?.[0]);
+
+  if (tool?.schema) {
+    const structured = await generateObject({
+      model: languageModel,
+      messages,
+      schema: tool.schema,
+      schemaName: typeof tool.name === 'string' ? tool.name : undefined,
+      schemaDescription: typeof tool.description === 'string' ? tool.description : undefined,
+      providerOptions,
+      ...callSettings,
+    });
+
+    const argumentsText = JSON.stringify(structured.object);
+    const callId =
+      structured.response && typeof structured.response.id === 'string'
+        ? structured.response.id
+        : null;
+
+    return {
+      output_text: argumentsText,
+      output: [
+        {
+          type: 'function_call',
+          name: tool.name ?? 'open-agent',
+          arguments: argumentsText,
+          call_id: callId,
+        },
+      ],
+      structured,
     };
   }
 
-  const effort = normalizeReasoningEffort(reasoningEffort) ?? ENV_REASONING_EFFORT;
-  if (effort) {
-    payload.reasoning = { effort };
-  }
+  const textResult = await generateText({
+    model: languageModel,
+    messages,
+    providerOptions,
+    ...callSettings,
+  });
 
-  return openai.responses.create(payload, options);
+  const normalizedText = typeof textResult.text === 'string' ? textResult.text : '';
+
+  return {
+    output_text: normalizedText,
+    output: [
+      {
+        type: 'message',
+        role: 'assistant',
+        content: [
+          {
+            type: 'output_text',
+            text: normalizedText,
+          },
+        ],
+      },
+    ],
+    text: textResult,
+  };
 }
 
 export default {

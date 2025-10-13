@@ -4,6 +4,10 @@ import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 
 const ORIGINAL_ENV = { ...process.env };
 
+let mockGenerateObject;
+let mockGenerateText;
+let mockGetOpenAIRequestSettings;
+
 beforeEach(() => {
   jest.resetModules();
   for (const key of Object.keys(process.env)) {
@@ -13,58 +17,66 @@ beforeEach(() => {
   }
   Object.assign(process.env, ORIGINAL_ENV);
   delete process.env.OPENAI_REASONING_EFFORT;
+
+  mockGenerateObject = jest.fn();
+  mockGenerateText = jest.fn();
+  mockGetOpenAIRequestSettings = jest.fn(() => ({ timeoutMs: null, maxRetries: null }));
+
+  jest.unstable_mockModule('ai', () => ({
+    generateObject: mockGenerateObject,
+    generateText: mockGenerateText,
+  }));
+
+  jest.unstable_mockModule('../client.js', () => ({
+    getOpenAIRequestSettings: mockGetOpenAIRequestSettings,
+  }));
 });
 
 describe('createResponse', () => {
   test('omits reasoning when no environment configuration is present', async () => {
+    mockGenerateText.mockResolvedValue({ text: 'hi' });
+    const modelRef = {};
     const openai = {
-      responses: {
-        create: jest.fn().mockResolvedValue({ output: [] }),
-      },
+      responses: jest.fn().mockReturnValue(modelRef),
     };
 
     const { createResponse } = await import('../responses.js');
     await createResponse({ openai, model: 'gpt-5-codex', input: [] });
 
-    expect(openai.responses.create).toHaveBeenCalledWith(
-      {
-        model: 'gpt-5-codex',
-        input: [],
-      },
-      undefined,
-    );
+    expect(openai.responses).toHaveBeenCalledWith('gpt-5-codex');
+    expect(mockGenerateText).toHaveBeenCalledWith({
+      model: modelRef,
+      messages: [],
+      providerOptions: undefined,
+    });
+    expect(mockGenerateObject).not.toHaveBeenCalled();
   });
 
   test('includes reasoning effort sourced from the environment', async () => {
     process.env.OPENAI_REASONING_EFFORT = 'High';
-
+    mockGenerateText.mockResolvedValue({ text: 'ok' });
+    const modelRef = {};
     const openai = {
-      responses: {
-        create: jest.fn().mockResolvedValue({ output: [] }),
-      },
+      responses: jest.fn().mockReturnValue(modelRef),
     };
 
     const { createResponse, getConfiguredReasoningEffort } = await import('../responses.js');
     await createResponse({ openai, model: 'gpt-5-codex', input: [] });
 
-    expect(openai.responses.create).toHaveBeenCalledWith(
-      {
-        model: 'gpt-5-codex',
-        input: [],
-        reasoning: { effort: 'high' },
-      },
-      undefined,
-    );
+    expect(mockGenerateText).toHaveBeenCalledWith({
+      model: modelRef,
+      messages: [],
+      providerOptions: { openai: { reasoningEffort: 'high' } },
+    });
     expect(getConfiguredReasoningEffort()).toBe('high');
   });
 
   test('prefers explicit reasoning effort over environment value', async () => {
     process.env.OPENAI_REASONING_EFFORT = 'low';
-
+    mockGenerateText.mockResolvedValue({ text: 'ok' });
+    const modelRef = {};
     const openai = {
-      responses: {
-        create: jest.fn().mockResolvedValue({ output: [] }),
-      },
+      responses: jest.fn().mockReturnValue(modelRef),
     };
 
     const { createResponse } = await import('../responses.js');
@@ -75,41 +87,32 @@ describe('createResponse', () => {
       reasoningEffort: 'medium',
     });
 
-    expect(openai.responses.create).toHaveBeenCalledWith(
-      {
-        model: 'gpt-5-codex',
-        input: [],
-        reasoning: { effort: 'medium' },
-      },
-      undefined,
-    );
+    expect(mockGenerateText).toHaveBeenCalledWith({
+      model: modelRef,
+      messages: [],
+      providerOptions: { openai: { reasoningEffort: 'medium' } },
+    });
   });
 
   test('includes tools when provided', async () => {
-    const tool = {
-      type: 'function',
-      function: { name: 'example', parameters: { type: 'object' } },
-    };
+    const modelRef = {};
     const openai = {
-      responses: {
-        create: jest.fn().mockResolvedValue({ output: [] }),
-      },
+      responses: jest.fn().mockReturnValue(modelRef),
     };
+    const tool = { name: 'example', description: 'desc', schema: { mock: true } };
+    mockGenerateObject.mockResolvedValue({ object: { ok: true }, response: {} });
 
     const { createResponse } = await import('../responses.js');
     await createResponse({ openai, model: 'gpt-5-codex', input: [], tools: [tool] });
 
-    expect(openai.responses.create).toHaveBeenCalledWith(
-      {
-        model: 'gpt-5-codex',
-        input: [],
-        tools: [tool],
-        tool_choice: {
-          type: 'function',
-          name: 'open-agent',
-        },
-      },
-      undefined,
-    );
+    expect(mockGenerateObject).toHaveBeenCalledWith({
+      model: modelRef,
+      messages: [],
+      schema: tool.schema,
+      schemaName: 'example',
+      schemaDescription: 'desc',
+      providerOptions: undefined,
+    });
+    expect(mockGenerateText).not.toHaveBeenCalled();
   });
 });

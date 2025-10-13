@@ -53,15 +53,15 @@ async function withIsolatedCwd(fn) {
 }
 
 function createRuntimeWithQueue(queue, overrides = {}) {
-  const responsesCreate = jest.fn(() => {
+  const requestModelCompletionFn = jest.fn(async () => {
     if (queue.length === 0) {
       throw new Error('Response queue exhausted');
     }
-    return queue.shift();
+    return { status: 'success', completion: await queue.shift() };
   });
 
   const defaults = {
-    getClient: () => ({ responses: { create: responsesCreate } }),
+    getClient: () => ({ responses: () => ({}) }),
     model: 'test-model',
     runCommandFn: jest.fn().mockResolvedValue({
       stdout: '',
@@ -80,6 +80,9 @@ function createRuntimeWithQueue(queue, overrides = {}) {
     getAutoApproveFlag: () => true,
     getNoHumanFlag: () => false,
     setNoHumanFlag: jest.fn(),
+    passExecutorDeps: {
+      requestModelCompletionFn,
+    },
   };
 
   const runtime = createAgentRuntime({ ...defaults, ...overrides });

@@ -16,7 +16,7 @@
 - `openaiRequest.ts` (emits `openaiRequest.js`) — wraps the OpenAI Responses API with ESC cancellation support and emits cancellation observations when humans abort requests.
 - `planManager.ts` (emits `planManager.js`) — persists plan snapshots to `.openagent/plan.json`, merges assistant updates, and emits plan progress events.
 - `promptCoordinator.ts` (emits `promptCoordinator.js`) — buffers prompt responses from the UI and relays cancellation signals through the shared ESC state.
-- `responseParser.ts`, `responseValidator.ts`, and `responseToolSchema.ts` (emit their `.js` companions) — parse assistant JSON, normalize plan/command payloads, and enforce schema plus semantic validations for the OpenAgent tool response.
+- `responseParser.ts`, `responseValidator.ts`, and `responseToolSchema.ts` (emit their `.js` companions) — parse assistant JSON, normalize plan/command payloads, and enforce schema plus semantic validations for the OpenAgent tool response. The schema module now exposes both the Zod schema for structured generation and a JSON Schema export (`RESPONSE_PARAMETERS_SCHEMA`) consumed by the AJV validator.
 - `historyEntry.ts`, `historyMessageBuilder.ts`, and `historyCompactor.ts` — previously migrated helpers that the runtime still imports via their compiled `.js` outputs.
 
 ## Positive Signals

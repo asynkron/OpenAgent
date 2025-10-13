@@ -14,6 +14,7 @@
 import { summarizeContextUsage } from '../utils/contextUsage.js';
 import { extractResponseText } from '../openai/responseUtils.js';
 import { createResponse } from '../openai/responses.js';
+import { getOpenAIRequestSettings } from '../openai/client.js';
 import { createChatMessageEntry, mapHistoryToOpenAIMessages } from './historyEntry.js';
 import type { ChatMessageEntry } from './historyEntry.js';
 
@@ -39,14 +40,8 @@ export interface CompactIfNeededInput {
   history?: ChatHistoryEntry[] | null;
 }
 
-export interface OpenAIResponsesClient {
-  create: (payload: JsonLike, options?: JsonLike) => Promise<unknown>;
-}
-
 export interface OpenAIClient {
-  responses?: {
-    create?: OpenAIResponsesClient['create'];
-  };
+  responses?: ((model: string | null | undefined) => unknown) | null;
 }
 
 export type Logger = {
@@ -132,7 +127,9 @@ export class HistoryCompactor {
       return false;
     }
 
-    if (!this.openai?.responses || typeof this.openai.responses.create !== 'function') {
+    const hasResponsesApi = Boolean(this.openai && typeof this.openai.responses === 'function');
+
+    if (!hasResponsesApi) {
       return false;
     }
 
@@ -209,12 +206,18 @@ export class HistoryCompactor {
 
   async generateSummary(entries: ChatHistoryEntry[]): Promise<string> {
     const input = buildSummarizationInput(entries);
+    const { maxRetries } = getOpenAIRequestSettings();
     const response = await createResponse({
       openai: this.openai,
       model: this.model ?? undefined,
       input: mapHistoryToOpenAIMessages(input),
       tools: undefined,
-      options: undefined,
+      options:
+        typeof maxRetries === 'number'
+          ? {
+              maxRetries,
+            }
+          : undefined,
       reasoningEffort: undefined,
     });
 
