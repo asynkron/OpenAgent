@@ -3,9 +3,6 @@
  * writing directly to the CLI.
  */
 
-import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
-
 import { SYSTEM_PROMPT } from '../config/systemPrompt.js';
 import { getOpenAIClient, MODEL } from '../openai/client.js';
 import type { ResponsesClient } from '../openai/responses.js';
@@ -18,179 +15,47 @@ import {
 } from '../services/commandApprovalService.js';
 import { applyFilter, tailLines } from '../utils/text.js';
 import { executeAgentPass } from './passExecutor.js';
-import type { ExecuteAgentPassOptions } from './passExecutor.js';
 import { extractOpenAgentToolCall, extractResponseText } from '../openai/responseUtils.js';
-import { ApprovalManager } from './approvalManager.js';
-import type { ApprovalManagerOptions } from './approvalManager.js';
 import { HistoryCompactor } from './historyCompactor.js';
-import { createEscState } from './escState.js';
-import type { EscState, EscStateController } from './escState.js';
 import { AsyncQueue, QUEUE_DONE } from '../utils/asyncQueue.js';
-import type { AsyncQueue as AsyncQueueType } from '../utils/asyncQueue.js';
 import { cancel as cancelActive } from '../utils/cancellation.js';
-import { PromptCoordinator } from './promptCoordinator.js';
-import type { PromptCoordinatorOptions } from './promptCoordinator.js';
-import { createPlanManager } from './planManager.js';
-import type { PlanManagerOptions } from './planManager.js';
 import { AmnesiaManager, applyDementiaPolicy } from './amnesiaManager.js';
+import type {
+  AgentInputEvent,
+  AgentRuntime,
+  AgentRuntimeOptions,
+  ApprovalManagerFactoryConfig,
+  AsyncQueueLike,
+  CreateHistoryCompactorOptions,
+  EscController,
+  ExecuteAgentPassDependencies,
+  HistoryCompactorLike,
+  HistorySnapshot,
+  PlanAutoResponseTracker,
+  PlanManagerFactoryConfig,
+  PromptCoordinatorLike,
+  PromptCoordinatorFactoryConfig,
+  RuntimeEvent,
+  RuntimeEventObserver,
+  UnknownRecord,
+} from './runtimeTypes.js';
+import type { PlanManagerOptions } from './planManager.js';
+import { createEscState } from './escState.js';
+import type { EscStateController } from './escState.js';
 import type { AmnesiaManager as AmnesiaManagerType, ChatHistoryEntry as AmnesiaHistoryEntry } from './amnesiaManager.js';
-import { createChatMessageEntry, mapHistoryToOpenAIMessages } from './historyEntry.js';
-import type { ChatMessageEntry } from './historyEntry.js';
-import { requestModelCompletion as defaultRequestModelCompletion } from './openaiRequest.js';
+import { createChatMessageEntry } from './historyEntry.js';
 import type { PlanManagerLike as ExecutorPlanManagerLike } from './passExecutor/planManagerAdapter.js';
 import type { HistoryCompactorOptions } from './historyCompactor.js';
-import type { GuardRequestPayloadSizeFn } from './passExecutor/prePassTasks.js';
-
-type UnknownRecord = Record<string, unknown>;
-
-type RuntimeEvent = UnknownRecord & { type: string; __id?: string };
-
-type RuntimeEventObserver = (event: RuntimeEvent) => void;
-
-type GuardRequestOptions = Parameters<typeof defaultRequestModelCompletion>[0];
-
-type GuardableRequestModelCompletion = (
-  options: GuardRequestOptions,
-) => ReturnType<typeof defaultRequestModelCompletion>;
-
-type GuardedRequestModelCompletion = GuardableRequestModelCompletion & {
-  guardRequestPayloadSize: GuardRequestPayloadSizeFn;
-};
-
-type AsyncQueueLike<T> = Pick<AsyncQueueType<T>, 'push' | 'close' | 'next'>;
-
-type AgentInputEvent =
-  | { type: 'prompt'; prompt?: string; value?: string }
-  | { type: 'cancel'; payload?: unknown };
-
-interface EscController {
-  state: EscState;
-  trigger: EscStateController['trigger'] | null;
-  detach: EscStateController['detach'] | null;
-}
-
-interface PromptCoordinatorLike {
-  request(prompt: string, metadata?: UnknownRecord): Promise<string>;
-  handlePrompt(value: string): void;
-  handleCancel(payload?: unknown): void;
-  close(): void;
-}
-
-interface HistoryCompactorLike {
-  compactIfNeeded?: HistoryCompactor['compactIfNeeded'];
-}
-
-interface PlanAutoResponseTracker {
-  increment(): number;
-  reset(): void;
-  getCount(): number;
-}
-
-type IdGeneratorFn = (context: { counter: number }) => string | number | null | undefined;
-
-type HistorySnapshot = ChatMessageEntry[];
-
-type ExecuteAgentPassDependencies =
-  Partial<
-    Pick<
-      ExecuteAgentPassOptions,
-      | 'executeAgentCommandFn'
-      | 'createObservationBuilderFn'
-      | 'combineStdStreamsFn'
-      | 'buildPreviewFn'
-      | 'parseAssistantResponseFn'
-      | 'validateAssistantResponseSchemaFn'
-      | 'validateAssistantResponseFn'
-      | 'createChatMessageEntryFn'
-      | 'extractOpenAgentToolCallFn'
-      | 'summarizeContextUsageFn'
-      | 'incrementCommandCountFn'
-    >
-  > & {
-    requestModelCompletionFn?: GuardedRequestModelCompletion;
-    guardRequestPayloadSizeFn?: GuardRequestPayloadSizeFn;
-  };
-
-type PlanManagerFactoryConfig = PlanManagerOptions & {
-  getPlanMergeFlag: () => boolean;
-};
-
-interface PromptCoordinatorFactoryConfig extends PromptCoordinatorOptions {
-  emitEvent: (event: UnknownRecord) => void;
-  escState: EscState | null;
-}
-
-interface ApprovalManagerFactoryConfig extends ApprovalManagerOptions {
-  logWarn: (message: string) => void;
-  logSuccess: (message: string) => void;
-}
-
-interface CreateHistoryCompactorOptions {
-  openai: HistoryCompactorOptions['openai'];
-  currentModel: string;
-  logger?: HistoryCompactorOptions['logger'];
-}
-
-interface AgentRuntimeOptions {
-  systemPrompt?: string;
-  systemPromptAugmentation?: string;
-  getClient?: () => ResponsesClient;
-  model?: string;
-  runCommandFn?: ExecuteAgentPassOptions['runCommandFn'];
-  applyFilterFn?: ExecuteAgentPassOptions['applyFilterFn'];
-  tailLinesFn?: ExecuteAgentPassOptions['tailLinesFn'];
-  isPreapprovedCommandFn?: (command: unknown, cfg?: unknown) => boolean;
-  isSessionApprovedFn?: (command: unknown) => boolean;
-  approveForSessionFn?: (command: unknown) => void | Promise<void>;
-  preapprovedCfg?: unknown;
-  getAutoApproveFlag?: () => boolean;
-  getNoHumanFlag?: () => boolean;
-  getPlanMergeFlag?: () => boolean;
-  getDebugFlag?: () => boolean;
-  setNoHumanFlag?: (value?: boolean) => void;
-  emitAutoApproveStatus?: boolean;
-  createHistoryCompactorFn?: (
-    options: CreateHistoryCompactorOptions,
-  ) => HistoryCompactor | HistoryCompactorLike | null;
-  dementiaLimit?: number;
-  amnesiaLimit?: number;
-  createAmnesiaManagerFn?: (options: { threshold: number }) => AmnesiaManagerType;
-  createOutputsQueueFn?: () => AsyncQueueLike<RuntimeEvent>;
-  createInputsQueueFn?: () => AsyncQueueLike<AgentInputEvent>;
-  createPlanManagerFn?: (config: PlanManagerFactoryConfig) => ReturnType<typeof createPlanManager>;
-  createEscStateFn?: () => EscStateController;
-  createPromptCoordinatorFn?: (config: PromptCoordinatorFactoryConfig) => PromptCoordinatorLike;
-  createApprovalManagerFn?: (config: ApprovalManagerFactoryConfig) => ApprovalManager;
-  logger?: Console | null;
-  idGeneratorFn?: IdGeneratorFn | null;
-  applyDementiaPolicyFn?: typeof applyDementiaPolicy;
-  createChatMessageEntryFn?: typeof createChatMessageEntry;
-  executeAgentPassFn?: typeof executeAgentPass;
-  createPlanAutoResponseTrackerFn?: () => PlanAutoResponseTracker | null;
-  cancelFn?: (reason?: unknown) => void;
-  planReminderMessage?: string;
-  userInputPrompt?: string;
-  noHumanAutoMessage?: string;
-  eventObservers?: RuntimeEventObserver[] | null;
-  idPrefix?: string;
-  passExecutorDeps?: ExecuteAgentPassDependencies | null;
-}
-
-export interface AgentRuntime {
-  readonly outputs: AsyncQueueLike<RuntimeEvent>;
-  readonly inputs: AsyncQueueLike<AgentInputEvent>;
-  start(): Promise<void>;
-  submitPrompt(value: string): void;
-  cancel(payload?: unknown): void;
-  getHistorySnapshot(): HistorySnapshot;
-}
-
-const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
-const PLAN_PENDING_REMINDER =
-  'The plan is not completed, either send a command to continue, update the plan, take a deep breath and reanalyze the situation, add/remove steps or sub-steps, or abandon the plan if we don´t know how to continue';
-
-// Guardrail used to detect runaway payload growth between consecutive model calls.
-const MAX_REQUEST_GROWTH_FACTOR = 5;
+import { createRuntimeEmitter } from './runtimeEmitter.js';
+import { createPayloadGuard } from './runtimePayloadGuard.js';
+import {
+  approvalManagerFactoryFallback,
+  defaultPlanAutoResponseTracker,
+  initializeWithFactory,
+  planManagerFactoryFallback,
+  promptCoordinatorFactoryFallback,
+} from './runtimeFactories.js';
+import { NO_HUMAN_AUTO_MESSAGE, PLAN_PENDING_REMINDER } from './runtimeSharedConstants.js';
 
 export function createAgentRuntime({
   systemPrompt = SYSTEM_PROMPT,
@@ -224,10 +89,10 @@ export function createAgentRuntime({
   createAmnesiaManagerFn = (config) => new AmnesiaManager(config),
   createOutputsQueueFn = () => new AsyncQueue<RuntimeEvent>(),
   createInputsQueueFn = () => new AsyncQueue<AgentInputEvent>(),
-  createPlanManagerFn = (config) => createPlanManager(config),
+  createPlanManagerFn = (config) => planManagerFactoryFallback(config),
   createEscStateFn = () => createEscState(),
-  createPromptCoordinatorFn = (config) => new PromptCoordinator(config),
-  createApprovalManagerFn = (config) => new ApprovalManager(config),
+  createPromptCoordinatorFn = (config) => promptCoordinatorFactoryFallback(config),
+  createApprovalManagerFn = (config) => approvalManagerFactoryFallback(config),
   // New DI hooks
   logger = console,
   idGeneratorFn = null,
@@ -268,188 +133,19 @@ export function createAgentRuntime({
     throw new TypeError('createInputsQueueFn must return an AsyncQueue-like object.');
   }
   const inputsQueue: AsyncQueueLike<AgentInputEvent> = inputs;
-  let counter = 0;
   let passCounter = 0;
-  let previousRequestPayloadSize: number | null = null;
 
-  type LoggerLevel = 'log' | 'info' | 'warn' | 'error' | 'debug';
+  const emitter = createRuntimeEmitter({
+    outputsQueue,
+    eventObservers,
+    logger,
+    idPrefix,
+    idGeneratorFn,
+    isDebugEnabled: () => Boolean(typeof getDebugFlag === 'function' && getDebugFlag()),
+  });
+  const { emit, emitFactoryWarning, emitDebug, logWithFallback } = emitter;
 
-  const logWithFallback = (level: LoggerLevel, message: string, details: unknown = null): void => {
-    const sink = logger ?? console;
-    const fn = sink && typeof sink[level] === 'function' ? sink[level].bind(sink) : null;
-    if (fn) {
-      fn(message, details);
-    } else if (sink && typeof sink.log === 'function') {
-      sink.log(message, details);
-    }
-  };
-
-  const historyDumpDirectory = join(process.cwd(), '.openagent', 'failsafe-history');
-
-  interface DumpHistorySnapshotInput {
-    historyEntries?: HistorySnapshot | unknown[];
-    passIndex?: number | null;
-  }
-
-  const dumpHistorySnapshot = async ({
-    historyEntries = [],
-    passIndex,
-  }: DumpHistorySnapshotInput): Promise<string> => {
-    await mkdir(historyDumpDirectory, { recursive: true });
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const prefix = Number.isFinite(passIndex) ? `pass-${passIndex}-` : 'pass-unknown-';
-    const filePath = join(historyDumpDirectory, `${prefix}${timestamp}.json`);
-    await writeFile(filePath, JSON.stringify(historyEntries, null, 2), 'utf8');
-    return filePath;
-  };
-
-  const estimateRequestPayloadSize = (historySnapshot: unknown, modelName: unknown): number | null => {
-    try {
-      const payload = {
-        model: modelName,
-        input: mapHistoryToOpenAIMessages(historySnapshot),
-        tool_choice: { type: 'function', name: 'open-agent' },
-      };
-      const serialized = JSON.stringify(payload);
-      return typeof serialized === 'string' ? Buffer.byteLength(serialized, 'utf8') : null;
-    } catch (error) {
-      logWithFallback('warn', '[failsafe] Unable to estimate OpenAI payload size before request.', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return null;
-    }
-  };
-
-  const buildGuardedRequestModelCompletion = (
-    delegate: GuardableRequestModelCompletion | null | undefined,
-  ): GuardedRequestModelCompletion => {
-    const requestFn: GuardableRequestModelCompletion =
-      typeof delegate === 'function' ? delegate : defaultRequestModelCompletion;
-
-    const guardRequestPayloadSize: GuardRequestPayloadSizeFn = async (options) => {
-      const payloadSize = estimateRequestPayloadSize(options?.history, options?.model);
-      if (Number.isFinite(previousRequestPayloadSize) && Number.isFinite(payloadSize)) {
-        const previous = previousRequestPayloadSize as number;
-        const current = payloadSize as number;
-        const growthFactor = current / previous;
-        // Only treat this as runaway growth if the payload both jumps by ~5x and
-        // adds at least 1 KiB of new content—this avoids tripping on tiny histories.
-        if (growthFactor >= MAX_REQUEST_GROWTH_FACTOR && current - previous > 1024) {
-          logWithFallback(
-            'error',
-            `[failsafe] OpenAI request ballooned from ${previous}B to ${current}B on pass ${options?.passIndex ?? 'unknown'}.`,
-          );
-          try {
-            const dumpPath = await dumpHistorySnapshot({
-              historyEntries: Array.isArray(options?.history) ? options.history : [],
-              passIndex: options?.passIndex,
-            });
-            if (dumpPath) {
-              logWithFallback('error', `[failsafe] Dumped history snapshot to ${dumpPath}.`);
-            }
-          } catch (dumpError) {
-            logWithFallback('error', '[failsafe] Failed to persist history snapshot.', {
-              error: dumpError instanceof Error ? dumpError.message : String(dumpError),
-            });
-          }
-          logWithFallback('error', '[failsafe] Exiting to prevent excessive API charges.');
-          process.exit(1);
-        }
-      }
-
-      if (Number.isFinite(payloadSize)) {
-        previousRequestPayloadSize = payloadSize as number;
-      }
-
-    };
-
-    const guardedRequest = Object.assign(
-      async (options: GuardRequestOptions) => {
-        await guardRequestPayloadSize(options);
-        return requestFn(options);
-      },
-      { guardRequestPayloadSize },
-    );
-
-    return guardedRequest;
-  };
-  const nextId = (): string => {
-    try {
-      if (typeof idGeneratorFn === 'function') {
-        const id = idGeneratorFn({ counter });
-        if (id) return String(id);
-      }
-    } catch (_error) {
-      // ignore and fall back
-    }
-    return idPrefix + counter++;
-  };
-
-  const emit = (event: unknown): void => {
-    if (!event || typeof event !== 'object') {
-      throw new TypeError('Agent emit expected event to be an object.');
-    }
-    // Hard requirement: stringify, deserialize, emit — always deep clone via JSON serialization.
-    const clonedEvent = JSON.parse(JSON.stringify(event)) as RuntimeEvent;
-    clonedEvent.__id = nextId();
-    outputsQueue.push(clonedEvent);
-    if (Array.isArray(eventObservers)) {
-      for (const obs of eventObservers) {
-        if (typeof obs !== 'function') continue;
-        try {
-          obs(clonedEvent);
-        } catch (_error) {
-          outputsQueue.push({ type: 'status', level: 'warn', message: 'eventObservers item threw.' });
-        }
-      }
-    }
-  };
-
-  const emitFactoryWarning = (message: string, error: unknown = null): void => {
-    const warning: UnknownRecord = { type: 'status', level: 'warn', message };
-    if (error != null) {
-      warning.details = error instanceof Error ? error.message : String(error);
-    }
-    emit(warning);
-  };
-
-  const initializeWithFactory = <T, C>({
-    factory,
-    fallback,
-    config,
-    warnMessage,
-    onInvalid,
-    validate,
-  }: {
-    factory?: ((configuration: C) => T) | null;
-    fallback: (configuration: C) => T;
-    config: C;
-    warnMessage?: string;
-    onInvalid?: (candidate: unknown) => void;
-    validate?: (candidate: unknown) => candidate is T;
-  }): T => {
-    if (typeof factory === 'function') {
-      try {
-        const candidate = factory(config);
-        const validator =
-          typeof validate === 'function'
-            ? validate
-            : (value: unknown): value is T => Boolean(value && typeof value === 'object');
-        if (validator(candidate)) {
-          return candidate;
-        }
-        if (typeof onInvalid === 'function') {
-          onInvalid(candidate);
-        }
-      } catch (error) {
-        if (warnMessage) {
-          emitFactoryWarning(warnMessage, error);
-        }
-        return fallback(config);
-      }
-    }
-    return fallback(config);
-  };
+  const { buildGuardedRequestModelCompletion } = createPayloadGuard({ emitter });
 
   const nextPass = () => {
     passCounter += 1;
@@ -467,9 +163,9 @@ export function createAgentRuntime({
     getPlanMergeFlag,
   };
 
-  const planManager = initializeWithFactory<ReturnType<typeof createPlanManager> | null, PlanManagerFactoryConfig>({
+  const planManager = initializeWithFactory<ReturnType<typeof planManagerFactoryFallback> | null, PlanManagerFactoryConfig>({
     factory: createPlanManagerFn,
-    fallback: () => createPlanManager(planManagerOptions),
+    fallback: planManagerFactoryFallback,
     config: planManagerConfig,
     warnMessage: 'Failed to initialize plan manager via factory.',
     onInvalid: (candidate) =>
@@ -477,25 +173,8 @@ export function createAgentRuntime({
         'Plan manager factory returned an invalid value.',
         candidate == null ? String(candidate) : `typeof candidate === ${typeof candidate}`,
       ),
+    emitter,
   });
-
-  // Track how many consecutive plan reminders we have injected so that the
-  // agent eventually defers to a human if progress stalls.
-  const defaultPlanAutoResponseTracker = (): PlanAutoResponseTracker => {
-    let count = 0;
-    return {
-      increment() {
-        count += 1;
-        return count;
-      },
-      reset() {
-        count = 0;
-      },
-      getCount() {
-        return count;
-      },
-    };
-  };
 
   const maybeTracker: PlanAutoResponseTracker | null =
     typeof createPlanAutoResponseTrackerFn === 'function'
@@ -566,7 +245,7 @@ export function createAgentRuntime({
 
   const promptCoordinator = initializeWithFactory<PromptCoordinatorLike, PromptCoordinatorFactoryConfig>({
     factory: createPromptCoordinatorFn,
-    fallback: () => new PromptCoordinator(promptCoordinatorConfig),
+    fallback: promptCoordinatorFactoryFallback,
     config: promptCoordinatorConfig,
     warnMessage: 'Failed to initialize prompt coordinator via factory.',
     onInvalid: (candidate) =>
@@ -574,6 +253,7 @@ export function createAgentRuntime({
         'Prompt coordinator factory returned an invalid value.',
         candidate == null ? String(candidate) : `typeof candidate === ${typeof candidate}`,
       ),
+    emitter,
   });
 
   let openai: ResponsesClient;
@@ -601,9 +281,9 @@ export function createAgentRuntime({
     logSuccess: (message) => emit({ type: 'status', level: 'info', message }),
   };
 
-  const approvalManager = initializeWithFactory<ApprovalManager | null, ApprovalManagerFactoryConfig>({
+  const approvalManager = initializeWithFactory<ReturnType<typeof approvalManagerFactoryFallback> | null, ApprovalManagerFactoryConfig>({
     factory: createApprovalManagerFn,
-    fallback: () => new ApprovalManager(approvalManagerConfig),
+    fallback: approvalManagerFactoryFallback,
     config: approvalManagerConfig,
     warnMessage: 'Failed to initialize approval manager via factory.',
     onInvalid: (candidate) =>
@@ -611,6 +291,7 @@ export function createAgentRuntime({
         'Approval manager factory returned an invalid value.',
         candidate == null ? String(candidate) : `typeof candidate === ${typeof candidate}`,
       ),
+    emitter,
   });
 
   const augmentation =
@@ -697,33 +378,6 @@ export function createAgentRuntime({
       });
     }
   }
-
-  const isDebugEnabled = (): boolean => Boolean(typeof getDebugFlag === 'function' && getDebugFlag());
-
-  const emitDebug = (payloadOrFactory: unknown): void => {
-    if (!isDebugEnabled()) {
-      return;
-    }
-
-    let payload: unknown;
-    try {
-      payload = typeof payloadOrFactory === 'function' ? payloadOrFactory() : payloadOrFactory;
-    } catch (error) {
-      emit({
-        type: 'status',
-        level: 'warn',
-        message: 'Failed to prepare debug payload.',
-        details: error instanceof Error ? error.message : String(error),
-      });
-      return;
-    }
-
-    if (typeof payload === 'undefined') {
-      return;
-    }
-
-    emit({ type: 'debug', payload });
-  };
 
   const enforceMemoryPolicies = (currentPass: number): void => {
     if (!Number.isFinite(currentPass) || currentPass <= 0) {
