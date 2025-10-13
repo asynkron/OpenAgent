@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Implements the interactive agent loop that now emits structured events instead of
  * writing directly to the CLI.
@@ -9,6 +8,7 @@ import { join } from 'node:path';
 
 import { SYSTEM_PROMPT } from '../config/systemPrompt.js';
 import { getOpenAIClient, MODEL } from '../openai/client.js';
+import type { ResponsesClient } from '../openai/responses.js';
 import { runCommand } from '../commands/run.js';
 import {
   isPreapprovedCommand,
@@ -18,17 +18,172 @@ import {
 } from '../services/commandApprovalService.js';
 import { applyFilter, tailLines } from '../utils/text.js';
 import { executeAgentPass } from './passExecutor.js';
+import type { ExecuteAgentPassOptions } from './passExecutor.js';
 import { extractOpenAgentToolCall, extractResponseText } from '../openai/responseUtils.js';
 import { ApprovalManager } from './approvalManager.js';
+import type { ApprovalManagerOptions } from './approvalManager.js';
 import { HistoryCompactor } from './historyCompactor.js';
 import { createEscState } from './escState.js';
+import type { EscState, EscStateController } from './escState.js';
 import { AsyncQueue, QUEUE_DONE } from '../utils/asyncQueue.js';
+import type { AsyncQueue as AsyncQueueType } from '../utils/asyncQueue.js';
 import { cancel as cancelActive } from '../utils/cancellation.js';
 import { PromptCoordinator } from './promptCoordinator.js';
+import type { PromptCoordinatorOptions } from './promptCoordinator.js';
 import { createPlanManager } from './planManager.js';
+import type { PlanManagerOptions } from './planManager.js';
 import { AmnesiaManager, applyDementiaPolicy } from './amnesiaManager.js';
+import type { AmnesiaManager as AmnesiaManagerType, ChatHistoryEntry as AmnesiaHistoryEntry } from './amnesiaManager.js';
 import { createChatMessageEntry, mapHistoryToOpenAIMessages } from './historyEntry.js';
+import type { ChatMessageEntry } from './historyEntry.js';
 import { requestModelCompletion as defaultRequestModelCompletion } from './openaiRequest.js';
+import type { PlanManagerLike as ExecutorPlanManagerLike } from './passExecutor/planManagerAdapter.js';
+import type { HistoryCompactorOptions } from './historyCompactor.js';
+import type { GuardRequestPayloadSizeFn } from './passExecutor/prePassTasks.js';
+
+type UnknownRecord = Record<string, unknown>;
+
+type RuntimeEvent = UnknownRecord & { type: string; __id?: string };
+
+type RuntimeEventObserver = (event: RuntimeEvent) => void;
+
+type GuardRequestOptions = Parameters<typeof defaultRequestModelCompletion>[0];
+
+type GuardableRequestModelCompletion = (
+  options: GuardRequestOptions,
+) => ReturnType<typeof defaultRequestModelCompletion>;
+
+type GuardedRequestModelCompletion = GuardableRequestModelCompletion & {
+  guardRequestPayloadSize: GuardRequestPayloadSizeFn;
+};
+
+type AsyncQueueLike<T> = Pick<AsyncQueueType<T>, 'push' | 'close' | 'next'>;
+
+type AgentInputEvent =
+  | { type: 'prompt'; prompt?: string; value?: string }
+  | { type: 'cancel'; payload?: unknown };
+
+interface EscController {
+  state: EscState;
+  trigger: EscStateController['trigger'] | null;
+  detach: EscStateController['detach'] | null;
+}
+
+interface PromptCoordinatorLike {
+  request(prompt: string, metadata?: UnknownRecord): Promise<string>;
+  handlePrompt(value: string): void;
+  handleCancel(payload?: unknown): void;
+  close(): void;
+}
+
+interface HistoryCompactorLike {
+  compactIfNeeded?: HistoryCompactor['compactIfNeeded'];
+}
+
+interface PlanAutoResponseTracker {
+  increment(): number;
+  reset(): void;
+  getCount(): number;
+}
+
+type IdGeneratorFn = (context: { counter: number }) => string | number | null | undefined;
+
+type HistorySnapshot = ChatMessageEntry[];
+
+type ExecuteAgentPassDependencies =
+  Partial<
+    Pick<
+      ExecuteAgentPassOptions,
+      | 'executeAgentCommandFn'
+      | 'createObservationBuilderFn'
+      | 'combineStdStreamsFn'
+      | 'buildPreviewFn'
+      | 'parseAssistantResponseFn'
+      | 'validateAssistantResponseSchemaFn'
+      | 'validateAssistantResponseFn'
+      | 'createChatMessageEntryFn'
+      | 'extractOpenAgentToolCallFn'
+      | 'summarizeContextUsageFn'
+      | 'incrementCommandCountFn'
+    >
+  > & {
+    requestModelCompletionFn?: GuardedRequestModelCompletion;
+    guardRequestPayloadSizeFn?: GuardRequestPayloadSizeFn;
+  };
+
+type PlanManagerFactoryConfig = PlanManagerOptions & {
+  getPlanMergeFlag: () => boolean;
+};
+
+interface PromptCoordinatorFactoryConfig extends PromptCoordinatorOptions {
+  emitEvent: (event: UnknownRecord) => void;
+  escState: EscState | null;
+}
+
+interface ApprovalManagerFactoryConfig extends ApprovalManagerOptions {
+  logWarn: (message: string) => void;
+  logSuccess: (message: string) => void;
+}
+
+interface CreateHistoryCompactorOptions {
+  openai: HistoryCompactorOptions['openai'];
+  currentModel: string;
+  logger?: HistoryCompactorOptions['logger'];
+}
+
+interface AgentRuntimeOptions {
+  systemPrompt?: string;
+  systemPromptAugmentation?: string;
+  getClient?: () => ResponsesClient;
+  model?: string;
+  runCommandFn?: ExecuteAgentPassOptions['runCommandFn'];
+  applyFilterFn?: ExecuteAgentPassOptions['applyFilterFn'];
+  tailLinesFn?: ExecuteAgentPassOptions['tailLinesFn'];
+  isPreapprovedCommandFn?: (command: unknown, cfg?: unknown) => boolean;
+  isSessionApprovedFn?: (command: unknown) => boolean;
+  approveForSessionFn?: (command: unknown) => void | Promise<void>;
+  preapprovedCfg?: unknown;
+  getAutoApproveFlag?: () => boolean;
+  getNoHumanFlag?: () => boolean;
+  getPlanMergeFlag?: () => boolean;
+  getDebugFlag?: () => boolean;
+  setNoHumanFlag?: (value?: boolean) => void;
+  emitAutoApproveStatus?: boolean;
+  createHistoryCompactorFn?: (
+    options: CreateHistoryCompactorOptions,
+  ) => HistoryCompactor | HistoryCompactorLike | null;
+  dementiaLimit?: number;
+  amnesiaLimit?: number;
+  createAmnesiaManagerFn?: (options: { threshold: number }) => AmnesiaManagerType;
+  createOutputsQueueFn?: () => AsyncQueueLike<RuntimeEvent>;
+  createInputsQueueFn?: () => AsyncQueueLike<AgentInputEvent>;
+  createPlanManagerFn?: (config: PlanManagerFactoryConfig) => ReturnType<typeof createPlanManager>;
+  createEscStateFn?: () => EscStateController;
+  createPromptCoordinatorFn?: (config: PromptCoordinatorFactoryConfig) => PromptCoordinatorLike;
+  createApprovalManagerFn?: (config: ApprovalManagerFactoryConfig) => ApprovalManager;
+  logger?: Console | null;
+  idGeneratorFn?: IdGeneratorFn | null;
+  applyDementiaPolicyFn?: typeof applyDementiaPolicy;
+  createChatMessageEntryFn?: typeof createChatMessageEntry;
+  executeAgentPassFn?: typeof executeAgentPass;
+  createPlanAutoResponseTrackerFn?: () => PlanAutoResponseTracker | null;
+  cancelFn?: (reason?: unknown) => void;
+  planReminderMessage?: string;
+  userInputPrompt?: string;
+  noHumanAutoMessage?: string;
+  eventObservers?: RuntimeEventObserver[] | null;
+  idPrefix?: string;
+  passExecutorDeps?: ExecuteAgentPassDependencies | null;
+}
+
+export interface AgentRuntime {
+  readonly outputs: AsyncQueueLike<RuntimeEvent>;
+  readonly inputs: AsyncQueueLike<AgentInputEvent>;
+  start(): Promise<void>;
+  submitPrompt(value: string): void;
+  cancel(payload?: unknown): void;
+  getHistorySnapshot(): HistorySnapshot;
+}
 
 const NO_HUMAN_AUTO_MESSAGE = "continue or say 'done'";
 const PLAN_PENDING_REMINDER =
@@ -42,7 +197,10 @@ export function createAgentRuntime({
   systemPromptAugmentation = '',
   getClient = getOpenAIClient,
   model = MODEL,
-  runCommandFn = runCommand,
+  runCommandFn = async (command, cwd, timeout, shell) => {
+    const result = await runCommand(command, cwd, timeout, shell);
+    return result as unknown as Record<string, unknown>;
+  },
   applyFilterFn = applyFilter,
   tailLinesFn = tailLines,
   isPreapprovedCommandFn = isPreapprovedCommand,
@@ -55,13 +213,17 @@ export function createAgentRuntime({
   getDebugFlag = () => false,
   setNoHumanFlag = () => {},
   emitAutoApproveStatus = false,
-  createHistoryCompactorFn = ({ openai: client, currentModel, logger }) =>
-    new HistoryCompactor({ openai: client, model: currentModel, logger: logger ?? console }),
+  createHistoryCompactorFn = ({ openai: client, currentModel, logger }: CreateHistoryCompactorOptions) =>
+    new HistoryCompactor({
+      openai: client,
+      model: currentModel,
+      logger: (logger ?? console) as HistoryCompactorOptions['logger'],
+    }),
   dementiaLimit = 30,
   amnesiaLimit = 10,
   createAmnesiaManagerFn = (config) => new AmnesiaManager(config),
-  createOutputsQueueFn = () => new AsyncQueue(),
-  createInputsQueueFn = () => new AsyncQueue(),
+  createOutputsQueueFn = () => new AsyncQueue<RuntimeEvent>(),
+  createInputsQueueFn = () => new AsyncQueue<AgentInputEvent>(),
   createPlanManagerFn = (config) => createPlanManager(config),
   createEscStateFn = () => createEscState(),
   createPromptCoordinatorFn = (config) => new PromptCoordinator(config),
@@ -72,7 +234,7 @@ export function createAgentRuntime({
   applyDementiaPolicyFn = applyDementiaPolicy,
   createChatMessageEntryFn = createChatMessageEntry,
   executeAgentPassFn = executeAgentPass,
-  createPlanAutoResponseTrackerFn = null,
+  createPlanAutoResponseTrackerFn,
   // Additional DI hooks
   cancelFn = cancelActive,
   planReminderMessage = PLAN_PENDING_REMINDER,
@@ -83,7 +245,7 @@ export function createAgentRuntime({
   idPrefix = 'key',
   // Dependency bag forwarded to executeAgentPass for deeper DI customization
   passExecutorDeps = null,
-} = {}) {
+}: AgentRuntimeOptions = {}): AgentRuntime {
   const outputs = createOutputsQueueFn();
   if (
     !outputs ||
@@ -94,6 +256,8 @@ export function createAgentRuntime({
     throw new TypeError('createOutputsQueueFn must return an AsyncQueue-like object.');
   }
 
+  const outputsQueue: AsyncQueueLike<RuntimeEvent> = outputs;
+
   const inputs = createInputsQueueFn();
   if (
     !inputs ||
@@ -103,11 +267,14 @@ export function createAgentRuntime({
   ) {
     throw new TypeError('createInputsQueueFn must return an AsyncQueue-like object.');
   }
+  const inputsQueue: AsyncQueueLike<AgentInputEvent> = inputs;
   let counter = 0;
   let passCounter = 0;
-  let previousRequestPayloadSize = null;
+  let previousRequestPayloadSize: number | null = null;
 
-  const logWithFallback = (level, message, details = null) => {
+  type LoggerLevel = 'log' | 'info' | 'warn' | 'error' | 'debug';
+
+  const logWithFallback = (level: LoggerLevel, message: string, details: unknown = null): void => {
     const sink = logger ?? console;
     const fn = sink && typeof sink[level] === 'function' ? sink[level].bind(sink) : null;
     if (fn) {
@@ -119,7 +286,15 @@ export function createAgentRuntime({
 
   const historyDumpDirectory = join(process.cwd(), '.openagent', 'failsafe-history');
 
-  const dumpHistorySnapshot = async ({ historyEntries = [], passIndex }) => {
+  interface DumpHistorySnapshotInput {
+    historyEntries?: HistorySnapshot | unknown[];
+    passIndex?: number | null;
+  }
+
+  const dumpHistorySnapshot = async ({
+    historyEntries = [],
+    passIndex,
+  }: DumpHistorySnapshotInput): Promise<string> => {
     await mkdir(historyDumpDirectory, { recursive: true });
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const prefix = Number.isFinite(passIndex) ? `pass-${passIndex}-` : 'pass-unknown-';
@@ -128,7 +303,7 @@ export function createAgentRuntime({
     return filePath;
   };
 
-  const estimateRequestPayloadSize = (historySnapshot, modelName) => {
+  const estimateRequestPayloadSize = (historySnapshot: unknown, modelName: unknown): number | null => {
     try {
       const payload = {
         model: modelName,
@@ -145,22 +320,24 @@ export function createAgentRuntime({
     }
   };
 
-  const buildGuardedRequestModelCompletion = (delegate) => {
-    const requestFn = typeof delegate === 'function' ? delegate : defaultRequestModelCompletion;
+  const buildGuardedRequestModelCompletion = (
+    delegate: GuardableRequestModelCompletion | null | undefined,
+  ): GuardedRequestModelCompletion => {
+    const requestFn: GuardableRequestModelCompletion =
+      typeof delegate === 'function' ? delegate : defaultRequestModelCompletion;
 
-    const guardRequestPayloadSize = async (options) => {
+    const guardRequestPayloadSize: GuardRequestPayloadSizeFn = async (options) => {
       const payloadSize = estimateRequestPayloadSize(options?.history, options?.model);
       if (Number.isFinite(previousRequestPayloadSize) && Number.isFinite(payloadSize)) {
-        const growthFactor = payloadSize / previousRequestPayloadSize;
+        const previous = previousRequestPayloadSize as number;
+        const current = payloadSize as number;
+        const growthFactor = current / previous;
         // Only treat this as runaway growth if the payload both jumps by ~5x and
         // adds at least 1 KiB of new content—this avoids tripping on tiny histories.
-        if (
-          growthFactor >= MAX_REQUEST_GROWTH_FACTOR &&
-          payloadSize - previousRequestPayloadSize > 1024
-        ) {
+        if (growthFactor >= MAX_REQUEST_GROWTH_FACTOR && current - previous > 1024) {
           logWithFallback(
             'error',
-            `[failsafe] OpenAI request ballooned from ${previousRequestPayloadSize}B to ${payloadSize}B on pass ${options?.passIndex ?? 'unknown'}.`,
+            `[failsafe] OpenAI request ballooned from ${previous}B to ${current}B on pass ${options?.passIndex ?? 'unknown'}.`,
           );
           try {
             const dumpPath = await dumpHistorySnapshot({
@@ -181,22 +358,22 @@ export function createAgentRuntime({
       }
 
       if (Number.isFinite(payloadSize)) {
-        previousRequestPayloadSize = payloadSize;
+        previousRequestPayloadSize = payloadSize as number;
       }
 
-      return payloadSize;
     };
 
-    const guardedRequest = async (options) => {
-      await guardRequestPayloadSize(options);
-      return requestFn(options);
-    };
-
-    guardedRequest.guardRequestPayloadSize = guardRequestPayloadSize;
+    const guardedRequest = Object.assign(
+      async (options: GuardRequestOptions) => {
+        await guardRequestPayloadSize(options);
+        return requestFn(options);
+      },
+      { guardRequestPayloadSize },
+    );
 
     return guardedRequest;
   };
-  const nextId = () => {
+  const nextId = (): string => {
     try {
       if (typeof idGeneratorFn === 'function') {
         const id = idGeneratorFn({ counter });
@@ -208,24 +385,70 @@ export function createAgentRuntime({
     return idPrefix + counter++;
   };
 
-  const emit = (event) => {
+  const emit = (event: unknown): void => {
     if (!event || typeof event !== 'object') {
       throw new TypeError('Agent emit expected event to be an object.');
     }
     // Hard requirement: stringify, deserialize, emit — always deep clone via JSON serialization.
-    const clonedEvent = JSON.parse(JSON.stringify(event));
+    const clonedEvent = JSON.parse(JSON.stringify(event)) as RuntimeEvent;
     clonedEvent.__id = nextId();
-    outputs.push(clonedEvent);
+    outputsQueue.push(clonedEvent);
     if (Array.isArray(eventObservers)) {
       for (const obs of eventObservers) {
         if (typeof obs !== 'function') continue;
         try {
           obs(clonedEvent);
         } catch (_error) {
-          outputs.push({ type: 'status', level: 'warn', message: 'eventObservers item threw.' });
+          outputsQueue.push({ type: 'status', level: 'warn', message: 'eventObservers item threw.' });
         }
       }
     }
+  };
+
+  const emitFactoryWarning = (message: string, error: unknown = null): void => {
+    const warning: UnknownRecord = { type: 'status', level: 'warn', message };
+    if (error != null) {
+      warning.details = error instanceof Error ? error.message : String(error);
+    }
+    emit(warning);
+  };
+
+  const initializeWithFactory = <T, C>({
+    factory,
+    fallback,
+    config,
+    warnMessage,
+    onInvalid,
+    validate,
+  }: {
+    factory?: ((configuration: C) => T) | null;
+    fallback: (configuration: C) => T;
+    config: C;
+    warnMessage?: string;
+    onInvalid?: (candidate: unknown) => void;
+    validate?: (candidate: unknown) => candidate is T;
+  }): T => {
+    if (typeof factory === 'function') {
+      try {
+        const candidate = factory(config);
+        const validator =
+          typeof validate === 'function'
+            ? validate
+            : (value: unknown): value is T => Boolean(value && typeof value === 'object');
+        if (validator(candidate)) {
+          return candidate;
+        }
+        if (typeof onInvalid === 'function') {
+          onInvalid(candidate);
+        }
+      } catch (error) {
+        if (warnMessage) {
+          emitFactoryWarning(warnMessage, error);
+        }
+        return fallback(config);
+      }
+    }
+    return fallback(config);
   };
 
   const nextPass = () => {
@@ -234,31 +457,31 @@ export function createAgentRuntime({
     return passCounter;
   };
 
-  const planManagerConfig = {
-    emit,
+  const planManagerOptions: PlanManagerOptions = {
+    emit: (event) => emit(event),
     emitStatus: (event) => emit(event),
+  };
+
+  const planManagerConfig: PlanManagerFactoryConfig = {
+    ...planManagerOptions,
     getPlanMergeFlag,
   };
 
-  let planManager = null;
-  try {
-    planManager = createPlanManagerFn(planManagerConfig);
-  } catch (error) {
-    emit({
-      type: 'status',
-      level: 'warn',
-      message: 'Failed to initialize plan manager via factory.',
-      details: error instanceof Error ? error.message : String(error),
-    });
-  }
-
-  if (!planManager || typeof planManager !== 'object') {
-    planManager = createPlanManager(planManagerConfig);
-  }
+  const planManager = initializeWithFactory<ReturnType<typeof createPlanManager> | null, PlanManagerFactoryConfig>({
+    factory: createPlanManagerFn,
+    fallback: () => createPlanManager(planManagerOptions),
+    config: planManagerConfig,
+    warnMessage: 'Failed to initialize plan manager via factory.',
+    onInvalid: (candidate) =>
+      emitFactoryWarning(
+        'Plan manager factory returned an invalid value.',
+        candidate == null ? String(candidate) : `typeof candidate === ${typeof candidate}`,
+      ),
+  });
 
   // Track how many consecutive plan reminders we have injected so that the
   // agent eventually defers to a human if progress stalls.
-  const defaultPlanAutoResponseTracker = () => {
+  const defaultPlanAutoResponseTracker = (): PlanAutoResponseTracker => {
     let count = 0;
     return {
       increment() {
@@ -274,39 +497,52 @@ export function createAgentRuntime({
     };
   };
 
-  const planAutoResponseTracker =
-    (typeof createPlanAutoResponseTrackerFn === 'function' && createPlanAutoResponseTrackerFn()) ||
-    defaultPlanAutoResponseTracker();
+  const maybeTracker: PlanAutoResponseTracker | null =
+    typeof createPlanAutoResponseTrackerFn === 'function'
+      ? createPlanAutoResponseTrackerFn() ?? null
+      : null;
+  const planAutoResponseTracker: PlanAutoResponseTracker =
+    maybeTracker &&
+    typeof maybeTracker.increment === 'function' &&
+    typeof maybeTracker.reset === 'function' &&
+    typeof maybeTracker.getCount === 'function'
+      ? maybeTracker
+      : defaultPlanAutoResponseTracker();
 
-  const normalizedPassExecutorDeps =
+  const planManagerForExecutor: ExecutorPlanManagerLike | null =
+    planManager && typeof planManager === 'object'
+      ? (planManager as unknown as ExecutorPlanManagerLike)
+      : null;
+
+  const normalizedPassExecutorDeps: ExecuteAgentPassDependencies =
     passExecutorDeps && typeof passExecutorDeps === 'object' ? { ...passExecutorDeps } : {};
-  normalizedPassExecutorDeps.requestModelCompletionFn = buildGuardedRequestModelCompletion(
-    normalizedPassExecutorDeps.requestModelCompletionFn,
+  const guardedRequestModelCompletion = buildGuardedRequestModelCompletion(
+    normalizedPassExecutorDeps.requestModelCompletionFn ?? null,
   );
-  if (
-    normalizedPassExecutorDeps.requestModelCompletionFn &&
-    typeof normalizedPassExecutorDeps.requestModelCompletionFn.guardRequestPayloadSize ===
-      'function'
-  ) {
-    normalizedPassExecutorDeps.guardRequestPayloadSizeFn =
-      normalizedPassExecutorDeps.requestModelCompletionFn.guardRequestPayloadSize;
-  }
+  normalizedPassExecutorDeps.requestModelCompletionFn = guardedRequestModelCompletion;
+  normalizedPassExecutorDeps.guardRequestPayloadSizeFn =
+    guardedRequestModelCompletion.guardRequestPayloadSize;
 
-  const fallbackEscController = createEscState();
-  let escController = fallbackEscController;
+  const fallbackEscController: EscStateController = createEscState();
+  let escController: EscController = {
+    state: fallbackEscController.state,
+    trigger: fallbackEscController.trigger ?? null,
+    detach: fallbackEscController.detach ?? null,
+  };
 
   try {
     const candidate = createEscStateFn();
     if (candidate && typeof candidate === 'object') {
       escController = {
-        ...candidate,
         state: candidate.state ?? fallbackEscController.state,
         trigger:
           typeof candidate.trigger === 'function'
             ? candidate.trigger
-            : fallbackEscController.trigger,
+            : fallbackEscController.trigger ?? null,
         detach:
-          typeof candidate.detach === 'function' ? candidate.detach : fallbackEscController.detach,
+          typeof candidate.detach === 'function'
+            ? candidate.detach
+            : fallbackEscController.detach ?? null,
       };
     }
   } catch (error) {
@@ -322,29 +558,25 @@ export function createAgentRuntime({
   const triggerEsc = escController.trigger;
   const detachEscListener = escController.detach;
 
-  const promptCoordinatorConfig = {
-    emitEvent: (event) => emit(event),
-    escState: { ...escState, trigger: triggerEsc },
+  const promptCoordinatorConfig: PromptCoordinatorFactoryConfig = {
+    emitEvent: (event: UnknownRecord) => emit(event),
+    escState: { ...escState, trigger: triggerEsc ?? escState.trigger },
     cancelFn,
   };
 
-  let promptCoordinator = null;
-  try {
-    promptCoordinator = createPromptCoordinatorFn(promptCoordinatorConfig);
-  } catch (error) {
-    emit({
-      type: 'status',
-      level: 'warn',
-      message: 'Failed to initialize prompt coordinator via factory.',
-      details: error instanceof Error ? error.message : String(error),
-    });
-  }
+  const promptCoordinator = initializeWithFactory<PromptCoordinatorLike, PromptCoordinatorFactoryConfig>({
+    factory: createPromptCoordinatorFn,
+    fallback: () => new PromptCoordinator(promptCoordinatorConfig),
+    config: promptCoordinatorConfig,
+    warnMessage: 'Failed to initialize prompt coordinator via factory.',
+    onInvalid: (candidate) =>
+      emitFactoryWarning(
+        'Prompt coordinator factory returned an invalid value.',
+        candidate == null ? String(candidate) : `typeof candidate === ${typeof candidate}`,
+      ),
+  });
 
-  if (!promptCoordinator || typeof promptCoordinator !== 'object') {
-    promptCoordinator = new PromptCoordinator(promptCoordinatorConfig);
-  }
-
-  let openai;
+  let openai: ResponsesClient;
   try {
     openai = getClient();
   } catch (err) {
@@ -353,43 +585,39 @@ export function createAgentRuntime({
       message: 'Failed to initialize OpenAI client. Ensure API key is configured.',
       details: err instanceof Error ? err.message : String(err),
     });
-    outputs.close();
-    inputs.close();
+    outputsQueue.close();
+    inputsQueue.close();
     throw err;
   }
 
-  const approvalManagerConfig = {
+  const approvalManagerConfig: ApprovalManagerFactoryConfig = {
     isPreapprovedCommand: isPreapprovedCommandFn,
     isSessionApproved: isSessionApprovedFn,
     approveForSession: approveForSessionFn,
     getAutoApproveFlag,
     askHuman: async (prompt) => promptCoordinator.request(prompt, { scope: 'approval' }),
-    preapprovedCfg,
+    preapprovedCfg: preapprovedCfg as Record<string, unknown> | undefined,
     logWarn: (message) => emit({ type: 'status', level: 'warn', message }),
     logSuccess: (message) => emit({ type: 'status', level: 'info', message }),
   };
 
-  let approvalManager = null;
-  try {
-    approvalManager = createApprovalManagerFn(approvalManagerConfig);
-  } catch (error) {
-    emit({
-      type: 'status',
-      level: 'warn',
-      message: 'Failed to initialize approval manager via factory.',
-      details: error instanceof Error ? error.message : String(error),
-    });
-  }
-
-  if (!approvalManager || typeof approvalManager !== 'object') {
-    approvalManager = new ApprovalManager(approvalManagerConfig);
-  }
+  const approvalManager = initializeWithFactory<ApprovalManager | null, ApprovalManagerFactoryConfig>({
+    factory: createApprovalManagerFn,
+    fallback: () => new ApprovalManager(approvalManagerConfig),
+    config: approvalManagerConfig,
+    warnMessage: 'Failed to initialize approval manager via factory.',
+    onInvalid: (candidate) =>
+      emitFactoryWarning(
+        'Approval manager factory returned an invalid value.',
+        candidate == null ? String(candidate) : `typeof candidate === ${typeof candidate}`,
+      ),
+  });
 
   const augmentation =
     typeof systemPromptAugmentation === 'string' ? systemPromptAugmentation.trim() : '';
   const combinedSystemPrompt = augmentation ? `${systemPrompt}\n\n${augmentation}` : systemPrompt;
 
-  const history = [
+  const history: HistorySnapshot = [
     createChatMessageEntryFn({
       eventType: 'chat-message',
       role: 'system',
@@ -403,7 +631,7 @@ export function createAgentRuntime({
       ? Math.floor(amnesiaLimit)
       : 0;
 
-  let amnesiaManager = null;
+  let amnesiaManager: AmnesiaManagerType | null = null;
   if (normalizedAmnesiaLimit > 0 && typeof createAmnesiaManagerFn === 'function') {
     try {
       amnesiaManager = createAmnesiaManagerFn({ threshold: normalizedAmnesiaLimit });
@@ -422,18 +650,31 @@ export function createAgentRuntime({
       ? Math.floor(dementiaLimit)
       : 0;
 
-  const historyCompactor =
+  const historyCompactor: HistoryCompactor | HistoryCompactorLike | null =
     typeof createHistoryCompactorFn === 'function'
-      ? createHistoryCompactorFn({ openai, currentModel: model, logger })
+      ? createHistoryCompactorFn({
+          openai: (openai as unknown) as HistoryCompactorOptions['openai'],
+          currentModel: model,
+          logger: (logger ?? console) as unknown as HistoryCompactorOptions['logger'],
+        })
       : null;
+
+  const toHistoryCompactor = (
+    candidate: HistoryCompactor | HistoryCompactorLike | null,
+  ): HistoryCompactor | null =>
+    candidate && typeof candidate === 'object' && typeof candidate.compactIfNeeded === 'function'
+      ? (candidate as HistoryCompactor)
+      : null;
+
+  const normalizedHistoryCompactor = toHistoryCompactor(historyCompactor);
 
   let running = false;
   let inputProcessorPromise = null;
 
-  async function processInputEvents() {
+  async function processInputEvents(): Promise<void> {
     try {
       while (true) {
-        const event = await inputs.next();
+        const event = await inputsQueue.next();
         if (event === QUEUE_DONE) {
           promptCoordinator.close();
           return;
@@ -441,10 +682,11 @@ export function createAgentRuntime({
         if (!event || typeof event !== 'object') {
           continue;
         }
-        if (event.type === 'cancel') {
-          promptCoordinator.handleCancel(event.payload ?? null);
-        } else if (event.type === 'prompt') {
-          promptCoordinator.handlePrompt(event.prompt ?? event.value ?? '');
+        const typedEvent = event as AgentInputEvent;
+        if (typedEvent.type === 'cancel') {
+          promptCoordinator.handleCancel(typedEvent.payload ?? null);
+        } else if (typedEvent.type === 'prompt') {
+          promptCoordinator.handlePrompt(typedEvent.prompt ?? typedEvent.value ?? '');
         }
       }
     } catch (error) {
@@ -456,14 +698,14 @@ export function createAgentRuntime({
     }
   }
 
-  const isDebugEnabled = () => Boolean(typeof getDebugFlag === 'function' && getDebugFlag());
+  const isDebugEnabled = (): boolean => Boolean(typeof getDebugFlag === 'function' && getDebugFlag());
 
-  const emitDebug = (payloadOrFactory) => {
+  const emitDebug = (payloadOrFactory: unknown): void => {
     if (!isDebugEnabled()) {
       return;
     }
 
-    let payload;
+    let payload: unknown;
     try {
       payload = typeof payloadOrFactory === 'function' ? payloadOrFactory() : payloadOrFactory;
     } catch (error) {
@@ -483,7 +725,7 @@ export function createAgentRuntime({
     emit({ type: 'debug', payload });
   };
 
-  const enforceMemoryPolicies = (currentPass) => {
+  const enforceMemoryPolicies = (currentPass: number): void => {
     if (!Number.isFinite(currentPass) || currentPass <= 0) {
       return;
     }
@@ -492,7 +734,11 @@ export function createAgentRuntime({
 
     if (amnesiaManager && typeof amnesiaManager.apply === 'function') {
       try {
-        mutated = amnesiaManager.apply({ history, currentPass }) || mutated;
+        mutated =
+          amnesiaManager.apply({
+            history: history as unknown as AmnesiaHistoryEntry[],
+            currentPass,
+          }) || mutated;
       } catch (error) {
         emit({
           type: 'status',
@@ -507,7 +753,7 @@ export function createAgentRuntime({
       try {
         mutated =
           (applyDementiaPolicyFn || applyDementiaPolicy)({
-            history,
+            history: history as unknown as AmnesiaHistoryEntry[],
             currentPass,
             limit: normalizedDementiaLimit,
           }) || mutated;
@@ -529,7 +775,7 @@ export function createAgentRuntime({
     }
   };
 
-  async function start() {
+  async function start(): Promise<void> {
     if (running) {
       throw new Error('Agent runtime already started.');
     }
@@ -559,8 +805,8 @@ export function createAgentRuntime({
       });
     }
 
-    const startThinkingEvent = () => emit({ type: 'thinking', state: 'start' });
-    const stopThinkingEvent = () => emit({ type: 'thinking', state: 'stop' });
+    const startThinkingEvent = (): void => emit({ type: 'thinking', state: 'start' });
+    const stopThinkingEvent = (): void => emit({ type: 'thinking', state: 'stop' });
 
     try {
       while (true) {
@@ -615,8 +861,8 @@ export function createAgentRuntime({
               stopThinkingFn: stopThinkingEvent,
               escState,
               approvalManager,
-              historyCompactor,
-              planManager,
+              historyCompactor: normalizedHistoryCompactor,
+              planManager: planManagerForExecutor,
               planAutoResponseTracker,
               emitAutoApproveStatus,
               passIndex: currentPass,
@@ -641,14 +887,14 @@ export function createAgentRuntime({
         }
       }
     } finally {
-      inputs.close();
-      outputs.close();
+      inputsQueue.close();
+      outputsQueue.close();
       detachEscListener?.();
       await inputProcessorPromise;
     }
   }
 
-  const getHistorySnapshot = () =>
+  const getHistorySnapshot = (): HistorySnapshot =>
     history.map((entry) => {
       if (!entry || typeof entry !== 'object') {
         return entry;
@@ -657,18 +903,18 @@ export function createAgentRuntime({
     });
 
   return {
-    outputs,
-    inputs,
+    outputs: outputsQueue,
+    inputs: inputsQueue,
     start,
-    submitPrompt: (value) => inputs.push({ type: 'prompt', prompt: value }),
-    cancel: (payload = null) => inputs.push({ type: 'cancel', payload }),
+    submitPrompt: (value) => inputsQueue.push({ type: 'prompt', prompt: value }),
+    cancel: (payload = null) => inputsQueue.push({ type: 'cancel', payload }),
     getHistorySnapshot,
   };
 }
 
-export function createAgentLoop(options = {}) {
+export function createAgentLoop(options: AgentRuntimeOptions = {}): () => Promise<void> {
   const runtime = createAgentRuntime(options);
-  return async function agentLoop() {
+  return async function agentLoop(): Promise<void> {
     await runtime.start();
   };
 }

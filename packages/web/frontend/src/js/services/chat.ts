@@ -272,6 +272,13 @@ export function createChatService({
     }, reconnectDelay);
   }
 
+  // Ignore events emitted by stale WebSocket instances so reconnect flows only
+  // react to the live socket created by `connect()`.
+  const isFromStaleSocket = (event: Event): boolean => {
+    const currentTarget = event?.currentTarget ?? null;
+    return Boolean(socket && currentTarget && socket !== currentTarget);
+  };
+
   function flushPending(): void {
     if (!socket || socket.readyState !== WebSocket.OPEN) {
       return;
@@ -400,6 +407,29 @@ export function createChatService({
     container.appendChild(element);
   };
 
+  const appendHighlightedBlock = (
+    container: HTMLElement,
+    code: string,
+    {
+      language,
+      classNames = [],
+      extraClasses = [],
+    }: { language: string; classNames?: string[]; extraClasses?: string[] },
+  ): void => {
+    const trimmed = code.trim();
+    if (!trimmed) {
+      return;
+    }
+    const block = createHighlightedCodeBlock(trimmed, { language, classNames });
+    if (!block) {
+      return;
+    }
+    for (const className of extraClasses) {
+      block.classList.add(className);
+    }
+    container.appendChild(block);
+  };
+
   const createMessageContainer = (
     wrapperClass: string,
     bubbleClass: string,
@@ -499,26 +529,16 @@ export function createChatService({
 
     bubble.appendChild(header);
 
-    if (runText) {
-      const runBlock = createHighlightedCodeBlock(runText, {
-        language: shellText || 'bash',
-        classNames: ['agent-command-run'],
-      });
-      if (runBlock) {
-        bubble.appendChild(runBlock);
-      }
-    }
+    appendHighlightedBlock(bubble, runText, {
+      language: shellText || 'bash',
+      classNames: ['agent-command-run'],
+    });
 
-    if (preview.code.trim().length > 0) {
-      const previewBlock = createHighlightedCodeBlock(preview.code, {
-        language: preview.language,
-        classNames: preview.classNames,
-      });
-      if (previewBlock) {
-        previewBlock.classList.add('agent-command-preview');
-        bubble.appendChild(previewBlock);
-      }
-    }
+    appendHighlightedBlock(bubble, preview.code, {
+      language: preview.language,
+      classNames: preview.classNames,
+      extraClasses: ['agent-command-preview'],
+    });
 
     appendMessageWrapper(wrapper);
   }
@@ -622,7 +642,7 @@ export function createChatService({
   }
 
   function handleOpen(event: Event): void {
-    if (socket && event.currentTarget && socket !== event.currentTarget) {
+    if (isFromStaleSocket(event)) {
       return;
     }
     if (destroyed || !socket || socket.readyState !== WebSocket.OPEN) {
@@ -635,7 +655,7 @@ export function createChatService({
   }
 
   function handleClose(event: CloseEvent): void {
-    if (socket && event.currentTarget && socket !== event.currentTarget) {
+    if (isFromStaleSocket(event)) {
       return;
     }
     if (destroyed) {
@@ -648,7 +668,7 @@ export function createChatService({
   }
 
   function handleError(event: Event): void {
-    if (socket && event.currentTarget && socket !== event.currentTarget) {
+    if (isFromStaleSocket(event)) {
       return;
     }
     if (!socket) {

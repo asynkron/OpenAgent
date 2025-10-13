@@ -48,3 +48,5 @@
 
 - Fixed a broken relative import in `passExecutor/prePassTasks.ts` that referenced `../openai/responseUtils.js`; corrected to `../../openai/responseUtils.js` to restore TypeScript build during `npm test` prebuild.
 - Updated `passExecutor/planReminderController.ts` to call tracker methods on the tracker object (no destructuring) so `this` remains bound for stateful implementations. This resolves a failing test where a custom tracker used `this.count` internally.
+- Factory initialization for the plan manager, prompt coordinator, and approval manager now flows through a shared helper that reports invalid factories before falling back to the default implementations.
+- `loop.ts` now ships with strict TypeScript types (queues, factories, event observers) so downstream consumers receive typed runtime APIs without relying on `@ts-nocheck` escapes. The companion `loop.test.ts` was updated to use typed stub queues and prompt coordinators.
