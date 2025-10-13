@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useMemo } from 'react';
 
 import type { SlashCommandHandler, SlashCommandRouter } from './types.js';
 
@@ -33,22 +33,23 @@ export function parseSlashCommandInput(value: string): ParsedSlashCommand | null
   };
 }
 
+export function createSlashCommandRouter(handlers: Map<string, SlashCommandHandler>): SlashCommandRouter {
+  return async (submission) => {
+    const parsed = parseSlashCommandInput(submission);
+    if (!parsed) {
+      return false;
+    }
+
+    const handler = handlers.get(parsed.name);
+    if (!handler) {
+      return false;
+    }
+
+    const result = await handler(parsed.rest);
+    return result !== false;
+  };
+}
+
 export function useSlashCommandRouter(handlers: Map<string, SlashCommandHandler>): SlashCommandRouter {
-  return useCallback<SlashCommandRouter>(
-    async (submission) => {
-      const parsed = parseSlashCommandInput(submission);
-      if (!parsed) {
-        return false;
-      }
-
-      const handler = handlers.get(parsed.name);
-      if (!handler) {
-        return false;
-      }
-
-      const result = await handler(parsed.rest);
-      return result !== false;
-    },
-    [handlers],
-  );
+  return useMemo(() => createSlashCommandRouter(handlers), [handlers]);
 }

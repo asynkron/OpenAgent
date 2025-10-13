@@ -31,14 +31,14 @@ import {
   type PlanProgressState,
   type RuntimeEvent,
   type SlashCommandHandler,
-  type StatusRuntimeEvent,
   type TimelineEntry,
   type TimelineEntryType,
   type TimelinePayload,
-  type TimelineStatusPayload,
+  type StatusRuntimeEvent,
 } from './cliApp/types.js';
 import { appendWithLimit, formatDebugPayload, summarizeAutoResponseDebug } from './cliApp/logging.js';
 import { writeHistorySnapshot } from './cliApp/history.js';
+import { coerceRuntime, cloneValue, normalizeStatus, parsePositiveInteger } from './cliApp/runtimeUtils.js';
 import type { PlanStep } from './planUtils.js';
 import type { PlanProgress } from './progressUtils.js';
 import type { ContextUsage } from '../status.js';
@@ -49,81 +49,6 @@ const MAX_COMMAND_LOG_ENTRIES = 50;
 
 const MemoPlan = memo(Plan);
 const MemoDebugPanel = memo(DebugPanel);
-
-function cloneValue<T>(value: T): T {
-  if (value === undefined || value === null) {
-    return value;
-  }
-
-  if (typeof value !== 'object') {
-    return value;
-  }
-
-  if (typeof structuredClone === 'function') {
-    try {
-      return structuredClone(value);
-    } catch (error) {
-      // Fall through to JSON fallback when structured cloning fails (e.g., non-cloneable values).
-    }
-  }
-
-  try {
-    return JSON.parse(JSON.stringify(value)) as T;
-  } catch (_error) {
-    return value;
-  }
-}
-
-function parsePositiveInteger(value: unknown, defaultValue = 1): number {
-  if (value === undefined || value === null) {
-    return defaultValue;
-  }
-
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return Math.max(1, Math.floor(value));
-  }
-
-  const normalized = Number.parseInt(String(value).trim(), 10);
-  if (!Number.isFinite(normalized) || normalized <= 0) {
-    return defaultValue;
-  }
-
-  return Math.floor(normalized);
-}
-
-function normalizeStatus(
-  event: StatusRuntimeEvent | { message?: string; level?: string; details?: unknown } | null | undefined,
-): TimelineStatusPayload | null {
-  if (!event || typeof event !== 'object') {
-    return null;
-  }
-
-  const message = typeof event.message === 'string' ? event.message : '';
-  if (!message) {
-    return null;
-  }
-
-  const normalized: TimelineStatusPayload = {
-    message,
-  };
-
-  if (typeof event.level === 'string' && event.level.trim()) {
-    normalized.level = event.level;
-  }
-
-  if (event.details !== undefined && event.details !== null) {
-    normalized.details = String(event.details);
-  }
-
-  return normalized;
-}
-
-function coerceRuntime(runtime: CliAppProps['runtime']): AgentRuntimeLike | null {
-  if (!runtime || typeof runtime !== 'object') {
-    return null;
-  }
-  return runtime as AgentRuntimeLike;
-}
 
 export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): ReactElement {
   const runtimeRef = useRef<AgentRuntimeLike | null>(coerceRuntime(runtime));
