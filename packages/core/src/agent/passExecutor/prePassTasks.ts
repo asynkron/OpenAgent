@@ -19,7 +19,7 @@ export type GuardRequestPayloadSizeFn =
 
 type SummarizeContextUsageFn = typeof import('../../utils/contextUsage.js')['summarizeContextUsage'];
 type RequestModelCompletionFn = typeof import('../openaiRequest.js')['requestModelCompletion'];
-type ExtractOpenAgentToolCallFn = typeof import('../openai/responseUtils.js')['extractOpenAgentToolCall'];
+type ExtractOpenAgentToolCallFn = typeof import('../../openai/responseUtils.js')['extractOpenAgentToolCall'];
 type CreateChatMessageEntryFn = typeof import('../historyEntry.js')['createChatMessageEntry'];
 
 type SetNoHumanFlagFn = ((value: boolean) => void) | undefined;

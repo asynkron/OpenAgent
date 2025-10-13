@@ -19,12 +19,12 @@ export const createPlanReminderController = (
   tracker: PlanAutoResponseTracker | null | undefined,
 ): PlanReminderController => {
   if (tracker) {
-    const { increment, reset, getCount } = tracker;
-    if (typeof increment === 'function' && typeof reset === 'function') {
+    if (typeof tracker.increment === 'function' && typeof tracker.reset === 'function') {
       return {
-        recordAttempt: () => increment(),
-        reset: () => reset(),
-        getCount: () => (typeof getCount === 'function' ? getCount() ?? 0 : 0),
+        // Call methods on the tracker to preserve `this` binding for stateful implementations.
+        recordAttempt: () => tracker.increment(),
+        reset: () => tracker.reset(),
+        getCount: () => (typeof tracker.getCount === 'function' ? tracker.getCount() ?? 0 : 0),
       };
     }
   }

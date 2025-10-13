@@ -18,7 +18,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "fta": "fta packages",
+    "fta": "fta packages --json",
     "preformat": "",
     "preformat:check": "",
     "prelint": "",

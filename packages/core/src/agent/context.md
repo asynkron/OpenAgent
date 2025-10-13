@@ -43,3 +43,8 @@
 - CLI consumer of runtime events: [`../cli/context.md`](../cli/context.md).
 - Command execution primitives: [`../commands/context.md`](../commands/context.md).
 - OpenAI client utilities: [`../openai/context.md`](../openai/context.md).
+
+## Maintenance Notes (2025-10-13)
+
+- Fixed a broken relative import in `passExecutor/prePassTasks.ts` that referenced `../openai/responseUtils.js`; corrected to `../../openai/responseUtils.js` to restore TypeScript build during `npm test` prebuild.
+- Updated `passExecutor/planReminderController.ts` to call tracker methods on the tracker object (no destructuring) so `this` remains bound for stateful implementations. This resolves a failing test where a custom tracker used `this.count` internally.
