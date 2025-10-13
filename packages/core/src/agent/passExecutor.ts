@@ -38,75 +38,32 @@ import {
   type ExecutablePlanStep,
 } from './passExecutor/planExecution.js';
 import { refusalHeuristics } from './passExecutor/refusalDetection.js';
+import {
+  guardRequestPayloadSize,
+  compactHistoryIfNeeded,
+  emitContextUsageSummary,
+  requestAssistantCompletion,
+  type CompletionAttempt,
+  type EmitEvent,
+  type GuardRequestPayloadSizeFn,
+} from './passExecutor/prePassTasks.js';
+import {
+  PLAN_REMINDER_AUTO_RESPONSE_LIMIT,
+  createPlanReminderController,
+  type PlanAutoResponseTracker,
+} from './passExecutor/planReminderController.js';
+import {
+  createPlanManagerAdapter,
+  type PlanManagerAdapter,
+  type PlanManagerLike,
+} from './passExecutor/planManagerAdapter.js';
 
 type UnknownRecord = Record<string, unknown>;
-
-interface PlanAutoResponseTracker {
-  increment: () => number;
-  reset: () => void;
-  getCount?: () => number;
-}
-
-interface PlanManagerLike {
-  isMergingEnabled?: () => boolean | Promise<boolean>;
-  update?: (plan: PlanStep[] | null | undefined) => Promise<unknown>;
-  get?: () => unknown;
-  reset?: () => Promise<unknown>;
-  sync?: (plan: PlanStep[] | null | undefined) => Promise<unknown>;
-}
-
-type PlanManagerMethod = ((plan?: PlanStep[] | null | undefined) => unknown) | null | undefined;
-
-const createPlanManagerInvoker =
-  (manager: PlanManagerLike) =>
-  (method: PlanManagerMethod, plan?: PlanStep[] | null | undefined): unknown => {
-    if (typeof method !== 'function') {
-      return undefined;
-    }
-
-    // Passing an explicit plan argument keeps TypeScript satisfied while still
-    // allowing zero-argument plan manager methods to ignore it at runtime.
-    return method.call(manager, plan);
-  };
 
 interface ExecutableCandidate extends ExecutablePlanStep {
   index: number;
   priority: number;
 }
-
-const PLAN_REMINDER_AUTO_RESPONSE_LIMIT = 3;
-
-interface PlanReminderController {
-  recordAttempt: () => number;
-  reset: () => void;
-  getCount: () => number;
-}
-
-const createPlanReminderController = (
-  tracker: PlanAutoResponseTracker | null | undefined,
-): PlanReminderController => {
-  if (tracker && typeof tracker.increment === 'function' && typeof tracker.reset === 'function') {
-    return {
-      recordAttempt: () => tracker.increment(),
-      reset: () => tracker.reset(),
-      getCount: () => (typeof tracker.getCount === 'function' ? (tracker.getCount() ?? 0) : 0),
-    };
-  }
-
-  // Fallback tracker keeps local state so the reminder limit still applies even when
-  // the caller does not provide a dedicated tracker implementation.
-  let fallbackCount = 0;
-  return {
-    recordAttempt: () => {
-      fallbackCount += 1;
-      return fallbackCount;
-    },
-    reset: () => {
-      fallbackCount = 0;
-    },
-    getCount: () => fallbackCount,
-  };
-};
 
 const pickNextExecutableCandidate = (entries: ExecutablePlanStep[]): ExecutableCandidate | null => {
   let best: ExecutableCandidate | null = null;
@@ -176,13 +133,7 @@ export interface ExecuteAgentPassOptions {
   extractOpenAgentToolCallFn?: typeof defaultExtractOpenAgentToolCall;
   summarizeContextUsageFn?: typeof defaultSummarizeContextUsage;
   incrementCommandCountFn?: typeof defaultIncrementCommandCount;
-  guardRequestPayloadSizeFn?:
-    | ((options: {
-        history: ChatMessageEntry[];
-        model: string;
-        passIndex: number;
-      }) => Promise<void>)
-    | null;
+  guardRequestPayloadSizeFn?: GuardRequestPayloadSizeFn;
 }
 
 export async function executeAgentPass({
@@ -259,93 +210,51 @@ export async function executeAgentPass({
     buildPreview: buildPreviewFn,
   });
 
-  const invokePlanManager =
-    planManager && typeof planManager === 'object' ? createPlanManagerInvoker(planManager) : null;
+  const planManagerAdapter: PlanManagerAdapter | null = createPlanManagerAdapter(planManager);
 
-  if (typeof guardRequestPayloadSizeFn === 'function') {
-    try {
-      await guardRequestPayloadSizeFn({ history, model, passIndex: activePass });
-    } catch (error) {
-      emitEvent({
-        type: 'status',
-        level: 'warn',
-        message: '[failsafe] Unable to evaluate request payload size before history compaction.',
-        details: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
+  await guardRequestPayloadSize({
+    guardRequestPayloadSizeFn,
+    history,
+    model,
+    passIndex: activePass,
+    emitEvent,
+  });
 
-  if (historyCompactor && typeof historyCompactor.compactIfNeeded === 'function') {
-    try {
-      await historyCompactor.compactIfNeeded({ history });
-    } catch (error) {
-      emitEvent({
-        type: 'status',
-        level: 'warn',
-        message: '[history-compactor] Unexpected error during history compaction.',
-        details: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
+  await compactHistoryIfNeeded({ historyCompactor, history, emitEvent });
 
-  try {
-    const usage = summarizeContextUsageFn({ history, model });
-    if (usage && usage.total) {
-      emitEvent({ type: 'context-usage', usage });
-    }
-  } catch (error) {
-    emitEvent({
-      type: 'status',
-      level: 'warn',
-      message: 'Failed to summarize context usage.',
-      details: error instanceof Error ? error.message : String(error),
-    });
-  }
+  emitContextUsageSummary({
+    summarizeContextUsageFn,
+    history,
+    model,
+    emitEvent,
+  });
 
-  const completionResult = await requestModelCompletionFn({
+  const completionAttempt = await requestAssistantCompletion({
+    requestModelCompletionFn,
+    extractOpenAgentToolCallFn,
+    createChatMessageEntryFn,
+    emitDebug,
+    emitEvent,
+    observationBuilder,
     openai,
     model,
     history,
-    observationBuilder,
     escState,
     startThinkingFn,
     stopThinkingFn,
     setNoHumanFlag,
-    emitEvent,
     passIndex: activePass,
   });
 
-  if (completionResult.status === 'canceled') {
+  if (completionAttempt.status === 'canceled') {
     return false;
   }
 
-  const { completion } = completionResult;
-  const toolCall = extractOpenAgentToolCallFn(completion);
-  const responseContent =
-    toolCall && typeof toolCall.arguments === 'string' ? toolCall.arguments : '';
-
-  emitDebug(() => ({
-    stage: 'openai-response',
-    toolCall,
-  }));
-
-  if (!responseContent) {
-    emitEvent({
-      type: 'error',
-      message: 'OpenAI response did not include text output.',
-    });
+  if (completionAttempt.status === 'missing-content') {
     return false;
   }
 
-  history.push(
-    createChatMessageEntryFn({
-      eventType: 'chat-message',
-      role: 'assistant',
-      pass: activePass,
-      content: responseContent,
-    }),
-  );
-
+  const responseContent = completionAttempt.responseContent;
   const parseResult = parseAssistantResponseFn(responseContent);
 
   if (!parseResult.ok) {
@@ -487,29 +396,11 @@ export async function executeAgentPass({
     : null;
   let activePlan: PlanStep[] = incomingPlan ?? [];
 
-  if (planManager) {
+  if (planManagerAdapter) {
     try {
-      // The plan manager is only consulted when the model sends a fresh plan payload.
-      // We let it merge new steps/tasks from the assistant response but avoid using it
-      // for post-execution persistence so local status updates stay in memory only.
-      const mergePreference = await invokePlanManager?.(planManager.isMergingEnabled);
-      const shouldMerge = mergePreference !== false;
-
-      if (incomingPlan) {
-        const updated = await invokePlanManager?.(planManager.update, incomingPlan);
-        if (Array.isArray(updated)) {
-          activePlan = updated as PlanStep[];
-        }
-      } else if (shouldMerge) {
-        const snapshot = await invokePlanManager?.(planManager.get);
-        if (Array.isArray(snapshot)) {
-          activePlan = snapshot as PlanStep[];
-        }
-      } else {
-        const cleared = await invokePlanManager?.(planManager.reset);
-        if (Array.isArray(cleared)) {
-          activePlan = cleared as PlanStep[];
-        }
+      const resolvedPlan = await planManagerAdapter.resolveActivePlan(incomingPlan);
+      if (Array.isArray(resolvedPlan)) {
+        activePlan = resolvedPlan;
       }
     } catch (error) {
       emitEvent({
@@ -590,14 +481,10 @@ export async function executeAgentPass({
 
     if (!activePlanEmpty && !hasOpenSteps) {
       // The plan is finished; wipe the snapshot so follow-up prompts start cleanly.
-      if (planManager && invokePlanManager) {
+      if (planManagerAdapter) {
         try {
-          const cleared = await invokePlanManager(planManager.reset);
-          if (Array.isArray(cleared)) {
-            activePlan = cleared;
-          } else {
-            activePlan = [];
-          }
+          const cleared = await planManagerAdapter.resetPlanSnapshot();
+          activePlan = Array.isArray(cleared) ? cleared : [];
         } catch (error) {
           emitEvent({
             type: 'status',
@@ -837,9 +724,9 @@ export async function executeAgentPass({
   if (planMutatedDuringExecution && Array.isArray(activePlan)) {
     emitEvent({ type: 'plan', plan: clonePlanForExecution(activePlan) });
 
-    if (planManager && invokePlanManager && typeof planManager.sync === 'function') {
+    if (planManagerAdapter) {
       try {
-        await invokePlanManager(planManager.sync, activePlan);
+        await planManagerAdapter.syncPlanSnapshot(activePlan);
       } catch (error) {
         emitEvent({
           type: 'status',
