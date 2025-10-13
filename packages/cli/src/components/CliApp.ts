@@ -15,7 +15,7 @@ import {
   formatDebugPayload,
   summarizeAutoResponseDebug,
 } from './cliApp/logging.js';
-import { resolveHistoryFilePath, writeHistorySnapshot } from './cliApp/history.js';
+import { writeHistorySnapshot } from './cliApp/history.js';
 
 const MAX_TIMELINE_ENTRIES = 20;
 const MAX_DEBUG_ENTRIES = 20;

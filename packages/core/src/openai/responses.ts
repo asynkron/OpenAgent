@@ -97,13 +97,13 @@ interface StructuredToolDefinition {
 
 type SupportedTool = typeof OPENAGENT_RESPONSE_TOOL | StructuredToolDefinition;
 
-type ResponsesProvider = (model: string) => LanguageModel;
+export type ResponsesProvider = (model: string) => LanguageModel;
 
 type ResponsesFunction = ResponsesProvider & {
   responses?: ResponsesProvider;
 };
 
-type ResponsesClient = { responses: ResponsesProvider } | ResponsesFunction;
+export type ResponsesClient = { responses: ResponsesProvider } | ResponsesFunction;
 
 function resolveResponsesModel(
   openaiProvider: ResponsesClient | undefined,

@@ -46,6 +46,7 @@
 - Prettier and ESLint ignore templates now exclude generated build output (`packages/**/dist`, `scripts/dist`) so formatting/lint runs only touch authored sources.
 - ESLint's TypeScript profile still tolerates legacy surfaces (`@ts-nocheck`, empty interface shims) so repo-wide `npm run lint` finishes without errors; explicit `any` now triggers warnings to encourage tightening types while keeping modernization incremental.
 - Third-party gaps like `marked-terminal` now ship custom declaration stubs under `types/` so strict type-checking keeps working without upstream DefinitelyTyped coverage.
+- The workspace now consumes the published Vercel AI SDK packages directly so their bundled type definitions flow through `node_modules` without maintaining local stubs.
 
 ## Related Context
 

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Wrapper around the OpenAI Responses API with ESC cancellation support.
  *
@@ -13,8 +12,14 @@
  * to regenerate it after editing this source until the build pipeline emits from
  * TypeScript directly.
  */
+import type { ModelMessage } from 'ai';
 import { register as registerCancellation } from '../utils/cancellation.js';
-import { createResponse, type ResponseCallOptions } from '../openai/responses.js';
+import {
+  createResponse,
+  type CreateResponseResult,
+  type ResponseCallOptions,
+  type ResponsesClient,
+} from '../openai/responses.js';
 import { OPENAGENT_RESPONSE_TOOL } from './responseToolSchema.js';
 import { getOpenAIRequestSettings } from '../openai/client.js';
 import { createEscWaiter, resetEscState, type EscState } from './escState.js';
@@ -28,8 +33,31 @@ interface CancellationRegistrationOptions {
   onCancel?: () => void;
 }
 
+const getErrorStringProperty = (error: unknown, property: 'name' | 'message'): string => {
+  if (error && typeof error === 'object') {
+    const value = (error as Record<string, unknown>)[property];
+    if (typeof value === 'string') {
+      return value;
+    }
+  }
+
+  return '';
+};
+
+const isAbortLikeError = (error: unknown): boolean => {
+  const name = getErrorStringProperty(error, 'name');
+  if (name === 'AbortError' || name === 'TimeoutError') {
+    return true;
+  }
+
+  const message = getErrorStringProperty(error, 'message');
+  return /abort|cancell?ed|timeout/i.test(message);
+};
+
+type EmitEvent = (event: Record<string, unknown>) => void;
+
 export interface RequestModelCompletionOptions {
-  openai: unknown;
+  openai: ResponsesClient;
   model: string;
   history: ChatMessageEntry[];
   observationBuilder: ObservationBuilder;
@@ -37,13 +65,13 @@ export interface RequestModelCompletionOptions {
   startThinkingFn: () => void;
   stopThinkingFn: () => void;
   setNoHumanFlag?: (value: boolean) => void;
-  emitEvent?: (event: Record<string, unknown>) => void;
+  emitEvent?: EmitEvent;
   passIndex: number;
 }
 
 export interface ModelCompletionSuccess {
   status: 'success';
-  completion: unknown;
+  completion: CreateResponseResult;
 }
 
 export interface ModelCompletionCanceled {
@@ -64,6 +92,9 @@ export async function requestModelCompletion({
   emitEvent = () => {},
   passIndex,
 }: RequestModelCompletionOptions): Promise<ModelCompletionResult> {
+  if (!openai) {
+    throw new Error('requestModelCompletion requires an OpenAI Responses client.');
+  }
   const { promise: escPromise, cleanup: cleanupEscWaiter } = createEscWaiter(escState);
 
   startThinkingFn();
@@ -106,15 +137,20 @@ export async function requestModelCompletion({
   const requestPromise = createResponse({
     openai,
     model,
-    input: mapHistoryToOpenAIMessages(history),
+    // The history helper normalizes role/content pairs so the cast is safe.
+    input: mapHistoryToOpenAIMessages(history) as ModelMessage[],
     tools: [OPENAGENT_RESPONSE_TOOL],
     options: normalizedRequestOptions,
   });
 
   try {
-    const raceCandidates: Array<
-      Promise<{ kind: 'completion'; value: unknown } | { kind: 'escape'; payload: unknown }>
-    > = [requestPromise.then((value: unknown) => ({ kind: 'completion' as const, value }))];
+    type CompletionOutcome =
+      | { kind: 'completion'; value: CreateResponseResult }
+      | { kind: 'escape'; payload: unknown };
+
+    const raceCandidates: Array<Promise<CompletionOutcome>> = [
+      requestPromise.then((value) => ({ kind: 'completion' as const, value })),
+    ];
 
     if (escPromise) {
       raceCandidates.push(escPromise.then((payload) => ({ kind: 'escape' as const, payload })));
@@ -127,13 +163,9 @@ export async function requestModelCompletion({
         cancellationOp.cancel('ui-cancel');
       }
 
-      await requestPromise.catch((error: any) => {
+      await requestPromise.catch((error: unknown) => {
         if (!error) return null;
-        const name = typeof error.name === 'string' ? error.name : '';
-        const message = typeof error.message === 'string' ? error.message : '';
-        if (name === 'AbortError') return null;
-        if (name === 'TimeoutError') return null;
-        if (/abort|cancell?ed|timeout/i.test(message)) {
+        if (isAbortLikeError(error)) {
           return null;
         }
         throw error;
@@ -162,15 +194,8 @@ export async function requestModelCompletion({
 
     resetEscState(escState);
     return { status: 'success', completion: outcome.value };
-  } catch (error: any) {
-    const name = error && typeof error.name === 'string' ? error.name : '';
-    const message = error && typeof error.message === 'string' ? error.message : '';
-    if (
-      error &&
-      (name === 'AbortError' ||
-        name === 'TimeoutError' ||
-        /abort|cancell?ed|timeout/i.test(message))
-    ) {
+  } catch (error: unknown) {
+    if (isAbortLikeError(error)) {
       resetEscState(escState);
 
       emitEvent({

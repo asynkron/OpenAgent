@@ -16,6 +16,7 @@
 - Unit tests simulate request/response flows, catching regressions in API contract parsing.
 - Tool-aware extraction ensures agent parsing works even when models omit free-form text output, and the OpenAgent tool embeds a lazily-evaluated JSON Schema so the AI SDK can consume the contract without needing to introspect Zod internals; the new `ResponseCallOptions` contract eliminates ad-hoc `typeof` guards.
 - `responses.js` only attaches the OpenAgent tool schema when callers explicitly request it, keeping summary calls lightweight while enforcing the shared contract during agent passes while remaining compatible with the latest Vercel AI provider facade.
+- The OpenAI factory and response helpers now consume the AI SDK's provider types directly, surfacing integration issues during builds instead of at runtime.
 
 ## Risks / Gaps
 
