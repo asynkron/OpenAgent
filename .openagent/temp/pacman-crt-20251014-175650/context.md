@@ -22,3 +22,6 @@ Changelog
 
 Changelog
 - Tweak: Reduced initial ready delay to 180 frames (~3s) for faster testing.
+
+Changelog
+- Fix: Gate made entity-aware (Pac-Man blocked; ghosts can exit after readyTime).
