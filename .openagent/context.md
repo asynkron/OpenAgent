@@ -1,12 +1,17 @@
-# .openagent context
+# .openagent Context
 
-This directory hosts agent-generated working areas and temporary artifacts.
+Purpose
+- Scratchpad and temporary artifacts used by OpenAgent (experiments, prototypes, sandboxes). Not production code, but kept in-repo for reproducibility and review.
 
-Subdirectories:
-- tmp/pacman: Self-contained HTML/JS Pac-Man with CRT effects. No build step; open index.html directly or serve statically.
+Key directories
+- temp/: short-lived or exploratory projects.
 
-Known risks:
-- Contents are generated and may be overwritten by future agent runs.
-- Large binary assets are avoided; the project is code-only for portability.
+Known risks
+- Temp assets can grow quickly if not curated. Prefer self-contained artifacts, avoid external downloads, and document what’s created.
 
-- Temp project: Pac-Man CRT at .openagent/tmp/pacman-crt (HTML5 Canvas, CSS CRT effects)
+Recent additions
+- See below for current entries.
+
+## Entry: Pac-Man CRT temp
+- Path: .openagent/temp/pacman-crt-20251014-175650
+- Summary: A self-contained HTML/JS/CSS Pac-Man clone with CRT scanlines, vignette, and flicker. No external dependencies.
