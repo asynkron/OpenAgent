@@ -16,3 +16,6 @@ Known risks
 
 Notes
 - Internal canvas resolution small for pixel authenticity; scaled up with nearest-neighbor to emphasize retro look.
+
+Changelog
+- Bugfix: Ghosts can now exit the house. Gate blocks Pac-Man, opens for ghosts after the ready timer.
