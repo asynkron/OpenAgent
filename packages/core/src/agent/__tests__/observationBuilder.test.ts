@@ -48,6 +48,8 @@ describe('ObservationBuilder', () => {
         timestamp: '2025-10-06T01:00:00.000Z',
       },
     });
+    expect(observation.observation_for_llm.truncation_notice).toContain('command.filter_regex');
+    expect(observation.observation_for_llm.truncation_notice).toContain('command.tail_lines');
   });
 
   test('handles missing result payload', () => {
@@ -90,6 +92,46 @@ describe('ObservationBuilder', () => {
         timestamp: '2025-10-06T01:00:00.000Z',
       },
     });
+    expect(observation.observation_for_llm.truncation_notice).toContain('50 KiB safety limit');
+  });
+
+  test('applies default tail limit when command does not specify one', () => {
+    const builder = new ObservationBuilder(deps);
+    const stdout = Array.from({ length: 205 }, (_, index) => `line-${index + 1}`).join('\n');
+
+    const { observation } = builder.build({
+      command: {},
+      result: {
+        stdout,
+        stderr: '',
+        exit_code: 0,
+        runtime_ms: 5,
+        killed: false,
+      },
+    });
+
+    expect(observation.observation_for_llm.stdout.split('\n')).toHaveLength(200);
+    expect(observation.observation_for_llm.truncated).toBe(true);
+    expect(observation.observation_for_llm.truncation_notice).toContain('default 200 lines');
+  });
+
+  test('respects explicit max_bytes override', () => {
+    const builder = new ObservationBuilder(deps);
+    const noisyStdout = 'a'.repeat(500);
+
+    const { observation } = builder.build({
+      command: { max_bytes: 100 },
+      result: {
+        stdout: noisyStdout,
+        stderr: '',
+        exit_code: 0,
+        runtime_ms: 7,
+        killed: false,
+      },
+    });
+
+    expect(Buffer.byteLength(observation.observation_for_llm.stdout, 'utf8')).toBeLessThanOrEqual(100);
+    expect(observation.observation_for_llm.truncation_notice).toContain('command.max_bytes');
   });
 
   test('builds cancellation observation', () => {

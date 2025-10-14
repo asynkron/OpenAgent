@@ -53,6 +53,7 @@ export interface AssistantCommand extends JsonLikeObject {
   shell?: unknown;
   filter_regex?: string;
   tail_lines?: number;
+  max_bytes?: number;
 }
 
 export interface PlanStep extends JsonLikeObject {

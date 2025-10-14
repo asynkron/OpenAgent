@@ -28,6 +28,7 @@ export interface ToolCommand {
   timeout_sec: number;
   filter_regex: string;
   tail_lines: number;
+  max_bytes?: number;
 }
 
 export interface ToolPlanStep {
@@ -53,7 +54,8 @@ export const ToolCommandSchema = z
     cwd: z.string().default(''),
     timeout_sec: z.number().int().min(1).default(60),
     filter_regex: z.string().default(''),
-    tail_lines: z.number().int().min(0).default(0),
+    tail_lines: z.number().int().min(0).default(200),
+    max_bytes: z.number().int().min(1).optional(),
   })
   .strict();
 
@@ -171,8 +173,15 @@ export const ToolResponseJsonSchema = {
               tail_lines: {
                 type: 'integer',
                 minimum: 0,
-                default: 0,
-                description: 'Number of trailing lines to return from output (0 for all).',
+                default: 200,
+                description:
+                  'Number of trailing lines to return from output (0 disables the limit).',
+              },
+              max_bytes: {
+                type: 'integer',
+                minimum: 1,
+                description:
+                  'Optional hard cap on the number of bytes to include from stdout/stderr (omit to disable the byte limit).',
               },
             },
           },
@@ -222,7 +231,8 @@ export const RuntimeToolResponseJsonSchema = {
               cwd: { type: 'string' },
               timeout_sec: { type: 'integer', minimum: 1 },
               filter_regex: { type: 'string' },
-              tail_lines: { type: 'integer', minimum: 0 },
+              tail_lines: { type: 'integer', minimum: 0, default: 200 },
+              max_bytes: { type: 'integer', minimum: 1 },
             },
           },
           observation: { type: 'object', additionalProperties: true },
