@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { jest } from '@jest/globals';
-import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
+import { DEFAULT_COMMAND_MAX_BYTES } from '../../../constants.js';
 
 // Mock setup helpers
 export const createMockRequestModelCompletion = () => {

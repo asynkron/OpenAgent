@@ -4,6 +4,7 @@ import {
   getPriorityScore,
   type PlanStep,
   type ExecutablePlanStep,
+  hasCommandPayload,
   normalizeWaitingForIds,
 } from './planExecution.js';
 import {
@@ -383,7 +384,8 @@ export class PlanRuntime {
 
   selectNextExecutableEntry(): ExecutableCandidate | null {
     this.normalizeActivePlanDependencies();
-    return pickNextExecutableCandidate(collectExecutablePlanSteps(this.activePlan));
+    const candidates = collectExecutablePlanSteps(this.activePlan);
+    return pickNextExecutableCandidate(candidates);
   }
 
   markCommandRunning(planStep: PlanStep | null): void {
@@ -531,10 +533,29 @@ export class PlanRuntime {
       return 'continue';
     }
 
+    if (!activePlanEmpty) {
+      const hasPendingSteps = this.activePlan.some((candidate) => {
+        if (!candidate || typeof candidate !== 'object') {
+          return false;
+        }
+
+        const status = typeof candidate.status === 'string' ? candidate.status.trim().toLowerCase() : '';
+        return status !== 'completed' && status !== 'failed' && status !== 'abandoned';
+      });
+
+      const hasPendingCommands = this.activePlan.some((candidate) =>
+        candidate && typeof candidate === 'object' && hasCommandPayload((candidate as PlanStep).command),
+      );
+
+      if (hasPendingSteps && hasPendingCommands) {
+        this.emitPlanSnapshot();
+        this.resetPlanReminder();
+        return 'continue';
+      }
+    }
+
     if (activePlanEmpty) {
       await this.clearPersistentPlan();
-      this.resetPlanReminder();
-      return 'stop';
     }
 
     this.resetPlanReminder();
