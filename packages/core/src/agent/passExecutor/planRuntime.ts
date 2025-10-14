@@ -1,24 +1,20 @@
-import { planHasOpenSteps } from '../../utils/plan.js';
 import {
   clonePlanForExecution,
   collectExecutablePlanSteps,
   getPriorityScore,
   type PlanStep,
   type ExecutablePlanStep,
+  normalizeWaitingForIds,
 } from './planExecution.js';
 import {
   createObservationHistoryEntry,
-  createPlanReminderEntry,
   createRefusalAutoResponseEntry,
   type ObservationRecord,
 } from '../historyMessageBuilder.js';
 import { refusalHeuristics } from './refusalDetection.js';
 import type { PlanManagerAdapter } from './planManagerAdapter.js';
 import type { PlanAutoResponseTracker } from './planReminderController.js';
-import {
-  PLAN_REMINDER_AUTO_RESPONSE_LIMIT,
-  createPlanReminderController,
-} from './planReminderController.js';
+import { createPlanReminderController } from './planReminderController.js';
 import type { ChatMessageEntry } from '../historyEntry.js';
 import type { CommandResult } from '../observationBuilder.js';
 import type { ExecuteAgentPassOptions } from './types.js';
@@ -27,6 +23,48 @@ export interface ExecutableCandidate extends ExecutablePlanStep {
   index: number;
   priority: number;
 }
+
+const COMPLETED_STATUS = 'completed';
+
+const normalizePlanIdentifier = (value: unknown): string | null => {
+  if (typeof value === 'string' || typeof value === 'number') {
+    const normalized = String(value).trim();
+    return normalized ? normalized : null;
+  }
+
+  return null;
+};
+
+const extractPlanStepIdentifier = (step: PlanStep | null | undefined): string | null => {
+  if (!step || typeof step !== 'object') {
+    return null;
+  }
+
+  const id = normalizePlanIdentifier(step.id);
+  if (id) {
+    return id;
+  }
+
+  const fallback = normalizePlanIdentifier((step as Record<string, unknown>).step);
+  return fallback;
+};
+
+const arraysEqual = (left: string[], right: string[]): boolean => {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+const isCompletedStatus = (status: unknown): boolean =>
+  typeof status === 'string' && status.trim().toLowerCase() === COMPLETED_STATUS;
 
 const pickNextExecutableCandidate = (entries: ExecutablePlanStep[]): ExecutableCandidate | null => {
   let best: ExecutableCandidate | null = null;
@@ -82,6 +120,122 @@ export class PlanRuntime {
     this.planReminder = createPlanReminderController(options.planAutoResponseTracker);
   }
 
+  private normalizeActivePlanDependencies(): void {
+    let mutated = false;
+
+    this.activePlan.forEach((step) => {
+      if (!step || typeof step !== 'object') {
+        return;
+      }
+
+      const sanitized = normalizeWaitingForIds(step);
+      const current = Array.isArray(step.waitingForId) ? step.waitingForId : [];
+      let changed = current.length !== sanitized.length;
+
+      if (!changed) {
+        for (let index = 0; index < sanitized.length; index += 1) {
+          if (normalizePlanIdentifier(current[index]) !== sanitized[index]) {
+            changed = true;
+            break;
+          }
+        }
+      }
+
+      if (changed) {
+        step.waitingForId = sanitized;
+        mutated = true;
+      }
+    });
+
+    if (mutated) {
+      this.planMutated = true;
+    }
+  }
+
+  private removeDependencyReferences(stepId: string): void {
+    let mutated = false;
+
+    this.activePlan.forEach((step) => {
+      if (!step || typeof step !== 'object') {
+        return;
+      }
+
+      const sanitized = normalizeWaitingForIds(step);
+      const filtered = sanitized.filter((value) => value !== stepId);
+      if (!arraysEqual(filtered, sanitized)) {
+        step.waitingForId = filtered;
+        mutated = true;
+        return;
+      }
+
+      const current = Array.isArray(step.waitingForId) ? step.waitingForId : [];
+      let changed = current.length !== sanitized.length;
+      if (!changed) {
+        for (let index = 0; index < sanitized.length; index += 1) {
+          if (normalizePlanIdentifier(current[index]) !== sanitized[index]) {
+            changed = true;
+            break;
+          }
+        }
+      }
+
+      if (changed) {
+        step.waitingForId = sanitized;
+        mutated = true;
+      }
+    });
+
+    if (mutated) {
+      this.planMutated = true;
+    }
+  }
+
+  private completePlanStep(planStep: PlanStep): void {
+    const identifier = extractPlanStepIdentifier(planStep);
+    if (planStep && typeof planStep === 'object') {
+      // Keep the step in the active plan so the assistant can see the completion
+      // when we emit the observation; removal happens when the next response arrives.
+      planStep.status = COMPLETED_STATUS;
+      this.planMutated = true;
+    }
+    if (identifier) {
+      this.removeDependencyReferences(identifier);
+      return;
+    }
+
+    this.normalizeActivePlanDependencies();
+  }
+
+  private pruneCompletedSteps(): void {
+    if (!Array.isArray(this.activePlan) || this.activePlan.length === 0) {
+      return;
+    }
+
+    const removedStepIds: string[] = [];
+
+    const filteredPlan = this.activePlan.filter((candidate) => {
+      if (!isCompletedStatus(candidate?.status)) {
+        return true;
+      }
+
+      const identifier = extractPlanStepIdentifier(candidate as PlanStep);
+      if (identifier) {
+        removedStepIds.push(identifier);
+      }
+
+      return false;
+    });
+
+    if (filteredPlan.length !== this.activePlan.length) {
+      this.activePlan = filteredPlan;
+      this.planMutated = true;
+    }
+
+    removedStepIds.forEach((identifier) => {
+      this.removeDependencyReferences(identifier);
+    });
+  }
+
   async initialize(incomingPlan: PlanStep[] | null): Promise<void> {
     const normalizedIncoming = Array.isArray(incomingPlan) ? [...incomingPlan] : null;
     this.initialIncomingPlan = normalizedIncoming;
@@ -108,7 +262,12 @@ export class PlanRuntime {
       this.activePlan = [];
     }
 
+    this.normalizeActivePlanDependencies();
+    this.pruneCompletedSteps();
+    this.normalizeActivePlanDependencies();
+
     this.emitPlanSnapshot();
+    this.planMutated = false;
   }
 
   cloneActivePlan(): PlanStep[] {
@@ -131,6 +290,7 @@ export class PlanRuntime {
   }
 
   selectNextExecutableEntry(): ExecutableCandidate | null {
+    this.normalizeActivePlanDependencies();
     return pickNextExecutableCandidate(collectExecutablePlanSteps(this.activePlan));
   }
 
@@ -165,8 +325,7 @@ export class PlanRuntime {
       typeof commandResult?.exit_code === 'number' ? commandResult.exit_code : alternateExitCode;
 
     if (exitCode === 0 && planStep) {
-      planStep.status = 'completed';
-      this.planMutated = true;
+      this.completePlanStep(planStep);
     } else if (exitCode !== null && planStep) {
       planStep.status = 'failed';
       this.planMutated = true;
@@ -277,31 +436,10 @@ export class PlanRuntime {
       return 'continue';
     }
 
-    const hasOpenSteps = this.activePlan.length > 0 && planHasOpenSteps(this.activePlan);
-
-    if (hasOpenSteps) {
-      const attempt = this.getPlanReminder().recordAttempt();
-
-      if (attempt <= PLAN_REMINDER_AUTO_RESPONSE_LIMIT) {
-        this.options.emitEvent?.({
-          type: 'status',
-          level: 'warn',
-          message: this.options.planReminderMessage,
-        });
-        this.options.history.push(
-          createPlanReminderEntry({
-            planReminderMessage: this.options.planReminderMessage,
-            pass: this.options.passIndex,
-          }),
-        );
-        return 'continue';
-      }
-
-      return 'stop';
-    }
-
-    if (!activePlanEmpty && !hasOpenSteps) {
+    if (activePlanEmpty) {
       await this.clearPersistentPlan();
+      this.resetPlanReminder();
+      return 'stop';
     }
 
     this.resetPlanReminder();
@@ -313,18 +451,22 @@ export class PlanRuntime {
       return;
     }
 
-    this.emitPlanSnapshot();
+    if (this.activePlan.length === 0) {
+      await this.clearPersistentPlan();
+    } else {
+      this.emitPlanSnapshot();
 
-    if (this.options.planManager) {
-      try {
-        await this.options.planManager.syncPlanSnapshot(this.activePlan);
-      } catch (error) {
-        this.options.emitEvent?.({
-          type: 'status',
-          level: 'warn',
-          message: 'Failed to persist plan state after execution.',
-          details: error instanceof Error ? error.message : String(error),
-        });
+      if (this.options.planManager) {
+        try {
+          await this.options.planManager.syncPlanSnapshot(this.activePlan);
+        } catch (error) {
+          this.options.emitEvent?.({
+            type: 'status',
+            level: 'warn',
+            message: 'Failed to persist plan state after execution.',
+            details: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
     }
 
