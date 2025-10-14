@@ -66,7 +66,7 @@ describe('historyMessageBuilder', () => {
   test('serializes plan updates as structured JSON', () => {
     const observation = {
       observation_for_llm: {
-        plan: [{ id: 'task-1', title: 'Do the thing', status: 'running' }],
+        plan: [{ id: 'task-1', status: 'running', stdout: 'hello\n' }],
       },
       observation_metadata: {
         timestamp: '2025-01-01T00:00:00.000Z',
@@ -78,7 +78,7 @@ describe('historyMessageBuilder', () => {
     expect(entry.payload).toEqual({ role: 'user', content: entry.content });
     const parsed = JSON.parse(entry.content);
     expect(parsed).toMatchObject({ type: 'plan-update' });
-    expect(parsed.plan).toEqual([{ id: 'task-1', title: 'Do the thing', status: 'running' }]);
+    expect(parsed.plan).toEqual([{ id: 'task-1', status: 'running', stdout: 'hello\n' }]);
     expect(parsed.metadata).toMatchObject({ timestamp: '2025-01-01T00:00:00.000Z' });
   });
 
