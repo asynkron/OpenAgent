@@ -1,5 +1,6 @@
 /* eslint-env jest */
 import { jest } from '@jest/globals';
+import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
 
 // Mock setup helpers
 export const createMockRequestModelCompletion = () => {
@@ -14,11 +15,22 @@ export const createMockRequestModelCompletion = () => {
 };
 
 export const createMockResponseUtils = () => {
+  const mockArguments = JSON.stringify({
+    message: '  ',
+    plan: [
+      {
+        step: '1',
+        title: 'Mock',
+        status: 'running',
+        command: { run: '   ', shell: '   ', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
+      },
+    ],
+  });
+
   const extractOpenAgentToolCall = jest.fn().mockReturnValue({
     name: 'open-agent',
     call_id: 'call_mock_1',
-    arguments:
-      '{"message":"  ","plan":[{"step":"1","title":"Mock","status":"running","command":{"run":"   ","shell":"   "}}]}',
+    arguments: mockArguments,
   });
   const extractResponseText = jest.fn();
   jest.unstable_mockModule('../../../openai/responseUtils.js', () => ({
@@ -39,7 +51,7 @@ export const createMockResponseParser = () => {
           step: '1',
           title: 'Mock',
           status: 'running',
-          command: { run: '   ', shell: '   ' },
+          command: { run: '   ', shell: '   ', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
         },
       ],
     },

@@ -1,5 +1,6 @@
 /* eslint-env jest */
 import { jest } from '@jest/globals';
+import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
 import * as H from './helpers';
 Object.assign(globalThis, H);
 
@@ -34,14 +35,14 @@ describe('executeAgentPass', () => {
             title: 'Independent high priority task',
             status: 'pending',
             priority: 1,
-            command: { run: 'run-c' },
+            command: { run: 'run-c', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
           },
           {
             id: 'a',
             title: 'Base task',
             status: 'pending',
             priority: 2,
-            command: { run: 'run-a' },
+            command: { run: 'run-a', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
           },
           {
             id: 'b',
@@ -49,7 +50,7 @@ describe('executeAgentPass', () => {
             status: 'pending',
             priority: 0,
             waitingForId: ['a'],
-            command: { run: 'run-b' },
+            command: { run: 'run-b', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
           },
         ],
       },

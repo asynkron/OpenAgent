@@ -1,5 +1,6 @@
 // @ts-nocheck
 /* eslint-env jest */
+import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
 import {
   createObservationHistoryEntry,
   createPlanReminderEntry,
@@ -23,7 +24,7 @@ describe('historyMessageBuilder', () => {
 
     const entry = createObservationHistoryEntry({
       observation,
-      command: { run: 'echo hello' },
+      command: { run: 'echo hello', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
       pass: 5,
     });
 

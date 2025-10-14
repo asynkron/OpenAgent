@@ -13,6 +13,8 @@
  * to regenerate it after editing this source until the build pipeline emits from
  * TypeScript directly.
  */
+import { DEFAULT_COMMAND_MAX_BYTES } from '../constants.js';
+
 const STRATEGY_DIRECT = 'direct' as const;
 const STRATEGY_CODE_FENCE = 'code_fence' as const;
 const STRATEGY_BALANCED_SLICE = 'balanced_slice' as const;
@@ -222,15 +224,33 @@ function normalizeNestedShellCommand(command: AssistantCommand): AssistantComman
   return merged;
 }
 
+function applyCommandDefaults(command: AssistantCommand): AssistantCommand {
+  if (!isPlainObject(command)) {
+    return command;
+  }
+
+  const normalized = { ...command };
+  const candidate = normalized.max_bytes;
+  if (
+    typeof candidate !== 'number' ||
+    !Number.isFinite(candidate) ||
+    candidate < 1
+  ) {
+    normalized.max_bytes = DEFAULT_COMMAND_MAX_BYTES;
+  }
+
+  return normalized;
+}
+
 function normalizeCommandPayload(
   command: AssistantPayload['command'],
 ): AssistantCommand | AssistantPayload['command'] {
   if (typeof command === 'string') {
     const trimmed = command.trim();
     if (!trimmed) {
-      return {};
+      return applyCommandDefaults({});
     }
-    return { run: trimmed };
+    return applyCommandDefaults({ run: trimmed });
   }
 
   if (Array.isArray(command)) {
@@ -247,25 +267,27 @@ function normalizeCommandPayload(
       .filter((part) => part);
 
     if (parts.length === 0) {
-      return {};
+      return applyCommandDefaults({});
     }
 
-    return { run: parts.join(' ') };
+    return applyCommandDefaults({ run: parts.join(' ') });
   }
 
   if (!isPlainObject(command)) {
     return command;
   }
 
+  let normalizedCommand: AssistantCommand;
+
   if (isPlainObject((command as AssistantCommand).run)) {
-    return normalizeNestedRunCommand(command as AssistantCommand);
+    normalizedCommand = normalizeNestedRunCommand(command as AssistantCommand);
+  } else if (isPlainObject((command as AssistantCommand).shell)) {
+    normalizedCommand = normalizeNestedShellCommand(command as AssistantCommand);
+  } else {
+    normalizedCommand = normalizeFlatCommand(command as AssistantCommand);
   }
 
-  if (isPlainObject((command as AssistantCommand).shell)) {
-    return normalizeNestedShellCommand(command as AssistantCommand);
-  }
-
-  return normalizeFlatCommand(command as AssistantCommand);
+  return applyCommandDefaults(normalizedCommand);
 }
 
 const CHILD_KEY = 'substeps' as const;

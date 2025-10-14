@@ -16,8 +16,10 @@
 // -----------------------------
 // Tool schema (Zod) and DTOs
 // -----------------------------
-import { z } from 'zod';
 import { jsonSchema as asJsonSchema } from '@ai-sdk/provider-utils';
+import { z } from 'zod';
+
+import { DEFAULT_COMMAND_MAX_BYTES, DEFAULT_COMMAND_TAIL_LINES } from '../constants.js';
 
 // Explicit TS interfaces for clarity/scanability
 export interface ToolCommand {
@@ -28,7 +30,7 @@ export interface ToolCommand {
   timeout_sec: number;
   filter_regex: string;
   tail_lines: number;
-  max_bytes?: number;
+  max_bytes: number;
 }
 
 export interface ToolPlanStep {
@@ -54,8 +56,8 @@ export const ToolCommandSchema = z
     cwd: z.string().default(''),
     timeout_sec: z.number().int().min(1).default(60),
     filter_regex: z.string().default(''),
-    tail_lines: z.number().int().min(0).default(200),
-    max_bytes: z.number().int().min(1).optional(),
+    tail_lines: z.number().int().min(0).default(DEFAULT_COMMAND_TAIL_LINES),
+    max_bytes: z.number().int().min(1).default(DEFAULT_COMMAND_MAX_BYTES),
   })
   .strict();
 
@@ -136,6 +138,7 @@ export const ToolResponseJsonSchema = {
               'timeout_sec',
               'filter_regex',
               'tail_lines',
+              'max_bytes',
             ],
             properties: {
               reason: {
@@ -173,15 +176,15 @@ export const ToolResponseJsonSchema = {
               tail_lines: {
                 type: 'integer',
                 minimum: 0,
-                default: 200,
+                default: DEFAULT_COMMAND_TAIL_LINES,
                 description:
                   'Number of trailing lines to return from output (0 disables the limit).',
               },
               max_bytes: {
                 type: 'integer',
                 minimum: 1,
-                description:
-                  'Optional hard cap on the number of bytes to include from stdout/stderr (omit to disable the byte limit).',
+                default: DEFAULT_COMMAND_MAX_BYTES,
+                description: `Maximum number of bytes to include from stdout/stderr (defaults to ~${DEFAULT_COMMAND_TAIL_LINES} lines at ${DEFAULT_COMMAND_MAX_BYTES / 1024} KiB).`,
               },
             },
           },
@@ -223,7 +226,7 @@ export const RuntimeToolResponseJsonSchema = {
             type: 'object',
             additionalProperties: false,
             description: 'Command to execute for this plan step.',
-            required: ['shell', 'run'],
+            required: ['shell', 'run', 'max_bytes'],
             properties: {
               reason: { type: 'string' },
               shell: { type: 'string' },
@@ -231,8 +234,8 @@ export const RuntimeToolResponseJsonSchema = {
               cwd: { type: 'string' },
               timeout_sec: { type: 'integer', minimum: 1 },
               filter_regex: { type: 'string' },
-              tail_lines: { type: 'integer', minimum: 0, default: 200 },
-              max_bytes: { type: 'integer', minimum: 1 },
+              tail_lines: { type: 'integer', minimum: 0, default: DEFAULT_COMMAND_TAIL_LINES },
+              max_bytes: { type: 'integer', minimum: 1, default: DEFAULT_COMMAND_MAX_BYTES },
             },
           },
           observation: { type: 'object', additionalProperties: true },

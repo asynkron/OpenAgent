@@ -1,5 +1,6 @@
 // @ts-nocheck
 /* eslint-env jest */
+import { DEFAULT_COMMAND_MAX_BYTES, DEFAULT_COMMAND_TAIL_LINES } from '../../constants.js';
 import { ObservationBuilder } from '../observationBuilder.js';
 
 describe('ObservationBuilder', () => {
@@ -19,7 +20,11 @@ describe('ObservationBuilder', () => {
   test('combines streams and applies filters/tail', () => {
     const builder = new ObservationBuilder(deps);
     const { renderPayload, observation } = builder.build({
-      command: { filter_regex: 'foo', tail_lines: 1 },
+      command: {
+        filter_regex: 'foo',
+        tail_lines: 1,
+        max_bytes: DEFAULT_COMMAND_MAX_BYTES,
+      },
       result: {
         stdout: 'foo\nbar',
         stderr: 'baz',
@@ -62,7 +67,7 @@ describe('ObservationBuilder', () => {
     const noisyStdout = 'a'.repeat(50 * 1024 + 1);
 
     const { renderPayload, observation } = builder.build({
-      command: {},
+      command: { max_bytes: DEFAULT_COMMAND_MAX_BYTES },
       result: {
         stdout: noisyStdout,
         stderr: '',
@@ -100,7 +105,7 @@ describe('ObservationBuilder', () => {
     const stdout = Array.from({ length: 205 }, (_, index) => `line-${index + 1}`).join('\n');
 
     const { observation } = builder.build({
-      command: {},
+      command: { max_bytes: DEFAULT_COMMAND_MAX_BYTES },
       result: {
         stdout,
         stderr: '',
@@ -110,9 +115,13 @@ describe('ObservationBuilder', () => {
       },
     });
 
-    expect(observation.observation_for_llm.stdout.split('\n')).toHaveLength(200);
+    expect(observation.observation_for_llm.stdout.split('\n')).toHaveLength(
+      DEFAULT_COMMAND_TAIL_LINES,
+    );
     expect(observation.observation_for_llm.truncated).toBe(true);
-    expect(observation.observation_for_llm.truncation_notice).toContain('default 200 lines');
+    expect(observation.observation_for_llm.truncation_notice).toContain(
+      `default ${DEFAULT_COMMAND_TAIL_LINES} lines`,
+    );
   });
 
   test('respects explicit max_bytes override', () => {

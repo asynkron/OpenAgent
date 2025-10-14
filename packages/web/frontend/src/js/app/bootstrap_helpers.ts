@@ -122,7 +122,7 @@ function extractFilesFromInput(filesValue: FileEntry[] | FileIndexInput | null):
 
 function extractTreeFromInput(
   filesValue: FileEntry[] | FileIndexInput | null,
-  treeValue: FileTreeEntry[] | null,
+  treeValue: FileTreeEntry[] | null | undefined,
 ): FileTreeEntry[] {
   if (filesValue && typeof filesValue === 'object') {
     const candidate = filesValue as FileIndexInput;
@@ -160,8 +160,8 @@ export function normaliseFileIndex({
   filesValue?: FileEntry[] | FileIndexInput | null;
   treeValue?: FileTreeEntry[] | null;
 }): NormalisedFileIndex {
-  const flat = extractFilesFromInput(filesValue);
-  const tree = extractTreeFromInput(filesValue, treeValue);
+  const flat = extractFilesFromInput(filesValue ?? null);
+  const tree = extractTreeFromInput(filesValue ?? null, treeValue);
 
   const { files, tree: finalTree } = ensureBothFilesAndTree(flat, tree);
 

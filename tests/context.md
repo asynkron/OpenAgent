@@ -9,7 +9,7 @@
 ## Key Areas
 
 - `integration/` — orchestrates full agent runs using a mocked OpenAI backend. See [`integration/context.md`](integration/context.md).
-- `mockOpenAI.ts` — fixture exposing deterministic OpenAI responses for integration harnesses.
+- `mockOpenAI.ts` — fixture exposing deterministic OpenAI responses for integration harnesses. It now includes the required `command.max_bytes` field and imports the shared defaults from `packages/core/src/constants.ts` so schema validation and runtime limits stay in sync.
 - `stubs/` — local ESM shims for external AI SDKs so Jest can resolve modules that suites immediately mock. See [`stubs/context.md`](stubs/context.md).
 - `ink-testing-library` dev dependency drives terminal keystroke simulation for CLI component specs.
 

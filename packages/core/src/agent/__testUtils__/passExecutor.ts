@@ -1,5 +1,6 @@
 /* eslint-env jest */
 import { jest } from '@jest/globals';
+import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
 
 // Reusable helpers that keep the main pass executor spec readable while
 // preserving the original mock wiring for each dependency.
@@ -50,10 +51,13 @@ export const createPlanManager = () => ({
   sync: jest.fn(),
 });
 
+type MockModelCompletion = { status: 'success'; completion: { id: string } };
+
 const createMockRequestModelCompletion = () => {
-  const requestModelCompletion = jest
-    .fn()
-    .mockResolvedValue({ status: 'success', completion: { id: 'cmpl_1' } });
+  const requestModelCompletion = jest.fn(async (): Promise<MockModelCompletion> => ({
+    status: 'success',
+    completion: { id: 'cmpl_1' },
+  }));
   jest.unstable_mockModule('../modelRequest.js', () => ({
     requestModelCompletion,
     default: { requestModelCompletion },
@@ -62,11 +66,22 @@ const createMockRequestModelCompletion = () => {
 };
 
 const createMockResponseUtils = () => {
+  const mockArguments = JSON.stringify({
+    message: '  ',
+    plan: [
+      {
+        step: '1',
+        title: 'Mock',
+        status: 'running',
+        command: { run: '   ', shell: '   ', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
+      },
+    ],
+  });
+
   const extractOpenAgentToolCall = jest.fn().mockReturnValue({
     name: 'open-agent',
     call_id: 'call_mock_1',
-    arguments:
-      '{"message":"  ","plan":[{"step":"1","title":"Mock","status":"running","command":{"run":"   ","shell":"   "}}]}',
+    arguments: mockArguments,
   });
   const extractResponseText = jest.fn();
   jest.unstable_mockModule('../../openai/responseUtils.js', () => ({
@@ -87,7 +102,7 @@ const createMockResponseParser = () => {
           step: '1',
           title: 'Mock',
           status: 'running',
-          command: { run: '   ', shell: '   ' },
+          command: { run: '   ', shell: '   ', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
         },
       ],
     },
@@ -216,14 +231,19 @@ export const setupPassExecutor = async (options: SetupPassExecutorOptions = {}) 
   };
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
 export const createComplexPlanHasOpenStepsMock = () =>
   jest.fn((plan: unknown[] = []) =>
     Array.isArray(plan)
       ? plan.some((item) => {
-          if (!item || typeof item !== 'object') {
+          if (!isRecord(item)) {
             return false;
           }
-          const status = typeof item.status === 'string' ? item.status.trim().toLowerCase() : '';
+          const rawStatus = item.status;
+          const status =
+            typeof rawStatus === 'string' ? rawStatus.trim().toLowerCase() : '';
           return status !== 'completed' && status !== 'failed' && status !== 'abandoned';
         })
       : false,
@@ -231,17 +251,18 @@ export const createComplexPlanHasOpenStepsMock = () =>
 
 export const createComplexBuildPlanLookupMock = () =>
   jest.fn((plan: unknown[] = []) => {
-    const map = new Map();
+    const map = new Map<string, Record<string, unknown>>();
     if (!Array.isArray(plan)) {
       return map;
     }
     plan.forEach((item, index) => {
-      if (!item || typeof item !== 'object') {
+      if (!isRecord(item)) {
         return;
       }
+      const rawId = item.id;
       const id =
-        typeof item.id === 'string' && item.id.trim().length > 0
-          ? item.id.trim()
+        typeof rawId === 'string' && rawId.trim().length > 0
+          ? rawId.trim()
           : `index:${index}`;
       if (!map.has(id)) {
         map.set(id, item);
@@ -252,34 +273,35 @@ export const createComplexBuildPlanLookupMock = () =>
 
 export const createComplexPlanStepIsBlockedMock = () =>
   jest.fn((step: unknown, planOrLookup: unknown) => {
-    if (!step || typeof step !== 'object') {
+    if (!isRecord(step)) {
       return false;
     }
 
-    const dependencies = Array.isArray((step as any).waitingForId)
-      ? (step as any).waitingForId
-      : [];
+    const dependencies = Array.isArray(step.waitingForId) ? step.waitingForId : [];
     if (dependencies.length === 0) {
       return false;
     }
 
-    const lookup = planOrLookup instanceof Map ? planOrLookup : new Map();
+    const lookup =
+      planOrLookup instanceof Map
+        ? (planOrLookup as Map<string, Record<string, unknown>>)
+        : new Map<string, Record<string, unknown>>();
 
     if (!lookup || lookup.size === 0) {
       return true;
     }
 
-    return dependencies.some((rawId) => {
+    return dependencies.some((rawId: unknown) => {
       if (typeof rawId !== 'string' || !rawId.trim()) {
         return true;
       }
 
       const dependency = lookup.get(rawId.trim());
-      if (!dependency || typeof (dependency as any).status !== 'string') {
+      if (!isRecord(dependency) || typeof dependency.status !== 'string') {
         return true;
       }
 
-      const normalized = (dependency as any).status.trim().toLowerCase();
+      const normalized = dependency.status.trim().toLowerCase();
       return normalized !== 'completed' && normalized !== 'failed';
     });
   });

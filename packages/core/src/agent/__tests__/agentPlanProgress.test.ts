@@ -1,6 +1,7 @@
 // @ts-nocheck
 /* eslint-env jest */
 import { jest } from '@jest/globals';
+import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -135,7 +136,11 @@ describe('agent plan progress events', () => {
             id: 'plan-step-1',
             title: 'Task',
             status: 'completed',
-            command: { shell: '/bin/bash', run: 'echo done' },
+            command: {
+              shell: '/bin/bash',
+              run: 'echo done',
+              max_bytes: DEFAULT_COMMAND_MAX_BYTES,
+            },
           },
         ],
       }),

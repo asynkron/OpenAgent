@@ -1,5 +1,6 @@
 /* eslint-env jest */
 import { jest } from '@jest/globals';
+import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
 import * as H from './helpers';
 Object.assign(globalThis, H);
 
@@ -24,7 +25,7 @@ describe('executeAgentPass', () => {
             step: '1',
             title: 'Failing step',
             status: 'pending',
-            command: { run: 'exit 2' },
+            command: { run: 'exit 2', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
           },
         ],
       },
@@ -83,8 +84,18 @@ describe('executeAgentPass', () => {
       value: {
         message: 'Run plan',
         plan: [
-          { step: '1', title: 'First', status: 'pending', command: { run: 'first' } },
-          { step: '2', title: 'Second', status: 'pending', command: { run: 'second' } },
+          {
+            step: '1',
+            title: 'First',
+            status: 'pending',
+            command: { run: 'first', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
+          },
+          {
+            step: '2',
+            title: 'Second',
+            status: 'pending',
+            command: { run: 'second', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
+          },
         ],
       },
       recovery: { strategy: 'direct' },

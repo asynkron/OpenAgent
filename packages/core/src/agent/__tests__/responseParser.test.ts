@@ -1,6 +1,7 @@
 // @ts-nocheck
 /* eslint-env jest */
 import { describe, expect, test } from '@jest/globals';
+import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
 
 import { parseAssistantResponse } from '../responseParser.js';
 import { nestedShellResponseText } from '../../../../../tests/integration/__fixtures__/openaiNestedShellResponse.js';
@@ -59,6 +60,7 @@ describe('parseAssistantResponse', () => {
           command: {
             cwd: '.',
             shell: 'echo hello',
+            max_bytes: DEFAULT_COMMAND_MAX_BYTES,
           },
         },
       ],
@@ -77,6 +79,7 @@ describe('parseAssistantResponse', () => {
           command: {
             cwd: '.',
             run: 'echo hello',
+            max_bytes: DEFAULT_COMMAND_MAX_BYTES,
           },
         },
       ],
@@ -108,6 +111,7 @@ describe('parseAssistantResponse', () => {
           status: 'pending',
           command: {
             run: 'ls',
+            max_bytes: DEFAULT_COMMAND_MAX_BYTES,
           },
         },
       ],
@@ -139,6 +143,7 @@ describe('parseAssistantResponse', () => {
           status: 'pending',
           command: {
             run: "apply_patch <<'PATCH' content",
+            max_bytes: DEFAULT_COMMAND_MAX_BYTES,
           },
         },
       ],
@@ -160,6 +165,7 @@ describe('parseAssistantResponse', () => {
               shell: '/bin/bash',
             },
             timeout_sec: 5,
+            max_bytes: DEFAULT_COMMAND_MAX_BYTES,
           },
         },
       ],
@@ -180,6 +186,7 @@ describe('parseAssistantResponse', () => {
             timeout_sec: 5,
             run: 'echo hello',
             shell: '/bin/bash',
+            max_bytes: DEFAULT_COMMAND_MAX_BYTES,
           },
         },
       ],
@@ -202,6 +209,7 @@ describe('parseAssistantResponse', () => {
             cwd: '.',
             shell: '/bin/bash',
             run: 'echo hello',
+            max_bytes: DEFAULT_COMMAND_MAX_BYTES,
           },
         },
       ],

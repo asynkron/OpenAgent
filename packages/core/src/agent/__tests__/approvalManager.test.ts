@@ -1,5 +1,6 @@
 // @ts-nocheck
 /* eslint-env jest */
+import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
 import { ApprovalManager } from '../approvalManager.js';
 
 describe('ApprovalManager.shouldAutoApprove', () => {
@@ -17,7 +18,9 @@ describe('ApprovalManager.shouldAutoApprove', () => {
       ...baseDeps,
       isPreapprovedCommand: () => true,
     });
-    expect(manager.shouldAutoApprove({ run: 'ls' })).toEqual({
+    expect(
+      manager.shouldAutoApprove({ run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES }),
+    ).toEqual({
       approved: true,
       source: 'allowlist',
     });
@@ -28,7 +31,12 @@ describe('ApprovalManager.shouldAutoApprove', () => {
       ...baseDeps,
       isSessionApproved: () => true,
     });
-    expect(manager.shouldAutoApprove({ run: 'ls' })).toEqual({ approved: true, source: 'session' });
+    expect(
+      manager.shouldAutoApprove({ run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES }),
+    ).toEqual({
+      approved: true,
+      source: 'session',
+    });
   });
 
   test('returns flag source when CLI auto-approve enabled', () => {
@@ -36,12 +44,22 @@ describe('ApprovalManager.shouldAutoApprove', () => {
       ...baseDeps,
       getAutoApproveFlag: () => true,
     });
-    expect(manager.shouldAutoApprove({ run: 'ls' })).toEqual({ approved: true, source: 'flag' });
+    expect(
+      manager.shouldAutoApprove({ run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES }),
+    ).toEqual({
+      approved: true,
+      source: 'flag',
+    });
   });
 
   test('returns not approved when nothing matches', () => {
     const manager = new ApprovalManager(baseDeps);
-    expect(manager.shouldAutoApprove({ run: 'ls' })).toEqual({ approved: false, source: null });
+    expect(
+      manager.shouldAutoApprove({ run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES }),
+    ).toEqual({
+      approved: false,
+      source: null,
+    });
   });
 
   test('rejects invalid command input gracefully', () => {
@@ -76,14 +94,16 @@ describe('ApprovalManager.requestHumanDecision', () => {
 
   test('returns approve_once when user selects option 1', async () => {
     const { manager, logs } = makeManager({ responses: ['1'] });
-    const outcome = await manager.requestHumanDecision({ command: { run: 'ls' } });
+    const outcome = await manager.requestHumanDecision({
+      command: { run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
+    });
     expect(outcome).toEqual({ decision: 'approve_once' });
     expect(logs.success).toContain('Approved (run once).');
   });
 
   test('records session approval when user selects option 2', async () => {
     const { manager, logs, approvedCommandRef } = makeManager({ responses: ['2'] });
-    const command = { run: 'pwd' };
+    const command = { run: 'pwd', max_bytes: DEFAULT_COMMAND_MAX_BYTES };
     const outcome = await manager.requestHumanDecision({ command });
     expect(outcome).toEqual({ decision: 'approve_session' });
     expect(approvedCommandRef()).toBe(command);
@@ -92,14 +112,18 @@ describe('ApprovalManager.requestHumanDecision', () => {
 
   test('returns reject when user selects option 3', async () => {
     const { manager, logs } = makeManager({ responses: ['3'] });
-    const outcome = await manager.requestHumanDecision({ command: { run: 'rm' } });
+    const outcome = await manager.requestHumanDecision({
+      command: { run: 'rm', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
+    });
     expect(outcome).toEqual({ decision: 'reject', reason: 'human_declined' });
     expect(logs.warn).toContain('Command execution canceled by human (requested alternative).');
   });
 
   test('re-prompts on invalid input until valid choice provided', async () => {
     const { manager, logs } = makeManager({ responses: ['maybe', 'YES'] });
-    const outcome = await manager.requestHumanDecision({ command: { run: 'ls' } });
+    const outcome = await manager.requestHumanDecision({
+      command: { run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
+    });
     expect(outcome).toEqual({ decision: 'approve_once' });
     expect(logs.warn).toContain('Please enter 1, 2, or 3.');
   });

@@ -13,6 +13,7 @@
  * to regenerate it after editing this source until the build pipeline emits from
  * TypeScript directly.
  */
+import { DEFAULT_COMMAND_MAX_BYTES, DEFAULT_COMMAND_TAIL_LINES } from '../constants.js';
 import type {
   ObservationRecord,
   ObservationForLLM,
@@ -64,8 +65,6 @@ export interface ObservationBuilderDeps {
 }
 
 export class ObservationBuilder {
-  private static readonly DEFAULT_TAIL_LINES = 200;
-
   private readonly combineStdStreams: ObservationBuilderDeps['combineStdStreams'];
   private readonly applyFilter: ObservationBuilderDeps['applyFilter'];
   private readonly tailLines: ObservationBuilderDeps['tailLines'];
@@ -269,17 +268,17 @@ export class ObservationBuilder {
       return { limit: Math.floor(candidate), source: 'explicit' };
     }
 
-    return { limit: ObservationBuilder.DEFAULT_TAIL_LINES, source: 'default' };
+    return { limit: DEFAULT_COMMAND_TAIL_LINES, source: 'default' };
   }
 
-  private resolveMaxBytes(command: AssistantCommand | null | undefined): { limit: number } | null {
+  private resolveMaxBytes(command: AssistantCommand | null | undefined): { limit: number } {
     const candidate = command && typeof command === 'object' ? (command as any).max_bytes : undefined;
 
     if (typeof candidate === 'number' && Number.isFinite(candidate) && candidate > 0) {
       return { limit: Math.floor(candidate) };
     }
 
-    return null;
+    return { limit: DEFAULT_COMMAND_MAX_BYTES };
   }
 
   private truncateBytes(text: string, limit: number): string {

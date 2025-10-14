@@ -1,6 +1,7 @@
 // @ts-nocheck
 /* eslint-env jest */
 import { describe, expect, test } from '@jest/globals';
+import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
 
 import { mergePlanTrees, planHasOpenSteps, planToMarkdown, computePlanProgress } from '../plan.js';
 
@@ -34,11 +35,21 @@ describe('plan utilities', () => {
 
   test('mergePlanTrees does not downgrade terminal statuses back to pending', () => {
     const existingPlan = [
-      { id: 'a', title: 'Finish work', status: 'completed', command: { run: 'echo done' } },
+      {
+        id: 'a',
+        title: 'Finish work',
+        status: 'completed',
+        command: { run: 'echo done', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
+      },
     ];
 
     const incomingPlan = [
-      { id: 'a', title: 'Finish work', status: 'pending', command: { run: 'echo done' } },
+      {
+        id: 'a',
+        title: 'Finish work',
+        status: 'pending',
+        command: { run: 'echo done', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
+      },
     ];
 
     const merged = mergePlanTrees(existingPlan, incomingPlan);

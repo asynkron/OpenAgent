@@ -3,6 +3,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beforeEach, jest } from '@jest/globals';
 
+import { DEFAULT_COMMAND_MAX_BYTES } from '../packages/core/src/constants.js';
+
 const thisFilePath = fileURLToPath(import.meta.url);
 const thisDir = path.dirname(thisFilePath);
 const originalUnstableMockModule = jest.unstable_mockModule.bind(jest);
@@ -130,6 +132,7 @@ function OpenAIMock() {
               run: 'echo "MOCKED_OK"',
               cwd: '.',
               timeout_sec: 5,
+              max_bytes: DEFAULT_COMMAND_MAX_BYTES,
             },
           },
           callId,

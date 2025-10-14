@@ -1,5 +1,6 @@
 /* eslint-env jest */
 import { jest } from '@jest/globals';
+import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
 import * as H from './helpers';
 Object.assign(globalThis, H);
 
@@ -24,7 +25,7 @@ describe('executeAgentPass', () => {
             step: '1',
             title: 'Do the work',
             status: 'pending',
-            command: { run: 'echo hello' },
+            command: { run: 'echo hello', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
           },
         ],
       },

@@ -25,7 +25,7 @@
         "id": "fc_061bda23eccb547f0068e758498fcc8198a25c75b990e84afb",
         "type": "function_call",
         "status": "completed",
-        "arguments": "{\"message\":\"Running `echo hello`.\",\"command\":{\"shell\":{\"command\":\"echo hello\",\"cwd\":\".\"}}}",
+        "arguments": "{\"message\":\"Running `echo hello`.\",\"command\":{\"shell\":{\"command\":\"echo hello\",\"cwd\":\".\"},\"max_bytes\":16384}}",
         "call_id": "call_EnnzD9YAOjNE60bzeNQPaAZs",
         "name": "open-agent"
       }
@@ -106,7 +106,7 @@
             },
             "command": {
               "type": "object",
-              "required": ["shell", "run"],
+              "required": ["shell", "run", "max_bytes"],
               "additionalProperties": false,
               "properties": {
                 "reason": {
@@ -138,6 +138,12 @@
                   "type": "integer",
                   "minimum": 1,
                   "description": "Optional number of trailing lines to return from output."
+                },
+                "max_bytes": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "default": 16384,
+                  "description": "Maximum number of bytes to include from stdout/stderr."
                 }
               }
             }
@@ -164,5 +170,5 @@
     "metadata": {},
     "output_text": ""
   },
-  "responseText": "{\"message\":\"Running `echo hello`.\",\"plan\":[{\"id\":\"plan-step-execute\",\"title\":\"Execute nested shell\",\"status\":\"pending\",\"command\":{\"shell\":\"/bin/bash\",\"run\":\"echo hello\",\"cwd\":\".\"}}]}"
+  "responseText": "{\"message\":\"Running `echo hello`.\",\"plan\":[{\"id\":\"plan-step-execute\",\"title\":\"Execute nested shell\",\"status\":\"pending\",\"command\":{\"shell\":\"/bin/bash\",\"run\":\"echo hello\",\"cwd\":\".\",\"max_bytes\":16384}}]}"
 }

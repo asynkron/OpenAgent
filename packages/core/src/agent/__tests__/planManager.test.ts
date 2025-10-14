@@ -1,5 +1,6 @@
 /* eslint-env jest */
 import { describe, expect, test, jest } from '@jest/globals';
+import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
 
 import { createPlanManager } from '../planManager.js';
 
@@ -12,7 +13,12 @@ describe('createPlanManager', () => {
     await planManager.initialize();
 
     await planManager.update([
-      { step: '1', title: 'Do something', status: 'pending', command: { run: 'echo hi' } },
+      {
+        step: '1',
+        title: 'Do something',
+        status: 'pending',
+        command: { run: 'echo hi', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
+      },
     ]);
 
     const merged = await planManager.update([]);
@@ -28,11 +34,21 @@ describe('createPlanManager', () => {
 
     await planManager.initialize();
     await planManager.update([
-      { step: '1', title: 'Do something', status: 'pending', command: { run: 'echo hi' } },
+      {
+        step: '1',
+        title: 'Do something',
+        status: 'pending',
+        command: { run: 'echo hi', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
+      },
     ]);
 
     const runningPlan = [
-      { step: '1', title: 'Do something', status: 'running', command: { run: 'echo hi' } },
+      {
+        step: '1',
+        title: 'Do something',
+        status: 'running',
+        command: { run: 'echo hi', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
+      },
     ];
 
     const synced = await planManager.sync(runningPlan);
@@ -55,7 +71,7 @@ describe('createPlanManager', () => {
         id: 'step-1',
         title: 'Do something',
         status: 'completed',
-        command: { run: 'echo done' },
+        command: { run: 'echo done', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
       },
     ]);
 
@@ -64,7 +80,7 @@ describe('createPlanManager', () => {
         id: 'step-1',
         title: 'Do something',
         status: 'pending',
-        command: { run: 'echo maybe' },
+        command: { run: 'echo maybe', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
         waitingForId: ['step-2'],
       },
     ]);
@@ -86,7 +102,7 @@ describe('createPlanManager', () => {
         id: 'Task-1',
         title: 'Plan via Id field',
         status: 'failed',
-        command: { run: 'echo nope' },
+        command: { run: 'echo nope', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
       },
     ]);
 
@@ -95,7 +111,7 @@ describe('createPlanManager', () => {
         id: 'task-1',
         title: 'Plan via Id field',
         status: 'pending',
-        command: { run: 'echo nope' },
+        command: { run: 'echo nope', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
       },
     ]);
 

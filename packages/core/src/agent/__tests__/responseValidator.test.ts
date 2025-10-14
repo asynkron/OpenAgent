@@ -1,6 +1,7 @@
 // @ts-nocheck
 /* eslint-env jest */
 import { describe, expect, test } from '@jest/globals';
+import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
 
 import {
   validateAssistantResponseSchema,
@@ -16,7 +17,11 @@ describe('validateAssistantResponseSchema', () => {
           id: 'step-1',
           title: 'Do the thing',
           status: 'pending',
-          command: { shell: '/bin/bash', run: 'echo "hi"' },
+          command: {
+            shell: '/bin/bash',
+            run: 'echo "hi"',
+            max_bytes: DEFAULT_COMMAND_MAX_BYTES,
+          },
         },
       ],
     });
@@ -71,13 +76,14 @@ describe('validateAssistantResponse', () => {
           command: {
             shell: 'bash',
             run: 'echo "hello"',
+            max_bytes: DEFAULT_COMMAND_MAX_BYTES,
           },
         },
         {
           id: 'step-2',
           title: 'Follow up',
           status: 'pending',
-          command: { shell: 'bash', run: 'ls' },
+          command: { shell: 'bash', run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
         },
       ],
     });
@@ -138,7 +144,7 @@ describe('validateAssistantResponse', () => {
           id: 'step-2',
           title: 'B',
           status: 'pending',
-          command: { shell: '/bin/bash', run: 'echo two' },
+          command: { shell: '/bin/bash', run: 'echo two', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
         },
       ],
     });
