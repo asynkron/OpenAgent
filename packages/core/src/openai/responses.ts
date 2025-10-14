@@ -71,16 +71,8 @@ function parseBooleanEnv(value: string | undefined): boolean | null {
 }
 
 function buildProviderOptions(_reasoningEffort?: ReasoningEffort): any {
-  // Default strict schema ON; allow opt-out via env
-  const strictEnv =
-    parseBooleanEnv(process.env.AGENT_STRICT_JSON_SCHEMA) ??
-    parseBooleanEnv(process.env.OPENAI_STRICT_JSON_SCHEMA);
-  const strictFlag = strictEnv === null ? true : strictEnv;
-
-  const openaiOptions: Record<string, unknown> = {};
-  openaiOptions.strictJsonSchema = strictFlag;
-
-  return { openai: openaiOptions } as any;
+  // Always enable strict JSON Schema for provider calls
+  return { openai: { strictJsonSchema: true } } as any;
 }
 
 function mapToolToSchema(tool: SupportedTool | null | undefined): SupportedTool | null {

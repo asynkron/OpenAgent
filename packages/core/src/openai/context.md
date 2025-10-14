@@ -8,7 +8,7 @@
 
 - `client.js` — lazily instantiates the OpenAI SDK client based on environment variables, validates models, surfaces setup guidance when configuration is missing, and exposes `MODEL`, `getOpenAIClient`, `resetOpenAIClient`.
 - `responses.js` — constructs structured responses API calls, attaches tool schemas, handles retries, and normalizes errors (now resolving both object- and function-shaped providers returned by the AI SDK) while exposing typed call options so downstream callers no longer rely on defensive runtime checks. Call settings now use a partial type so default retry/abort behavior compiles cleanly when no overrides are provided.
-  - Strict JSON Schema is ON by default for OpenAI providers. Opt out by setting `AGENT_STRICT_JSON_SCHEMA=false` (or `OPENAI_STRICT_JSON_SCHEMA=false`). This toggles `providerOptions.openai.strictJsonSchema` in the AI SDK call.
+  - Strict JSON Schema is always enabled for OpenAI providers (the client passes `providerOptions.openai.strictJsonSchema = true`).
 - `responseUtils.js` — normalizes OpenAI Responses payloads, exposing helpers to pull the sanitized `open-agent` tool call (for protocol validation) while still providing a text fallback for legacy/plain-text replies.
 - `contracts.ts` — (legacy barrel) re-exports request/response types, tool/schema, and the model request wrapper. Prefer the canonical module at `src/contracts/index.ts` for consistent DTO names.
 

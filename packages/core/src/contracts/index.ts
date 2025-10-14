@@ -21,13 +21,13 @@ import { jsonSchema as asJsonSchema } from '@ai-sdk/provider-utils';
 
 // Explicit TS interfaces for clarity/scanability
 export interface ToolCommand {
-  reason?: string;
+  reason: string;
   shell: string;
   run: string;
-  cwd?: string;
-  timeout_sec?: number;
-  filter_regex?: string;
-  tail_lines?: number;
+  cwd: string;
+  timeout_sec: number;
+  filter_regex: string;
+  tail_lines: number;
 }
 
 export interface ToolPlanStep {
@@ -48,13 +48,13 @@ export interface ToolResponse {
 // Zod schemas that mirror the interfaces above
 export const ToolCommandSchema = z
   .object({
-    reason: z.string().optional(),
+    reason: z.string().default(''),
     shell: z.string(),
     run: z.string(),
-    cwd: z.string().optional(),
-    timeout_sec: z.number().int().min(1).optional(),
-    filter_regex: z.string().optional(),
-    tail_lines: z.number().int().min(1).optional(),
+    cwd: z.string().default(''),
+    timeout_sec: z.number().int().min(1).default(60),
+    filter_regex: z.string().default(''),
+    tail_lines: z.number().int().min(0).default(0),
   })
   .strict();
 
@@ -63,8 +63,8 @@ export const ToolPlanStepSchema = z
     id: z.string(),
     title: z.string(),
     status: z.enum(['pending', 'completed', 'failed', 'abandoned']),
-    age: z.number().int().min(0).optional(),
-    waitingForId: z.array(z.string()).optional(),
+    age: z.number().int().min(0).default(0),
+    waitingForId: z.array(z.string()).default([]),
     command: ToolCommandSchema,
     observation: z.record(z.string(), z.unknown()).optional(),
   })
@@ -94,7 +94,7 @@ export const ToolResponseJsonSchema = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['id', 'title', 'status', 'command'],
+        required: ['id', 'title', 'status', 'age', 'waitingForId', 'command'],
         properties: {
           id: {
             type: 'string',
@@ -112,12 +112,14 @@ export const ToolResponseJsonSchema = {
           age: {
             type: 'integer',
             minimum: 0,
+            default: 0,
             description:
               'Number of assistant responses observed while this step has been running; increments once per response when status remains running.',
           },
           waitingForId: {
             type: 'array',
             items: { type: 'string' },
+            default: [],
             description: 'IDs this task has to wait for before it can be executed (dependencies).',
           },
           command: {
@@ -125,10 +127,11 @@ export const ToolResponseJsonSchema = {
             additionalProperties: false,
             description:
               'Next tool invocation to execute for this plan step. This command should complete the task if successful.',
-            required: ['shell', 'run'],
+            required: ['reason', 'shell', 'run', 'cwd', 'timeout_sec', 'filter_regex', 'tail_lines'],
             properties: {
               reason: {
                 type: 'string',
+                default: '',
                 description:
                   'Explain why this shell command is required for the plan step. If only shell or run is provided, justify the omission.',
               },
@@ -144,29 +147,27 @@ export const ToolResponseJsonSchema = {
               },
               cwd: {
                 type: 'string',
+                default: '',
                 description: 'Working directory for shell execution.',
               },
               timeout_sec: {
                 type: 'integer',
                 minimum: 1,
-                description: 'Optional timeout guard for long-running commands.',
+                default: 60,
+                description: 'Timeout guard for long-running commands (seconds).',
               },
               filter_regex: {
                 type: 'string',
-                description: 'Optional regex used to filter command output.',
+                default: '',
+                description: 'Regex used to filter command output (empty for none).',
               },
               tail_lines: {
                 type: 'integer',
-                minimum: 1,
-                description: 'Optional number of trailing lines to return from output.',
+                minimum: 0,
+                default: 0,
+                description: 'Number of trailing lines to return from output (0 for all).',
               },
             },
-          },
-          observation: {
-            type: 'object',
-            description:
-              'Latest command observation for this step, including stdout/stderr and metadata so the LLM can evaluate progress.',
-            additionalProperties: true,
           },
         },
       },
@@ -180,6 +181,49 @@ export const ToolDefinition = Object.freeze({
     'Return the response envelope that matches the OpenAgent protocol (message, plan, and command fields).',
   schema: asJsonSchema(() => ToolResponseJsonSchema as any),
 });
+
+// Runtime (AJV) validation schema — less strict than provider schema
+export const RuntimeToolResponseJsonSchema = {
+  $schema: 'http://json-schema.org/draft-07/schema#',
+  type: 'object',
+  additionalProperties: false,
+  required: ['message', 'plan'],
+  properties: {
+    message: { type: 'string', description: 'Markdown formatted message to the user.' },
+    plan: {
+      type: 'array',
+      description: "List of steps representing the assistant's current plan.",
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['id', 'title', 'status', 'command'],
+        properties: {
+          id: { type: 'string' },
+          title: { type: 'string' },
+          status: { type: 'string', enum: ['pending', 'completed', 'failed', 'abandoned'] },
+          age: { type: 'integer', minimum: 0 },
+          waitingForId: { type: 'array', items: { type: 'string' } },
+          command: {
+            type: 'object',
+            additionalProperties: false,
+            description: 'Command to execute for this plan step.',
+            required: ['shell', 'run'],
+            properties: {
+              reason: { type: 'string' },
+              shell: { type: 'string' },
+              run: { type: 'string' },
+              cwd: { type: 'string' },
+              timeout_sec: { type: 'integer', minimum: 1 },
+              filter_regex: { type: 'string' },
+              tail_lines: { type: 'integer', minimum: 0 },
+            },
+          },
+          observation: { type: 'object', additionalProperties: true },
+        },
+      },
+    },
+  },
+} as const;
 
 // ----------------------------------
 // Requests (runtime -> AI SDK client)
