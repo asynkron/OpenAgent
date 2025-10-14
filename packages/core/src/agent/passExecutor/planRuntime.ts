@@ -26,6 +26,11 @@ export interface ExecutableCandidate extends ExecutablePlanStep {
 
 const COMPLETED_STATUS = 'completed';
 
+// Track identifiers for steps we've already removed so future assistant
+// responses cannot resurrect them. The set lives at module scope so it
+// survives across `PlanRuntime` instances within the same agent session.
+const completedPlanStepIds = new Set<string>();
+
 const normalizePlanIdentifier = (value: unknown): string | null => {
   if (typeof value === 'string' || typeof value === 'number') {
     const normalized = String(value).trim();
@@ -199,6 +204,7 @@ export class PlanRuntime {
       this.planMutated = true;
     }
     if (identifier) {
+      completedPlanStepIds.add(identifier);
       this.removeDependencyReferences(identifier);
       return;
     }
@@ -221,6 +227,7 @@ export class PlanRuntime {
       const identifier = extractPlanStepIdentifier(candidate as PlanStep);
       if (identifier) {
         removedStepIds.push(identifier);
+        completedPlanStepIds.add(identifier);
       }
 
       return false;
@@ -236,17 +243,49 @@ export class PlanRuntime {
     });
   }
 
+  private filterOutCompletedPlanSteps(plan: PlanStep[] | null): PlanStep[] | null {
+    if (!Array.isArray(plan)) {
+      return null;
+    }
+
+    if (plan.length === 0) {
+      return [];
+    }
+
+    const filtered = plan.filter((candidate) => {
+      const identifier = extractPlanStepIdentifier(candidate as PlanStep);
+      if (!identifier) {
+        return true;
+      }
+
+      return !completedPlanStepIds.has(identifier);
+    });
+
+    if (filtered.length === 0) {
+      return [];
+    }
+
+    return filtered;
+  }
+
   async initialize(incomingPlan: PlanStep[] | null): Promise<void> {
     const normalizedIncoming = Array.isArray(incomingPlan) ? [...incomingPlan] : null;
-    this.initialIncomingPlan = normalizedIncoming;
-    this.incomingPlan = normalizedIncoming ? [...normalizedIncoming] : [];
+    if (Array.isArray(normalizedIncoming) && normalizedIncoming.length === 0) {
+      // The assistant intentionally cleared the active plan. Allow identifiers to be reused
+      // on the next response by resetting the registry of completed steps.
+      completedPlanStepIds.clear();
+    }
+    const sanitizedIncoming = this.filterOutCompletedPlanSteps(normalizedIncoming);
+    this.initialIncomingPlan = sanitizedIncoming;
+    this.incomingPlan = Array.isArray(sanitizedIncoming) ? [...sanitizedIncoming] : [];
     this.activePlan = [...this.incomingPlan];
 
     if (this.options.planManager) {
       try {
         const resolved = await this.options.planManager.resolveActivePlan(normalizedIncoming);
         if (Array.isArray(resolved)) {
-          this.activePlan = resolved;
+          const sanitizedResolved = this.filterOutCompletedPlanSteps(resolved);
+          this.activePlan = Array.isArray(sanitizedResolved) ? [...sanitizedResolved] : [];
         }
       } catch (error) {
         this.options.emitEvent?.({
@@ -375,6 +414,7 @@ export class PlanRuntime {
   private async clearPersistentPlan(): Promise<void> {
     if (!this.options.planManager) {
       this.activePlan = [];
+      completedPlanStepIds.clear();
       this.emitPlanSnapshot();
       return;
     }
@@ -382,6 +422,7 @@ export class PlanRuntime {
     try {
       const cleared = await this.options.planManager.resetPlanSnapshot();
       this.activePlan = Array.isArray(cleared) ? cleared : [];
+      completedPlanStepIds.clear();
     } catch (error) {
       this.options.emitEvent?.({
         type: 'status',
@@ -390,6 +431,7 @@ export class PlanRuntime {
         details: error instanceof Error ? error.message : String(error),
       });
       this.activePlan = [];
+      completedPlanStepIds.clear();
     }
 
     this.emitPlanSnapshot();
