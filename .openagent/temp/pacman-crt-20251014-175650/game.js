@@ -139,7 +139,7 @@
     pelletsRemaining: pellets.flat().filter(v => v > 0).length,
     frightenedUntil: 0,
     level: 1,
-    readyTime: 1200,    // frames until ghosts leave house
+    readyTime: 180,    // frames until ghosts leave house
   };
 
   const hudScore = document.getElementById('score');
