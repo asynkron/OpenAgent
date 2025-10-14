@@ -9,7 +9,7 @@ program
   .description('Convert images to ANSI art for terminals (256-color, half-block mode by default).')
   .argument('[image]', 'Path to input image (PNG)')
   .option('-w, --width <n>', 'Target width in characters', (v)=>parseInt(v,10))
-  .option('-m, --mode <mode>', 'Rendering mode: block|pixel', 'block')
+  .option('-m, --mode <mode>', 'Rendering mode: block|pixel|quarter', 'block')
   .option('-d, --dither', 'Enable Floyd-Steinberg dithering to xterm-256 palette', false)
   .option('-o, --out <file>', 'Write output to file instead of stdout')
   .action(async (image, opts)=>{

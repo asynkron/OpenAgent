@@ -19,3 +19,7 @@ Usage:
 - node ./src/cli.mjs ./samples/bird1.png -w 80 -d > out.ans
 - cat out.ans
 
+
+Updates:
+- Added mode=quarter: 2x2 quadrant block rendering with bitmask search over 16 patterns, FG/BG quantization to xterm-256, and perceptual error minimization per cell.
+- Usage: node ./src/cli.mjs ./samples/bird1.png -w 80 -m quarter > out_quarter.ans

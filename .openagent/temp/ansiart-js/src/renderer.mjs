@@ -1,8 +1,8 @@
 import { PNG } from 'pngjs';
 import fs from 'node:fs';
-import { ansiRgb, reset, nearest256ColorIndex, indexToAnsi } from './ansi-palette.mjs';
+import { nearest256ColorIndex, indexToAnsi } from './ansi-palette.mjs';
+import { renderQuarter } from './quarter.mjs';
 
-// Render options: width, dither, mode: 'block'|'pixel', palette: '256'|'16'
 export async function renderFileToAnsi(path, opts={}){
   const buf = await fs.promises.readFile(path);
   const png = PNG.sync.read(buf);
@@ -18,7 +18,7 @@ function pixelAt(png, x, y){
 }
 
 function resampleNearest(png, targetW){
-  if (!targetW || targetW>=png.width) return png; // no upscaling here
+  if (!targetW || targetW>=png.width) return png; // no upscaling
   const scale = targetW / png.width;
   const targetH = Math.max(1, Math.round(png.height * scale));
   const out = new PNG({width: targetW, height: targetH});
@@ -35,14 +35,9 @@ function resampleNearest(png, targetW){
 }
 
 function floydSteinberg(png){
-  // Dither in-place to xterm-256 palette
   const w=png.width, h=png.height, d=png.data;
-  function set(x,y,r,g,b,a){
-    const i=(w*y+x)<<2; d[i]=r; d[i+1]=g; d[i+2]=b; d[i+3]=a;
-  }
-  function get(x,y){
-    const i=(w*y+x)<<2; return [d[i],d[i+1],d[i+2],d[i+3]];
-  }
+  function set(x,y,r,g,b,a){ const i=(w*y+x)<<2; d[i]=r; d[i+1]=g; d[i+2]=b; d[i+3]=a; }
+  function get(x,y){ const i=(w*y+x)<<2; return [d[i],d[i+1],d[i+2],d[i+3]]; }
   for (let y=0;y<h;y++){
     const dir = (y%2===0)?1:-1; // serpentine
     for (let xi=0; xi<w; xi++){
@@ -51,14 +46,12 @@ function floydSteinberg(png){
       const idx = nearest256ColorIndex(r,g,b);
       const [nr,ng,nb] = palette256[idx];
       set(x,y,nr,ng,nb,a);
-      // propagate error
       const er=r-nr, eg=g-ng, eb=b-nb;
-      function add(x,y,fr){
-        if (x<0||x>=w||y<0||y>=h) return;
-        const i=(w*y+x)<<2;
+      function add(px,py,fr){
+        if (px<0||px>=w||py<0||py>=h) return;
+        const i=(w*py+px)<<2;
         d[i]=clamp(d[i]+er*fr); d[i+1]=clamp(d[i+1]+eg*fr); d[i+2]=clamp(d[i+2]+eb*fr);
       }
-      // FS diffusion (right, down-left, down, down-right)
       add(x+dir, y, 7/16);
       add(x-dir, y+1, 3/16);
       add(x, y+1, 5/16);
@@ -68,7 +61,7 @@ function floydSteinberg(png){
   return png;
 }
 
-// Minimal copy of xterm256 palette for dithering; must match ansi-palette
+// xterm256 palette for dithering
 const palette256 = [];
 (function build(){
   const sys = [
@@ -84,9 +77,10 @@ const palette256 = [];
 export function renderPngToAnsi(png, opts={}){
   const { width, dither=false, mode='block' } = opts;
   const target = width? resampleNearest(png, width) : png;
-  const src = dither? floydSteinberg(new PNG({width: target.width, height: target.height, data: Buffer.from(target.data)})) : target;
+  const src = dither? (()=>{ const clone=new PNG({width:target.width, height:target.height}); clone.data=Buffer.from(target.data); return floydSteinberg(clone); })() : target;
 
   if (mode==='pixel') return renderPixel(src);
+  if (mode==='quarter') return renderQuarter(src);
   return renderHalfBlock(src);
 }
 
@@ -94,12 +88,12 @@ function renderPixel(png){
   let out='';
   for (let y=0;y<png.height;y++){
     let line='';
-    let prevFg=-1, prevBg=-1;
+    let prevCodes='';
     for (let x=0;x<png.width;x++){
       const [r,g,b,a]=pixelAt(png,x,y);
-      if (a<128){ line += '\u001b[0m '; prevFg=-1; prevBg=-1; continue; }
-      const fg = indexToAnsi(nearest256ColorIndex(r,g,b), false);
-      if (fg!==prevFg){ line += fg; prevFg=fg; }
+      if (a<128){ line += '\u001b[0m '; prevCodes=''; continue; }
+      const codes = indexToAnsi(nearest256ColorIndex(r,g,b), false);
+      if (codes!==prevCodes){ line += codes; prevCodes=codes; }
       line += '█';
     }
     out += line + '\u001b[0m\n';
@@ -108,21 +102,20 @@ function renderPixel(png){
 }
 
 function renderHalfBlock(png){
-  // Combine two vertical pixels per terminal cell using upper half block (▀)
-  // For each pair of rows, set FG as top pixel color, BG as bottom pixel color, using '▀'
   let out='';
   for (let y=0;y<png.height; y+=2){
     let line='';
-    let prevFg='', prevBg='';
+    let prevCodes='';
     for (let x=0;x<png.width;x++){
       const [r1,g1,b1,a1]=pixelAt(png,x,y);
       const [r2,g2,b2,a2]= (y+1<png.height)? pixelAt(png,x,y+1) : [0,0,0,0];
       const fg = (a1<128)? '' : indexToAnsi(nearest256ColorIndex(r1,g1,b1), false);
       const bg = (a2<128)? '' : indexToAnsi(nearest256ColorIndex(r2,g2,b2), true);
-      // handle transparency: if fg empty, draw space with bg; if bg empty, draw upper half only
-      const char = (a1<128 && a2>=128) ? ' ' : '▀';
-      const codes = `${bg||''}${fg||''}`;
-      if (codes!==prevFg+prevBg){ line += codes; prevFg=fg; prevBg=bg; }
+      let char='▀';
+      if (a1<128 && a2>=128){ char=' '; }
+      else if (a1<128 && a2<128){ char=' '; }
+      const codes = `${bg}${fg}`;
+      if (codes!==prevCodes){ line += codes; prevCodes=codes; }
       line += char;
     }
     out += line + '\u001b[0m\n';
