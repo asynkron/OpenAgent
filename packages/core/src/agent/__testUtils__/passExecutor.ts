@@ -40,6 +40,7 @@ export const createTestContext = (passIndex: number) => ({
   emitAutoApproveStatus: false,
   passIndex,
   guardRequestPayloadSizeFn: undefined as jest.Mock | undefined,
+  recordRequestPayloadSizeFn: undefined as jest.Mock | undefined,
   planAutoResponseTracker: undefined as PlanAutoResponseTracker | undefined,
 });
 

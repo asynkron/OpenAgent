@@ -6,7 +6,7 @@ export const theme = {
   human: {
     colors: {
       fg: '#f5f5f5',
-      bg: '#192834ff',
+      bg: '#192834',
     },
     props: {
       container: {
@@ -14,7 +14,7 @@ export const theme = {
         marginTop: 0,
         paddingX: 1,
         paddingY: 1,
-        backgroundColor: '#192834ff',
+        backgroundColor: '#192834',
         width: '100%',
         alignSelf: 'stretch',
         flexGrow: 1,
@@ -28,7 +28,7 @@ export const theme = {
           marginTop: 0,
           paddingX: 1,
           paddingY: 0,
-          backgroundColor: '#192834ff',
+          backgroundColor: '#192834',
         },
         inputRow: {
           flexDirection: 'row',
@@ -87,7 +87,7 @@ export const theme = {
         marginTop: 1,
         paddingX: 1,
         paddingY: 1,
-        backgroundColor: '#14202aff',
+        backgroundColor: '#14202a',
         width: '100%',
         alignSelf: 'stretch',
         flexGrow: 1,
@@ -154,7 +154,7 @@ export const theme = {
   prompt: {
     colors: {
       fg: '#ffffff',
-      bg: '#370c21ff',
+      bg: '#370c21',
     },
     props: {
       container: {
@@ -162,7 +162,7 @@ export const theme = {
         marginTop: 0,
         paddingX: 1,
         paddingY: 1,
-        backgroundColor: '#370c21ff',
+        backgroundColor: '#370c21',
         width: '100%',
         alignSelf: 'stretch',
         flexGrow: 1,

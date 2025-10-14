@@ -33,4 +33,27 @@ describe('executeAgentPass', () => {
     expect(compactIfNeeded).toHaveBeenCalledTimes(1);
     expect(callOrder).toEqual(['guard', 'compactor']);
   });
+
+  test('records payload baseline after pass completion', async () => {
+    const { executeAgentPass, requestModelCompletion } = await setupPassExecutor();
+
+    requestModelCompletion.mockResolvedValueOnce({ status: 'canceled' });
+
+    const PASS_INDEX = 4;
+    const recordRequestPayloadSizeFn = jest.fn(async () => {});
+    const guardRequestPayloadSizeFn = jest.fn(async () => {});
+
+    const context = createTestContext(PASS_INDEX);
+    context.guardRequestPayloadSizeFn = guardRequestPayloadSizeFn;
+    context.recordRequestPayloadSizeFn = recordRequestPayloadSizeFn;
+
+    await executeAgentPass(context);
+
+    expect(recordRequestPayloadSizeFn).toHaveBeenCalledTimes(1);
+    expect(recordRequestPayloadSizeFn).toHaveBeenCalledWith({
+      history: context.history,
+      model: 'gpt-5-codex',
+      passIndex: PASS_INDEX,
+    });
+  });
 });

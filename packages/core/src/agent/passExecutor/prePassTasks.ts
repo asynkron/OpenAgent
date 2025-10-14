@@ -17,6 +17,11 @@ export type GuardRequestPayloadSizeFn =
   | null
   | undefined;
 
+export type RecordRequestPayloadSizeFn =
+  | ((options: GuardRequestPayloadSizeInput) => Promise<void>)
+  | null
+  | undefined;
+
 type SummarizeContextUsageFn =
   (typeof import('../../utils/contextUsage.js'))['summarizeContextUsage'];
 type RequestModelCompletionFn = (typeof import('../modelRequest.js'))['requestModelCompletion'];

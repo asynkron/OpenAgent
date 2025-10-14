@@ -1,6 +1,9 @@
 import type { ResponsesClient } from '../openai/responses.js';
 import type { HistoryCompactor, HistoryCompactorOptions } from './historyCompactor.js';
-import type { GuardRequestPayloadSizeFn } from './passExecutor/prePassTasks.js';
+import type {
+  GuardRequestPayloadSizeFn,
+  RecordRequestPayloadSizeFn,
+} from './passExecutor/prePassTasks.js';
 import type { ExecuteAgentPassOptions } from './passExecutor.js';
 import type { createPlanManager, PlanManagerOptions } from './planManager.js';
 import type { PromptCoordinatorOptions } from './promptCoordinator.js';
@@ -26,6 +29,7 @@ export type GuardableRequestModelCompletion = NonNullable<
 
 export type GuardedRequestModelCompletion = GuardableRequestModelCompletion & {
   guardRequestPayloadSize: GuardRequestPayloadSizeFn;
+  recordRequestPayloadBaseline: RecordRequestPayloadSizeFn;
 };
 
 export type AsyncQueueLike<T> = Pick<AsyncQueueType<T>, 'push' | 'close' | 'next'>;
@@ -79,6 +83,7 @@ export type ExecuteAgentPassDependencies = Partial<
 > & {
   requestModelCompletionFn?: GuardedRequestModelCompletion;
   guardRequestPayloadSizeFn?: GuardRequestPayloadSizeFn;
+  recordRequestPayloadSizeFn?: RecordRequestPayloadSizeFn;
 };
 
 export type PlanManagerFactoryConfig = PlanManagerOptions & {

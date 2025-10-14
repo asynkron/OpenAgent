@@ -14,6 +14,7 @@ import type {
 import type {
   GuardRequestPayloadSizeFn,
   GuardRequestPayloadSizeInput,
+  RecordRequestPayloadSizeFn,
 } from './passExecutor/prePassTasks.js';
 
 interface PayloadGuardConfig {
@@ -76,16 +77,22 @@ export function createPayloadGuard({
     delegate: GuardableRequestModelCompletion | null | undefined,
   ) => GuardedRequestModelCompletion;
 } {
-  let previousRequestPayloadSize: number | null = null;
+  let lastTransmittedPayloadSize: number | null = null;
+
+  const recordPayloadSize = (payloadSize: number | null): void => {
+    if (Number.isFinite(payloadSize)) {
+      lastTransmittedPayloadSize = payloadSize as number;
+    }
+  };
 
   const evaluateRequestPayloadSize = async (
     options: GuardRequestPayloadSizeInput | GuardRequestOptions,
-  ): Promise<void> => {
+  ): Promise<number | null> => {
     const payloadSize = estimateRequestPayloadSize(options?.history, options?.model, emitter);
-    if (Number.isFinite(previousRequestPayloadSize) && Number.isFinite(payloadSize)) {
-      const previous = previousRequestPayloadSize as number;
+    if (Number.isFinite(lastTransmittedPayloadSize) && Number.isFinite(payloadSize)) {
+      const previous = lastTransmittedPayloadSize as number;
       const current = payloadSize as number;
-      const growthFactor = current / previous;
+      const growthFactor = previous > 0 ? current / previous : Number.POSITIVE_INFINITY;
 
       if (growthFactor >= MAX_REQUEST_GROWTH_FACTOR && current - previous > 1024) {
         emitter.logWithFallback(
@@ -113,9 +120,7 @@ export function createPayloadGuard({
       }
     }
 
-    if (Number.isFinite(payloadSize)) {
-      previousRequestPayloadSize = payloadSize as number;
-    }
+    return Number.isFinite(payloadSize) ? (payloadSize as number) : null;
   };
 
   const buildGuardedRequestModelCompletion = (
@@ -126,12 +131,19 @@ export function createPayloadGuard({
 
     const guardedRequest = Object.assign(
       async (options: GuardRequestOptions) => {
-        await evaluateRequestPayloadSize(options);
-        return requestFn(options);
+        const payloadSize = await evaluateRequestPayloadSize(options);
+        const result = await requestFn(options);
+        recordPayloadSize(payloadSize);
+        return result;
       },
       {
-        guardRequestPayloadSize: (async ({ history, model, passIndex }) =>
-          evaluateRequestPayloadSize({ history, model, passIndex })) as GuardRequestPayloadSizeFn,
+        guardRequestPayloadSize: (async ({ history, model, passIndex }) => {
+          await evaluateRequestPayloadSize({ history, model, passIndex });
+        }) as GuardRequestPayloadSizeFn,
+        recordRequestPayloadBaseline: (async ({ history, model }) => {
+          const size = estimateRequestPayloadSize(history, model, emitter);
+          recordPayloadSize(size);
+        }) as RecordRequestPayloadSizeFn,
       },
     );
 

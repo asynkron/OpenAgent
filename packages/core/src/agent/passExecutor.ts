@@ -68,6 +68,7 @@ export async function executeAgentPass(options: ExecuteAgentPassOptions): Promis
     summarizeContextUsageFn = defaultSummarizeContextUsage,
     incrementCommandCountFn = defaultIncrementCommandCount,
     guardRequestPayloadSizeFn = null,
+    recordRequestPayloadSizeFn = null,
   } = options;
 
   if (typeof passIndex !== 'number') {
@@ -84,6 +85,28 @@ export async function executeAgentPass(options: ExecuteAgentPassOptions): Promis
   });
 
   const planManagerAdapter: PlanManagerAdapter | null = createPlanManagerAdapter(planManager);
+
+  const recordLatestBaseline = async (): Promise<void> => {
+    if (!recordRequestPayloadSizeFn) {
+      return;
+    }
+
+    try {
+      await recordRequestPayloadSizeFn({ history, model, passIndex });
+    } catch (error) {
+      emitEvent({
+        type: 'status',
+        level: 'warn',
+        message: '[failsafe] Unable to record request payload baseline after pass.',
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+
+  const finalizePass = async (result: boolean): Promise<boolean> => {
+    await recordLatestBaseline();
+    return result;
+  };
 
   await guardRequestPayloadSize({
     guardRequestPayloadSizeFn,
@@ -120,11 +143,11 @@ export async function executeAgentPass(options: ExecuteAgentPassOptions): Promis
   });
 
   if (completionAttempt.status === 'canceled') {
-    return false;
+    return finalizePass(false);
   }
 
   if (completionAttempt.status === 'missing-content') {
-    return false;
+    return finalizePass(false);
   }
 
   const responseResolution = evaluateAssistantResponse({
@@ -139,7 +162,7 @@ export async function executeAgentPass(options: ExecuteAgentPassOptions): Promis
   });
 
   if (responseResolution.status !== 'success') {
-    return true;
+    return finalizePass(true);
   }
 
   emitEvent({ type: 'assistant-message', message: responseResolution.parsed.message ?? '' });
@@ -169,7 +192,7 @@ export async function executeAgentPass(options: ExecuteAgentPassOptions): Promis
         ? responseResolution.parsed.message
         : '';
     const outcome = await planRuntime.handleNoExecutable({ parsedMessage: assistantMessage });
-    return outcome === 'continue';
+    return finalizePass(outcome === 'continue');
   }
 
   planRuntime.resetPlanReminder();
@@ -197,7 +220,7 @@ export async function executeAgentPass(options: ExecuteAgentPassOptions): Promis
     while (nextExecutable) {
       const loopResult = await commandRuntime.execute(nextExecutable);
       if (loopResult === 'stop') {
-        return true;
+        return finalizePass(true);
       }
       nextExecutable = planRuntime.selectNextExecutableEntry();
     }
@@ -210,7 +233,7 @@ export async function executeAgentPass(options: ExecuteAgentPassOptions): Promis
   await planRuntime.finalize();
   planRuntime.resetPlanReminder();
 
-  return true;
+  return finalizePass(true);
 }
 
 export default {

@@ -168,6 +168,8 @@ export function createAgentRuntime({
   normalizedPassExecutorDeps.requestModelCompletionFn = guardedRequestModelCompletion;
   normalizedPassExecutorDeps.guardRequestPayloadSizeFn =
     guardedRequestModelCompletion.guardRequestPayloadSize;
+  normalizedPassExecutorDeps.recordRequestPayloadSizeFn =
+    guardedRequestModelCompletion.recordRequestPayloadBaseline;
 
   // Prompt coordinator + ESC controller share DI hooks, so delegate to the helper.
   const { promptCoordinator, escController } = createPromptCoordinatorBundle({
