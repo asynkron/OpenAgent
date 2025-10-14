@@ -8,3 +8,5 @@ Subdirectories:
 Known risks:
 - Contents are generated and may be overwritten by future agent runs.
 - Large binary assets are avoided; the project is code-only for portability.
+
+- Temp project: Pac-Man CRT at .openagent/tmp/pacman-crt (HTML5 Canvas, CSS CRT effects)
