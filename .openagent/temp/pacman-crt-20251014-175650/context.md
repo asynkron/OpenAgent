@@ -19,3 +19,6 @@ Notes
 
 Changelog
 - Bugfix: Ghosts can now exit the house. Gate blocks Pac-Man, opens for ghosts after the ready timer.
+
+Changelog
+- Tweak: Reduced initial ready delay to 180 frames (~3s) for faster testing.
