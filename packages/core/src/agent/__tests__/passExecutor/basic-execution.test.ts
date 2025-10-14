@@ -48,10 +48,9 @@ describe('executeAgentPass', () => {
       (event) => Array.isArray(event.plan) && event.plan[0]?.status === 'running',
     );
     expect(runningEvent).toBeDefined();
-    const completedEvent = planEvents.find(
-      (event) => Array.isArray(event.plan) && event.plan[0]?.status === 'completed',
-    );
-    expect(completedEvent).toBeDefined();
+    const finalPlanEvent = planEvents[planEvents.length - 1];
+    expect(Array.isArray(finalPlanEvent.plan)).toBe(true);
+    expect(finalPlanEvent.plan).toHaveLength(0);
   });
 
   test('merges incoming plans and marks successful commands as completed', async () => {
@@ -122,10 +121,11 @@ describe('executeAgentPass', () => {
       .map(([event]) => event)
       .filter((event) => event && event.type === 'plan');
     const finalPlanEvent = planEvents[planEvents.length - 1];
-    expect(finalPlanEvent.plan[0].status).toBe('completed');
+    expect(Array.isArray(finalPlanEvent.plan)).toBe(true);
+    expect(finalPlanEvent.plan).toHaveLength(0);
   });
 
-  test('marks every executed plan step as completed even when later steps reorder', async () => {
+  test('removes executed plan steps even when later steps reorder', async () => {
     const executedRuns = [];
     const { executeAgentPass, parseAssistantResponse, executeAgentCommand, planHasOpenSteps } =
       await setupPassExecutor({
@@ -196,150 +196,93 @@ describe('executeAgentPass', () => {
       .filter((event) => event && event.type === 'plan');
     expect(planEvents.length).toBeGreaterThanOrEqual(3);
     const finalPlanEvent = planEvents[planEvents.length - 1];
-    expect(finalPlanEvent.plan[0].status).toBe('completed');
-    expect(finalPlanEvent.plan[1].status).toBe('completed');
+    expect(Array.isArray(finalPlanEvent.plan)).toBe(true);
+    expect(finalPlanEvent.plan).toHaveLength(0);
   });
 
-  test('caps plan reminder auto-response after three consecutive attempts', async () => {
-    const {
-      executeAgentPass,
-      requestModelCompletion,
-      extractOpenAgentToolCall,
-      parseAssistantResponse,
-      validateAssistantResponseSchema,
-      validateAssistantResponse,
-      planHasOpenSteps,
-    } = await setupPassExecutor();
+  test('executes dependent plan steps after prerequisites complete', async () => {
+    const executedRuns: string[] = [];
+    const { executeAgentPass, parseAssistantResponse, executeAgentCommand, planHasOpenSteps } =
+      await setupPassExecutor({
+        executeAgentCommandImpl: ({ command }) => {
+          executedRuns.push(command?.run ?? '');
+          return {
+            result: { stdout: 'ready', stderr: '', exit_code: 0 },
+            executionDetails: { code: 0 },
+          };
+        },
+      });
 
-    const emitEvent = jest.fn();
-    const history = [];
-
-    const planReminderMessage =
-      'The plan is not completed, either send a command to continue, update the plan, take a deep breath and reanalyze the situation, add/remove steps or sub-steps, or abandon the plan if we don´t know how to continue';
+    planHasOpenSteps.mockReturnValue(true);
 
     parseAssistantResponse.mockImplementation(() => ({
       ok: true,
       value: {
-        message: 'Still reviewing the open plan steps.',
+        message: 'Executing dependent plan',
         plan: [
           {
-            step: 'Investigate',
-            title: 'Investigate',
-            status: 'running',
-            command: { run: '   ', shell: '   ' },
+            id: 'a',
+            title: 'First task',
+            status: 'pending',
+            command: { run: 'echo one' },
+          },
+          {
+            id: 'b',
+            title: 'Second task',
+            status: 'pending',
+            waitingForId: ['a'],
+            command: { run: 'echo two' },
           },
         ],
       },
       recovery: { strategy: 'direct' },
     }));
-    planHasOpenSteps.mockReturnValue(true);
 
-    const tracker = {
-      count: 0,
-      increment() {
-        this.count += 1;
-        return this.count;
-      },
-      reset() {
-        this.count = 0;
-      },
-      getCount() {
-        return this.count;
-      },
-    };
+    const emitEvent = jest.fn();
+    const history: unknown[] = [];
 
-    let passIndex = 1;
-
-    const runPass = async () => {
-      const result = await executeAgentPass({
-        openai: {},
-        model: 'gpt-5-codex',
-        history,
-        emitEvent,
-        runCommandFn: jest.fn(),
-        applyFilterFn: jest.fn(),
-        tailLinesFn: jest.fn(),
-        getNoHumanFlag: () => false,
-        setNoHumanFlag: () => {},
-        planReminderMessage,
-        startThinkingFn: jest.fn(),
-        stopThinkingFn: jest.fn(),
-        escState: {},
-        approvalManager: null,
-        historyCompactor: null,
-        planManager: null,
-        emitAutoApproveStatus: false,
-        planAutoResponseTracker: tracker,
-        passIndex,
-      });
-
-      const currentPass = passIndex;
-      passIndex += 1;
-      return { result, pass: currentPass };
-    };
-
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
-      emitEvent.mockClear();
-      const previousHistoryLength = history.length;
-
-      const { result, pass } = await runPass();
-
-      expect(result).toBe(true);
-      expect(requestModelCompletion).toHaveBeenCalledTimes(attempt);
-      expect(extractOpenAgentToolCall).toHaveBeenCalledTimes(attempt);
-      expect(parseAssistantResponse).toHaveBeenCalledTimes(attempt);
-      expect(validateAssistantResponseSchema).toHaveBeenCalledTimes(attempt);
-      expect(validateAssistantResponse).toHaveBeenCalledTimes(attempt);
-
-      expect(emitEvent).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'status', level: 'warn', message: planReminderMessage }),
-      );
-      expect(history).toHaveLength(previousHistoryLength + 2);
-      const autoResponseEntry = history[history.length - 1];
-      expect(autoResponseEntry).toMatchObject({
-        eventType: 'chat-message',
-        role: 'assistant',
-        pass,
-      });
-      expect(autoResponseEntry.payload).toEqual({
-        role: 'assistant',
-        content: autoResponseEntry.content,
-      });
-      const parsedReminder = JSON.parse(autoResponseEntry.content);
-      expect(parsedReminder).toMatchObject({ type: 'plan-reminder' });
-      expect(parsedReminder.auto_response).toBe(planReminderMessage);
-      expect(tracker.getCount()).toBe(attempt);
-
-      const assistantEntry = history[history.length - 2];
-      expect(assistantEntry).toMatchObject({ pass });
-      expect(assistantEntry.payload).toEqual({
-        role: 'assistant',
-        content: assistantEntry.content,
-      });
-    }
-
-    emitEvent.mockClear();
-    const previousHistoryLength = history.length;
-
-    const { result: suppressedResult, pass: suppressedPass } = await runPass();
-
-    expect(suppressedResult).toBe(false);
-    expect(emitEvent).not.toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'status', message: planReminderMessage }),
-    );
-    expect(history).toHaveLength(previousHistoryLength + 1);
-    const suppressedEntry = history[history.length - 1];
-    expect(suppressedEntry).toEqual(
-      expect.objectContaining({
-        eventType: 'chat-message',
-        role: 'assistant',
-        pass: suppressedPass,
-      }),
-    );
-    expect(suppressedEntry.payload).toEqual({
-      role: 'assistant',
-      content: suppressedEntry.content,
+    const PASS_INDEX = 34;
+    const result = await executeAgentPass({
+      openai: {},
+      model: 'gpt-5-codex',
+      history,
+      emitEvent,
+      runCommandFn: jest.fn(),
+      applyFilterFn: jest.fn(),
+      tailLinesFn: jest.fn(),
+      getNoHumanFlag: () => false,
+      setNoHumanFlag: () => {},
+      planReminderMessage: 'remember the plan',
+      startThinkingFn: jest.fn(),
+      stopThinkingFn: jest.fn(),
+      escState: {},
+      approvalManager: null,
+      historyCompactor: null,
+      planManager: null,
+      emitAutoApproveStatus: false,
+      passIndex: PASS_INDEX,
     });
-    expect(tracker.getCount()).toBe(4);
+
+    expect(result).toBe(true);
+    expect(executeAgentCommand).toHaveBeenCalledTimes(2);
+    expect(executedRuns).toEqual(['echo one', 'echo two']);
+
+    const planEvents = emitEvent.mock.calls
+      .map(([event]) => event)
+      .filter((event) => event && event.type === 'plan');
+
+    const dependentReadyEvent = planEvents.find(
+      (event) =>
+        Array.isArray(event.plan) &&
+        event.plan.length === 1 &&
+        event.plan[0]?.id === 'b' &&
+        Array.isArray(event.plan[0]?.waitingForId) &&
+        event.plan[0].waitingForId.length === 0,
+    );
+    expect(dependentReadyEvent).toBeDefined();
+
+    const finalPlanEvent = planEvents[planEvents.length - 1];
+    expect(Array.isArray(finalPlanEvent.plan)).toBe(true);
+    expect(finalPlanEvent.plan).toHaveLength(0);
   });
 });
