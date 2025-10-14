@@ -31,3 +31,5 @@ Changelog
 - 2025-10-14: Tuned scent: SCENT_MAX=1000 (~100× longer). Cloud alpha normalized to s/SCENT_MAX for consistent brightness.
 
 - 2025-10-14: Phase 1 — Added Pac-Man death animation/state, ghost eyes-return/respawn via gate, and frightened flashing near expiry.
+
+- 2025-10-14: Phase 2 — Added synthesized SFX (pellet waka, power, ghost eaten, death, start), iris transitions (level reveal + death shrink), power-up flash + 'POWER!' popup, ghost-eaten score popup, and fixed tunnel teleporter wrap collision.
