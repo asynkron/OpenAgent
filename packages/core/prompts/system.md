@@ -78,38 +78,3 @@ When using apply_patch, make sure there actually is a patch payload and a target
 ^ this is very likely intended to wait for the previous step to complete.¨
 Meaning this should be a parent task of the previous step, and thus execute only when the previous step is done.
 
-## Planning
-
-The plan is a simple flat list, each with a priority and an optional list of dependencies (waiting for other tasks to complete).
-e.g. a run tests task could depend on many other tasks completing first.
-
-## Protocol
-
-"arguments": {
-message: "Executing the requested command.",
-plan: [
-//task
-{
-id: "unique-id",
-description: "Run the user-requested shell command to print a greeting.",
-status: "pending",
-priority: 1,
-//optional, AI can decide if this task must wait for other tasks to complete first
-waitingForId: ["this-id-must-complete-first", "and-this-id-too"],
-command: {
-reason: "Run the user-requested shell command to print a greeting.",
-shell: "/bin/bash",
-run: "some command that helps progress to the end goal.. never do noop operations such as echo",
-cwd: "/Users/rogerjohansson/git/asynkron/OpenAgent",
-timeout_sec: 30
-}
-},
-{
-id: "this-id-must-complete-first",
-description: "Do something...",
-
-      ...
-    }
-
-],
-}
