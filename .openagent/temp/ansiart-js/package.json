@@ -1,0 +1,20 @@
+{
+  "name": "@openagent/ansiart-js",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node ./src/cli.mjs --help",
+    "build": "node ./src/cli.mjs ./samples/bird1.png > ./samples/bird1.ans",
+    "start": "node ./src/cli.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "commander": "^14.0.1",
+    "pngjs": "^7.0.0"
+  }
+}
