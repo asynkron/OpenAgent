@@ -47,6 +47,8 @@
   intrinsic sizing. Locally generated entry ids drive Ink’s `Static` keys so duplicate runtime identifiers from
   streaming updates do not block new rows, and assistant entries still reuse the originating runtime `__id`
   as their React key to prevent memoized subtrees from resetting.
+- Command entries now apply the theme-provided border on the outer wrapper so the plan header and body
+  render inside a single white rounded frame by default, while still allowing overrides through the theme.
 - `Command.tsx` now treats theme-driven style props as typed records instead of loose `any` maps, keeping the lint
   surface clean while preserving the flexible merge behaviour required by theme overrides.
 - `CliApp.tsx` keeps lint noise down by only importing the history snapshot helper that remains in use; the unused
