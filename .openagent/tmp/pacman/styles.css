@@ -1,0 +1,94 @@
+:root {
+  --bg: #000;
+  --frame: #111;
+  --scanline-opacity: 0.14;
+  --vignette-opacity: 0.35;
+  --glare-opacity: 0.06;
+  --flicker-min: 0.96;
+  --flicker-max: 1.00;
+  --bleed-r: rgba(255, 40, 40, 0.16);
+  --bleed-c: rgba(40, 255, 255, 0.16);
+}
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: #f2f2f2;
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+.screen {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 2vh;
+}
+.crt-wrap {
+  position: relative;
+  background: #000;
+  border-radius: 14px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.8), inset 0 0 24px rgba(255,255,255,0.05);
+  padding: 20px; /* bezel */
+  transform: perspective(1200px) rotateX(0.8deg);
+}
+canvas#game {
+  display: block;
+  /* internal resolution is 224×288; CSS will scale while keeping pixels crisp */
+  image-rendering: pixelated;
+  filter: contrast(1.12) saturate(1.2) brightness(1.06)
+          drop-shadow(1px 0 0 var(--bleed-r))
+          drop-shadow(-1px 0 0 var(--bleed-c));
+}
+.overlay {
+  position: absolute;
+  top: 20px; left: 20px; right: 20px; bottom: 20px; /* match bezel padding */
+  pointer-events: none;
+}
+.scanlines {
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, var(--scanline-opacity)) 0px,
+    rgba(0, 0, 0, var(--scanline-opacity)) 1px,
+    rgba(0, 0, 0, 0.0) 2px,
+    rgba(0, 0, 0, 0.0) 3px
+  );
+  mix-blend-mode: multiply;
+}
+.vignette {
+  background: radial-gradient(ellipse at center,
+    rgba(0,0,0,0) 50%,
+    rgba(0,0,0,var(--vignette-opacity)) 100%);
+  border-radius: 10px;
+}
+.glare {
+  background: radial-gradient(ellipse at 20% -10%,
+    rgba(255,255,255,var(--glare-opacity)) 0%,
+    rgba(255,255,255,0.02) 30%,
+    rgba(255,255,255,0) 60%);
+}
+.flicker {
+  animation: flicker 0.06s infinite steps(2);
+}
+@keyframes flicker {
+  0% { opacity: var(--flicker-min); }
+  100% { opacity: var(--flicker-max); }
+}
+.hint {
+  opacity: 0.7;
+  font-size: 12px;
+  margin-top: 16px;
+}
+/* Responsive scale: keep aspect ratio while fitting viewport */
+:root { --scale: 3; }
+@media (max-height: 900px) {
+  :root { --scale: 2.5; }
+}
+@media (max-height: 720px) {
+  :root { --scale: 2; }
+}
+@media (max-height: 600px) {
+  :root { --scale: 1.5; }
+}
+.crt-wrap canvas#game {
+  width: calc(224px * var(--scale));
+  height: calc(288px * var(--scale));
+}
