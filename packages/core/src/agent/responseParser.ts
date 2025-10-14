@@ -57,7 +57,6 @@ export interface AssistantCommand extends JsonLikeObject {
 
 export interface PlanStep extends JsonLikeObject {
   command?: AssistantCommand | string | unknown[];
-  age?: number;
   substeps?: PlanStep[];
   children?: PlanStep[];
   steps?: PlanStep[];
@@ -279,10 +278,6 @@ function normalizePlanStep(step: PlanStep): PlanStep {
 
   if ('command' in normalizedStep) {
     normalizedStep.command = normalizeCommandPayload(normalizedStep.command);
-  }
-
-  if (!Number.isInteger(normalizedStep.age) || (normalizedStep.age as number) < 0) {
-    normalizedStep.age = 0;
   }
 
   const candidate = Array.isArray(normalizedStep[CHILD_KEY])

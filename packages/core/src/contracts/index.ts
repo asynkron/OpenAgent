@@ -34,7 +34,6 @@ export interface ToolPlanStep {
   id: string;
   title: string;
   status: 'pending' | 'completed' | 'failed' | 'abandoned';
-  age?: number;
   waitingForId?: string[];
   command: ToolCommand;
   observation?: Record<string, unknown>;
@@ -63,7 +62,6 @@ export const ToolPlanStepSchema = z
     id: z.string(),
     title: z.string(),
     status: z.enum(['pending', 'completed', 'failed', 'abandoned']),
-    age: z.number().int().min(0).default(0),
     waitingForId: z.array(z.string()).default([]),
     command: ToolCommandSchema,
     observation: z.record(z.string(), z.unknown()).optional(),
@@ -101,7 +99,7 @@ export const ToolResponseJsonSchema = {
         type: 'object',
         description: 'a single task in the DAG plan, represents both the task and the shell command to execute',
         additionalProperties: false,
-        required: ['id', 'title', 'status', 'age', 'waitingForId', 'command'],
+        required: ['id', 'title', 'status', 'waitingForId', 'command'],
         properties: {
           id: {
             type: 'string',
@@ -115,13 +113,6 @@ export const ToolResponseJsonSchema = {
             type: 'string',
             enum: ['pending', 'completed', 'failed', 'abandoned'],
             description: 'Current execution status for the plan step.',
-          },
-          age: {
-            type: 'integer',
-            minimum: 0,
-            default: 0,
-            description:
-              'Number of assistant responses observed while this step has been running; increments once per response when status remains running.',
           },
           waitingForId: {
             type: 'array',

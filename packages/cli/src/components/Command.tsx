@@ -58,47 +58,44 @@ type CommandProps = {
   planStep?: PlanStep | null;
 };
 
-function formatPlanStepSummary(planStep: PlanStep | null | undefined): string | null {
+function buildPlanStepHeading(planStep: PlanStep | null | undefined): string | null {
   if (!planStep || typeof planStep !== 'object') {
     return null;
   }
 
   const idValue = planStep.id;
   const titleValue = planStep.title;
-  const statusValue = planStep.status;
-  const ageValue = planStep.age;
 
   const idText =
     typeof idValue === 'string' || typeof idValue === 'number' ? String(idValue).trim() : '';
   const titleText = typeof titleValue === 'string' ? titleValue.trim() : '';
-  const statusText = typeof statusValue === 'string' ? statusValue.trim() : '';
 
-  const parsedAge = Number.parseInt(String(ageValue ?? '').trim(), 10);
-  const ageText = Number.isFinite(parsedAge) && parsedAge >= 0 ? `age ${parsedAge}` : '';
-
-  const descriptorParts: string[] = [];
+  if (idText && titleText) {
+    return `#${idText} — ${titleText}`;
+  }
   if (idText) {
-    descriptorParts.push(`#${idText}`);
+    return `#${idText}`;
   }
   if (titleText) {
-    descriptorParts.push(titleText);
+    return titleText;
   }
 
-  const descriptor = descriptorParts.join(' — ');
-  const metadataParts: string[] = [];
-  if (statusText) {
-    metadataParts.push(statusText);
-  }
-  if (ageText) {
-    metadataParts.push(ageText);
-  }
+  return null;
+}
 
-  if (!descriptor && metadataParts.length === 0) {
+function formatPlanStepSummary(planStep: PlanStep | null | undefined): string | null {
+  if (!planStep || typeof planStep !== 'object') {
     return null;
   }
 
-  const metadataSuffix = metadataParts.length > 0 ? ` (${metadataParts.join(' • ')})` : '';
-  return descriptor ? `Plan step ${descriptor}${metadataSuffix}` : `Plan step${metadataSuffix}`;
+  const statusValue = planStep.status;
+  const statusText = typeof statusValue === 'string' ? statusValue.trim() : '';
+
+  if (!statusText) {
+    return null;
+  }
+
+  return `Plan step status: ${statusText}`;
 }
 
 function splitRunSegments(runValue: string | null | undefined): RunSegment[] | null {
@@ -270,6 +267,7 @@ export function Command({
 
   const headingDetailProps: TextStyleProps = { ...commandHeadingDetailProps };
 
+  const planStepHeading = buildPlanStepHeading(planStep);
   const planStepSummary = formatPlanStepSummary(planStep);
   const planStepDetailProps: TextStyleProps = { ...headingDetailProps };
   if (!planStepDetailProps.color && headingDetailProps.color) {
@@ -301,18 +299,33 @@ export function Command({
 
   const containerProps: BoxStyleProps = {
     flexDirection: 'column',
-    marginTop: 1,
     paddingX: 1,
     paddingY: 1,
     width: '100%',
     alignSelf: 'stretch',
     flexGrow: 1,
-    borderStyle: 'round',
     ...commandContainerProps,
   };
 
+  const rootProps: BoxStyleProps = {
+    flexDirection: 'column',
+    width: '100%',
+    alignSelf: containerProps.alignSelf ?? 'stretch',
+    flexGrow: containerProps.flexGrow ?? 1,
+    marginTop: containerProps.marginTop ?? 1,
+  };
+
+  delete containerProps.alignSelf;
+  delete containerProps.flexGrow;
+  delete containerProps.marginTop;
+  delete containerProps.borderStyle;
+  delete containerProps.borderColor;
+
   if (!containerProps.color) {
     containerProps.color = commandColors.fg;
+  }
+  if (!containerProps.backgroundColor) {
+    containerProps.backgroundColor = 'black';
   }
 
   const runContainerProps: BoxStyleProps = {
@@ -324,21 +337,46 @@ export function Command({
     runContainerProps.flexDirection = 'column';
   }
 
+  const horizontalPadding =
+    typeof containerProps.paddingX === 'number' ? containerProps.paddingX : 1;
+
+  const planHeaderProps: BoxStyleProps = {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    paddingX: horizontalPadding,
+    paddingY: 0,
+    backgroundColor: '#1f1f1f',
+  };
+
+  const planHeadingColor =
+    typeof headingProps.color === 'string' ? (headingProps.color as string) : commandColors.fg;
+
   return (
-    <Box {...(containerProps as Record<string, unknown>)}>
-      <Text {...(headingProps as Record<string, unknown>)}>
-        <Text {...(headingBadgeProps as Record<string, unknown>)}>{` ${type} `}</Text>
-        <Text {...(headingDetailProps as Record<string, unknown>)}>{` ${detail}`}</Text>
-        {planStepSummary ? (
-          <Text {...(planStepDetailProps as Record<string, unknown>)}>{` • ${planStepSummary}`}</Text>
+    <Box {...(rootProps as Record<string, unknown>)}>
+      <Box {...(planHeaderProps as Record<string, unknown>)}>
+        <Text color="#ff5f56">●</Text>
+        <Text> </Text>
+        <Text color="#ffbd2e">●</Text>
+        <Text> </Text>
+        <Text color="#28c840">●</Text>
+        {planStepHeading ? <Text color={planHeadingColor}>{`  ${planStepHeading}`}</Text> : null}
+      </Box>
+      <Box {...(containerProps as Record<string, unknown>)}>
+        <Text {...(headingProps as Record<string, unknown>)}>
+          <Text {...(headingBadgeProps as Record<string, unknown>)}>{` ${type} `}</Text>
+          <Text {...(headingDetailProps as Record<string, unknown>)}>{` ${detail}`}</Text>
+          {planStepSummary ? (
+            <Text {...(planStepDetailProps as Record<string, unknown>)}>{` • ${planStepSummary}`}</Text>
+          ) : null}
+        </Text>
+        {runElements ? (
+          <Box {...(runContainerProps as Record<string, unknown>)}>{runElements}</Box>
         ) : null}
-      </Text>
-      {runElements ? (
-        <Box {...(runContainerProps as Record<string, unknown>)}>{runElements}</Box>
-      ) : null}
-      {summaryLines.map((line, index) => (
-        <SummaryLine key={index} line={line} />
-      ))}
+        {summaryLines.map((line, index) => (
+          <SummaryLine key={index} line={line} />
+        ))}
+      </Box>
     </Box>
   );
 }

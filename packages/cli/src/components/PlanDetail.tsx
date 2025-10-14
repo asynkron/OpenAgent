@@ -15,7 +15,6 @@ export function PlanDetail({ node }: PlanDetailProps): ReactElement | null {
     return null;
   }
 
-  const age = typeof node.age === 'number' && Number.isFinite(node.age) ? node.age : 0;
   const hasCommandPreview =
     typeof node.commandPreview === 'string' && node.commandPreview.length > 0;
   const metaParts: string[] = [];
@@ -28,7 +27,6 @@ export function PlanDetail({ node }: PlanDetailProps): ReactElement | null {
   if (node.blocked && Array.isArray(node.waitingFor) && node.waitingFor.length > 0) {
     metaParts.push(`waiting for ${node.waitingFor.join(', ')}`);
   }
-  metaParts.push(`age ${age}`);
   const metaSuffix = metaParts.length > 0 ? ` -  ${metaParts.join(' • ')}` : '';
 
   return (

@@ -71,7 +71,6 @@ describe('parseAssistantResponse', () => {
       message: 'Running command `echo hello`.',
       plan: [
         {
-          age: 0,
           id: 'plan-step-1',
           title: 'Execute command',
           status: 'pending',
@@ -104,7 +103,6 @@ describe('parseAssistantResponse', () => {
       message: 'Raw command provided as string.',
       plan: [
         {
-          age: 0,
           id: 'plan-step-1',
           title: 'Execute command',
           status: 'pending',
@@ -136,7 +134,6 @@ describe('parseAssistantResponse', () => {
       message: 'Command tokens provided as array.',
       plan: [
         {
-          age: 0,
           id: 'plan-step-1',
           title: 'Execute command',
           status: 'pending',
@@ -175,7 +172,6 @@ describe('parseAssistantResponse', () => {
       message: 'Running command `echo hello`.',
       plan: [
         {
-          age: 0,
           id: 'plan-step-1',
           title: 'Execute command',
           status: 'pending',
@@ -199,7 +195,6 @@ describe('parseAssistantResponse', () => {
       message: expect.stringMatching(/^Running `echo(?: |\n)hello`\./),
       plan: [
         {
-          age: 0,
           id: 'plan-step-execute',
           title: 'Execute nested shell',
           status: 'pending',

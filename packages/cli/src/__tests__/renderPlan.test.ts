@@ -27,14 +27,12 @@ describe('renderPlan', () => {
           id: 'build',
           title: 'Compile project',
           status: 'completed',
-          age: 4,
           priority: 1,
         },
         {
           id: 'docs',
           title: 'Update docs',
           status: 'running',
-          age: 2,
           priority: 2,
           command: {
             run: 'npm test --watch',
@@ -44,7 +42,6 @@ describe('renderPlan', () => {
           id: 'release',
           title: 'Release build',
           status: 'pending',
-          age: 0,
           priority: 3,
           waitingForId: ['docs'],
         },
@@ -56,9 +53,9 @@ describe('renderPlan', () => {
 
       const lines = outputs[0].split('\n');
       expect(lines).toEqual([
-        '✔ 1. Compile project [completed] (priority 1, age 4)',
-        '▶ 2. Update docs [running] (priority 2, age 2) — run: npm test --watch',
-        '⏳ 3. Release build [pending] (priority 3, waiting for docs, age 0)',
+        '✔ 1. Compile project [completed] (priority 1)',
+        '▶ 2. Update docs [running] (priority 2) — run: npm test --watch',
+        '⏳ 3. Release build [pending] (priority 3, waiting for docs)',
       ]);
     } finally {
       logSpy.mockRestore();
