@@ -99,7 +99,7 @@ export function createAgentRuntime({
   userInputPrompt = '\n ▷ ',
   noHumanAutoMessage = NO_HUMAN_AUTO_MESSAGE,
   // New additions
-  eventObservers = null as RuntimeEventObserver[] | null,
+  eventObservers = null,
   idPrefix = 'key',
   // Dependency bag forwarded to executeAgentPass for deeper DI customization
   passExecutorDeps = null,

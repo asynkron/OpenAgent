@@ -10,7 +10,7 @@ import type {
 } from './runtimeTypes.js';
 
 export interface InitializeWithFactoryOptions<TCandidate, TConfig> {
-  factory?: ((config: TConfig) => TCandidate | null | undefined) | null;
+  factory?: (config: TConfig) => TCandidate | null;
   fallback: (config: TConfig) => TCandidate;
   config: TConfig;
   warnMessage?: string;

@@ -14,8 +14,7 @@ export interface GuardRequestPayloadSizeInput {
 
 export type GuardRequestPayloadSizeFn =
   | ((options: GuardRequestPayloadSizeInput) => Promise<void>)
-  | null
-  | undefined;
+  | null;
 
 type SummarizeContextUsageFn =
   (typeof import('../../utils/contextUsage.js'))['summarizeContextUsage'];
@@ -35,7 +34,7 @@ export const guardRequestPayloadSize = async ({
   passIndex,
   emitEvent,
 }: {
-  guardRequestPayloadSizeFn: GuardRequestPayloadSizeFn;
+  guardRequestPayloadSizeFn?: GuardRequestPayloadSizeFn;
   history: ChatMessageEntry[];
   model: string;
   passIndex: number;
@@ -64,7 +63,7 @@ export const compactHistoryIfNeeded = async ({
   history,
   emitEvent,
 }: {
-  historyCompactor: HistoryCompactor | null | undefined;
+  historyCompactor?: HistoryCompactor | null;
   history: ChatMessageEntry[];
   emitEvent: EmitEvent;
 }): Promise<void> => {

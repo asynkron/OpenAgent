@@ -81,7 +81,7 @@ export interface EscWaiterResult {
   cleanup: () => void;
 }
 
-export function createEscWaiter(escState: EscState | null | undefined): EscWaiterResult {
+export function createEscWaiter(escState?: EscState | null): EscWaiterResult {
   if (!escState || typeof escState !== 'object') {
     return { promise: null, cleanup: () => {} };
   }
@@ -113,7 +113,7 @@ export function createEscWaiter(escState: EscState | null | undefined): EscWaite
   return { promise, cleanup };
 }
 
-export function resetEscState(escState: EscState | null | undefined): void {
+export function resetEscState(escState?: EscState | null): void {
   if (!escState || typeof escState !== 'object') {
     return;
   }

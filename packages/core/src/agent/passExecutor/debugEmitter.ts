@@ -1,6 +1,6 @@
 import type { DebugMetadata } from './types.js';
 
-export type DebugListener = ((payload: DebugMetadata) => void) | null | undefined;
+export type DebugListener = (payload: DebugMetadata) => void;
 
 export interface DebugEmitter {
   emit(payload: unknown): void;
@@ -19,7 +19,7 @@ const normalizePayload = (candidate: unknown): DebugMetadata | null => {
   return payload as DebugMetadata;
 };
 
-export const createDebugEmitter = (listener: DebugListener): DebugEmitter => {
+export const createDebugEmitter = (listener?: DebugListener | null): DebugEmitter => {
   if (typeof listener !== 'function') {
     return {
       emit() {

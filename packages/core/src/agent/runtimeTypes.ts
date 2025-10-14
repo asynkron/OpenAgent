@@ -57,7 +57,7 @@ export interface PlanAutoResponseTracker {
   getCount(): number;
 }
 
-export type IdGeneratorFn = (context: { counter: number }) => string | number | null | undefined;
+export type IdGeneratorFn = (context: { counter: number }) => string | number | null;
 
 export type HistorySnapshot = ChatMessageEntry[];
 

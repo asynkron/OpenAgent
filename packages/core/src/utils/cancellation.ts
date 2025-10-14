@@ -48,7 +48,7 @@ function getTopEntry(): CancellationEntry | null {
   return state.stack[state.stack.length - 1] ?? null;
 }
 
-function removeEntry(entry: CancellationEntry | null | undefined): void {
+function removeEntry(entry?: CancellationEntry | null): void {
   if (!entry) {
     return;
   }
@@ -62,7 +62,7 @@ function removeEntry(entry: CancellationEntry | null | undefined): void {
   }
 }
 
-function markCanceled(entry: CancellationEntry | null | undefined, reason?: unknown): boolean {
+function markCanceled(entry?: CancellationEntry | null, reason?: unknown): boolean {
   if (!entry || entry.canceled) {
     return false;
   }
@@ -91,7 +91,7 @@ export type CancellationRegistration = {
   token: symbol;
   isCanceled: () => boolean;
   cancel: (reason?: unknown) => boolean;
-  setCancelCallback: (fn: CancelCallback | null | undefined) => void;
+  setCancelCallback: (fn?: CancelCallback | null) => void;
   updateDescription: (desc: string) => void;
   unregister: () => void;
 };

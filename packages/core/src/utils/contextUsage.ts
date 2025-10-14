@@ -19,10 +19,8 @@ const MODEL_CONTEXT_WINDOWS = new Map<string, number>(
   MODEL_CONTEXT_ENTRIES.map(([key, value]) => [key.toLowerCase(), value] as const),
 );
 
-type MaybeNullish<T> = T | null | undefined;
-
-function parsePositiveInteger(value: MaybeNullish<unknown>): number | null {
-  if (value === undefined || value === null) {
+function parsePositiveInteger(value: unknown): number | null {
+  if (value == null) {
     return null;
   }
 
@@ -41,7 +39,7 @@ function parsePositiveInteger(value: MaybeNullish<unknown>): number | null {
 }
 
 export type ContextWindowOptions = {
-  model?: MaybeNullish<string>;
+  model?: string | null;
 };
 
 export function getContextWindow({ model }: ContextWindowOptions = {}): number | null {
@@ -68,9 +66,9 @@ export function getContextWindow({ model }: ContextWindowOptions = {}): number |
   return DEFAULT_CONTEXT_WINDOW;
 }
 
-type MessageLike = MaybeNullish<{
+type MessageLike = {
   content?: unknown;
-}>;
+} | null;
 
 function flattenContent(content: unknown): string {
   if (typeof content === 'string') {
@@ -92,7 +90,7 @@ function flattenContent(content: unknown): string {
   return '';
 }
 
-export function estimateTokensForHistory(history: MaybeNullish<readonly MessageLike[]>): number {
+export function estimateTokensForHistory(history?: readonly MessageLike[] | null): number {
   if (!Array.isArray(history) || history.length === 0) {
     return 0;
   }
@@ -127,8 +125,8 @@ export type ContextUsageSummary = {
 };
 
 export type SummarizeContextUsageOptions = {
-  history?: MaybeNullish<readonly MessageLike[]>;
-  model?: MaybeNullish<string>;
+  history?: readonly MessageLike[] | null;
+  model?: string | null;
 };
 
 export function summarizeContextUsage({

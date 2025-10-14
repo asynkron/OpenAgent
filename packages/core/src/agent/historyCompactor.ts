@@ -41,7 +41,7 @@ export interface CompactIfNeededInput {
 }
 
 export interface OpenAIClient {
-  responses?: ((model: string | null | undefined) => unknown) | null;
+  responses?: ((model: string | null) => unknown) | null;
 }
 
 export type Logger = {

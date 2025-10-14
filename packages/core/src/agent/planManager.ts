@@ -101,7 +101,7 @@ export function createPlanManager({
     get(): PlanTree {
       return clonePlan(activePlan);
     },
-    async update(nextPlan: PlanTree | null | undefined): Promise<PlanTree> {
+    async update(nextPlan?: PlanTree | null): Promise<PlanTree> {
       const merging = true;
       if (!Array.isArray(nextPlan) || nextPlan.length === 0) {
         if (!merging) {
@@ -117,7 +117,7 @@ export function createPlanManager({
       await persistPlanSnapshot();
       return clonePlan(activePlan);
     },
-    async sync(nextPlan: PlanTree | null | undefined): Promise<PlanTree> {
+    async sync(nextPlan?: PlanTree | null): Promise<PlanTree> {
       if (!Array.isArray(nextPlan)) {
         activePlan = [];
       } else {

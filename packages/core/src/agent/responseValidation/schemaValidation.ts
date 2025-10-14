@@ -17,7 +17,7 @@ export function validateAssistantResponseSchema(payload: unknown): SchemaValidat
   }
 
   const errors = Array.isArray(schemaValidator.errors)
-    ? schemaValidator.errors.map((error: ErrorObject | null | undefined) => describeSchemaError(error))
+    ? schemaValidator.errors.map((error: ErrorObject | null) => describeSchemaError(error))
     : [
         {
           path: 'response',

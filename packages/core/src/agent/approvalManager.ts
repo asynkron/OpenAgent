@@ -88,7 +88,7 @@ export class ApprovalManager {
     this.parseDecisionFn = typeof parseDecisionFn === 'function' ? parseDecisionFn : undefined;
   }
 
-  shouldAutoApprove(command: JsonLikeObject | null | undefined): AutoApprovalResult {
+  shouldAutoApprove(command: JsonLikeObject | null): AutoApprovalResult {
     if (!command || typeof command !== 'object') {
       return { approved: false, source: null };
     }

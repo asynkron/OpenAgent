@@ -73,7 +73,7 @@ export function createPayloadGuard({
   emitter,
 }: PayloadGuardConfig): {
   buildGuardedRequestModelCompletion: (
-    delegate: GuardableRequestModelCompletion | null | undefined,
+    delegate?: GuardableRequestModelCompletion | null,
   ) => GuardedRequestModelCompletion;
 } {
   let previousRequestPayloadSize: number | null = null;
@@ -119,7 +119,7 @@ export function createPayloadGuard({
   };
 
   const buildGuardedRequestModelCompletion = (
-    delegate: GuardableRequestModelCompletion | null | undefined,
+    delegate?: GuardableRequestModelCompletion | null,
   ): GuardedRequestModelCompletion => {
     const requestFn: GuardableRequestModelCompletion =
       typeof delegate === 'function' ? delegate : defaultRequestModelCompletion;

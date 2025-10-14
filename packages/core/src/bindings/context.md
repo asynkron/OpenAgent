@@ -23,3 +23,7 @@
 
 - Runtime core consumed here: [`../agent/context.md`](../agent/context.md).
 - CLI counterpart: [`../cli/context.md`](../cli/context.md).
+
+## Maintenance Notes (2025-10-17)
+
+- Runtime output iterators now surface `undefined` when no event is ready; the binding filters those nullish values while keeping legacy `null` emitters compatible.

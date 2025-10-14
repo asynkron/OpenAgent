@@ -23,7 +23,9 @@
 - `text.ts` (emits `text.js` for runtime consumption) — string helpers (filters, tailing, shell splitting).
 
 Recent migrations tightened the TypeScript coverage for `asyncQueue`, `contextUsage`, `jsonAssetValidator`, `cancellation`, `fetch`,
-and `output`, replacing `@ts-nocheck` annotations with explicit types to surface errors during compilation.
+and `output`, replacing `@ts-nocheck` annotations with explicit types to surface errors during compilation. Follow-up cleanup aligned
+utility signatures so optional inputs use `null` consistently instead of `null | undefined` unions, simplifying consumers that pass
+through optional history snapshots, cancellation callbacks, and exit codes.
 
 ## Positive Signals
 

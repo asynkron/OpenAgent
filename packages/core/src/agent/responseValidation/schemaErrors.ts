@@ -30,7 +30,7 @@ export function formatInstancePath(instancePath: string): string {
   return pathLabel;
 }
 
-export function buildSchemaErrorMessage(error: ErrorObject | null | undefined): string {
+export function buildSchemaErrorMessage(error?: ErrorObject | null): string {
   if (!error) {
     return 'Schema validation failed.';
   }
@@ -58,7 +58,7 @@ export function buildSchemaErrorMessage(error: ErrorObject | null | undefined): 
   return message.trim();
 }
 
-export function describeSchemaError(error: ErrorObject | null | undefined): SchemaValidationError {
+export function describeSchemaError(error?: ErrorObject | null): SchemaValidationError {
   const pathLabel = formatInstancePath(error?.instancePath ?? '');
   return {
     path: pathLabel,

@@ -3,11 +3,11 @@ import type { PlanStep } from './planExecution.js';
 export interface PlanManagerLike {
   isMergingEnabled?: () => boolean | Promise<boolean>;
   update?: (
-    plan: PlanStep[] | null | undefined,
-  ) => PlanStep[] | null | undefined | Promise<PlanStep[] | null | undefined>;
-  get?: () => PlanStep[] | null | undefined | Promise<PlanStep[] | null | undefined>;
-  reset?: () => PlanStep[] | null | undefined | Promise<PlanStep[] | null | undefined>;
-  sync?: (plan: PlanStep[] | null | undefined) => void | Promise<void>;
+    plan: PlanStep[] | null,
+  ) => PlanStep[] | null | Promise<PlanStep[] | null>;
+  get?: () => PlanStep[] | null | Promise<PlanStep[] | null>;
+  reset?: () => PlanStep[] | null | Promise<PlanStep[] | null>;
+  sync?: (plan: PlanStep[] | null) => void | Promise<void>;
 }
 
 export interface PlanManagerAdapter {
@@ -20,7 +20,7 @@ const toPlanArray = (value: unknown): PlanStep[] | null =>
   Array.isArray(value) ? (value as PlanStep[]) : null;
 
 export const createPlanManagerAdapter = (
-  manager: PlanManagerLike | null | undefined,
+  manager?: PlanManagerLike | null,
 ): PlanManagerAdapter | null => {
   if (!manager || (typeof manager !== 'object' && typeof manager !== 'function')) {
     return null;
@@ -43,7 +43,7 @@ export const createPlanManagerAdapter = (
   };
 
   const ensurePlanWithArg = async (
-    candidate: ((plan: PlanStep[] | null | undefined) => unknown) | null,
+    candidate: ((plan: PlanStep[] | null) => unknown) | null,
     plan: PlanStep[] | null,
   ): Promise<PlanStep[] | null> => {
     if (!candidate) {

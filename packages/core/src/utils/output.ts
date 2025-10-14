@@ -10,7 +10,7 @@ export type CombinedStreams = {
 export function combineStdStreams(
   filteredStdout: unknown,
   filteredStderr: unknown,
-  exitCode: number | null | undefined,
+  exitCode?: number | null,
 ): CombinedStreams {
   const stdoutText = filteredStdout != null ? String(filteredStdout) : '';
   const stderrText = filteredStderr != null ? String(filteredStderr) : '';

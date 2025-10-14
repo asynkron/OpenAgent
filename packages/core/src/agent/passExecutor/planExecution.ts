@@ -24,25 +24,31 @@ export interface ExecutablePlanStep {
 
 const TERMINAL_PLAN_STATUSES = new Set<PlanStatus>(['completed', 'failed', 'abandoned']);
 
-export const ensurePlanStepAge = (node: PlanStep | PlanStep[] | null | undefined): void => {
-  if (!node) {
-    return;
-  }
+const iterateNestedPlanGroups = (step: PlanStep): PlanStep[][] => {
+  const candidateGroups: unknown[] = [];
 
-  if (Array.isArray(node)) {
-    node.forEach(ensurePlanStepAge);
-    return;
-  }
+  const record = step as Record<string, unknown>;
+  candidateGroups.push(record.substeps, record.children, record.steps);
 
-  if (typeof node !== 'object') {
-    return;
-  }
-
-  const numericAge = typeof node.age === 'number' ? node.age : NaN;
-  node.age = Number.isInteger(numericAge) && numericAge >= 0 ? numericAge : 0;
+  return candidateGroups.filter(Array.isArray) as PlanStep[][];
 };
 
-export const incrementRunningPlanStepAges = (plan: PlanStep[] | null | undefined): void => {
+export const ensurePlanStepAge = (plan: PlanStep[]): void => {
+  for (const step of plan) {
+    if (!step || typeof step !== 'object') {
+      continue;
+    }
+
+    const numericAge = typeof step.age === 'number' ? step.age : NaN;
+    step.age = Number.isInteger(numericAge) && numericAge >= 0 ? numericAge : 0;
+
+    for (const nestedGroup of iterateNestedPlanGroups(step)) {
+      ensurePlanStepAge(nestedGroup);
+    }
+  }
+};
+
+export const incrementRunningPlanStepAges = (plan?: PlanStep[] | null): void => {
   if (!Array.isArray(plan)) {
     return;
   }
@@ -72,14 +78,8 @@ export const hasCommandPayload = (command: unknown): command is PlanCommand => {
   return Boolean(run || shell);
 };
 
-export const collectExecutablePlanSteps = (
-  plan: PlanStep[] | null | undefined,
-): ExecutablePlanStep[] => {
+export const collectExecutablePlanSteps = (plan: PlanStep[]): ExecutablePlanStep[] => {
   const executable: ExecutablePlanStep[] = [];
-
-  if (!Array.isArray(plan)) {
-    return executable;
-  }
 
   const lookup = buildPlanLookup(plan);
 
@@ -99,7 +99,7 @@ export const collectExecutablePlanSteps = (
   return executable;
 };
 
-export const getPriorityScore = (step: PlanStep | null | undefined): number => {
+export const getPriorityScore = (step: PlanStep): number => {
   if (!step || typeof step !== 'object') {
     return Number.POSITIVE_INFINITY;
   }
@@ -112,10 +112,6 @@ export const getPriorityScore = (step: PlanStep | null | undefined): number => {
   return Number.POSITIVE_INFINITY;
 };
 
-export const clonePlanForExecution = (plan: PlanStep[] | null | undefined): PlanStep[] => {
-  if (!Array.isArray(plan)) {
-    return [];
-  }
-
+export const clonePlanForExecution = (plan: PlanStep[]): PlanStep[] => {
   return JSON.parse(JSON.stringify(plan)) as PlanStep[];
 };

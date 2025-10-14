@@ -12,7 +12,7 @@ type LoggerLevel = 'log' | 'info' | 'warn' | 'error' | 'debug';
 
 interface RuntimeEmitterConfig {
   outputsQueue: AsyncQueueLike<RuntimeEvent>;
-  eventObservers: RuntimeEventObserver[] | null | undefined;
+  eventObservers?: RuntimeEventObserver[] | null;
   logger: AgentRuntimeOptions['logger'];
   idPrefix: NonNullable<AgentRuntimeOptions['idPrefix']>;
   idGeneratorFn: AgentRuntimeOptions['idGeneratorFn'];

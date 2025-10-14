@@ -16,7 +16,7 @@ export const PLAN_REMINDER_AUTO_RESPONSE_LIMIT = 3;
 // predictable interface even when hosts omit a custom implementation. This keeps the
 // main orchestration loop focused on control flow instead of defensive bookkeeping.
 export const createPlanReminderController = (
-  tracker: PlanAutoResponseTracker | null | undefined,
+  tracker?: PlanAutoResponseTracker | null,
 ): PlanReminderController => {
   if (tracker) {
     if (typeof tracker.increment === 'function' && typeof tracker.reset === 'function') {

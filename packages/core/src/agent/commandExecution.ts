@@ -54,7 +54,7 @@ export interface ExecuteAgentCommandOptions {
   runCommandFn: AgentCommandContext['runCommandFn'];
 }
 
-function normalizeCommand(command: AgentCommand | null | undefined): AgentCommand {
+function normalizeCommand(command?: AgentCommand | null): AgentCommand {
   const normalizedCommand: AgentCommand = command || {};
   const rawRun =
     typeof normalizedCommand.run === 'string' && normalizedCommand.run.trim()

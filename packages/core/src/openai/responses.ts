@@ -16,7 +16,7 @@ type ReasoningEffort = 'low' | 'medium' | 'high';
 
 const VALID_REASONING_EFFORTS = new Set<ReasoningEffort>(['low', 'medium', 'high']);
 
-function normalizeReasoningEffort(value: string | null | undefined): ReasoningEffort | null {
+function normalizeReasoningEffort(value: string | null): ReasoningEffort | null {
   if (typeof value !== 'string') return null;
   const normalized = value.trim().toLowerCase() as ReasoningEffort;
   return VALID_REASONING_EFFORTS.has(normalized) ? normalized : null;
@@ -24,7 +24,7 @@ function normalizeReasoningEffort(value: string | null | undefined): ReasoningEf
 
 // Provider-agnostic env var with backward-compatible alias
 const RAW_REASONING = process.env.AGENT_REASONING_EFFORT ?? process.env.OPENAI_REASONING_EFFORT;
-const ENV_REASONING_EFFORT = normalizeReasoningEffort(RAW_REASONING);
+const ENV_REASONING_EFFORT = normalizeReasoningEffort(RAW_REASONING ?? null);
 
 if (RAW_REASONING && !ENV_REASONING_EFFORT) {
   console.warn('Reasoning effort env must be one of: low, medium, high. Ignoring invalid value.');
@@ -75,7 +75,7 @@ function buildProviderOptions(_reasoningEffort?: ReasoningEffort): any {
   return { openai: { strictJsonSchema: true } } as any;
 }
 
-function mapToolToSchema(tool: SupportedTool | null | undefined): SupportedTool | null {
+function mapToolToSchema(tool?: SupportedTool | null): SupportedTool | null {
   if (!tool || typeof tool !== 'object') {
     return null;
   }

@@ -85,7 +85,7 @@ const stringify = (value: unknown): string => JSON.stringify(value, null, JSON_I
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
 
-const describeCommand = (command: CommandDescriptor | null | undefined): string => {
+const describeCommand = (command?: CommandDescriptor | null): string => {
   if (!command || typeof command !== 'object') {
     return '';
   }

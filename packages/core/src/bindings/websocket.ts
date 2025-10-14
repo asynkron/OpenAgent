@@ -9,7 +9,6 @@ import { isFunction, isPromiseLike, isRecord } from './websocket/guards.js';
 import {
   defaultParseIncoming,
   normaliseIncomingMessage,
-  type IncomingStructuredMessage,
   type ParseIncomingFn,
   type ParsedIncomingMessage,
 } from './websocket/messageUtils.js';
@@ -23,9 +22,9 @@ type SendResult = void | boolean | PromiseLike<void | boolean>;
 const isRuntimeEvent = (value: unknown): value is RuntimeEvent => isRecord(value);
 
 export interface RuntimeOutputs {
-  next(): Promise<RuntimeEvent | null | undefined>;
+  next(): Promise<RuntimeEvent | undefined>;
   close(): void;
-  [Symbol.asyncIterator]?(): AsyncIterator<RuntimeEvent | null | undefined>;
+  [Symbol.asyncIterator]?(): AsyncIterator<RuntimeEvent | undefined>;
 }
 
 export interface RuntimeEvent extends Record<string, unknown> {}
@@ -123,7 +122,7 @@ function attachListener(socket: WebSocketLike, event: string, handler: EventHand
 // Normalizes the runtime.outputs contract into a clean async iterable, regardless of
 // whether the queue exposes Symbol.asyncIterator or a bare next() method.
 const createOutputIterable = (
-  outputs: RuntimeOutputs | null | undefined,
+  outputs?: RuntimeOutputs | null,
 ): AsyncIterable<RuntimeEvent> | null => {
   if (!outputs) {
     return null;
@@ -134,7 +133,7 @@ const createOutputIterable = (
     return {
       async *[Symbol.asyncIterator]() {
         const iterator = asyncIteratorFactory.call(outputs) as AsyncIterator<
-          RuntimeEvent | null | undefined
+          RuntimeEvent | undefined
         >;
         try {
           while (true) {

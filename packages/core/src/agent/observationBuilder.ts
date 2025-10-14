@@ -55,7 +55,7 @@ export interface ObservationBuilderDeps {
   combineStdStreams: (
     stdout: string,
     stderr: string,
-    exitCode: number | null | undefined,
+    exitCode?: number | null,
   ) => { stdout: string; stderr: string };
   applyFilter: (text: string, regex: string) => string;
   tailLines: (text: string, lines: number) => string;
