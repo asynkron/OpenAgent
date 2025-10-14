@@ -101,26 +101,37 @@
     }
   }
 
-  function canWalk(x, y, ent) {
-  const t = tileAt(x, y);
-  if (isWall(t)) return false;
-  if (isGate(t)) {
-    // Pac-Man cannot pass the ghost gate; ghosts can after ready time.
-    if (!ent) return false;
-    if (ent.type === 'pacman') return false;
-    return state.readyTime <= 0;
+  // Estimate gate and house tiles
+  let GATE_TILE = { x: 14, y: 12 };
+  let HOUSE_TILE = { x: 14, y: 16 };
+  if (gates.size) {
+    let sx = 0, sy = 0, n = 0;
+    for (const id of gates) { sx += id % COLS; sy += Math.floor(id / COLS); n++; }
+    if (n > 0) { GATE_TILE = { x: Math.round(sx / n), y: Math.round(sy / n) }; }
   }
-  return true;
-}
+
+  function canWalk(x, y, ent) {
+    const t = tileAt(x, y);
+    if (isWall(t)) return false;
+    if (isGate(t)) {
+      // Pac-Man cannot pass the ghost gate; ghosts can after ready time.
+      if (!ent) return false;
+      if (ent.type === 'pacman') return false;
+      // Eyes mode can always pass the gate to return home
+      if (ent.mode === 'eyes') return true;
+      return state.readyTime <= 0;
+    }
+    return true;
+  }
 
   function neighbors(x, y, ent) {
-  const res = [];
-  if (canWalk(x + 1, y, ent)) res.push([x + 1, y, 'right']);
-  if (canWalk(x - 1, y, ent)) res.push([x - 1, y, 'left']);
-  if (canWalk(x, y + 1, ent)) res.push([x, y + 1, 'down']);
-  if (canWalk(x, y - 1, ent)) res.push([x, y - 1, 'up']);
-  return res;
-}
+    const res = [];
+    if (canWalk(x + 1, y, ent)) res.push([x + 1, y, 'right']);
+    if (canWalk(x - 1, y, ent)) res.push([x - 1, y, 'left']);
+    if (canWalk(x, y + 1, ent)) res.push([x, y + 1, 'down']);
+    if (canWalk(x, y - 1, ent)) res.push([x, y - 1, 'up']);
+    return res;
+  }
 
   function manhattan(ax, ay, bx, by) { return Math.abs(ax - bx) + Math.abs(ay - by); }
 
@@ -133,6 +144,7 @@
   };
   const OPP = { up: 'down', down: 'up', left: 'right', right: 'left' };
 
+  // ----- Global game/state -----
   const state = {
     score: 0,
     lives: 3,
@@ -141,6 +153,10 @@
     level: 1,
     readyTime: 180,    // frames until ghosts leave house
   };
+
+  // Game flow state for death animation
+  let gameState = 'playing'; // playing | dying | gameover
+  const pacDeath = { active: false, start: 0, dur: 1100 }; // ms
 
   const hudScore = document.getElementById('score');
   const hudLives = document.getElementById('lives');
@@ -163,7 +179,6 @@
   updateHUD();
 
   function wrapTunnel(px) {
-    // horizontal wrap at open tunnels around rows with spaces at edges
     if (px < 0) return WIDTH - 1;
     if (px >= WIDTH) return 0;
     return px;
@@ -176,11 +191,12 @@
     return {
       x, y, speed, dir, nextDir: dir,
       color, type,
+      mode: 'normal',       // ghosts: 'normal' | 'eyes' | 'respawn' (Pac-Man ignores)
+      respawnUntil: 0,
       dead: false,
     };
   }
 
-  const PX_START = { x: 14 * TILE + TILE / 2, y: (MAP.findIndex(row => row.includes('   .   ')) || 13) * TILE + TILE / 2 };
   const pacman = makeEntity({ x: 14*TILE + TILE/2, y: 23*TILE + TILE/2, speed: 1.08, dir: 'left', color: COLORS.pacman, type: 'pacman' });
 
   // Ghost starting positions: inside or near the house
@@ -191,9 +207,9 @@
     makeEntity({ x: 15*TILE + TILE/2, y: 16*TILE + TILE/2, speed: 0.92, dir: 'right', color: COLORS.clyde,  type: 'clyde'  }),
   ];
 
-  const keys = new Set();
   window.addEventListener('keydown', (e) => {
     if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+    if (gameState !== 'playing') return;
     if (e.key === 'ArrowUp') pacman.nextDir = 'up';
     if (e.key === 'ArrowDown') pacman.nextDir = 'down';
     if (e.key === 'ArrowLeft') pacman.nextDir = 'left';
@@ -208,7 +224,6 @@
   }
 
   function tryTurn(ent, dir) {
-    // Only allow turning at centers to keep grid alignment
     if (!atTileCenter(ent)) return false;
     const [tx, ty] = toTile(ent.x, ent.y);
     const d = DIRS[dir];
@@ -216,7 +231,6 @@
     const ny = ty + d.y;
     if (canWalk(nx, ny, ent)) {
       ent.dir = dir;
-      // snap to center to avoid drift
       const [cx, cy] = centerOf(tx, ty);
       ent.x = cx; ent.y = cy;
       return true;
@@ -225,28 +239,22 @@
   }
 
   function stepEntity(ent) {
-    // handle player input turn early
     if (ent.type === 'pacman' && ent.nextDir && ent.nextDir !== ent.dir) {
       tryTurn(ent, ent.nextDir);
     }
 
     const d = DIRS[ent.dir] || DIRS.left;
-
-    // forward collision check near tile edges
     const nx = ent.x + d.x * ent.speed;
     const ny = ent.y + d.y * ent.speed;
     const [ntx, nty] = toTile(nx, ny);
     const [ct, rt] = toTile(ent.x, ent.y);
 
-    // Wrap horizontally through tunnels
     ent.x = wrapTunnel(nx);
     ent.y = ny;
 
-    if (isWall(tileAt(ntx, nty)) || (isGate(tileAt(ntx, nty)) && (ent.type === 'pacman' || state.readyTime > 0))) {
-      // stop at center of current tile when hitting a wall
+    if (isWall(tileAt(ntx, nty)) || (isGate(tileAt(ntx, nty)) && (ent.type === 'pacman' || (ent.type !== 'pacman' && ent.mode !== 'eyes' && state.readyTime > 0)))) {
       const [cx, cy] = centerOf(ct, rt);
       ent.x = cx; ent.y = cy;
-      // if pacman has queued a turn that is available, apply; otherwise try perpendicular
       if (ent.type === 'pacman') {
         if (ent.nextDir && ent.nextDir !== ent.dir) tryTurn(ent, ent.nextDir);
       }
@@ -271,30 +279,105 @@
 
   function resetPositions(death) {
     pacman.x = 14*TILE + TILE/2; pacman.y = 23*TILE + TILE/2; pacman.dir = 'left'; pacman.nextDir = 'left';
+    for (const g of ghosts) { g.mode = 'normal'; g.respawnUntil = 0; }
     ghosts[0].x = 14*TILE + TILE/2; ghosts[0].y = 14*TILE + TILE/2; ghosts[0].dir = 'left';
     ghosts[1].x = 13*TILE + TILE/2; ghosts[1].y = 16*TILE + TILE/2; ghosts[1].dir = 'right';
     ghosts[2].x = 14*TILE + TILE/2; ghosts[2].y = 16*TILE + TILE/2; ghosts[2].dir = 'left';
     ghosts[3].x = 15*TILE + TILE/2; ghosts[3].y = 16*TILE + TILE/2; ghosts[3].dir = 'right';
     if (death) state.readyTime = 120; else state.readyTime = 1200;
+    const [itx, ity] = toTile(pacman.x, pacman.y);
+    depositScentAt(itx, ity);
+    lastPacTile = [itx, ity];
   }
 
+  // ----- Scent system -----
+  const SCENT_MAX = 1000;
+  const SCENT_DECAY = 1;
+  const scent = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+
+  function depositScentAt(tx, ty) {
+    if (tx < 0 || tx >= COLS || ty < 0 || ty >= ROWS) return;
+    if (tileAt(tx, ty) === '#') return;
+    scent[ty][tx] = SCENT_MAX;
+  }
+
+  function decayScent() {
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        const v = scent[y][x];
+        if (v > 0) scent[y][x] = v - SCENT_DECAY <= 0 ? 0 : v - SCENT_DECAY;
+      }
+    }
+  }
+
+  function drawScentOverlay() {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        const s = scent[y][x];
+        if (s <= 0) continue;
+        const cx = x * TILE + TILE / 2;
+        const cy = y * TILE + TILE / 2;
+        const r = TILE * 0.6;
+        const t = s / SCENT_MAX;
+        const alpha = Math.min(0.02 + t * 0.4, 0.42);
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        grad.addColorStop(0, `rgba(160,120,255,${alpha})`);
+        grad.addColorStop(1, 'rgba(160,120,255,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  // Track Pac-Man tile for scent deposition
+  let lastPacTile = toTile(pacman.x, pacman.y);
+
   function chooseGhostDir(g, target) {
-    // At tile centers, pick next dir: avoid reverse unless forced; bias toward target; randomness when frightened.
     if (!atTileCenter(g)) return; // keep going until next junction
     const [tx, ty] = toTile(g.x, g.y);
-    const opts = neighbors(tx, ty, g).filter(([, , dir]) => dir !== OPP[g.dir]);
 
-    // If stuck (dead-end), allow reverse
+    // Eyes mode: beeline to the gate tile (ignore frightened)
+    if (g.mode === 'eyes') {
+      const choices = neighbors(tx, ty, g); // allow reverse if necessary
+      let best = null, bestDist = Infinity;
+      for (const [nx, ny, dir] of choices) {
+        const d = manhattan(nx, ny, GATE_TILE.x, GATE_TILE.y);
+        if (d < bestDist) { bestDist = d; best = dir; }
+      }
+      if (best) g.dir = best;
+      return;
+    }
+
+    const opts = neighbors(tx, ty, g).filter(([, , dir]) => dir !== OPP[g.dir]);
     const choices = opts.length ? opts : neighbors(tx, ty, g);
 
-    const frightened = performance.now() < state.frightenedUntil;
+    const now = performance.now();
+    const frightened = now < state.frightenedUntil;
 
     if (frightened) {
       // Random choice, avoid reverse if possible
       const pool = choices.filter(([, , dir]) => dir !== OPP[g.dir]);
-      const pick = (pool.length ? pool : choices)[rnd(0, (pool.length ? pool : choices).length - 1)];
-      if (pick) g.dir = pick[2];
+      const list = (pool.length ? pool : choices);
+      if (list.length) {
+        const pick = list[rnd(0, list.length - 1)];
+        g.dir = pick[2];
+      }
       return;
+    }
+
+    // Inky: scent follower (strongest local scent)
+    if (g.type === 'inky') {
+      let bestDir = null, bestVal = -1;
+      for (const [nx, ny, dir] of choices) {
+        const val = (scent[ny] && scent[ny][nx]) ? scent[ny][nx] : 0;
+        if (val > bestVal) { bestVal = val; bestDir = dir; }
+      }
+      if (bestDir) { g.dir = bestDir; return; }
     }
 
     // Targeted choice: prefer direction minimizing manhattan distance
@@ -308,12 +391,11 @@
   }
 
   function ghostTarget(g) {
-    // Simplified personalities
     const [px, py] = toTile(pacman.x, pacman.y);
     switch (g.type) {
       case 'blinky': return [px, py];
       case 'pinky':  return [clamp(px + 4 * DIRS[pacman.dir].x, 0, COLS-1), clamp(py + 4 * DIRS[pacman.dir].y, 0, ROWS-1)];
-      case 'inky':   return [clamp(px + 2 * DIRS[pacman.dir].x + ((g.x < pacman.x) ? 2 : -2), 0, COLS-1), clamp(py + 2 * DIRS[pacman.dir].y, 0, ROWS-1)];
+      case 'inky':   return [px, py]; // scent follower overrides when present
       case 'clyde':  return (manhattan(...toTile(g.x, g.y), px, py) > 8) ? [px, py] : [1, ROWS - 2];
       default:       return [px, py];
     }
@@ -327,7 +409,6 @@
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-    // Walls
     ctx.strokeStyle = COLORS.wall;
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
@@ -374,6 +455,22 @@
   }
 
   function drawPacman() {
+    // Death animation: mouth closes and sprite shrinks into nothing
+    if (pacDeath.active) {
+      const elapsed = performance.now() - pacDeath.start;
+      const k = clamp(elapsed / pacDeath.dur, 0, 1);
+      const angle = ({right: 0, left: Math.PI, up: -Math.PI/2, down: Math.PI/2})[pacman.dir] || 0;
+      const r = TILE * 0.45 * (1 - 0.9 * k);
+      const mouth = Math.PI * (0.2 + 1.6 * k); // widens to a full slice then shrinks radius
+      ctx.fillStyle = COLORS.pacman;
+      ctx.beginPath();
+      ctx.moveTo(pacman.x, pacman.y);
+      ctx.arc(pacman.x, pacman.y, Math.max(0.1, r), angle + mouth, angle - mouth, true);
+      ctx.closePath();
+      ctx.fill();
+      return;
+    }
+
     const mouthOpen = Math.abs(Math.sin(performance.now() / 120)) * 0.7 + 0.2;
     const angle = ({right: 0, left: Math.PI, up: -Math.PI/2, down: Math.PI/2})[pacman.dir] || 0;
 
@@ -386,17 +483,39 @@
   }
 
   function drawGhost(g) {
-    const frightened = performance.now() < state.frightenedUntil;
-    const bodyColor = frightened ? '#1f4bd1' : g.color;
+    const now = performance.now();
+    const frightened = now < state.frightenedUntil;
+
+    // Eyes-only mode
+    if (g.mode === 'eyes') {
+      const baseX = g.x, baseY = g.y;
+      ctx.fillStyle = COLORS.eyes;
+      const eyeOffsetX = ({left:-3,right:3,up:0,down:0})[g.dir] || 0;
+      const eyeOffsetY = ({up:-2,down:2,left:0,right:0})[g.dir] || 0;
+      ctx.beginPath(); ctx.arc(baseX - 4, baseY - 2, 2.5, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(baseX + 4, baseY - 2, 2.5, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#0033aa';
+      ctx.beginPath(); ctx.arc(baseX - 4 + eyeOffsetX, baseY - 2 + eyeOffsetY, 1.2, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(baseX + 4 + eyeOffsetX, baseY - 2 + eyeOffsetY, 1.2, 0, Math.PI*2); ctx.fill();
+      return;
+    }
+
+    // Body
     const r = TILE * 0.45;
     const baseX = g.x, baseY = g.y;
 
-    // Body
+    // Frightened flashing near expiry
+    let bodyColor = g.color;
+    if (frightened) {
+      const rem = state.frightenedUntil - now;
+      const blink = rem > 0 && rem < 1500 && (Math.floor(now / 125) % 2 === 0);
+      bodyColor = blink ? '#ffffff' : '#1f4bd1';
+    }
+
     ctx.fillStyle = bodyColor;
     ctx.beginPath();
     ctx.arc(baseX, baseY - r*0.2, r, Math.PI, 0);
     ctx.lineTo(baseX + r, baseY + r*0.8);
-    // little waves at bottom
     const waves = 4;
     for (let i = waves; i >= 0; i--) {
       const wx = baseX - r + (i * (2*r)/waves);
@@ -412,8 +531,6 @@
     const eyeOffsetY = ({up:-2,down:2,left:0,right:0})[g.dir] || 0;
     ctx.beginPath(); ctx.arc(baseX - 4, baseY - 2, 2.5, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(baseX + 4, baseY - 2, 2.5, 0, Math.PI*2); ctx.fill();
-
-    // Pupils
     ctx.fillStyle = '#0033aa';
     ctx.beginPath(); ctx.arc(baseX - 4 + eyeOffsetX, baseY - 2 + eyeOffsetY, 1.2, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(baseX + 4 + eyeOffsetX, baseY - 2 + eyeOffsetY, 1.2, 0, Math.PI*2); ctx.fill();
@@ -422,71 +539,128 @@
   let last = performance.now();
 
   function loop(now) {
-    const dt = clamp((now - last) / (1000/60), 0.5, 2.0); // normalize to 60fps units
+    const dt = clamp((now - last) / (1000/60), 0.5, 2.0); // 60fps units
     last = now;
 
-    // Ready timer keeps ghosts in house briefly
-    if (state.readyTime > 0) state.readyTime -= 1;
+    if (state.readyTime > 0 && gameState === 'playing') state.readyTime -= 1;
 
     // Update
-    stepEntity(pacman);
-    eatPellets();
+    if (gameState === 'playing') {
+      stepEntity(pacman);
+      // Scent: decay globally, deposit when entering a new tile
+      decayScent();
+      const [cpx, cpy] = toTile(pacman.x, pacman.y);
+      if (cpx !== lastPacTile[0] || cpy !== lastPacTile[1]) {
+        depositScentAt(cpx, cpy);
+        lastPacTile = [cpx, cpy];
+      }
+      eatPellets();
 
-    const frightened = now < state.frightenedUntil;
+      const frightened = now < state.frightenedUntil;
 
-    for (const g of ghosts) {
-      // If in ready time, constrain ghosts inside house by blocking gate reversal
-      const target = ghostTarget(g);
-      chooseGhostDir(g, target);
-      // Ghost speed slightly slower when frightened
-      const s = frightened ? g.speed * 0.8 : g.speed;
-      const prevSpeed = g.speed; g.speed = s;
-      stepEntity(g);
-      g.speed = prevSpeed;
-
-      // Collisions
-      if (collides(pacman, g)) {
-        if (frightened) {
-          state.score += 200;
-          updateHUD();
-          // Send ghost back to house
-          g.x = 14*TILE + TILE/2; g.y = 16*TILE + TILE/2; g.dir = 'up';
-        } else {
-          // Pac-Man dies
-          state.lives -= 1; updateHUD();
-          if (state.lives < 0) {
-            // Reset everything
-            state.lives = 3; state.score = 0; updateHUD();
-            // restore pellets (restart level)
-            for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
-              const ch = tileAt(x, y); pellets[y][x] = (ch === '.' ? 1 : ch === 'o' ? 2 : pellets[y][x]);
-            }
+      for (const g of ghosts) {
+        // Handle respawn hold inside house
+        if (g.mode === 'respawn') {
+          if (now >= g.respawnUntil) {
+            g.mode = 'normal';
+            g.dir = 'up';
+          } else {
+            continue; // stay put inside house
           }
+        }
+
+        const target = ghostTarget(g);
+        chooseGhostDir(g, target);
+
+        // Speed modifiers
+        let s = g.speed;
+        if (g.mode === 'eyes') s = g.speed * 1.3;
+        else if (frightened) s = g.speed * 0.8;
+        const prevSpeed = g.speed; g.speed = s;
+        stepEntity(g);
+        g.speed = prevSpeed;
+
+        // Eyes reached house? switch to respawn
+        if (g.mode === 'eyes') {
+          const [gx, gy] = toTile(g.x, g.y);
+          if (manhattan(gx, gy, HOUSE_TILE.x, HOUSE_TILE.y) <= 1) {
+            // park inside house and respawn after delay
+            const [cx, cy] = centerOf(HOUSE_TILE.x, HOUSE_TILE.y);
+            g.x = cx; g.y = cy; g.dir = 'up';
+            g.mode = 'respawn';
+            g.respawnUntil = now + 1000; // 1s
+          }
+        }
+
+        // Collisions
+        if (g.mode !== 'eyes' && collides(pacman, g)) {
+          if (frightened) {
+            state.score += 200;
+            updateHUD();
+            // Convert to eyes; do not teleport
+            g.mode = 'eyes';
+          } else {
+            // Pac-Man dies -> start death animation
+            gameState = 'dying';
+            pacDeath.active = true; pacDeath.start = now;
+            break;
+          }
+        }
+      }
+
+      if (state.pelletsRemaining <= 0) {
+        // Level complete: simple reset with a speed-up
+        state.level += 1;
+        state.frightenedUntil = 0;
+        state.pelletsRemaining = 0;
+        for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+          const ch = tileAt(x, y); if (ch === '.' || ch === 'o') state.pelletsRemaining++;
+          pellets[y][x] = (ch === '.' ? 1 : ch === 'o' ? 2 : 0);
+        }
+        pacman.speed = Math.min(pacman.speed + 0.04, 1.4);
+        for (const g of ghosts) g.speed = Math.min(g.speed + 0.03, 1.25);
+        resetPositions(false);
+      }
+    } else if (gameState === 'dying') {
+      // Progress death animation
+      if (now - pacDeath.start >= pacDeath.dur) {
+        pacDeath.active = false;
+        state.lives -= 1; updateHUD();
+        if (state.lives < 0) {
+          gameState = 'gameover';
+          // Simple reset after a moment
+          setTimeout(() => {
+            state.lives = 3; state.score = 0; updateHUD();
+            for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+              const ch = tileAt(x, y); pellets[y][x] = (ch === '.' ? 1 : ch === 'o' ? 2 : 0);
+            }
+            resetPositions(false);
+            gameState = 'playing';
+          }, 800);
+        } else {
           resetPositions(true);
-          break;
+          gameState = 'playing';
         }
       }
     }
 
-    if (state.pelletsRemaining <= 0) {
-      // Level complete: simple reset with a speed-up
-      state.level += 1;
-      state.frightenedUntil = 0;
-      state.pelletsRemaining = 0;
-      for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
-        const ch = tileAt(x, y); if (ch === '.' || ch === 'o') state.pelletsRemaining++;
-        pellets[y][x] = (ch === '.' ? 1 : ch === 'o' ? 2 : 0);
-      }
-      // small speed bump
-      pacman.speed = Math.min(pacman.speed + 0.04, 1.4);
-      for (const g of ghosts) g.speed = Math.min(g.speed + 0.03, 1.25);
-      resetPositions(false);
-    }
-
     // Render
     drawMaze();
+    drawScentOverlay();
     for (const g of ghosts) drawGhost(g);
     drawPacman();
+
+    // Screen flash at start of death
+    if (pacDeath.active) {
+      const elapsed = performance.now() - pacDeath.start;
+      const flash = Math.max(0, 1 - (elapsed / 200));
+      if (flash > 0) {
+        ctx.save();
+        ctx.fillStyle = `rgba(255,255,255,${0.18 * flash})`;
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        ctx.restore();
+      }
+    }
 
     requestAnimationFrame(loop);
   }

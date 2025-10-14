@@ -25,3 +25,9 @@ Changelog
 
 Changelog
 - Fix: Gate made entity-aware (Pac-Man blocked; ghosts can exit after readyTime).
+
+- 2025-10-14: Added optional scent-trail mechanic: Pac-Man deposits decaying scent (visualized as translucent clouds). Inky ghost follows strongest local scent when not frightened; falls back to target-chasing otherwise.
+
+- 2025-10-14: Tuned scent: SCENT_MAX=1000 (~100× longer). Cloud alpha normalized to s/SCENT_MAX for consistent brightness.
+
+- 2025-10-14: Phase 1 — Added Pac-Man death animation/state, ghost eyes-return/respawn via gate, and frightened flashing near expiry.
