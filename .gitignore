@@ -146,3 +146,13 @@ packages/cli/.openagent
 packages/core/scripts/gitdrop
 packages/core/scripts/gitpop
 packages/core/scripts/gitpush
+
+# Track Pac-Man CRT temp prototype explicitly
+!.openagent/temp/pacman-crt-20251014-175650/
+!.openagent/temp/pacman-crt-20251014-175650/**
+# BEGIN openagent pacman tracking
+!.openagent/temp/
+.openagent/temp/*
+!.openagent/temp/pacman-crt-20251014-175650/
+!.openagent/temp/pacman-crt-20251014-175650/**
+# END openagent pacman tracking

@@ -1,0 +1,79 @@
+:root {
+  --bg: #0a0d12;
+  --scanline: rgba(255, 255, 255, 0.03);
+  --vignette: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.4) 75%, rgba(0,0,0,0.75) 100%);
+  --blue-neon: #1f8fff;
+  --hud: #f7f1c7;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 50% 20%, #06080d 0, #05060a 35%, #03050a 100%);
+  color: var(--hud);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.screen {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(92vw, 896px);
+  aspect-ratio: 224 / 248;
+  padding: clamp(8px, 1.6vw, 18px);
+  background: #020409;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 2px rgba(0,0,0,0.8) inset,
+    0 0 24px 8px rgba(0, 140, 255, 0.15),
+    0 0 100px rgba(0, 140, 255, 0.1);
+}
+
+canvas#game {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  filter: saturate(1.1) contrast(1.05);
+}
+
+.overlay { position: absolute; inset: 0; pointer-events: none; }
+.scanlines { position: absolute; inset: 0; background:
+  repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    var(--scanline) 3px,
+    var(--scanline) 4px
+  );
+  mix-blend-mode: overlay;
+  animation: flicker 3s infinite steps(60);
+  opacity: 0.6;
+}
+.vignette { position: absolute; inset: 0; background: var(--vignette); pointer-events: none; }
+.glow { position: absolute; inset: 0; box-shadow: inset 0 0 80px rgba(0, 140, 255, 0.15); }
+
+@keyframes flicker {
+  0%, 100% { opacity: 0.62; }
+  22% { opacity: 0.58; }
+  24% { opacity: 0.66; }
+  50% { opacity: 0.6; }
+  70% { opacity: 0.64; }
+  72% { opacity: 0.57; }
+}
+
+.hud {
+  position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: start;
+  padding: 6px 10px; font-size: clamp(10px, 1.6vw, 14px);
+  letter-spacing: 1px; text-shadow: 0 0 6px rgba(255,255,255,0.2);
+}
+.hud .title { color: var(--blue-neon); font-weight: 700; }
+.hud .score { opacity: 0.95; }
+.hud .lives { position: absolute; bottom: 6px; left: 10px; display: flex; gap: 6px; }
+.hud .lives::before { content: 'LIVES:'; margin-right: 8px; opacity: 0.9; }
+
+/* Optional subtle curvature illusion via border radius and shadows */
+.crt { border-radius: 16px; overflow: hidden; }

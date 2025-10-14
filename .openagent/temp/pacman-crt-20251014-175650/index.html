@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pac-Man CRT (temp)</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="color-scheme" content="dark light" />
+</head>
+<body>
+  <div class="screen crt">
+    <canvas id="game" width="224" height="248" aria-label="Pac-Man"></canvas>
+    <div class="overlay">
+      <div class="scanlines"></div>
+      <div class="vignette"></div>
+      <div class="glow"></div>
+    </div>
+    <div class="hud">
+      <span class="title">PAC-MAN</span>
+      <span class="score">SCORE <span id="score">0</span></span>
+      <span class="lives" id="lives"></span>
+    </div>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>
