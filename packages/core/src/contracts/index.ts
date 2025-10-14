@@ -9,23 +9,177 @@
  * Naming Conventions
  * - ModelRequest / ModelResponse — payloads to/from the AI SDK.
  * - ModelCompletion* — result envelope from the runtime call wrapper.
- * - OpenAgentTool* — DTOs produced by the OpenAgent tool schema.
+ * - Tool* — DTOs produced by the OpenAgent tool schema (ToolResponse, ToolPlanStep, ToolCommand).
  * - OpenAgentObservation* — observation payloads we send back to the model.
  */
 
 // -----------------------------
-// Tool schema and inferred DTOs
+// Tool schema (Zod) and DTOs
 // -----------------------------
-export {
-  OPENAGENT_RESPONSE_TOOL as OpenAgentTool,
-  OPENAGENT_RESPONSE_SCHEMA as OpenAgentToolSchema,
-  RESPONSE_PARAMETERS_SCHEMA as OpenAgentToolJsonSchema,
-} from '../agent/responseToolSchema.js';
-export type {
-  OpenAgentCommand as OpenAgentToolCommand,
-  OpenAgentPlanStep as OpenAgentToolPlanStep,
-  OpenAgentResponse as OpenAgentToolResponse,
-} from '../agent/responseToolSchema.js';
+import { z } from 'zod';
+import { jsonSchema as asJsonSchema } from '@ai-sdk/provider-utils';
+
+// Explicit TS interfaces for clarity/scanability
+export interface ToolCommand {
+  reason?: string;
+  shell: string;
+  run: string;
+  cwd?: string;
+  timeout_sec?: number;
+  filter_regex?: string;
+  tail_lines?: number;
+}
+
+export interface ToolPlanStep {
+  id: string;
+  title: string;
+  status: 'pending' | 'completed' | 'failed' | 'abandoned';
+  age?: number;
+  waitingForId?: string[];
+  command: ToolCommand;
+  observation?: Record<string, unknown>;
+}
+
+export interface ToolResponse {
+  message: string;
+  plan: ToolPlanStep[];
+}
+
+// Zod schemas that mirror the interfaces above
+export const ToolCommandSchema = z
+  .object({
+    reason: z.string().optional(),
+    shell: z.string(),
+    run: z.string(),
+    cwd: z.string().optional(),
+    timeout_sec: z.number().int().min(1).optional(),
+    filter_regex: z.string().optional(),
+    tail_lines: z.number().int().min(1).optional(),
+  })
+  .strict();
+
+export const ToolPlanStepSchema = z
+  .object({
+    id: z.string(),
+    title: z.string(),
+    status: z.enum(['pending', 'completed', 'failed', 'abandoned']),
+    age: z.number().int().min(0).optional(),
+    waitingForId: z.array(z.string()).optional(),
+    command: ToolCommandSchema,
+    observation: z.record(z.string(), z.unknown()).optional(),
+  })
+  .strict();
+
+export const ToolResponseSchema = z
+  .object({
+    message: z.string(),
+    plan: z.array(ToolPlanStepSchema),
+  })
+  .strict();
+
+// JSON Schema (AJV + provider wrapper) and named tool definition
+export const ToolResponseJsonSchema = {
+  $schema: 'http://json-schema.org/draft-07/schema#',
+  type: 'object',
+  additionalProperties: false,
+  required: ['message', 'plan'],
+  properties: {
+    message: {
+      type: 'string',
+      description: 'Markdown formatted message to the user.',
+    },
+    plan: {
+      type: 'array',
+      description: "List of steps representing the assistant's current plan.",
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['id', 'title', 'status', 'command'],
+        properties: {
+          id: {
+            type: 'string',
+            description: 'Random ID assigned by AI.',
+          },
+          title: {
+            type: 'string',
+            description: 'Human readable summary of the plan step.',
+          },
+          status: {
+            type: 'string',
+            enum: ['pending', 'completed', 'failed', 'abandoned'],
+            description: 'Current execution status for the plan step.',
+          },
+          age: {
+            type: 'integer',
+            minimum: 0,
+            description:
+              'Number of assistant responses observed while this step has been running; increments once per response when status remains running.',
+          },
+          waitingForId: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'IDs this task has to wait for before it can be executed (dependencies).',
+          },
+          command: {
+            type: 'object',
+            additionalProperties: false,
+            description:
+              'Next tool invocation to execute for this plan step. This command should complete the task if successful.',
+            required: ['shell', 'run'],
+            properties: {
+              reason: {
+                type: 'string',
+                description:
+                  'Explain why this shell command is required for the plan step. If only shell or run is provided, justify the omission.',
+              },
+              shell: {
+                type: 'string',
+                description:
+                  'Shell executable to launch when running commands. May only contain value if "run" contains an actual command to run.',
+              },
+              run: {
+                type: 'string',
+                description:
+                  'Command string to execute in the provided shell. Must be set if "shell" has a value; may NOT be set if "shell" has no value.',
+              },
+              cwd: {
+                type: 'string',
+                description: 'Working directory for shell execution.',
+              },
+              timeout_sec: {
+                type: 'integer',
+                minimum: 1,
+                description: 'Optional timeout guard for long-running commands.',
+              },
+              filter_regex: {
+                type: 'string',
+                description: 'Optional regex used to filter command output.',
+              },
+              tail_lines: {
+                type: 'integer',
+                minimum: 1,
+                description: 'Optional number of trailing lines to return from output.',
+              },
+            },
+          },
+          observation: {
+            type: 'object',
+            description:
+              'Latest command observation for this step, including stdout/stderr and metadata so the LLM can evaluate progress.',
+            additionalProperties: true,
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+export const ToolDefinition = Object.freeze({
+  name: 'open-agent',
+  description:
+    'Return the response envelope that matches the OpenAgent protocol (message, plan, and command fields).',
+  schema: asJsonSchema(() => ToolResponseJsonSchema as any),
+});
 
 // ----------------------------------
 // Requests (runtime -> AI SDK client)
@@ -46,6 +200,31 @@ export type {
   ResponseCallOptions as AiCallOptions,
   ResponsesClient as AiClient,
 } from '../openai/responses.js';
+
+// Clarify the output shape union in SDK-agnostic terms (informational)
+export type AiResponseFunctionCall = {
+  type: 'function_call';
+  name: string;
+  arguments: string;
+  call_id: string | null;
+};
+export type AiResponseMessageContent = { type: 'output_text'; text: string };
+export type AiResponseMessage = {
+  type: 'message';
+  role: 'assistant';
+  content: AiResponseMessageContent[];
+};
+export type AiResponseOutput = AiResponseFunctionCall | AiResponseMessage;
+export type StructuredModelResponse = {
+  output_text: string;
+  output: AiResponseOutput[];
+  structured: unknown;
+};
+export type TextModelResponse = {
+  output_text: string;
+  output: AiResponseOutput[];
+  text: unknown;
+};
 
 // ---------------------------------
 // Runtime model completion wrapper
@@ -84,3 +263,13 @@ export type {
 // Response parsing helpers
 // -------------------------
 export { extractOpenAgentToolCall, extractResponseText } from '../openai/responseUtils.js';
+
+// Normalized tool call DTO returned by extractOpenAgentToolCall
+export type ToolCall = {
+  name: 'open-agent';
+  call_id: string | null;
+  arguments: string;
+};
+
+// Provider-specific options type for OpenAI (for consumers that build their own calls)
+export type { OpenAIResponsesProviderOptions } from '@ai-sdk/openai';

@@ -12,7 +12,7 @@
  */
 import type { ModelMessage } from 'ai';
 import type { AiCallOptions } from '../contracts/index.js';
-import { OpenAgentTool } from '../contracts/index.js';
+import { ToolDefinition } from '../contracts/index.js';
 import { mapHistoryToModelMessages, type ChatMessageEntry } from './historyEntry.js';
 
 export interface OpenAgentRequestPayload {
@@ -25,7 +25,7 @@ export interface OpenAgentRequestPayload {
    */
   messages: ModelMessage[];
   /** Tool contract the model must target when producing structured output. */
-  tool: typeof OpenAgentTool;
+  tool: typeof ToolDefinition;
   /** Optional call-level overrides (abort signal, retry policy, etc.). */
   options?: AiCallOptions;
 }
@@ -46,7 +46,7 @@ export function buildOpenAgentRequestPayload({
   return {
     model,
     messages,
-    tool: OpenAgentTool,
+    tool: ToolDefinition,
     options,
   };
 }

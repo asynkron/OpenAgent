@@ -145,7 +145,7 @@ export async function executeAgentPass(options: ExecuteAgentPassOptions): Promis
   emitEvent({ type: 'assistant-message', message: responseResolution.parsed.message ?? '' });
 
   const incomingPlan: PlanStep[] | null = Array.isArray(responseResolution.parsed.plan)
-    ? (responseResolution.parsed.plan as PlanStep[])
+    ? (responseResolution.parsed.plan as unknown as PlanStep[])
     : null;
 
   const planRuntime = new PlanRuntime({

@@ -7,7 +7,7 @@ import type {
 } from '../responseValidator.js';
 import type { DebugEmitter } from './debugEmitter.js';
 import type { AssistantResponseResolution, ExecuteAgentPassOptions } from './types.js';
-import type { OpenAgentToolResponse } from '../../contracts/index.js';
+import type { ToolResponse } from '../../contracts/index.js';
 
 interface ResponseEvaluationContext {
   responseContent: string;
@@ -197,7 +197,7 @@ export const evaluateAssistantResponse = (
 
   const success = {
     status: 'success',
-    parsed: parseResult.value as OpenAgentToolResponse,
+    parsed: (parseResult.value as unknown) as ToolResponse,
     responseContent: context.responseContent,
   } as const satisfies AssistantResponseResolution;
 

@@ -47,7 +47,7 @@ describe('createResponse', () => {
     expect(mockGenerateText).toHaveBeenCalledWith({
       model: modelRef,
       messages: [],
-      providerOptions: undefined,
+      providerOptions: { openai: { strictJsonSchema: true } },
     });
     expect(mockGenerateObject).not.toHaveBeenCalled();
   });
@@ -64,7 +64,7 @@ describe('createResponse', () => {
     expect(mockGenerateText).toHaveBeenCalledWith({
       model: modelRef,
       messages: [],
-      providerOptions: undefined,
+      providerOptions: { openai: { strictJsonSchema: true } },
     });
     expect(getConfiguredReasoningEffort()).toBe('high');
   });
@@ -81,7 +81,7 @@ describe('createResponse', () => {
     expect(mockGenerateText).toHaveBeenCalledWith({
       model: modelRef,
       messages: [],
-      providerOptions: undefined,
+      providerOptions: { openai: { strictJsonSchema: true } },
     });
   });
 
@@ -102,7 +102,7 @@ describe('createResponse', () => {
       schema: tool.schema,
       schemaName: 'example',
       schemaDescription: 'desc',
-      providerOptions: undefined,
+      providerOptions: { openai: { strictJsonSchema: true } },
     });
     expect(mockGenerateText).not.toHaveBeenCalled();
   });

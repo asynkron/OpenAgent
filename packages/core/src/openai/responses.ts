@@ -9,7 +9,7 @@ import {
   type ToolSet,
 } from 'ai';
 import type { FlexibleSchema } from '@ai-sdk/provider-utils';
-import { OpenAgentTool } from '../contracts/index.js';
+import { ToolDefinition } from '../contracts/index.js';
 import { getOpenAIRequestSettings } from './client.js';
 
 type ReasoningEffort = 'low' | 'medium' | 'high';
@@ -62,8 +62,25 @@ function buildCallSettings(options: ResponseCallOptions | undefined): ResponseCa
 }
 
 // Intentionally avoid provider-specific options to keep the core provider-agnostic
-function buildProviderOptions(_reasoningEffort?: ReasoningEffort) {
-  return undefined;
+function parseBooleanEnv(value: string | undefined): boolean | null {
+  if (typeof value === 'undefined') return null;
+  const v = value.trim().toLowerCase();
+  if (v === '1' || v === 'true' || v === 'yes' || v === 'on') return true;
+  if (v === '0' || v === 'false' || v === 'no' || v === 'off') return false;
+  return null;
+}
+
+function buildProviderOptions(_reasoningEffort?: ReasoningEffort): any {
+  // Default strict schema ON; allow opt-out via env
+  const strictEnv =
+    parseBooleanEnv(process.env.AGENT_STRICT_JSON_SCHEMA) ??
+    parseBooleanEnv(process.env.OPENAI_STRICT_JSON_SCHEMA);
+  const strictFlag = strictEnv === null ? true : strictEnv;
+
+  const openaiOptions: Record<string, unknown> = {};
+  openaiOptions.strictJsonSchema = strictFlag;
+
+  return { openai: openaiOptions } as any;
 }
 
 function mapToolToSchema(tool: SupportedTool | null | undefined): SupportedTool | null {
@@ -71,8 +88,8 @@ function mapToolToSchema(tool: SupportedTool | null | undefined): SupportedTool 
     return null;
   }
 
-  if (tool === OpenAgentTool) {
-    return OpenAgentTool;
+  if (tool === ToolDefinition) {
+    return ToolDefinition;
   }
 
   if (tool.schema) {
@@ -88,7 +105,7 @@ interface StructuredToolDefinition {
   schema: FlexibleSchema<unknown>;
 }
 
-type SupportedTool = typeof OpenAgentTool | StructuredToolDefinition;
+type SupportedTool = typeof ToolDefinition | StructuredToolDefinition;
 
 export type ResponsesProvider = (model: string) => LanguageModel;
 
