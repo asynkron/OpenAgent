@@ -33,3 +33,11 @@ Changelog
 - 2025-10-14: Phase 1 — Added Pac-Man death animation/state, ghost eyes-return/respawn via gate, and frightened flashing near expiry.
 
 - 2025-10-14: Phase 2 — Added synthesized SFX (pellet waka, power, ghost eaten, death, start), iris transitions (level reveal + death shrink), power-up flash + 'POWER!' popup, ghost-eaten score popup, and fixed tunnel teleporter wrap collision.
+
+- 2025-10-14: Fix — Eyes-mode ghosts now use BFS to reach the gate interior; added interior target detection to ensure reliable respawn (no more getting stuck).
+
+- 2025-10-14: Phase 1 — Added offscreen scene pipeline, dynamic lighting (soft light with dim corridors, brighter during frightened), and additive ghost glow.
+
+- 2025-10-14: Phase 2 — Added power-up shockwave ring, 200ms slow-mo via global timeScale, and temporary chromatic split during shockwave.
+
+- 2025-10-14: Phase 3 — Added CRT barrel warp (strip-based) and chromatic aberration sliders (UI) with localStorage persistence; steady aberration blends with temporary shockwave split.
