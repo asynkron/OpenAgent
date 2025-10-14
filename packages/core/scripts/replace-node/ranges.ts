@@ -32,7 +32,10 @@ export function locToOffset(src: string, loc: SourceLocation | undefined): numbe
   return offset + loc.start.column;
 }
 
-export function getNodeRange(node: NodeLike | null | undefined, src: string): [number, number] | null {
+export function getNodeRange(
+  node: NodeLike | null | undefined,
+  src: string,
+): [number, number] | null {
   if (!node) {
     return null;
   }
@@ -41,7 +44,11 @@ export function getNodeRange(node: NodeLike | null | undefined, src: string): [n
     return [node.start, node.end];
   }
 
-  if (isValidLocation(node.loc) && isValidPosition(node.loc?.start) && isValidPosition(node.loc?.end)) {
+  if (
+    isValidLocation(node.loc) &&
+    isValidPosition(node.loc?.start) &&
+    isValidPosition(node.loc?.end)
+  ) {
     const startOffset = locToOffset(src, { start: node.loc.start });
     const endOffset = locToOffset(src, { start: node.loc.end });
     if (typeof startOffset === 'number' && typeof endOffset === 'number') {
@@ -52,7 +59,11 @@ export function getNodeRange(node: NodeLike | null | undefined, src: string): [n
   return null;
 }
 
-export function adjustRangeToLastClosingBrace(start: number, end: number, src: string): [number, number] {
+export function adjustRangeToLastClosingBrace(
+  start: number,
+  end: number,
+  src: string,
+): [number, number] {
   if (!Number.isFinite(start) || !Number.isFinite(end)) {
     return [start, end];
   }

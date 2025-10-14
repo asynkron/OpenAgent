@@ -97,7 +97,8 @@ export const ToolResponseJsonSchema = {
       `,
       items: {
         type: 'object',
-        description: 'a single task in the DAG plan, represents both the task and the shell command to execute',
+        description:
+          'a single task in the DAG plan, represents both the task and the shell command to execute',
         additionalProperties: false,
         required: ['id', 'title', 'status', 'waitingForId', 'command'],
         properties: {
@@ -125,7 +126,15 @@ export const ToolResponseJsonSchema = {
             additionalProperties: false,
             description:
               'Next tool invocation to execute for this plan step. This command should complete the task if successful.',
-            required: ['reason', 'shell', 'run', 'cwd', 'timeout_sec', 'filter_regex', 'tail_lines'],
+            required: [
+              'reason',
+              'shell',
+              'run',
+              'cwd',
+              'timeout_sec',
+              'filter_regex',
+              'tail_lines',
+            ],
             properties: {
               reason: {
                 type: 'string',
@@ -226,9 +235,7 @@ export const RuntimeToolResponseJsonSchema = {
 // ----------------------------------
 // Requests (runtime -> AI SDK client)
 // ----------------------------------
-export {
-  buildOpenAgentRequestPayload as buildModelRequest,
-} from '../agent/modelRequestPayload.js';
+export { buildOpenAgentRequestPayload as buildModelRequest } from '../agent/modelRequestPayload.js';
 export type {
   OpenAgentRequestPayload as ModelRequest,
   BuildOpenAgentRequestPayloadOptions as ModelRequestBuildOptions,
@@ -279,7 +286,9 @@ export type {
 } from '../agent/modelRequest.js';
 
 // Lazy re-export to avoid eagerly importing the AI SDK dependencies during tests.
-export async function requestModelCompletion(options: import('../agent/modelRequest.js').RequestModelCompletionOptions) {
+export async function requestModelCompletion(
+  options: import('../agent/modelRequest.js').RequestModelCompletionOptions,
+) {
   const mod = await import('../agent/modelRequest.js');
   return mod.requestModelCompletion(options as any);
 }

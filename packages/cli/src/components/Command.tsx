@@ -367,7 +367,9 @@ export function Command({
           <Text {...(headingBadgeProps as Record<string, unknown>)}>{` ${type} `}</Text>
           <Text {...(headingDetailProps as Record<string, unknown>)}>{` ${detail}`}</Text>
           {planStepSummary ? (
-            <Text {...(planStepDetailProps as Record<string, unknown>)}>{` • ${planStepSummary}`}</Text>
+            <Text
+              {...(planStepDetailProps as Record<string, unknown>)}
+            >{` • ${planStepSummary}`}</Text>
           ) : null}
         </Text>
         {runElements ? (

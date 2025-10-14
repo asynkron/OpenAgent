@@ -1,4 +1,3 @@
-
 import { jest } from '@jest/globals';
 import {
   mergePlanTrees,
@@ -11,7 +10,6 @@ import {
 const modelCompletionQueue = [];
 
 let mockCallCounter = 0;
-
 
 function sanitizePayload(payload) {
   if (!payload || typeof payload !== 'object') {

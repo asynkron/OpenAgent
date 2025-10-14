@@ -266,17 +266,20 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
     [handleStatusEvent],
   );
 
-  const handleRequestInputEvent = useCallback((event: RuntimeEvent): void => {
-    flushPendingAssistantMessage();
-    const inputEvent = event as any;
-    setInputRequest({
-      prompt: typeof inputEvent.prompt === 'string' ? inputEvent.prompt : '▷',
-      metadata:
-        inputEvent.metadata === undefined || inputEvent.metadata === null
-          ? null
-          : cloneValue(inputEvent.metadata),
-    });
-  }, [flushPendingAssistantMessage]);
+  const handleRequestInputEvent = useCallback(
+    (event: RuntimeEvent): void => {
+      flushPendingAssistantMessage();
+      const inputEvent = event as any;
+      setInputRequest({
+        prompt: typeof inputEvent.prompt === 'string' ? inputEvent.prompt : '▷',
+        metadata:
+          inputEvent.metadata === undefined || inputEvent.metadata === null
+            ? null
+            : cloneValue(inputEvent.metadata),
+      });
+    },
+    [flushPendingAssistantMessage],
+  );
 
   const handleEvent = useCallback(
     (event: RuntimeEvent) => {

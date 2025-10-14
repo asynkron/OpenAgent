@@ -197,7 +197,7 @@ export const evaluateAssistantResponse = (
 
   const success = {
     status: 'success',
-    parsed: (parseResult.value as unknown) as ToolResponse,
+    parsed: parseResult.value as unknown as ToolResponse,
     responseContent: context.responseContent,
   } as const satisfies AssistantResponseResolution;
 

@@ -48,7 +48,12 @@ function hasExecutableCommand(command: unknown): command is CommandPayload {
   return Boolean(run || shell);
 }
 
-function validatePlanItem(item: unknown, path: string, state: PlanValidationState, errors: string[]): void {
+function validatePlanItem(
+  item: unknown,
+  path: string,
+  state: PlanValidationState,
+  errors: string[],
+): void {
   if (!isPlainObject(item)) {
     errors.push(`${path} must be an object.`);
     return;
@@ -92,7 +97,9 @@ function validatePlanItem(item: unknown, path: string, state: PlanValidationStat
       state.firstOpenStatus = normalizedStatus;
     }
     if (!commandHasPayload) {
-      errors.push(`${path} requires a non-empty command while the step is ${normalizedStatus || 'active'}.`);
+      errors.push(
+        `${path} requires a non-empty command while the step is ${normalizedStatus || 'active'}.`,
+      );
     }
   } else if (command && !commandHasPayload && isPlainObject(command)) {
     errors.push(`${path}.command must include execution details when provided.`);
@@ -110,11 +117,19 @@ export function validateAssistantResponse(payload: unknown): AssistantResponseVa
   const candidate = payload as AssistantResponsePayload;
   const errors: string[] = [];
 
-  if (typeof candidate.message !== 'undefined' && candidate.message !== null && typeof candidate.message !== 'string') {
+  if (
+    typeof candidate.message !== 'undefined' &&
+    candidate.message !== null &&
+    typeof candidate.message !== 'string'
+  ) {
     errors.push('"message" must be a string when provided.');
   }
 
-  const plan = Array.isArray(candidate.plan) ? candidate.plan : candidate.plan === undefined ? [] : null;
+  const plan = Array.isArray(candidate.plan)
+    ? candidate.plan
+    : candidate.plan === undefined
+      ? []
+      : null;
   if (plan === null) {
     errors.push('"plan" must be an array.');
   }

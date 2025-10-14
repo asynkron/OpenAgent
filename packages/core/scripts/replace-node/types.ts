@@ -52,7 +52,10 @@ export interface ASTPath<T extends NodeLike = NodeLike> {
 export interface Collection<T extends NodeLike = NodeLike> {
   forEach(callback: (path: ASTPath<T>) => void): void;
   filter(callback: (path: ASTPath<T>) => boolean): Collection<T>;
-  find<S extends NodeLike = NodeLike>(type: unknown, filter?: Record<string, unknown>): Collection<S>;
+  find<S extends NodeLike = NodeLike>(
+    type: unknown,
+    filter?: Record<string, unknown>,
+  ): Collection<S>;
 }
 
 export interface JSCodeshift {

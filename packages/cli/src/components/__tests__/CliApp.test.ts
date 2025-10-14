@@ -61,9 +61,7 @@ function createRuntimeHarness() {
         return;
       }
       const resolvedEvent =
-        event && typeof event === 'object'
-          ? { ...event }
-          : { type: 'unknown', event };
+        event && typeof event === 'object' ? { ...event } : { type: 'unknown', event };
       if (typeof resolvedEvent.__id === 'undefined') {
         resolvedEvent.__id = `event-${counter++}`;
       }
@@ -150,9 +148,7 @@ describe('CliApp assistant message handling', () => {
     const runtime = createRuntimeHarness();
     const onRuntimeError = jest.fn();
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const { unmount } = render(
-      React.createElement(CliApp, { runtime, onRuntimeError }),
-    );
+    const { unmount } = render(React.createElement(CliApp, { runtime, onRuntimeError }));
 
     try {
       runtime.emit({

@@ -28,7 +28,12 @@ function isExportLike(node: NodeLike | null): boolean {
   return Boolean(node?.type && node.type.startsWith('Export'));
 }
 
-function recordMatch(matches: Match[], target: NodeLike | null | undefined, src: string, desc: string): void {
+function recordMatch(
+  matches: Match[],
+  target: NodeLike | null | undefined,
+  src: string,
+  desc: string,
+): void {
   const range = getNodeRange(target ?? null, src);
   if (!range) {
     return;
@@ -60,7 +65,7 @@ function collectClassMatches(context: CollectorContext): void {
     .forEach((path: ASTPath<NodeWithId & NodeWithInit>) => {
       const varDecl = asNode(path.parent?.node);
       const grandParent = asNode(path.parentPath?.parentPath?.node);
-      const target = isExportLike(grandParent) ? grandParent : varDecl ?? asNode(path.node);
+      const target = isExportLike(grandParent) ? grandParent : (varDecl ?? asNode(path.node));
       recordMatch(matches, target, src, 'Variable(ClassExpression)');
     });
 }
@@ -88,7 +93,9 @@ function getClassBodyElements(classNode: NodeLike | null): NodeLike[] {
     return [];
   }
   const elements = (bodyNode as NodeWithBody).body;
-  return Array.isArray(elements) ? elements.map(asNode).filter((value): value is NodeLike => Boolean(value)) : [];
+  return Array.isArray(elements)
+    ? elements.map(asNode).filter((value): value is NodeLike => Boolean(value))
+    : [];
 }
 
 function collectMethodMatches(context: CollectorContext): void {
@@ -100,15 +107,19 @@ function collectMethodMatches(context: CollectorContext): void {
     return;
   }
 
-  root.find(j.ClassDeclaration, { id: { name: className } }).forEach((path: ASTPath<NodeWithBody & NodeWithId>) => {
-    const elements = getClassBodyElements(asNode(path.node));
-    elements.forEach((element) => {
-      if (isMethodWithName(element, methodName)) {
-        const methodNode = bodyOnly ? asNode((element as MethodLike).value?.body) ?? element : element;
-        recordMatch(matches, methodNode, src, 'MethodDefinition');
-      }
+  root
+    .find(j.ClassDeclaration, { id: { name: className } })
+    .forEach((path: ASTPath<NodeWithBody & NodeWithId>) => {
+      const elements = getClassBodyElements(asNode(path.node));
+      elements.forEach((element) => {
+        if (isMethodWithName(element, methodName)) {
+          const methodNode = bodyOnly
+            ? (asNode((element as MethodLike).value?.body) ?? element)
+            : element;
+          recordMatch(matches, methodNode, src, 'MethodDefinition');
+        }
+      });
     });
-  });
 
   root
     .find(j.VariableDeclarator)
@@ -122,7 +133,9 @@ function collectMethodMatches(context: CollectorContext): void {
       const elements = getClassBodyElements(init);
       elements.forEach((element) => {
         if (isMethodWithName(element, methodName)) {
-          const methodNode = bodyOnly ? asNode((element as MethodLike).value?.body) ?? element : element;
+          const methodNode = bodyOnly
+            ? (asNode((element as MethodLike).value?.body) ?? element)
+            : element;
           recordMatch(matches, methodNode, src, 'MethodDefinition(ClassExpr)');
         }
       });
@@ -152,7 +165,7 @@ function collectFunctionMatches(context: CollectorContext): void {
     .forEach((path: ASTPath<NodeWithId & NodeWithInit>) => {
       const varDecl = asNode(path.parent?.node);
       const grandParent = asNode(path.parentPath?.parentPath?.node);
-      const target = isExportLike(grandParent) ? grandParent : varDecl ?? asNode(path.node);
+      const target = isExportLike(grandParent) ? grandParent : (varDecl ?? asNode(path.node));
       recordMatch(matches, target, src, 'Variable(FunctionExpression)');
     });
 }
@@ -167,12 +180,15 @@ function collectVariableMatches(context: CollectorContext): void {
   root.find(j.VariableDeclarator, { id: { name } }).forEach((path: ASTPath<NodeWithId>) => {
     const varDecl = asNode(path.parent?.node);
     const grandParent = asNode(path.parentPath?.parentPath?.node);
-    const target = isExportLike(grandParent) ? grandParent : varDecl ?? asNode(path.node);
+    const target = isExportLike(grandParent) ? grandParent : (varDecl ?? asNode(path.node));
     recordMatch(matches, target, src, 'VariableDeclarator');
   });
 }
 
-export function collectMatchesForKind(kind: ReplaceNodeKind | undefined, context: CollectorContext): void {
+export function collectMatchesForKind(
+  kind: ReplaceNodeKind | undefined,
+  context: CollectorContext,
+): void {
   switch (kind) {
     case 'class':
       collectClassMatches(context);
@@ -191,7 +207,12 @@ export function collectMatchesForKind(kind: ReplaceNodeKind | undefined, context
   }
 }
 
-export function applyMatches(src: string, matches: Match[], replacement: string, matchIndex?: number): string | null {
+export function applyMatches(
+  src: string,
+  matches: Match[],
+  replacement: string,
+  matchIndex?: number,
+): string | null {
   if (matches.length === 0) {
     return null;
   }

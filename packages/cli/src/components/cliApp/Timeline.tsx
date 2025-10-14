@@ -35,7 +35,13 @@ function renderCommandEntry({
   planStep,
 }: TimelineCommandPayload): ReactElement {
   return (
-    <MemoCommand command={command} result={result} preview={preview} execution={execution} planStep={planStep} />
+    <MemoCommand
+      command={command}
+      result={result}
+      preview={preview}
+      execution={execution}
+      planStep={planStep}
+    />
   );
 }
 

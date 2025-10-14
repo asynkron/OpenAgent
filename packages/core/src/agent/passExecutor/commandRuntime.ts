@@ -217,7 +217,7 @@ export class CommandRuntime {
       result: commandResult,
       preview: renderPayload,
       execution: commandOutcome.executionDetails,
-      planStep: planStep ? clonePlanForExecution([planStep])[0] ?? null : null,
+      planStep: planStep ? (clonePlanForExecution([planStep])[0] ?? null) : null,
     });
 
     this.options.planRuntime.emitPlanSnapshot();

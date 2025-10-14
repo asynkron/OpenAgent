@@ -41,7 +41,7 @@ const transform = (
   try {
     collectMatchesForKind(kind, context);
   } catch (error) {
-    const message = error instanceof Error ? error.stack ?? error.message : String(error);
+    const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
     console.error('[replace-node] error during AST walk:', message);
     return null;
   }

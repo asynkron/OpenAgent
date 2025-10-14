@@ -46,9 +46,7 @@ describe('modelRequest.requestModelCompletion', () => {
     expect(Array.isArray(capturedParams.tools)).toBe(true);
     expect(capturedParams.tools[0]).toBeTruthy();
     expect(capturedParams.tools[0].name).toBe('open-agent');
-    expect(capturedParams.input).toEqual([
-      { role: 'user', content: 'Hello' },
-    ]);
+    expect(capturedParams.input).toEqual([{ role: 'user', content: 'Hello' }]);
 
     const toolSchema =
       typeof capturedParams.tools[0].schema === 'function'

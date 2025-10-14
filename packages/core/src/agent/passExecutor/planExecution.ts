@@ -81,7 +81,11 @@ export const collectExecutablePlanSteps = (
     const status = typeof item.status === 'string' ? item.status.trim().toLowerCase() : '';
     const waitingFor = normalizeWaitingForIds(item);
 
-    if (waitingFor.length === 0 && !TERMINAL_PLAN_STATUSES.has(status) && hasCommandPayload(item.command)) {
+    if (
+      waitingFor.length === 0 &&
+      !TERMINAL_PLAN_STATUSES.has(status) &&
+      hasCommandPayload(item.command)
+    ) {
       executable.push({ step: item, command: item.command! });
     }
   });
