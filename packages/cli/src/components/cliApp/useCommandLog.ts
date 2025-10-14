@@ -11,6 +11,7 @@ import type {
 import { appendWithLimit, formatDebugPayload } from './logging.js';
 import { cloneValue, parsePositiveInteger } from './runtimeUtils.js';
 import type { AppendTimelineEntry } from './useTimeline.js';
+import type { PlanStep } from '../planUtils.js';
 
 export interface UseCommandLogOptions {
   limit: number;
@@ -47,12 +48,14 @@ export function useCommandLog({ limit, appendCommandResult, appendStatus }: UseC
       const resultPayload = cloneValue(event.result ?? null);
       const previewPayload = cloneValue(event.preview ?? {});
       const executionPayload = cloneValue(event.execution ?? null);
+      const planStepPayload = cloneValue(event.planStep ?? null) as PlanStep | null;
 
       appendCommandResult('command-result', {
         command: commandPayload,
         result: resultPayload,
         preview: previewPayload,
         execution: executionPayload,
+        planStep: planStepPayload,
       });
 
       if (commandPayload) {

@@ -4,6 +4,7 @@ import type { CommandResult } from '../observationBuilder.js';
 import type { ApprovalManager } from '../approvalManager.js';
 import type { CommandRunOutcome, ExecuteAgentPassOptions } from './types.js';
 import type { ExecutableCandidate, PlanRuntime } from './planRuntime.js';
+import { clonePlanForExecution } from './planExecution.js';
 
 interface CommandRuntimeOptions {
   approvalManager: ApprovalManager | null;
@@ -216,6 +217,7 @@ export class CommandRuntime {
       result: commandResult,
       preview: renderPayload,
       execution: commandOutcome.executionDetails,
+      planStep: planStep ? clonePlanForExecution([planStep])[0] ?? null : null,
     });
 
     this.options.planRuntime.emitPlanSnapshot();
