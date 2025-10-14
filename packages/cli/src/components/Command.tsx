@@ -22,7 +22,6 @@ type SummaryLineStyleMap = Record<string, TextStyleProps> & { base?: TextStylePr
 type CommandThemeProps = {
   container?: BoxStyleProps;
   heading?: TextStyleProps;
-  headingBadge?: TextStyleProps;
   headingDetail?: TextStyleProps;
   summaryLine?: SummaryLineStyleMap;
   runContainer?: BoxStyleProps;
@@ -32,7 +31,6 @@ const commandThemeProps = (command.props ?? {}) as CommandThemeProps;
 const commandColors = command.colors;
 const commandContainerProps: BoxStyleProps = { ...(commandThemeProps.container ?? {}) };
 const commandHeadingProps: TextStyleProps = { ...(commandThemeProps.heading ?? {}) };
-const commandHeadingBadgeProps: TextStyleProps = { ...(commandThemeProps.headingBadge ?? {}) };
 const commandHeadingDetailProps: TextStyleProps = { ...(commandThemeProps.headingDetail ?? {}) };
 const commandSummaryLineProps: SummaryLineStyleMap = commandThemeProps.summaryLine ?? {};
 const commandRunContainerProps: BoxStyleProps = { ...(commandThemeProps.runContainer ?? {}) };
@@ -56,7 +54,10 @@ type CommandProps = {
   preview?: CommandPreview | null;
   execution?: CommandExecution | null;
   planStep?: PlanStep | null;
+  maxRunCharacters?: number;
 };
+
+const DEFAULT_MAX_RUN_CHARACTERS = 270;
 
 function buildPlanStepHeading(planStep: PlanStep | null | undefined): string | null {
   if (!planStep || typeof planStep !== 'object') {
@@ -81,21 +82,6 @@ function buildPlanStepHeading(planStep: PlanStep | null | undefined): string | n
   }
 
   return null;
-}
-
-function formatPlanStepSummary(planStep: PlanStep | null | undefined): string | null {
-  if (!planStep || typeof planStep !== 'object') {
-    return null;
-  }
-
-  const statusValue = planStep.status;
-  const statusText = typeof statusValue === 'string' ? statusValue.trim() : '';
-
-  if (!statusText) {
-    return null;
-  }
-
-  return `Plan step status: ${statusText}`;
 }
 
 function splitRunSegments(runValue: string | null | undefined): RunSegment[] | null {
@@ -145,30 +131,29 @@ function splitRunSegments(runValue: string | null | undefined): RunSegment[] | n
   return segments.some((segment) => segment.type === 'diff') ? segments : null;
 }
 
-function renderPlainRunLines(content: string | null, baseKey: string): ReactElement[] {
-  if (!content) {
-    return [];
-  }
-
-  return content
-    .split('\n')
-    .map((line, index, lines) => {
-      if (index === lines.length - 1 && line === '') {
-        return null;
-      }
-      const displayText = line === '' ? ' ' : line;
-      return (
-        <Text key={`${baseKey}-${index}`} dimColor>
-          {displayText}
-        </Text>
-      );
-    })
-    .filter((node): node is ReactElement => Boolean(node));
-}
-
 function renderDiffSegment(content: string, key: string): ReactElement {
   const normalized = typeof content === 'string' ? content.trimEnd() : '';
   const markdown = `\`\`\`diff\n${normalized}\n\`\`\``;
+  const rendered = renderMarkdownMessage(markdown);
+  return <Text key={key}>{rendered}</Text>;
+}
+
+// Render non-diff command text via markdown so syntax highlighting stays consistent.
+function renderRunMarkdown(
+  content: string | null | undefined,
+  key: string,
+  limit: number,
+): ReactElement | null {
+  if (typeof content !== 'string' || content.trim() === '') {
+    return null;
+  }
+
+  const ellipsis = '…';
+  const shouldTruncate = limit > 0 && content.length > limit;
+  const truncatedContent = shouldTruncate
+    ? `${content.slice(0, Math.max(limit - ellipsis.length, 0))}${ellipsis}`
+    : content;
+  const markdown = `\`\`\`bash\n${truncatedContent}\n\`\`\``;
   const rendered = renderMarkdownMessage(markdown);
   return <Text key={key}>{rendered}</Text>;
 }
@@ -235,6 +220,7 @@ export function Command({
   preview = {},
   execution = {},
   planStep = null,
+  maxRunCharacters = DEFAULT_MAX_RUN_CHARACTERS,
 }: CommandProps): ReactElement | null {
   const data: CommandRenderData | null = buildCommandRenderData(
     commandData ?? undefined,
@@ -247,38 +233,22 @@ export function Command({
     return null;
   }
 
-  const { type, detail, summaryLines } = data;
+  const { detail, summaryLines } = data;
 
   const headingProps: TextStyleProps = { ...commandHeadingProps };
   if (headingProps.color === undefined) {
     headingProps.color = commandColors.fg;
   }
 
-  const headingBadgeProps: TextStyleProps = { ...commandHeadingBadgeProps };
-  if (!headingBadgeProps.backgroundColor) {
-    headingBadgeProps.backgroundColor = commandColors.headerBg;
-  }
-  if (!headingBadgeProps.color) {
-    headingBadgeProps.color = commandColors.fg;
-  }
-  if (headingBadgeProps.bold === undefined) {
-    headingBadgeProps.bold = true;
-  }
-
   const headingDetailProps: TextStyleProps = { ...commandHeadingDetailProps };
 
   const planStepHeading = buildPlanStepHeading(planStep);
-  const planStepSummary = formatPlanStepSummary(planStep);
-  const planStepDetailProps: TextStyleProps = { ...headingDetailProps };
-  if (!planStepDetailProps.color && headingDetailProps.color) {
-    planStepDetailProps.color = headingDetailProps.color;
-  }
-  if (planStepDetailProps.dimColor === undefined) {
-    planStepDetailProps.dimColor = true;
-  }
 
   const runValue = extractRunValue(commandData ?? undefined, execution ?? undefined);
   const runSegments = splitRunSegments(runValue);
+  const runCharacterLimit = Number.isFinite(maxRunCharacters)
+    ? Math.max(0, Math.floor(maxRunCharacters))
+    : DEFAULT_MAX_RUN_CHARACTERS;
 
   let runElements: ReactElement[] | null = null;
   if (runSegments) {
@@ -289,11 +259,17 @@ export function Command({
       if (segment.type === 'diff') {
         return [renderDiffSegment(segment.content, `run-diff-${index}`)];
       }
-      return renderPlainRunLines(segment.content, `run-text-${index}`);
+      const rendered = renderRunMarkdown(segment.content, `run-text-${index}`, runCharacterLimit);
+      return rendered ? [rendered] : [];
     });
 
     if (segments.length > 0) {
       runElements = segments;
+    }
+  } else {
+    const rendered = renderRunMarkdown(runValue, 'run-text', runCharacterLimit);
+    if (rendered) {
+      runElements = [rendered];
     }
   }
 
@@ -376,13 +352,9 @@ export function Command({
       </Box>
       <Box {...(containerProps as Record<string, unknown>)}>
         <Text {...(headingProps as Record<string, unknown>)}>
-          <Text {...(headingBadgeProps as Record<string, unknown>)}>{` ${type} `}</Text>
-          <Text {...(headingDetailProps as Record<string, unknown>)}>{` ${detail}`}</Text>
-          {planStepSummary ? (
-            <Text
-              {...(planStepDetailProps as Record<string, unknown>)}
-            >{` • ${planStepSummary}`}</Text>
-          ) : null}
+          <Text color="green">❯</Text>
+          <Text> </Text>
+          <Text {...(headingDetailProps as Record<string, unknown>)}>{detail}</Text>
         </Text>
         {runElements ? (
           <Box {...(runContainerProps as Record<string, unknown>)}>{runElements}</Box>
