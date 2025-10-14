@@ -190,22 +190,20 @@ export class PlanRuntime {
     }
   }
 
-  private removeStepFromActivePlan(planStep: PlanStep): void {
-    const index = this.activePlan.indexOf(planStep);
-    if (index === -1) {
+  private completePlanStep(planStep: PlanStep): void {
+    const identifier = extractPlanStepIdentifier(planStep);
+    if (planStep && typeof planStep === 'object') {
+      // Keep the step in the active plan so the assistant can see the completion
+      // when we emit the observation; removal happens when the next response arrives.
+      planStep.status = COMPLETED_STATUS;
+      this.planMutated = true;
+    }
+    if (identifier) {
+      this.removeDependencyReferences(identifier);
       return;
     }
 
-    this.activePlan.splice(index, 1);
-    this.planMutated = true;
-  }
-
-  private completePlanStep(planStep: PlanStep): void {
-    const identifier = extractPlanStepIdentifier(planStep);
-    this.removeStepFromActivePlan(planStep);
-    if (identifier) {
-      this.removeDependencyReferences(identifier);
-    }
+    this.normalizeActivePlanDependencies();
   }
 
   private pruneCompletedSteps(): void {
@@ -213,10 +211,28 @@ export class PlanRuntime {
       return;
     }
 
-    [...this.activePlan].forEach((step) => {
-      if (isCompletedStatus(step?.status)) {
-        this.completePlanStep(step as PlanStep);
+    const removedStepIds: string[] = [];
+
+    const filteredPlan = this.activePlan.filter((candidate) => {
+      if (!isCompletedStatus(candidate?.status)) {
+        return true;
       }
+
+      const identifier = extractPlanStepIdentifier(candidate as PlanStep);
+      if (identifier) {
+        removedStepIds.push(identifier);
+      }
+
+      return false;
+    });
+
+    if (filteredPlan.length !== this.activePlan.length) {
+      this.activePlan = filteredPlan;
+      this.planMutated = true;
+    }
+
+    removedStepIds.forEach((identifier) => {
+      this.removeDependencyReferences(identifier);
     });
   }
 

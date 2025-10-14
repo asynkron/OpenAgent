@@ -50,7 +50,8 @@ describe('executeAgentPass', () => {
     expect(runningEvent).toBeDefined();
     const finalPlanEvent = planEvents[planEvents.length - 1];
     expect(Array.isArray(finalPlanEvent.plan)).toBe(true);
-    expect(finalPlanEvent.plan).toHaveLength(0);
+    expect(finalPlanEvent.plan).toHaveLength(1);
+    expect(finalPlanEvent.plan[0].status).toBe('completed');
   });
 
   test('merges incoming plans and marks successful commands as completed', async () => {
@@ -122,10 +123,11 @@ describe('executeAgentPass', () => {
       .filter((event) => event && event.type === 'plan');
     const finalPlanEvent = planEvents[planEvents.length - 1];
     expect(Array.isArray(finalPlanEvent.plan)).toBe(true);
-    expect(finalPlanEvent.plan).toHaveLength(0);
+    expect(finalPlanEvent.plan).toHaveLength(1);
+    expect(finalPlanEvent.plan[0].status).toBe('completed');
   });
 
-  test('removes executed plan steps even when later steps reorder', async () => {
+  test('keeps completed plan steps until the next assistant response even when later steps reorder', async () => {
     const executedRuns = [];
     const { executeAgentPass, parseAssistantResponse, executeAgentCommand, planHasOpenSteps } =
       await setupPassExecutor({
@@ -197,7 +199,8 @@ describe('executeAgentPass', () => {
     expect(planEvents.length).toBeGreaterThanOrEqual(3);
     const finalPlanEvent = planEvents[planEvents.length - 1];
     expect(Array.isArray(finalPlanEvent.plan)).toBe(true);
-    expect(finalPlanEvent.plan).toHaveLength(0);
+    expect(finalPlanEvent.plan).toHaveLength(2);
+    expect(finalPlanEvent.plan.map((step) => step.status)).toEqual(['completed', 'completed']);
   });
 
   test('executes dependent plan steps after prerequisites complete', async () => {
@@ -271,18 +274,30 @@ describe('executeAgentPass', () => {
       .map(([event]) => event)
       .filter((event) => event && event.type === 'plan');
 
-    const dependentReadyEvent = planEvents.find(
-      (event) =>
-        Array.isArray(event.plan) &&
-        event.plan.length === 1 &&
-        event.plan[0]?.id === 'b' &&
-        Array.isArray(event.plan[0]?.waitingForId) &&
-        event.plan[0].waitingForId.length === 0,
-    );
+    const dependentReadyEvent = planEvents.find((event) => {
+      if (!Array.isArray(event.plan)) {
+        return false;
+      }
+
+      const prerequisiteCompleted = event.plan.some(
+        (step) => step?.id === 'a' && step?.status === 'completed',
+      );
+      const dependentReady = event.plan.some((step) => {
+        if (step?.id !== 'b') {
+          return false;
+        }
+
+        const dependencies = Array.isArray(step.waitingForId) ? step.waitingForId : [];
+        return dependencies.length === 0;
+      });
+
+      return prerequisiteCompleted && dependentReady;
+    });
     expect(dependentReadyEvent).toBeDefined();
 
     const finalPlanEvent = planEvents[planEvents.length - 1];
     expect(Array.isArray(finalPlanEvent.plan)).toBe(true);
-    expect(finalPlanEvent.plan).toHaveLength(0);
+    expect(finalPlanEvent.plan).toHaveLength(2);
+    expect(finalPlanEvent.plan.map((step) => step.status)).toEqual(['completed', 'completed']);
   });
 });

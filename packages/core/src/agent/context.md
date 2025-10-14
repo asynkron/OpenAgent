@@ -59,4 +59,4 @@
 - `passExecutor.ts` now consolidates approval, execution safety, and plan snapshot helpers so the main loop reads linearly while emitting consistent status updates.
 - Pass executor unit tests now import shared helpers from `__testUtils__/passExecutor.ts` (moved out of `__tests__` so Jest does not collect it as a suite), keeping the primary spec focused on behavior assertions instead of repeated mock wiring.
 - `passExecutor/commandRuntime.ts` emits the active plan step snapshot alongside each `command-result` event so downstream UIs can display the parent step metadata with command output.
-- Plan runtime now removes completed steps immediately, updates dependent `waitingForId` arrays, and no longer emits plan reminder auto-responses; downstream hosts should rely on the automatic executor instead of prompt nudges.
+- Plan runtime now keeps completed steps in the active plan until the next assistant response (so the model can read the results), updates dependent `waitingForId` arrays, and no longer emits plan reminder auto-responses; downstream hosts should rely on the automatic executor instead of prompt nudges.
