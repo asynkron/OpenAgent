@@ -28,6 +28,7 @@ export interface ObservationForLLM extends JsonLike {
   operation_canceled?: boolean;
   exit_code?: number;
   truncated?: boolean;
+  truncation_notice?: string;
   message?: string;
 }
 
@@ -38,15 +39,9 @@ export interface ObservationRecord extends JsonLike {
   observation_metadata?: ObservationMetadata | null;
 }
 
-export interface CommandDescriptor extends JsonLike {
-  run?: unknown;
-  shell?: unknown;
-  key?: unknown;
-}
-
 export interface ObservationInput {
   observation?: ObservationRecord | null;
-  command?: CommandDescriptor | null;
+  command?: Record<string, unknown> | null;
 }
 
 export interface ObservationHistoryEntryInput extends ObservationInput {
@@ -84,28 +79,6 @@ const stringify = (value: unknown): string => JSON.stringify(value, null, JSON_I
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
-
-const describeCommand = (command: CommandDescriptor | null | undefined): string => {
-  if (!command || typeof command !== 'object') {
-    return '';
-  }
-
-  const run = isNonEmptyString(command.run) ? command.run.trim() : '';
-  if (run) {
-    return run;
-  }
-
-  const shell = isNonEmptyString(command.shell) ? command.shell.trim() : '';
-  if (shell) {
-    return shell;
-  }
-
-  if (isNonEmptyString(command.key)) {
-    return command.key.trim();
-  }
-
-  return '';
-};
 
 const hasKeys = (value: unknown): value is JsonLike =>
   Boolean(value) && typeof value === 'object' && Object.keys(value as JsonLike).length > 0;
@@ -148,9 +121,8 @@ const buildObservationContent = ({
   } else if (payload.operation_canceled) {
     summaryParts.push('The operation was canceled before completion.');
   } else {
-    const commandDescription = describeCommand(command);
-    if (commandDescription) {
-      summaryParts.push(`I ran the command: ${commandDescription}.`);
+    if (command && typeof command === 'object') {
+      summaryParts.push('I executed the approved command from the active plan.');
     } else {
       summaryParts.push('I have an update from the last command execution.');
     }
@@ -160,7 +132,13 @@ const buildObservationContent = ({
     }
 
     if (payload.truncated) {
-      summaryParts.push('Note: the output shown below is truncated.');
+      summaryParts.push(
+        payload.truncation_notice
+          ? String(payload.truncation_notice)
+          : 'Note: the output shown below is truncated.',
+      );
+    } else if (payload.truncation_notice) {
+      summaryParts.push(String(payload.truncation_notice));
     }
   }
 

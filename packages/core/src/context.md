@@ -9,7 +9,7 @@
 
 - `agent/` — orchestration loop, command execution strategies, approval flow, and plan management. See [`agent/context.md`](agent/context.md).
 - `bindings/` — adapters for alternative front-ends (currently the WebSocket binding).
-- `contracts/` — canonical DTO module exporting tool DTOs, model request/response types, completion wrapper types, and observation/history shapes for single-path imports.
+- `contracts/` — canonical DTO module exporting tool DTOs, model request/response types, completion wrapper types, and observation/history shapes for single-path imports. The OpenAgent tool schema now defaults `command.tail_lines` to 200 lines, exposes an optional `command.max_bytes` cap, and propagates those limits through the runtime JSON schema.
 - `commands/` — shell command executors and helpers.
 - `services/` — command approval allowlist/session tracking plus command statistics collection.
 - `openai/` — client configuration, request/response helpers, response extraction utilities.

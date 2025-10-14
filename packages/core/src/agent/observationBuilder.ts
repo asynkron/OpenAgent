@@ -64,6 +64,8 @@ export interface ObservationBuilderDeps {
 }
 
 export class ObservationBuilder {
+  private static readonly DEFAULT_TAIL_LINES = 200;
+
   private readonly combineStdStreams: ObservationBuilderDeps['combineStdStreams'];
   private readonly applyFilter: ObservationBuilderDeps['applyFilter'];
   private readonly tailLines: ObservationBuilderDeps['tailLines'];
@@ -114,38 +116,81 @@ export class ObservationBuilder {
     const exceedsOutputLimit = combinedByteSize > 50 * 1024;
     const corruptMessage = '!!!corrupt command, excessive output!!!';
 
+    const tailLinesConfig = this.resolveTailLines(command);
+    const maxBytesConfig = this.resolveMaxBytes(command);
+    const truncationNotices: string[] = [];
     let filteredStdout = combined.stdout;
     let filteredStderr = combined.stderr;
 
     if (exceedsOutputLimit) {
       filteredStdout = corruptMessage;
       filteredStderr = corruptMessage;
+      truncationNotices.push(
+        'Output replaced because it exceeded the 50 KiB safety limit. Rerun the command with tighter filters if you need specific sections.',
+      );
     } else {
-      if (command && typeof command.filter_regex === 'string') {
-        filteredStdout = this.applyFilter(filteredStdout, command.filter_regex);
-        filteredStderr = this.applyFilter(filteredStderr, command.filter_regex);
+      const filterRegex = command && typeof command.filter_regex === 'string' ? command.filter_regex : '';
+      let filterChanged = false;
+
+      if (filterRegex) {
+        const nextStdout = this.applyFilter(filteredStdout, filterRegex);
+        const nextStderr = this.applyFilter(filteredStderr, filterRegex);
+        filterChanged = nextStdout !== filteredStdout || nextStderr !== filteredStderr;
+        filteredStdout = nextStdout;
+        filteredStderr = nextStderr;
       }
 
-      if (command && typeof command.tail_lines === 'number') {
-        filteredStdout = this.tailLines(filteredStdout, command.tail_lines);
-        filteredStderr = this.tailLines(filteredStderr, command.tail_lines);
+      if (filterChanged) {
+        truncationNotices.push(
+          'Output filtered using command.filter_regex; rerun without the filter to inspect the raw stream.',
+        );
+      }
+
+      const preTailStdout = filteredStdout;
+      const preTailStderr = filteredStderr;
+      if (tailLinesConfig) {
+        filteredStdout = this.tailLines(filteredStdout, tailLinesConfig.limit);
+        filteredStderr = this.tailLines(filteredStderr, tailLinesConfig.limit);
+
+        const exceededTailLimit =
+          this.lineCount(preTailStdout) > tailLinesConfig.limit ||
+          this.lineCount(preTailStderr) > tailLinesConfig.limit;
+
+        if (exceededTailLimit) {
+          truncationNotices.push(
+            tailLinesConfig.source === 'explicit'
+              ? `Output truncated to ${tailLinesConfig.limit} lines per command.tail_lines. Increase the value or set it to 0 to disable the line cap.`
+              : `Output truncated to the default ${tailLinesConfig.limit} lines. Provide command.tail_lines = 0 (or a higher value) if you need the full stream.`,
+          );
+        }
+      }
+
+      const preBytesStdout = filteredStdout;
+      const preBytesStderr = filteredStderr;
+      if (maxBytesConfig) {
+        const stdoutExceedsBytes = this.byteLength(preBytesStdout) > maxBytesConfig.limit;
+        const stderrExceedsBytes = this.byteLength(preBytesStderr) > maxBytesConfig.limit;
+
+        if (stdoutExceedsBytes) {
+          filteredStdout = this.truncateBytes(preBytesStdout, maxBytesConfig.limit);
+        }
+        if (stderrExceedsBytes) {
+          filteredStderr = this.truncateBytes(preBytesStderr, maxBytesConfig.limit);
+        }
+
+        if (stdoutExceedsBytes || stderrExceedsBytes) {
+          truncationNotices.push(
+            `Output limited to the first ${maxBytesConfig.limit} bytes per command.max_bytes. Omit the field to disable the byte cap.`,
+          );
+        }
       }
     }
 
     const stdoutPreview = this.buildPreview(filteredStdout);
     const stderrPreview = this.buildPreview(filteredStderr);
 
-    const truncated = exceedsOutputLimit
-      ? true
-      : Boolean(
-          (command &&
-            command.filter_regex &&
-            (combined.stdout !== filteredStdout || combined.stderr !== filteredStderr)) ||
-            (command &&
-              command.tail_lines &&
-              (this.lineCount(originalStdout) > command.tail_lines ||
-                this.lineCount(originalStderr) > command.tail_lines)),
-        );
+    const truncated = exceedsOutputLimit || truncationNotices.length > 0;
+    const truncationNotice = truncationNotices.length > 0 ? truncationNotices.join(' ') : undefined;
 
     const observationExitCode = exceedsOutputLimit ? 1 : result.exit_code;
     const normalizedExitCode =
@@ -159,6 +204,7 @@ export class ObservationBuilder {
         stderr: filteredStderr,
         ...(typeof normalizedExitCode === 'number' ? { exit_code: normalizedExitCode } : {}),
         truncated,
+        ...(truncationNotice ? { truncation_notice: truncationNotice } : {}),
       },
       observation_metadata: {
         runtime_ms: result.runtime_ms,
@@ -208,6 +254,41 @@ export class ObservationBuilder {
       return 0;
     }
     return Buffer.byteLength(String(text), 'utf8');
+  }
+
+  private resolveTailLines(command: AssistantCommand | null | undefined):
+    | { limit: number; source: 'default' | 'explicit' }
+    | null {
+    const candidate = command && typeof command === 'object' ? (command as any).tail_lines : undefined;
+
+    if (typeof candidate === 'number' && Number.isFinite(candidate)) {
+      if (candidate <= 0) {
+        return null;
+      }
+
+      return { limit: Math.floor(candidate), source: 'explicit' };
+    }
+
+    return { limit: ObservationBuilder.DEFAULT_TAIL_LINES, source: 'default' };
+  }
+
+  private resolveMaxBytes(command: AssistantCommand | null | undefined): { limit: number } | null {
+    const candidate = command && typeof command === 'object' ? (command as any).max_bytes : undefined;
+
+    if (typeof candidate === 'number' && Number.isFinite(candidate) && candidate > 0) {
+      return { limit: Math.floor(candidate) };
+    }
+
+    return null;
+  }
+
+  private truncateBytes(text: string, limit: number): string {
+    const buffer = Buffer.from(text ?? '', 'utf8');
+    if (buffer.length <= limit) {
+      return buffer.toString('utf8');
+    }
+
+    return buffer.slice(0, limit).toString('utf8');
   }
 }
 
