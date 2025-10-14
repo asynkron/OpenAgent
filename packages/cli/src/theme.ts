@@ -107,6 +107,7 @@ export const theme = {
     props: {
       container: {
         borderStyle: 'round',
+        borderColor: '#ffffff',
         flexDirection: 'column',
         marginTop: 1,
         paddingX: 1,

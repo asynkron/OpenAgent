@@ -307,17 +307,29 @@ export function Command({
     ...commandContainerProps,
   };
 
+  const derivedBorderStyle =
+    typeof containerProps.borderStyle === 'string' && containerProps.borderStyle
+      ? containerProps.borderStyle
+      : 'round';
+  const derivedBorderColor =
+    typeof containerProps.borderColor === 'string' && containerProps.borderColor.trim() !== ''
+      ? containerProps.borderColor
+      : '#ffffff';
+
   const rootProps: BoxStyleProps = {
     flexDirection: 'column',
     width: '100%',
     alignSelf: containerProps.alignSelf ?? 'stretch',
     flexGrow: containerProps.flexGrow ?? 1,
     marginTop: containerProps.marginTop ?? 1,
+    borderStyle: derivedBorderStyle,
+    borderColor: derivedBorderColor,
   };
 
   delete containerProps.alignSelf;
   delete containerProps.flexGrow;
   delete containerProps.marginTop;
+  // Border styling lives on the outer wrapper so the plan header and body share the same frame.
   delete containerProps.borderStyle;
   delete containerProps.borderColor;
 
