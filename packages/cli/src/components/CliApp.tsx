@@ -60,6 +60,16 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
   const [passCounter, setPassCounter] = useState(0);
 
   const { entries, timelineKey, appendEntry } = useTimeline(MAX_TIMELINE_ENTRIES);
+  const pendingAssistantMessageRef = useRef<TimelinePayload<'assistant-message'> | null>(null);
+
+  const flushPendingAssistantMessage = useCallback((): void => {
+    const pending = pendingAssistantMessageRef.current;
+    if (!pending) {
+      return;
+    }
+    appendEntry('assistant-message', pending);
+    pendingAssistantMessageRef.current = null;
+  }, [appendEntry]);
 
   const appendStatus = useCallback(
     (status: TimelinePayload<'status'>): void => {
@@ -91,13 +101,14 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
 
   const handleAssistantMessage = useCallback(
     (event: AssistantMessageRuntimeEvent): void => {
+      flushPendingAssistantMessage();
       const rawId = event.__id;
       const eventId =
         typeof rawId === 'string' || typeof rawId === 'number' ? (rawId as string | number) : null;
       const message = typeof event.message === 'string' ? event.message : '';
-      appendEntry('assistant-message', { message, eventId });
+      pendingAssistantMessageRef.current = { message, eventId };
     },
-    [appendEntry],
+    [flushPendingAssistantMessage],
   );
 
   const handleStatusEvent = useCallback(
@@ -249,6 +260,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
   );
 
   const handleRequestInputEvent = useCallback((event: RuntimeEvent): void => {
+    flushPendingAssistantMessage();
     const inputEvent = event as any;
     setInputRequest({
       prompt: typeof inputEvent.prompt === 'string' ? inputEvent.prompt : '▷',
@@ -257,7 +269,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
           ? null
           : cloneValue(inputEvent.metadata),
     });
-  }, []);
+  }, [flushPendingAssistantMessage]);
 
   const handleEvent = useCallback(
     (event: RuntimeEvent) => {
@@ -370,6 +382,8 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
       return;
     }
 
+    flushPendingAssistantMessage();
+
     if (exitState.status === 'error') {
       onRuntimeError?.(exitState.error);
     } else {
@@ -377,7 +391,7 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
     }
 
     exit();
-  }, [exit, exitState, onRuntimeComplete, onRuntimeError]);
+  }, [exit, exitState, flushPendingAssistantMessage, onRuntimeComplete, onRuntimeError]);
 
   useInput((input, key) => {
     if (key.escape) {

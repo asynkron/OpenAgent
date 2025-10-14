@@ -58,3 +58,4 @@
 - `loop.ts` now ships with strict TypeScript types (queues, factories, event observers) so downstream consumers receive typed runtime APIs without relying on `@ts-nocheck` escapes. The companion `loop.test.ts` was updated to use typed stub queues and prompt coordinators.
 - `passExecutor.ts` now consolidates approval, execution safety, and plan snapshot helpers so the main loop reads linearly while emitting consistent status updates.
 - Pass executor unit tests now import shared helpers from `__testUtils__/passExecutor.ts` (moved out of `__tests__` so Jest does not collect it as a suite), keeping the primary spec focused on behavior assertions instead of repeated mock wiring.
+- `passExecutor/commandRuntime.ts` emits the active plan step snapshot alongside each `command-result` event so downstream UIs can display the parent step metadata with command output.

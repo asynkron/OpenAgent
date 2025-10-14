@@ -54,6 +54,7 @@ export type CommandResultRuntimeEvent = RuntimeEventBase<
     result?: unknown;
     preview?: unknown;
     execution?: unknown;
+    planStep?: unknown;
   }
 >;
 
@@ -126,6 +127,7 @@ export type TimelineCommandPayload = {
   result: CommandResult | null | undefined;
   preview: CommandPreview | null | undefined;
   execution: CommandExecution | null | undefined;
+  planStep: PlanStep | null | undefined;
 };
 
 export type TimelineStatusPayload = {

@@ -12,6 +12,7 @@ import {
 } from './commandUtils.js';
 import theme from '../theme.js';
 import { renderMarkdownMessage } from '../render.js';
+import type { PlanStep } from './planUtils.js';
 
 const { command } = theme;
 type TextStyleProps = Record<string, unknown>;
@@ -54,7 +55,51 @@ type CommandProps = {
   result?: CommandResult | null;
   preview?: CommandPreview | null;
   execution?: CommandExecution | null;
+  planStep?: PlanStep | null;
 };
+
+function formatPlanStepSummary(planStep: PlanStep | null | undefined): string | null {
+  if (!planStep || typeof planStep !== 'object') {
+    return null;
+  }
+
+  const idValue = planStep.id;
+  const titleValue = planStep.title;
+  const statusValue = planStep.status;
+  const ageValue = planStep.age;
+
+  const idText =
+    typeof idValue === 'string' || typeof idValue === 'number' ? String(idValue).trim() : '';
+  const titleText = typeof titleValue === 'string' ? titleValue.trim() : '';
+  const statusText = typeof statusValue === 'string' ? statusValue.trim() : '';
+
+  const parsedAge = Number.parseInt(String(ageValue ?? '').trim(), 10);
+  const ageText = Number.isFinite(parsedAge) && parsedAge >= 0 ? `age ${parsedAge}` : '';
+
+  const descriptorParts: string[] = [];
+  if (idText) {
+    descriptorParts.push(`#${idText}`);
+  }
+  if (titleText) {
+    descriptorParts.push(titleText);
+  }
+
+  const descriptor = descriptorParts.join(' — ');
+  const metadataParts: string[] = [];
+  if (statusText) {
+    metadataParts.push(statusText);
+  }
+  if (ageText) {
+    metadataParts.push(ageText);
+  }
+
+  if (!descriptor && metadataParts.length === 0) {
+    return null;
+  }
+
+  const metadataSuffix = metadataParts.length > 0 ? ` (${metadataParts.join(' • ')})` : '';
+  return descriptor ? `Plan step ${descriptor}${metadataSuffix}` : `Plan step${metadataSuffix}`;
+}
 
 function splitRunSegments(runValue: string | null | undefined): RunSegment[] | null {
   if (typeof runValue !== 'string' || !runValue.includes(BEGIN_PATCH_MARKER)) {
@@ -192,6 +237,7 @@ export function Command({
   result,
   preview = {},
   execution = {},
+  planStep = null,
 }: CommandProps): ReactElement | null {
   const data: CommandRenderData | null = buildCommandRenderData(
     commandData ?? undefined,
@@ -223,6 +269,15 @@ export function Command({
   }
 
   const headingDetailProps: TextStyleProps = { ...commandHeadingDetailProps };
+
+  const planStepSummary = formatPlanStepSummary(planStep);
+  const planStepDetailProps: TextStyleProps = { ...headingDetailProps };
+  if (!planStepDetailProps.color && headingDetailProps.color) {
+    planStepDetailProps.color = headingDetailProps.color;
+  }
+  if (planStepDetailProps.dimColor === undefined) {
+    planStepDetailProps.dimColor = true;
+  }
 
   const runValue = extractRunValue(commandData ?? undefined, execution ?? undefined);
   const runSegments = splitRunSegments(runValue);
@@ -274,6 +329,9 @@ export function Command({
       <Text {...(headingProps as Record<string, unknown>)}>
         <Text {...(headingBadgeProps as Record<string, unknown>)}>{` ${type} `}</Text>
         <Text {...(headingDetailProps as Record<string, unknown>)}>{` ${detail}`}</Text>
+        {planStepSummary ? (
+          <Text {...(planStepDetailProps as Record<string, unknown>)}>{` • ${planStepSummary}`}</Text>
+        ) : null}
       </Text>
       {runElements ? (
         <Box {...(runContainerProps as Record<string, unknown>)}>{runElements}</Box>

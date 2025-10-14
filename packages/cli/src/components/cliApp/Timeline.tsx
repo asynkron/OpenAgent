@@ -32,8 +32,11 @@ function renderCommandEntry({
   result,
   preview,
   execution,
+  planStep,
 }: TimelineCommandPayload): ReactElement {
-  return <MemoCommand command={command} result={result} preview={preview} execution={execution} />;
+  return (
+    <MemoCommand command={command} result={result} preview={preview} execution={execution} planStep={planStep} />
+  );
 }
 
 function renderBannerEntry({ title, subtitle }: TimelineBannerPayload): ReactElement | null {
