@@ -90,9 +90,16 @@ export const ToolResponseJsonSchema = {
     },
     plan: {
       type: 'array',
-      description: "List of steps representing the assistant's current plan.",
+      description: `a DAG (Directed Acyclic Graph) of tasks to execute, 
+      each task executes exactly 1 command, each task can depend 
+      on 0 or more other tasks to complete before executing.
+      User goals should be the last task to execute in the chain of task.
+      e.g 'I want to create a guess a number game in js', then 'game created' is the end node in the graph.
+      The DAG is designed to do groundwork first, creating files, install packages etc. and to validate, run tests etc as end nodes.      
+      `,
       items: {
         type: 'object',
+        description: 'a single task in the DAG plan, represents both the task and the shell command to execute',
         additionalProperties: false,
         required: ['id', 'title', 'status', 'age', 'waitingForId', 'command'],
         properties: {
