@@ -1,6 +1,10 @@
-# .openagent directory
+# .openagent context
 
-This directory contains internal tooling, temp artifacts, and experiments.
+This directory hosts agent-generated working areas and temporary artifacts.
 
-Entries
-- temp/snake-crt: Retro Snake game with CRT effects (index.html, style.css, script.js). See .openagent/temp/snake-crt/context.md for details.
+Subdirectories:
+- tmp/pacman: Self-contained HTML/JS Pac-Man with CRT effects. No build step; open index.html directly or serve statically.
+
+Known risks:
+- Contents are generated and may be overwritten by future agent runs.
+- Large binary assets are avoided; the project is code-only for portability.
