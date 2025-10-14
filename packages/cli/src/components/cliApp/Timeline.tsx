@@ -20,7 +20,7 @@ const MemoCommand = memo(Command);
 const MemoStatusMessage = memo(StatusMessage);
 
 function renderAssistantEntry({ message, eventId }: TimelineAssistantPayload): ReactElement {
-  return <MemoAgentResponse key={eventId ?? undefined} message={message} />;
+  return <MemoAgentResponse key={eventId} message={message} />;
 }
 
 function renderHumanEntry({ message }: TimelineHumanPayload): ReactElement {

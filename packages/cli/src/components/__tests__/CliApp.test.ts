@@ -24,6 +24,7 @@ function createRuntimeHarness() {
   const queue = [];
   const waiters = [];
   let closed = false;
+  let counter = 0;
 
   const iterator = {
     async next() {
@@ -59,12 +60,19 @@ function createRuntimeHarness() {
       if (closed) {
         return;
       }
+      const resolvedEvent =
+        event && typeof event === 'object'
+          ? { ...event }
+          : { type: 'unknown', event };
+      if (typeof resolvedEvent.__id === 'undefined') {
+        resolvedEvent.__id = `event-${counter++}`;
+      }
       if (waiters.length > 0) {
         const resolve = waiters.shift();
-        resolve({ value: event, done: false });
+        resolve({ value: resolvedEvent, done: false });
         return;
       }
-      queue.push(event);
+      queue.push(resolvedEvent);
     },
     close() {
       if (closed) {
@@ -108,6 +116,56 @@ describe('CliApp slash command handling', () => {
 
       expect(runtime.submitPrompt).toHaveBeenCalledTimes(1);
       expect(runtime.submitPrompt).toHaveBeenCalledWith('hello world');
+    } finally {
+      unmount();
+      runtime.close();
+      consoleErrorSpy.mockRestore();
+    }
+  });
+});
+
+describe('CliApp assistant message handling', () => {
+  test('renders non-string assistant messages once input is requested again', async () => {
+    const runtime = createRuntimeHarness();
+    const { lastFrame, unmount } = render(React.createElement(CliApp, { runtime }));
+
+    try {
+      runtime.emit({
+        type: 'assistant-message',
+        message: ['Structured response preserved.'],
+      });
+      await flush();
+
+      runtime.emit({ type: 'request-input', prompt: '▷' });
+      await flush();
+
+      expect(lastFrame()).toContain('Structured response preserved.');
+    } finally {
+      unmount();
+      runtime.close();
+    }
+  });
+
+  test('fails fast when the runtime delivers a non-string assistant id', async () => {
+    const runtime = createRuntimeHarness();
+    const onRuntimeError = jest.fn();
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { unmount } = render(
+      React.createElement(CliApp, { runtime, onRuntimeError }),
+    );
+
+    try {
+      runtime.emit({
+        type: 'assistant-message',
+        __id: 42,
+        message: 'should not render',
+      });
+      await flush();
+
+      expect(onRuntimeError).toHaveBeenCalledTimes(1);
+      const [error] = onRuntimeError.mock.calls[0];
+      expect(error).toBeInstanceOf(TypeError);
+      expect(String(error)).toContain('Assistant runtime event expected string "__id"');
     } finally {
       unmount();
       runtime.close();
