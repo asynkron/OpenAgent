@@ -83,7 +83,7 @@ describe('HistoryCompactor', () => {
 
     const { HistoryCompactor } = await import('../historyCompactor.js');
     const baseHistory = await buildBaseHistory();
-    const history = baseHistory.map((entry) => ({ ...entry }));
+    const history = [...baseHistory];
     const logger = { log: jest.fn(), warn: jest.fn() };
     const openai = { responses: jest.fn(() => ({})) };
 
@@ -94,7 +94,7 @@ describe('HistoryCompactor', () => {
       logger,
     });
 
-    const originalTail = history.slice(3).map((entry) => entry);
+    const originalTail = history.slice(3);
 
     const result = await compactor.compactIfNeeded({ history });
 
@@ -119,8 +119,12 @@ describe('HistoryCompactor', () => {
 
     expect(history).toHaveLength(4);
     const compactedEntry = history[1];
-    expect(compactedEntry).toMatchObject({ eventType: 'chat-message', role: 'system', pass: 1 });
-    expect(compactedEntry.payload).toEqual({ role: 'system', content: compactedEntry.content });
+    expect(compactedEntry).toMatchObject({ eventType: 'chat-message', pass: 1 });
+    expect(compactedEntry.role).toBe('system');
+    expect(compactedEntry.payload).toEqual({
+      role: 'system',
+      content: compactedEntry.content,
+    });
     expect(compactedEntry.content).toMatch(/^Compacted memory:/);
     expect(compactedEntry.content).toContain('Condensed summary.');
 
@@ -135,7 +139,7 @@ describe('HistoryCompactor', () => {
 
     const { HistoryCompactor } = await import('../historyCompactor.js');
     const baseHistory = await buildBaseHistory();
-    const history = baseHistory.map((entry) => ({ ...entry }));
+    const history = [...baseHistory];
     const openai = { responses: jest.fn(() => ({})) };
 
     const compactor = new HistoryCompactor({
@@ -159,7 +163,7 @@ describe('HistoryCompactor', () => {
 
     const { HistoryCompactor } = await import('../historyCompactor.js');
     const baseHistory = await buildBaseHistory();
-    const history = baseHistory.map((entry) => ({ ...entry }));
+    const history = [...baseHistory];
     const openai = { responses: jest.fn(() => ({})) };
 
     const compactor = new HistoryCompactor({

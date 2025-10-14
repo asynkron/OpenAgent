@@ -61,7 +61,13 @@ export function createChatMessageEntry(entry: ChatMessageEntryInput = {}): ChatM
     throw new TypeError('Chat history entry must be an object.');
   }
 
-  const { eventType, payload: providedPayload, ...rest } = entry;
+  const {
+    eventType,
+    payload: providedPayload,
+    role: rootRole,
+    content: rootContent,
+    ...rest
+  } = entry;
   const normalizedEventType =
     typeof eventType === 'string' && eventType.trim() ? eventType : DEFAULT_EVENT_TYPE;
 
@@ -71,23 +77,57 @@ export function createChatMessageEntry(entry: ChatMessageEntryInput = {}): ChatM
       : undefined;
 
   const role =
-    (typeof rest.role === 'string' ? rest.role : undefined) ??
+    (typeof rootRole === 'string' ? rootRole : undefined) ??
     (payloadFromEntry && typeof payloadFromEntry.role === 'string'
       ? payloadFromEntry.role
       : undefined);
 
-  const hasContent = Object.prototype.hasOwnProperty.call(rest, 'content');
+  const hasContent = Object.prototype.hasOwnProperty.call(entry, 'content');
   const content = hasContent
-    ? rest.content
+    ? rootContent
     : payloadFromEntry && Object.prototype.hasOwnProperty.call(payloadFromEntry, 'content')
       ? payloadFromEntry.content
       : undefined;
 
-  return {
+  const message: ChatMessageEntry = {
     eventType: normalizedEventType,
     ...rest,
     payload: buildPayload({ role, content }),
-  } as ChatMessageEntry;
+  };
+
+  Object.defineProperty(message, 'role', {
+    enumerable: false,
+    configurable: true,
+    get() {
+      return typeof message.payload.role === 'string' ? message.payload.role : undefined;
+    },
+    set(value) {
+      if (typeof value === 'string') {
+        message.payload.role = value;
+      } else {
+        delete message.payload.role;
+      }
+    },
+  });
+
+  Object.defineProperty(message, 'content', {
+    enumerable: false,
+    configurable: true,
+    get() {
+      return Object.prototype.hasOwnProperty.call(message.payload, 'content')
+        ? message.payload.content
+        : undefined;
+    },
+    set(value) {
+      if (typeof value === 'undefined') {
+        delete message.payload.content;
+      } else {
+        message.payload.content = value;
+      }
+    },
+  });
+
+  return message;
 }
 
 export function mapHistoryToModelMessages(history: unknown): ModelChatMessage[] {
@@ -108,9 +148,14 @@ export function mapHistoryToModelMessages(history: unknown): ModelChatMessage[] 
           ? (payloadValue as ChatMessagePayload)
           : null;
 
-      const role =
-        (payload && typeof payload.role === 'string' ? payload.role : undefined) ??
-        (typeof record.role === 'string' ? record.role : null);
+      let role: unknown;
+      if (payload && typeof payload.role === 'string') {
+        role = payload.role;
+      } else if (typeof record.role === 'string') {
+        role = record.role;
+      } else {
+        role = undefined;
+      }
 
       if (!role) {
         return null;
@@ -119,7 +164,7 @@ export function mapHistoryToModelMessages(history: unknown): ModelChatMessage[] 
       let content: unknown;
       if (payload && Object.prototype.hasOwnProperty.call(payload, 'content')) {
         content = payload.content;
-      } else if (Object.prototype.hasOwnProperty.call(record, 'content')) {
+      } else if (typeof record.content !== 'undefined') {
         content = record.content;
       } else {
         content = '';
