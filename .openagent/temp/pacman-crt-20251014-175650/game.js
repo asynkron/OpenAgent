@@ -242,7 +242,7 @@
     ent.x = wrapTunnel(nx);
     ent.y = ny;
 
-    if (isWall(tileAt(ntx, nty)) || isGate(tileAt(ntx, nty))) {
+    if (isWall(tileAt(ntx, nty)) || (isGate(tileAt(ntx, nty)) && (ent.type === 'pacman' || state.readyTime > 0))) {
       // stop at center of current tile when hitting a wall
       const [cx, cy] = centerOf(ct, rt);
       ent.x = cx; ent.y = cy;
