@@ -11,7 +11,7 @@ import type {
 type RuntimeEventBase<
   Type extends string,
   Payload extends Record<string, unknown> = Record<string, unknown>,
-> = Payload & { type: Type; __id?: string | number };
+> = Payload & { type: Type; __id?: string };
 
 export type BannerRuntimeEvent = RuntimeEventBase<
   'banner',
@@ -114,8 +114,8 @@ export type TimelineBannerPayload = {
 };
 
 export type TimelineAssistantPayload = {
-  message: string;
-  eventId: string | number | null;
+  message: unknown;
+  eventId: string;
 };
 
 export type TimelineHumanPayload = {

@@ -102,10 +102,17 @@ export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppPro
   const handleAssistantMessage = useCallback(
     (event: AssistantMessageRuntimeEvent): void => {
       flushPendingAssistantMessage();
-      const rawId = event.__id;
-      const eventId =
-        typeof rawId === 'string' || typeof rawId === 'number' ? (rawId as string | number) : null;
-      const message = typeof event.message === 'string' ? event.message : '';
+      const eventId = event.__id;
+      if (typeof eventId !== 'string') {
+        throw new TypeError('Assistant runtime event expected string "__id".');
+      }
+      const rawMessage = event.message;
+      const message =
+        rawMessage === undefined || rawMessage === null
+          ? ''
+          : typeof rawMessage === 'string'
+            ? rawMessage
+            : cloneValue(rawMessage);
       pendingAssistantMessageRef.current = { message, eventId };
     },
     [flushPendingAssistantMessage],
