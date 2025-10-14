@@ -101,19 +101,26 @@
     }
   }
 
-  function canWalk(x, y) {
-    const t = tileAt(x, y);
-    return !isWall(t) && !isGate(t);
+  function canWalk(x, y, ent) {
+  const t = tileAt(x, y);
+  if (isWall(t)) return false;
+  if (isGate(t)) {
+    // Pac-Man cannot pass the ghost gate; ghosts can after ready time.
+    if (!ent) return false;
+    if (ent.type === 'pacman') return false;
+    return state.readyTime <= 0;
   }
+  return true;
+}
 
-  function neighbors(x, y) {
-    const res = [];
-    if (canWalk(x + 1, y)) res.push([x + 1, y, 'right']);
-    if (canWalk(x - 1, y)) res.push([x - 1, y, 'left']);
-    if (canWalk(x, y + 1)) res.push([x, y + 1, 'down']);
-    if (canWalk(x, y - 1)) res.push([x, y - 1, 'up']);
-    return res;
-  }
+  function neighbors(x, y, ent) {
+  const res = [];
+  if (canWalk(x + 1, y, ent)) res.push([x + 1, y, 'right']);
+  if (canWalk(x - 1, y, ent)) res.push([x - 1, y, 'left']);
+  if (canWalk(x, y + 1, ent)) res.push([x, y + 1, 'down']);
+  if (canWalk(x, y - 1, ent)) res.push([x, y - 1, 'up']);
+  return res;
+}
 
   function manhattan(ax, ay, bx, by) { return Math.abs(ax - bx) + Math.abs(ay - by); }
 
@@ -207,7 +214,7 @@
     const d = DIRS[dir];
     const nx = tx + d.x;
     const ny = ty + d.y;
-    if (canWalk(nx, ny)) {
+    if (canWalk(nx, ny, ent)) {
       ent.dir = dir;
       // snap to center to avoid drift
       const [cx, cy] = centerOf(tx, ty);
@@ -275,10 +282,10 @@
     // At tile centers, pick next dir: avoid reverse unless forced; bias toward target; randomness when frightened.
     if (!atTileCenter(g)) return; // keep going until next junction
     const [tx, ty] = toTile(g.x, g.y);
-    const opts = neighbors(tx, ty).filter(([, , dir]) => dir !== OPP[g.dir]);
+    const opts = neighbors(tx, ty, g).filter(([, , dir]) => dir !== OPP[g.dir]);
 
     // If stuck (dead-end), allow reverse
-    const choices = opts.length ? opts : neighbors(tx, ty);
+    const choices = opts.length ? opts : neighbors(tx, ty, g);
 
     const frightened = performance.now() < state.frightenedUntil;
 
