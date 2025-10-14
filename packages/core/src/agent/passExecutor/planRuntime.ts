@@ -2,9 +2,7 @@ import { planHasOpenSteps } from '../../utils/plan.js';
 import {
   clonePlanForExecution,
   collectExecutablePlanSteps,
-  ensurePlanStepAge,
   getPriorityScore,
-  incrementRunningPlanStepAges,
   type PlanStep,
   type ExecutablePlanStep,
 } from './planExecution.js';
@@ -110,8 +108,6 @@ export class PlanRuntime {
       this.activePlan = [];
     }
 
-    ensurePlanStepAge(this.activePlan);
-    incrementRunningPlanStepAges(this.activePlan);
     this.emitPlanSnapshot();
   }
 

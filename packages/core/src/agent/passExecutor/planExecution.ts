@@ -11,7 +11,6 @@ export interface PlanCommand {
 export interface PlanStep {
   id?: string | number;
   status?: PlanStatus;
-  age?: number;
   command?: PlanCommand | null;
   priority?: number | string;
   [key: string]: unknown;
@@ -23,42 +22,6 @@ export interface ExecutablePlanStep {
 }
 
 const TERMINAL_PLAN_STATUSES = new Set<PlanStatus>(['completed', 'failed', 'abandoned']);
-
-export const ensurePlanStepAge = (node: PlanStep | PlanStep[] | null | undefined): void => {
-  if (!node) {
-    return;
-  }
-
-  if (Array.isArray(node)) {
-    node.forEach(ensurePlanStepAge);
-    return;
-  }
-
-  if (typeof node !== 'object') {
-    return;
-  }
-
-  const numericAge = typeof node.age === 'number' ? node.age : NaN;
-  node.age = Number.isInteger(numericAge) && numericAge >= 0 ? numericAge : 0;
-};
-
-export const incrementRunningPlanStepAges = (plan: PlanStep[] | null | undefined): void => {
-  if (!Array.isArray(plan)) {
-    return;
-  }
-
-  plan.forEach((step) => {
-    if (!step || typeof step !== 'object') {
-      return;
-    }
-
-    const status = typeof step.status === 'string' ? step.status.trim().toLowerCase() : '';
-    if (status === 'running') {
-      const numericAge = typeof step.age === 'number' ? step.age : 0;
-      step.age = Number.isInteger(numericAge) && numericAge >= 0 ? numericAge + 1 : 1;
-    }
-  });
-};
 
 export const hasCommandPayload = (command: unknown): command is PlanCommand => {
   if (!command || typeof command !== 'object') {

@@ -16,7 +16,6 @@ export type PlanStep = {
   id?: string | null;
   title?: string | null;
   status?: string | null;
-  age?: number | string | null;
   priority?: number | string | null;
   command?: PlanCommand | null;
   waitingForId?: Array<string | null | undefined>;
@@ -41,18 +40,8 @@ export type PlanNode = {
   priority: number | null;
   waitingFor: string[];
   blocked: boolean;
-  age: number;
   commandPreview: string;
 };
-
-// Ensure age is always a non-negative integer so the UI can display it consistently.
-function coerceAge(value: unknown): number {
-  const numeric = Number.parseInt(String(value ?? ''), 10);
-  if (Number.isFinite(numeric) && numeric >= 0) {
-    return numeric;
-  }
-  return 0;
-}
 
 // Produce a trimmed preview of the next shell command so humans can reason about the step.
 function buildCommandPreview(command: PlanCommand | null | undefined): string {
@@ -237,7 +226,6 @@ export function createPlanNodes(plan: PlanStep[] | null | undefined): PlanNode[]
     const status = item.status !== undefined && item.status !== null ? String(item.status) : '';
     const { symbol, color } = resolveStatusDetails(status, blocked);
     const title = item.title !== undefined && item.title !== null ? String(item.title) : '';
-    const age = coerceAge(item.age);
     const commandPreview = buildCommandPreview(item.command);
     const id = normalizeId(item.id) || `${order}-${entry.index}`;
 
@@ -248,7 +236,6 @@ export function createPlanNodes(plan: PlanStep[] | null | undefined): PlanNode[]
       symbol,
       color,
       title,
-      age,
       commandPreview,
       status,
       priority: Number.isFinite(priority) ? priority : null,
@@ -271,7 +258,6 @@ export function buildPlanLines(plan: PlanStep[] | null | undefined): string[] {
     if (node.blocked && node.waitingFor.length > 0) {
       metaDetails.push(`waiting for ${node.waitingFor.join(', ')}`);
     }
-    metaDetails.push(`age ${node.age ?? 0}`);
     const metaPart = metaDetails.length > 0 ? ` (${metaDetails.join(', ')})` : '';
     const commandPart = node.commandPreview ? ` — ${node.commandPreview}` : '';
     return `${indent}${node.symbol} ${node.label}.${titlePart}${statusPart}${metaPart}${commandPart}`.trimEnd();

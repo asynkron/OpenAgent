@@ -107,7 +107,6 @@ export function renderPlan(plan: PlanStep[] | null | undefined): void {
     if (node.blocked && Array.isArray(node.waitingFor) && node.waitingFor.length > 0) {
       metaDetails.push(`waiting for ${node.waitingFor.join(', ')}`);
     }
-    metaDetails.push(`age ${node.age ?? 0}`);
     const metaPart = metaDetails.length > 0 ? ` ${chalk.dim(`(${metaDetails.join(', ')})`)}` : '';
     const commandPart = node.commandPreview
       ? ` ${chalk.gray('—')} ${chalk.white(node.commandPreview)}`
