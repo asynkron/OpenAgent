@@ -19,12 +19,13 @@ export function createRenderer(canvas, assets) {
       for (let x = 0; x < width; x++) {
         const id = t[world.idx(x,y)];
         const sprite = assets.getSprite(id, x, y, world.tick);
-        if (sprite) ctx.drawImage(sprite, x*tilesize, y*tilesize);
+        if (sprite) ctx.drawImage(sprite, x*tilesize, y*tilesize, tilesize, tilesize);
       }
     }
 
     // draw player
-    ctx.drawImage(assets.player(world.tick), world.player.x*tilesize, world.player.y*tilesize);
+    const p = assets.player(world.tick);
+    ctx.drawImage(p, world.player.x*tilesize, world.player.y*tilesize, tilesize, tilesize);
 
     // status overlays
     if (world.state === 'dead') overlayText('CRUSHED! Press R to restart');
