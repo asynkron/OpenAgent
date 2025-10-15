@@ -8,45 +8,25 @@ import {
   type CommandPreview,
   type CommandRenderData,
   type CommandResult,
-  type SummaryLine as SummaryLineValue,
 } from './commandUtils.js';
-import theme from '../theme.js';
-import { renderMarkdownMessage } from '../render.js';
+import { SummaryLine } from './command/SummaryLine.js';
+import { buildRunPreview, extractRunValue } from './command/runPreview.js';
+import { buildPlanStepHeading } from './command/planHeading.js';
+import {
+  createCommandTheme,
+  type BoxStyleProps,
+  type SummaryLineStyleMap,
+  type TextStyleProps,
+} from './command/theme.js';
 import type { PlanStep } from './planUtils.js';
 
-const { command } = theme;
-type TextStyleProps = Record<string, unknown>;
-type BoxStyleProps = Record<string, unknown>;
-type SummaryLineStyleMap = Record<string, TextStyleProps> & { base?: TextStyleProps };
-
-type CommandThemeProps = {
-  container?: BoxStyleProps;
-  heading?: TextStyleProps;
-  headingDetail?: TextStyleProps;
-  summaryLine?: SummaryLineStyleMap;
-  runContainer?: BoxStyleProps;
-};
-
-const commandThemeProps = (command.props ?? {}) as CommandThemeProps;
-const commandColors = command.colors;
-const commandContainerProps: BoxStyleProps = { ...(commandThemeProps.container ?? {}) };
-const commandHeadingProps: TextStyleProps = { ...(commandThemeProps.heading ?? {}) };
-const commandHeadingDetailProps: TextStyleProps = { ...(commandThemeProps.headingDetail ?? {}) };
-const commandSummaryLineProps: SummaryLineStyleMap = commandThemeProps.summaryLine ?? {};
-const commandRunContainerProps: BoxStyleProps = { ...(commandThemeProps.runContainer ?? {}) };
-
-const BEGIN_PATCH_MARKER = '*** Begin Patch';
-const END_PATCH_MARKER = '*** End Patch';
-
-type RunSegment =
-  | {
-      type: 'text';
-      content: string;
-    }
-  | {
-      type: 'diff';
-      content: string;
-    };
+const { colors: commandColors, container, heading, headingDetail, summaryLine, runContainer } =
+  createCommandTheme();
+const commandContainerProps: BoxStyleProps = { ...container };
+const commandHeadingProps: TextStyleProps = { ...heading };
+const commandHeadingDetailProps: TextStyleProps = { ...headingDetail };
+const commandSummaryLineProps: SummaryLineStyleMap = summaryLine;
+const commandRunContainerProps: BoxStyleProps = { ...runContainer };
 
 type CommandProps = {
   command: CommandPayload | null | undefined;
@@ -59,175 +39,6 @@ type CommandProps = {
 
 const DEFAULT_MAX_RUN_CHARACTERS = 270;
 
-function buildPlanStepHeading(planStep: PlanStep | null | undefined): string | null {
-  if (!planStep || typeof planStep !== 'object') {
-    return null;
-  }
-
-  const idValue = planStep.id;
-  const titleValue = planStep.title;
-
-  const idText =
-    typeof idValue === 'string' || typeof idValue === 'number' ? String(idValue).trim() : '';
-  const titleText = typeof titleValue === 'string' ? titleValue.trim() : '';
-
-  if (idText && titleText) {
-    return `#${idText} — ${titleText}`;
-  }
-  if (idText) {
-    return `#${idText}`;
-  }
-  if (titleText) {
-    return titleText;
-  }
-
-  return null;
-}
-
-function splitRunSegments(runValue: string | null | undefined): RunSegment[] | null {
-  if (typeof runValue !== 'string' || !runValue.includes(BEGIN_PATCH_MARKER)) {
-    return null;
-  }
-
-  const segments: RunSegment[] = [];
-  let cursor = 0;
-
-  while (cursor < runValue.length) {
-    const begin = runValue.indexOf(BEGIN_PATCH_MARKER, cursor);
-    if (begin === -1) {
-      const remaining = runValue.slice(cursor);
-      if (remaining) {
-        segments.push({ type: 'text', content: remaining });
-      }
-      break;
-    }
-
-    if (begin > cursor) {
-      segments.push({ type: 'text', content: runValue.slice(cursor, begin) });
-    }
-
-    const endIndex = runValue.indexOf(END_PATCH_MARKER, begin);
-    if (endIndex === -1) {
-      segments.push({ type: 'text', content: runValue.slice(begin) });
-      break;
-    }
-
-    let afterEnd = endIndex + END_PATCH_MARKER.length;
-    if (runValue[afterEnd] === '\r' && runValue[afterEnd + 1] === '\n') {
-      afterEnd += 2;
-    } else if (runValue[afterEnd] === '\n') {
-      afterEnd += 1;
-    }
-
-    const diffContent = runValue.slice(begin, afterEnd);
-    segments.push({ type: 'diff', content: diffContent });
-    cursor = afterEnd;
-  }
-
-  if (segments.length === 0) {
-    return null;
-  }
-
-  return segments.some((segment) => segment.type === 'diff') ? segments : null;
-}
-
-function renderDiffSegment(content: string, key: string): ReactElement {
-  const normalized = typeof content === 'string' ? content.trimEnd() : '';
-  const markdown = `\`\`\`diff\n${normalized}\n\`\`\``;
-  const rendered = renderMarkdownMessage(markdown);
-  return <Text key={key}>{rendered}</Text>;
-}
-
-// Render non-diff command text via markdown so syntax highlighting stays consistent.
-function renderRunMarkdown(
-  content: string | null | undefined,
-  key: string,
-  limit: number,
-): ReactElement | null {
-  if (typeof content !== 'string' || content.trim() === '') {
-    return null;
-  }
-
-  const ellipsis = '…';
-  const shouldTruncate = limit > 0 && content.length > limit;
-  const truncatedContent = shouldTruncate
-    ? `${content.slice(0, Math.max(limit - ellipsis.length, 0))}${ellipsis}`
-    : content;
-  const markdown = `\`\`\`bash\n${truncatedContent}\n\`\`\``;
-  const rendered = renderMarkdownMessage(markdown);
-  return <Text key={key}>{rendered}</Text>;
-}
-
-function renderInlineRunMarkdown(
-  content: string | null | undefined,
-  limit: number,
-): string | null {
-  if (typeof content !== 'string' || content.trim() === '') {
-    return null;
-  }
-
-  const ellipsis = '…';
-  const shouldTruncate = limit > 0 && content.length > limit;
-  const truncatedContent = shouldTruncate
-    ? `${content.slice(0, Math.max(limit - ellipsis.length, 0))}${ellipsis}`
-    : content;
-  const markdown = `\`\`\`bash\n${truncatedContent}\n\`\`\``;
-  const rendered = renderMarkdownMessage(markdown);
-  return rendered.replace(/^\s+/, '');
-}
-
-function SummaryLine({ line }: { line: SummaryLineValue }): ReactElement {
-  const baseProps: TextStyleProps = {
-    ...(commandSummaryLineProps.base ?? {}),
-  };
-  const baseColor = baseProps.color ?? commandColors.fg;
-
-  const buildProps = (
-    styleKey: keyof SummaryLineStyleMap,
-    fallbackColor?: string,
-  ): TextStyleProps => {
-    const style = commandSummaryLineProps[styleKey] ?? {};
-    const merged: TextStyleProps = { ...baseProps, ...style };
-    if (!merged.color) {
-      merged.color = fallbackColor ?? baseColor;
-    }
-    return merged;
-  };
-
-  const text = `   ${line.text}`;
-
-  switch (line.kind) {
-    case 'error-arrow':
-    case 'error-indent':
-      return <Text {...(buildProps('error', 'red') as Record<string, unknown>)}>{text}</Text>;
-    case 'indent':
-      return <Text {...(buildProps('indent') as Record<string, unknown>)}>{text}</Text>;
-    case 'exit-code': {
-      const statusKey = line.status === 'success' ? 'success' : 'error';
-      const fallbackColor = line.status === 'success' ? 'green' : 'red';
-      return (
-        <Text {...(buildProps(statusKey, fallbackColor) as Record<string, unknown>)}>{text}</Text>
-      );
-    }
-    case 'arrow':
-      return <Text {...(buildProps('arrow') as Record<string, unknown>)}>{text}</Text>;
-    default:
-      return <Text {...(buildProps('default') as Record<string, unknown>)}>{text}</Text>;
-  }
-}
-
-function extractRunValue(
-  commandData: CommandPayload | null | undefined,
-  execution: CommandExecution | null | undefined,
-): string | null {
-  if (execution?.command && typeof execution.command.run === 'string') {
-    return execution.command.run;
-  }
-  if (commandData && typeof commandData.run === 'string') {
-    return commandData.run;
-  }
-  return null;
-}
 
 /**
  * Displays command execution details, mirroring the textual summaries.
@@ -263,47 +74,20 @@ export function Command({
   const planStepHeading = buildPlanStepHeading(planStep);
 
   const runValue = extractRunValue(commandData ?? undefined, execution ?? undefined);
-  const runSegments = splitRunSegments(runValue);
   const runCharacterLimit = Number.isFinite(maxRunCharacters)
     ? Math.max(0, Math.floor(maxRunCharacters))
     : DEFAULT_MAX_RUN_CHARACTERS;
 
-  let runElements: ReactElement[] | null = null;
-  if (runSegments) {
-    const segments = runSegments.flatMap((segment, index) => {
-      if (!segment.content) {
-        return [] as ReactElement[];
-      }
-      if (segment.type === 'diff') {
-        return [renderDiffSegment(segment.content, `run-diff-${index}`)];
-      }
-      const rendered = renderRunMarkdown(segment.content, `run-text-${index}`, runCharacterLimit);
-      return rendered ? [rendered] : [];
-    });
+  const { block: runElements, inline: inlineRunPreview } = buildRunPreview({
+    runValue,
+    limit: runCharacterLimit,
+    allowInline: !detail,
+  });
 
-    if (segments.length > 0) {
-      runElements = segments;
-    }
-  } else {
-    const rendered = renderRunMarkdown(runValue, 'run-text', runCharacterLimit);
-    if (rendered) {
-      runElements = [rendered];
-    }
-  }
-
-  let headingDetailText = detail;
-  let inlineRunPreview: string | null = null;
-
-  if (!headingDetailText && typeof runValue === 'string' && runSegments === null) {
-    const trimmedRun = runValue.trim();
-    if (trimmedRun && !/[\r\n]/.test(runValue)) {
-      inlineRunPreview = renderInlineRunMarkdown(trimmedRun, runCharacterLimit);
-      if (inlineRunPreview) {
-        // Inline runs already render after the prompt, so skip the separate markdown block.
-        runElements = null;
-      }
-    }
-  }
+  const headingDetailText = detail;
+  const baseSummaryColorValue = commandSummaryLineProps.base?.color;
+  const summaryFallbackColor =
+    typeof baseSummaryColorValue === 'string' ? baseSummaryColorValue : commandColors.fg;
 
   const containerProps: BoxStyleProps = {
     flexDirection: 'column',
@@ -403,7 +187,12 @@ export function Command({
           <Box {...(runContainerProps as Record<string, unknown>)}>{runElements}</Box>
         ) : null}
         {summaryLines.map((line, index) => (
-          <SummaryLine key={index} line={line} />
+          <SummaryLine
+            key={index}
+            line={line}
+            styles={commandSummaryLineProps}
+            fallbackColor={summaryFallbackColor}
+          />
         ))}
       </Box>
     </Box>
