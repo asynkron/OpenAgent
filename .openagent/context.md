@@ -15,3 +15,4 @@ Recent additions
 ## Entry: Pac-Man CRT temp
 - Path: .openagent/temp/pacman-crt-20251014-175650
 - Summary: A self-contained HTML/JS/CSS Pac-Man clone with CRT scanlines, vignette, and flicker. No external dependencies.
+\n- Created boulderdash-20251015-062838 — Boulder Dash (CRT) prototype (HTML/JS, no build). See .openagent/tmp/boulderdash-20251015-062838/context.md
