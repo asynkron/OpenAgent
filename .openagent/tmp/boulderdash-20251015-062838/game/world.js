@@ -212,3 +212,8 @@ import { queueExplosion, resolveExplosions } from './sys/explosions.js';
 if(typeof globalThis!=='undefined'){
   // attach at module eval for simplicity in this scaffold; real code should set on construction
 }
+// --- Magic Wall scaffold (Phase 3) ---
+export const MAGIC_WALL = { INACTIVE:0, ACTIVE:1, SPENT:2 };
+// world.magicActiveUntil, world.magicDuration
+// world.isMagicWall(x,y) -> state; world.setMagicWall(x,y,state)
+// During gravity step, if a falling boulder/diamond enters an ACTIVE wall cell, convert and place below.
