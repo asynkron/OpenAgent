@@ -94,6 +94,74 @@ function createPlanKey(item, fallbackIndex) {
   return `index:${fallbackIndex}`;
 }
 
+function valuesAreEqual(a, b) {
+  if (a === b) {
+    return true;
+  }
+
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b)) {
+      return false;
+    }
+
+    if (a.length !== b.length) {
+      return false;
+    }
+
+    for (let index = 0; index < a.length; index += 1) {
+      if (!valuesAreEqual(a[index], b[index])) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object') {
+    return false;
+  }
+
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+
+  if (keysA.length !== keysB.length) {
+    return false;
+  }
+
+  const seen = new Set(keysB);
+  for (const key of keysA) {
+    if (!seen.has(key)) {
+      return false;
+    }
+
+    if (!valuesAreEqual(a[key], b[key])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function commandsAreEqual(existingCommand, incomingCommand) {
+  if (!existingCommand || typeof existingCommand !== 'object') {
+    return false;
+  }
+
+  if (!incomingCommand || typeof incomingCommand !== 'object') {
+    return false;
+  }
+
+  return valuesAreEqual(existingCommand, incomingCommand);
+}
+
+function isFailedStatus(status) {
+  if (typeof status !== 'string') {
+    return false;
+  }
+
+  return status.trim().toLowerCase() === 'failed';
+}
+
 function mergePlanItems(existingItem, incomingItem) {
   if (!existingItem || typeof existingItem !== 'object') {
     return deepCloneValue(incomingItem);
@@ -108,6 +176,22 @@ function mergePlanItems(existingItem, incomingItem) {
   }
 
   existingItem.waitingForId = incomingItem.waitingForId || [];
+
+  const incomingCommand = incomingItem.command;
+  if (incomingCommand && typeof incomingCommand === 'object') {
+    const existingCommand = existingItem.command;
+    const commandChanged =
+      !existingCommand || typeof existingCommand !== 'object' || !commandsAreEqual(existingCommand, incomingCommand);
+
+    if (commandChanged) {
+      // Replace the stored command details when the assistant revises them so executions stay in sync.
+      existingItem.command = deepCloneValue(incomingCommand);
+
+      if (isFailedStatus(existingItem.status)) {
+        existingItem.status = 'pending';
+      }
+    }
+  }
 
   return existingItem;
 }

@@ -59,6 +59,80 @@ describe('plan utilities', () => {
     expect(merged[0].status).toBe('completed');
   });
 
+  test('mergePlanTrees refreshes command details and resets failed steps when command changes', () => {
+    const existingCommand = {
+      run: 'npm test',
+      shell: '/bin/bash',
+      reason: 'Execute tests',
+    };
+    const existingPlan = [
+      {
+        id: 'task-1',
+        title: 'Retry task',
+        status: 'failed',
+        command: existingCommand,
+      },
+    ];
+
+    const incomingPlan = [
+      {
+        id: 'task-1',
+        title: 'Retry task',
+        status: 'failed',
+        command: {
+          run: 'npm run lint',
+          shell: '/bin/bash',
+          reason: 'Lint before retrying tests',
+        },
+      },
+    ];
+
+    const merged = mergePlanTrees(existingPlan, incomingPlan);
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toBe(existingPlan[0]);
+    expect(merged[0].status).toBe('pending');
+    expect(merged[0].command).toEqual({
+      run: 'npm run lint',
+      shell: '/bin/bash',
+      reason: 'Lint before retrying tests',
+    });
+    expect(merged[0].command).not.toBe(incomingPlan[0].command);
+  });
+
+  test('mergePlanTrees keeps failed status when command stays the same', () => {
+    const commandPayload = {
+      run: 'npm test',
+      shell: '/bin/bash',
+    };
+    const existingPlan = [
+      {
+        id: 'task-2',
+        title: 'Hold status',
+        status: 'failed',
+        command: commandPayload,
+      },
+    ];
+
+    const incomingPlan = [
+      {
+        id: 'task-2',
+        title: 'Hold status',
+        status: 'pending',
+        command: {
+          run: 'npm test',
+          shell: '/bin/bash',
+        },
+      },
+    ];
+
+    const merged = mergePlanTrees(existingPlan, incomingPlan);
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toBe(existingPlan[0]);
+    expect(merged[0].status).toBe('failed');
+  });
+
   test('mergePlanTrees forces new steps to pending status regardless of incoming status', () => {
     const existingPlan = [{ id: 'a', title: 'Existing', status: 'running' }];
 
