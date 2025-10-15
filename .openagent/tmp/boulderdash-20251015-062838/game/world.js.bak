@@ -68,7 +68,7 @@ export function createWorld(levelDef) {
     width, height, tilesize, t,
     falling,
     player,
-    collected: 0, gemsRequired: computedRequirement, Math.floor(gemsTotal*0.8)),
+    collected: 0, gemsRequired: computedRequirement,
     score: 0,
     timeLeft: 120,
     state: 'play', // play | dead | timeup | win
@@ -120,7 +120,7 @@ export function createWorld(levelDef) {
       const nextFalling = new Uint8Array(width*height); // for this tick results
 
       // process gravity bottom->top
-      for (let y=this.height-2; y>=0; y--) {
+// Enemies + explosions (auto-wired)ntry { enemiesStep(world); resolveExplosions(world); } catch(e) { console.warn('wire-loop-hooks:', e); }n      for (let y=this.height-2; y>=0; y--) {
         for (let x=0; x<this.width; x++) {
           const id = this.get(x,y);
           if (id!==TILE.BOULDER && id!==TILE.GEM) continue;
@@ -189,5 +189,42 @@ export function createWorld(levelDef) {
     _on(type, payload){ this._lastEvent = {type,payload}; setTimeout(()=>{ this._lastEvent=null; },0); },
   };
   if (world.gemsRequired === 0) world.openExits();
-  return world;
+  if (world.gemsRequired === 0) world.openExits();
+  world.queueExplosion=(...a)=>queueExplosion(world,...a); return world;
+}
+// --- Enemies + Explosions scaffold (Phase 1) ---
+export const ENEMY_TYPES = { FIREFLY: 'FIREFLY', BUTTERFLY: 'BUTTERFLY' };
+export const DIR = { R:0, D:1, L:2, U:3 };
+// Explosion queue items: {x,y,ttl,kind:'FIRE'|'BUTTER'}
+// Enemies: {x,y,dir,type}
+// Integration points to wire into tick order:
+// 1) gravityStep(); 2) enemiesStep(world); 3) resolveExplosions(world); 4) applyPlayer(world); 5) sfx hooks
+// Hook registration (implemented in sys/explosions.js)
+import { enemiesStep } from './entities/enemies.js';
+import { queueExplosion, resolveExplosions } from './sys/explosions.js';
+
+// World should expose helpers used by systems above:
+// - isPassable(x,y), isSteel(x,y), isExit(x,y), setGem(x,y), clearTile(x,y)
+// - player {x,y}
+// - enemies: []
+// Wire into main tick: gravity -> enemiesStep(this) -> resolveExplosions(this) -> player
+// Provide world.queueExplosion = (...args)=>queueExplosion(this,...args)
+if(typeof globalThis!=='undefined'){
+  // attach at module eval for simplicity in this scaffold; real code should set on construction
+}
+// --- Magic Wall scaffold (Phase 3) ---
+export const MAGIC_WALL = { INACTIVE:0, ACTIVE:1, SPENT:2 };
+// world.magicActiveUntil, world.magicDuration
+// world.isMagicWall(x,y) -> state; world.setMagicWall(x,y,state)
+// During gravity step, if a falling boulder/diamond enters an ACTIVE wall cell, convert and place below.
+// Auto-wired Magic Wall conversion helper (call from gravity when an item enters ACTIVE)
+export function magicConvert(world, x, y, item){
+  // item: 'BOULDER'|'GEM'; assumes (x,y) is wall cell; output placed at (x,y+1) if empty
+  if(!world.isMagicWall||!world.setMagicWall) return;
+  const state = world.isMagicWall(x,y);
+  if(state!==1 /* ACTIVE */) return;
+  const belowX=x, belowY=y+1;
+  if(!world.isPassable(belowX,belowY)) return;
+  if(item==='BOULDER'){ world.setGem(belowX,belowY); }
+  else if(item==='GEM'){ world.setBoulder(belowX,belowY); }
 }
