@@ -18,9 +18,7 @@ describe('ApprovalManager.shouldAutoApprove', () => {
       ...baseDeps,
       isPreapprovedCommand: () => true,
     });
-    expect(
-      manager.shouldAutoApprove({ run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES }),
-    ).toEqual({
+    expect(manager.shouldAutoApprove({ run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES })).toEqual({
       approved: true,
       source: 'allowlist',
     });
@@ -31,9 +29,7 @@ describe('ApprovalManager.shouldAutoApprove', () => {
       ...baseDeps,
       isSessionApproved: () => true,
     });
-    expect(
-      manager.shouldAutoApprove({ run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES }),
-    ).toEqual({
+    expect(manager.shouldAutoApprove({ run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES })).toEqual({
       approved: true,
       source: 'session',
     });
@@ -44,9 +40,7 @@ describe('ApprovalManager.shouldAutoApprove', () => {
       ...baseDeps,
       getAutoApproveFlag: () => true,
     });
-    expect(
-      manager.shouldAutoApprove({ run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES }),
-    ).toEqual({
+    expect(manager.shouldAutoApprove({ run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES })).toEqual({
       approved: true,
       source: 'flag',
     });
@@ -54,9 +48,7 @@ describe('ApprovalManager.shouldAutoApprove', () => {
 
   test('returns not approved when nothing matches', () => {
     const manager = new ApprovalManager(baseDeps);
-    expect(
-      manager.shouldAutoApprove({ run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES }),
-    ).toEqual({
+    expect(manager.shouldAutoApprove({ run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES })).toEqual({
       approved: false,
       source: null,
     });

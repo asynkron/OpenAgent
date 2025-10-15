@@ -128,7 +128,8 @@ export class ObservationBuilder {
         'Output replaced because it exceeded the 50 KiB safety limit. Rerun the command with tighter filters if you need specific sections.',
       );
     } else {
-      const filterRegex = command && typeof command.filter_regex === 'string' ? command.filter_regex : '';
+      const filterRegex =
+        command && typeof command.filter_regex === 'string' ? command.filter_regex : '';
       let filterChanged = false;
 
       if (filterRegex) {
@@ -255,10 +256,11 @@ export class ObservationBuilder {
     return Buffer.byteLength(String(text), 'utf8');
   }
 
-  private resolveTailLines(command: AssistantCommand | null | undefined):
-    | { limit: number; source: 'default' | 'explicit' }
-    | null {
-    const candidate = command && typeof command === 'object' ? (command as any).tail_lines : undefined;
+  private resolveTailLines(
+    command: AssistantCommand | null | undefined,
+  ): { limit: number; source: 'default' | 'explicit' } | null {
+    const candidate =
+      command && typeof command === 'object' ? (command as any).tail_lines : undefined;
 
     if (typeof candidate === 'number' && Number.isFinite(candidate)) {
       if (candidate <= 0) {
@@ -272,7 +274,8 @@ export class ObservationBuilder {
   }
 
   private resolveMaxBytes(command: AssistantCommand | null | undefined): { limit: number } {
-    const candidate = command && typeof command === 'object' ? (command as any).max_bytes : undefined;
+    const candidate =
+      command && typeof command === 'object' ? (command as any).max_bytes : undefined;
 
     if (typeof candidate === 'number' && Number.isFinite(candidate) && candidate > 0) {
       return { limit: Math.floor(candidate) };

@@ -34,7 +34,8 @@ describe('historyMessageBuilder', () => {
     const parsed = JSON.parse(entry.content);
     expect(parsed).toMatchObject({
       type: 'observation',
-      summary: 'I executed the approved command from the active plan. It finished with exit code 0.',
+      summary:
+        'I executed the approved command from the active plan. It finished with exit code 0.',
     });
     expect(parsed.payload).toMatchObject({ stdout: 'hello\n', exit_code: 0 });
     expect(parsed.metadata).toMatchObject({ timestamp: '2025-01-01T00:00:00.000Z' });

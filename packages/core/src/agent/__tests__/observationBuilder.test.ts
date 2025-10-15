@@ -139,7 +139,9 @@ describe('ObservationBuilder', () => {
       },
     });
 
-    expect(Buffer.byteLength(observation.observation_for_llm.stdout, 'utf8')).toBeLessThanOrEqual(100);
+    expect(Buffer.byteLength(observation.observation_for_llm.stdout, 'utf8')).toBeLessThanOrEqual(
+      100,
+    );
     expect(observation.observation_for_llm.truncation_notice).toContain('command.max_bytes');
   });
 

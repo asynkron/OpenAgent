@@ -77,4 +77,3 @@ When using apply_patch, make sure there actually is a patch payload and a target
 
 ^ this is very likely intended to wait for the previous step to complete.¨
 Meaning this should be a parent task of the previous step, and thus execute only when the previous step is done.
-

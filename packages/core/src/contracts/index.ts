@@ -122,7 +122,7 @@ export const ToolResponseJsonSchema = {
             other plan steps that are waiting for a failed or abandoned step. should now replace that 'id' in their waitingForId array.
             e.g. A is waiting for B, B fails, B should now be abandoned, A should now wait for new task C, where C now can perform another command and try something else to not fail.
             
-            `
+            `,
           },
           waitingForId: {
             type: 'array',

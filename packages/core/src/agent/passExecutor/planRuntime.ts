@@ -539,12 +539,16 @@ export class PlanRuntime {
           return false;
         }
 
-        const status = typeof candidate.status === 'string' ? candidate.status.trim().toLowerCase() : '';
+        const status =
+          typeof candidate.status === 'string' ? candidate.status.trim().toLowerCase() : '';
         return status !== 'completed' && status !== 'failed' && status !== 'abandoned';
       });
 
-      const hasPendingCommands = this.activePlan.some((candidate) =>
-        candidate && typeof candidate === 'object' && hasCommandPayload((candidate as PlanStep).command),
+      const hasPendingCommands = this.activePlan.some(
+        (candidate) =>
+          candidate &&
+          typeof candidate === 'object' &&
+          hasCommandPayload((candidate as PlanStep).command),
       );
 
       if (hasPendingSteps && hasPendingCommands) {

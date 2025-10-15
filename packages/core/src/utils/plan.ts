@@ -181,7 +181,9 @@ function mergePlanItems(existingItem, incomingItem) {
   if (incomingCommand && typeof incomingCommand === 'object') {
     const existingCommand = existingItem.command;
     const commandChanged =
-      !existingCommand || typeof existingCommand !== 'object' || !commandsAreEqual(existingCommand, incomingCommand);
+      !existingCommand ||
+      typeof existingCommand !== 'object' ||
+      !commandsAreEqual(existingCommand, incomingCommand);
 
     if (commandChanged) {
       // Replace the stored command details when the assistant revises them so executions stay in sync.

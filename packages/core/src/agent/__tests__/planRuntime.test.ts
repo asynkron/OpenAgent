@@ -4,7 +4,7 @@ import { summarizePlanForHistory } from '../passExecutor/planRuntime.js';
 
 describe('summarizePlanForHistory', () => {
   test('returns compact plan snapshots that only preserve execution outcome', () => {
-    const longRun = 'cat <<\'EOF\' > big-file\n' + 'x'.repeat(5000) + '\nEOF\n';
+    const longRun = "cat <<'EOF' > big-file\n" + 'x'.repeat(5000) + '\nEOF\n';
     const plan = [
       {
         id: 't1',

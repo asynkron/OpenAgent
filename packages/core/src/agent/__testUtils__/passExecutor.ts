@@ -55,10 +55,12 @@ export const createPlanManager = () => ({
 type MockModelCompletion = { status: 'success'; completion: { id: string } };
 
 const createMockRequestModelCompletion = () => {
-  const requestModelCompletion = jest.fn(async (): Promise<MockModelCompletion> => ({
-    status: 'success',
-    completion: { id: 'cmpl_1' },
-  }));
+  const requestModelCompletion = jest.fn(
+    async (): Promise<MockModelCompletion> => ({
+      status: 'success',
+      completion: { id: 'cmpl_1' },
+    }),
+  );
   jest.unstable_mockModule('../modelRequest.js', () => ({
     requestModelCompletion,
     default: { requestModelCompletion },
@@ -243,8 +245,7 @@ export const createComplexPlanHasOpenStepsMock = () =>
             return false;
           }
           const rawStatus = item.status;
-          const status =
-            typeof rawStatus === 'string' ? rawStatus.trim().toLowerCase() : '';
+          const status = typeof rawStatus === 'string' ? rawStatus.trim().toLowerCase() : '';
           return status !== 'completed' && status !== 'failed' && status !== 'abandoned';
         })
       : false,
@@ -262,9 +263,7 @@ export const createComplexBuildPlanLookupMock = () =>
       }
       const rawId = item.id;
       const id =
-        typeof rawId === 'string' && rawId.trim().length > 0
-          ? rawId.trim()
-          : `index:${index}`;
+        typeof rawId === 'string' && rawId.trim().length > 0 ? rawId.trim() : `index:${index}`;
       if (!map.has(id)) {
         map.set(id, item);
       }

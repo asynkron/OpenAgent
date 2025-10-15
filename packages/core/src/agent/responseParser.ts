@@ -231,11 +231,7 @@ function applyCommandDefaults(command: AssistantCommand): AssistantCommand {
 
   const normalized = { ...command };
   const candidate = normalized.max_bytes;
-  if (
-    typeof candidate !== 'number' ||
-    !Number.isFinite(candidate) ||
-    candidate < 1
-  ) {
+  if (typeof candidate !== 'number' || !Number.isFinite(candidate) || candidate < 1) {
     normalized.max_bytes = DEFAULT_COMMAND_MAX_BYTES;
   }
 
