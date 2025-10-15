@@ -68,7 +68,7 @@ export function createWorld(levelDef) {
     width, height, tilesize, t,
     falling,
     player,
-    collected: 0, gemsRequired: computedRequirement,
+    collected: 0, gemsRequired: computedRequirement, Math.floor(gemsTotal*0.8)),
     score: 0,
     timeLeft: 120,
     state: 'play', // play | dead | timeup | win
@@ -188,7 +188,6 @@ export function createWorld(levelDef) {
     },
     _on(type, payload){ this._lastEvent = {type,payload}; setTimeout(()=>{ this._lastEvent=null; },0); },
   };
-  if (world.gemsRequired === 0) world.openExits();
   if (world.gemsRequired === 0) world.openExits();
   return world;
 }

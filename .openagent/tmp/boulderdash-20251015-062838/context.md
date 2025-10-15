@@ -37,3 +37,6 @@ Update 2025-10-15 (display):
 Update 2025-10-15 (levels + progression):
 - Gems quota now computed from reachable tiles via flood fill at level load; trapped gems no longer block exit opening.
 - New default level “Open Cavern” with rooms that have doorways for fair access.
+
+Update 2025-10-15 (bugfix):
+- Fixed syntax error in world.js caused by a leftover fragment in the world object after introducing reachable-gems progression.
