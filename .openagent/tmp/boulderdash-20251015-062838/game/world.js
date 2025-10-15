@@ -37,11 +37,38 @@ export function createWorld(levelDef) {
       t[y*width+x] = id;
     }
   }
+  // Compute reachable gems from player position (flood fill over passable tiles)
+  function reachableGemCount() {
+    const visited = new Uint8Array(width*height);
+    const qx = new Int16Array(width*height);
+    const qy = new Int16Array(width*height);
+    let head = 0, tail = 0;
+    qx[tail] = player.x; qy[tail] = player.y; tail++;
+    let gems = 0;
+    const passable = (id)=> id===TILE.EMPTY || id===TILE.DIRT || id===TILE.GEM || id===TILE.EXIT_OPEN;
+    while (head < tail) {
+      const x = qx[head], y = qy[head]; head++;
+      const i = y*width + x; if (visited[i]) continue; visited[i]=1;
+      const id = t[i]; if (id===TILE.GEM) gems++;
+      // 4-neighborhood
+      const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+      for (let k=0;k<4;k++){ const nx = x+dirs[k][0], ny = y+dirs[k][1];
+        if (nx<0||ny<0||nx>=width||ny>=height) continue;
+        const nid = t[ny*width+nx]; if (!passable(nid)) continue;
+        const ni = ny*width+nx; if (visited[ni]) continue;
+        qx[tail]=nx; qy[tail]=ny; tail++;
+      }
+    }
+    return gems;
+  }
+
+  const reachableGems = reachableGemCount();
+  const computedRequirement = (reachableGems>0) ? Math.max(1, Math.floor(reachableGems*0.8)) : 0;
   const world = {
     width, height, tilesize, t,
     falling,
     player,
-    collected: 0, gemsRequired: Math.max(1, Math.floor(gemsTotal*0.8)),
+    collected: 0, gemsRequired: computedRequirement, Math.floor(gemsTotal*0.8)),
     score: 0,
     timeLeft: 120,
     state: 'play', // play | dead | timeup | win
@@ -161,5 +188,6 @@ export function createWorld(levelDef) {
     },
     _on(type, payload){ this._lastEvent = {type,payload}; setTimeout(()=>{ this._lastEvent=null; },0); },
   };
+  if (world.gemsRequired === 0) world.openExits();
   return world;
 }

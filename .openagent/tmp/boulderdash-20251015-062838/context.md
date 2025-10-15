@@ -33,3 +33,7 @@ Update 2025-10-15 (display):
 - Bigger pixels by reducing internal tilesize from 16 to 8 (crisper, chunkier look at same CSS size).
 - Stronger CRT: darker scanlines, RGB aperture grille stripes, enhanced vignette/glow, increased HUD glow.
 - All tunable via style.css variables and gradients.
+
+Update 2025-10-15 (levels + progression):
+- Gems quota now computed from reachable tiles via flood fill at level load; trapped gems no longer block exit opening.
+- New default level “Open Cavern” with rooms that have doorways for fair access.
