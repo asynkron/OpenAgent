@@ -1,3 +1,5 @@
+import { LEVELS as __LEVELS } from './levels.js';
+window.LEVELS = __LEVELS;
 import { initCRTToggle } from './ui/crt.js';
 import { showLevelSelector } from './ui/levelSelector.js';
 import { attachDPad } from './ui/touch.js';

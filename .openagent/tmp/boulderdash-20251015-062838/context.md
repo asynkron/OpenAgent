@@ -47,3 +47,8 @@ Planned classic features now documented in docs/feature-plan.md (enemies+explosi
 - Added explosion queue and 3×3 resolution preserving steel/exit.
 - Update order: gravity → enemies → resolve explosions → player → SFX.
 - Risks: ordering edge cases with falling + enemy; performance with many entities.
+\n## Wiring updates (enemies + magic wall hook)
+- Map parser now spawns enemies from 'F' (Firefly) and 'B' (Butterfly).
+- Tick order: gravity → enemies → resolve explosions → player (already wired).
+- Gravity now calls magicConvert() when entering ACTIVE magic wall (guarded by isMagicWall).
+- Explosion SFX added (noise + sparkle).

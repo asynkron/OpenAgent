@@ -22,6 +22,7 @@ export function createWorld(levelDef) {
   let falling = new Uint8Array(width*height);
   let player = {x:1,y:1};
   let gemsTotal = 0;
+  let enemies = [];
   for (let y=0;y<height;y++){
     for(let x=0;x<width;x++){
       const ch = rows[y][x];
@@ -32,6 +33,8 @@ export function createWorld(levelDef) {
       else if (ch === 'o') id = TILE.BOULDER;
       else if (ch === '*') { id = TILE.GEM; gemsTotal++; }
       else if (ch === 'E') id = TILE.EXIT_CLOSED;
+      else if (ch === 'F') { id = TILE.EMPTY; enemies.push({x,y,dir:0,type:'FIREFLY'}); }
+      else if (ch === 'B') { id = TILE.EMPTY; enemies.push({x,y,dir:0,type:'BUTTERFLY'}); }
       else if (ch === ' ') id = TILE.EMPTY;
       else if (ch === 'P') { id = TILE.EMPTY; player = {x,y}; }
       t[y*width+x] = id;
