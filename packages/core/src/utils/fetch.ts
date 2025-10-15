@@ -97,15 +97,98 @@ export class HttpClient implements HttpClientInterface {
     return error;
   }
 
+  private createAbortController(
+    Impl: AbortControllerConstructor | null,
+  ): AbortControllerLike | null {
+    if (!Impl) {
+      return null;
+    }
+
+    try {
+      return new Impl();
+    } catch (error) {
+      // If the constructor throws (e.g., running on an unsupported platform), fall back gracefully.
+      void error;
+      return null;
+    }
+  }
+
+  private getAbortControllerImpl(): AbortControllerConstructor | null {
+    if (this.AbortControllerImpl) {
+      return this.AbortControllerImpl;
+    }
+
+    const globalImpl = globalThis.AbortController as AbortControllerConstructor | undefined;
+    return typeof globalImpl === 'function' ? globalImpl : null;
+  }
+
+  private configureTimeout(
+    controller: AbortControllerLike | null,
+    timeoutMs: number,
+  ): { clear(): void; didTimeout(): boolean } {
+    if (!controller || timeoutMs <= 0) {
+      return { clear: () => void 0, didTimeout: () => false };
+    }
+
+    let timedOut = false;
+    const handle = setTimeout(() => {
+      timedOut = true;
+      try {
+        controller.abort();
+      } catch (error) {
+        // Avoid surfacing abort errors; callers will receive a timeout via the guard below.
+        void error;
+      }
+    }, timeoutMs);
+
+    return {
+      clear: () => clearTimeout(handle),
+      didTimeout: () => timedOut,
+    };
+  }
+
+  // Coerce arbitrary header maps into a clean `Record<string, string>` for both fetch variants.
+  private normalizeHeaders(headers?: Record<string, string>): Record<string, string> | undefined {
+    if (!headers || typeof headers !== 'object') {
+      return undefined;
+    }
+
+    const entries = Object.entries(headers).filter((entry): entry is [string, string] => {
+      return typeof entry[0] === 'string' && typeof entry[1] === 'string';
+    });
+
+    return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+  }
+
+  private toHttpResponse(
+    body: string,
+    response: {
+      status?: number;
+      statusText?: string;
+      ok?: boolean;
+    },
+  ): HttpResponse {
+    const status = response.status ?? 0;
+    const statusText = response.statusText ?? '';
+    const ok =
+      typeof response.ok === 'boolean'
+        ? response.ok
+        : status >= 200 && status < 300;
+
+    return { body, status, statusText, ok };
+  }
+
   isAbortLike(error: unknown): boolean {
-    return Boolean(
-      error &&
-        typeof error === 'object' &&
-        ((typeof (error as { aborted?: unknown }).aborted === 'boolean' &&
-          (error as { aborted?: unknown }).aborted === true) ||
-          (error as { name?: unknown }).name === 'TimeoutError' ||
-          (error as { name?: unknown }).name === 'AbortError'),
-    );
+    if (!error || typeof error !== 'object') {
+      return false;
+    }
+
+    const candidate = error as { aborted?: unknown; name?: unknown };
+    if (candidate.aborted === true) {
+      return true;
+    }
+
+    return candidate.name === 'TimeoutError' || candidate.name === 'AbortError';
   }
 
   async fetch(url: string, options: HttpClientRequestOptions = {}): Promise<HttpResponse> {
@@ -114,10 +197,7 @@ export class HttpClient implements HttpClientInterface {
     const timeoutMs = this.resolveTimeoutMs(options.timeoutSec, options.timeoutMs);
     const effectiveOptions: InternalRequestOptions = { method, headers, timeoutMs };
 
-    const abortControllerImpl =
-      this.AbortControllerImpl ??
-      (globalThis.AbortController as AbortControllerConstructor | undefined) ??
-      null;
+    const abortControllerImpl = this.getAbortControllerImpl();
 
     if (this.fetchImpl) {
       return this.fetchWithGlobal(url, effectiveOptions, this.fetchImpl, abortControllerImpl);
@@ -135,62 +215,76 @@ export class HttpClient implements HttpClientInterface {
     url: string,
     { timeoutMs, method, headers }: InternalRequestOptions,
     fetchImpl: FetchImplementation,
-    AbortControllerImpl: AbortControllerConstructor | null,
+    abortControllerCtor: AbortControllerConstructor | null,
   ): Promise<HttpResponse> {
-    const controller = AbortControllerImpl ? new AbortControllerImpl() : null;
-
-    let timedOut = false;
-    let timeoutHandle: NodeJS.Timeout | undefined;
-
-    const options: {
-      method: string;
-      redirect: 'follow';
-      signal?: unknown;
-      headers?: Record<string, string>;
-    } = {
-      method,
-      redirect: 'follow',
-      signal: controller?.signal,
-    };
-
-    if (headers && typeof headers === 'object') {
-      options.headers = headers;
-    }
+    const controller = this.createAbortController(abortControllerCtor);
+    const timeout = this.configureTimeout(controller, timeoutMs);
 
     try {
-      if (controller && timeoutMs > 0) {
-        timeoutHandle = setTimeout(() => {
-          timedOut = true;
-          try {
-            controller.abort();
-          } catch (error) {
-            // Ignore abort failures; we'll fall back to rejecting below.
-            void error;
-          }
-        }, timeoutMs);
-      }
+      const response = await fetchImpl(url, {
+        method,
+        redirect: 'follow',
+        signal: controller?.signal,
+        headers: this.normalizeHeaders(headers),
+      });
 
-      const response = await fetchImpl(url, options);
       const body = await response.text();
-
-      return {
-        body,
-        status: response.status ?? 0,
-        statusText: response.statusText ?? '',
-        ok:
-          response.ok ??
-          (response.status !== undefined ? response.status >= 200 && response.status < 300 : false),
-      };
+      return this.toHttpResponse(body, response);
     } catch (error) {
-      if (timedOut && (error as { name?: string }).name === 'AbortError') {
+      if (timeout.didTimeout() && (error as { name?: string }).name === 'AbortError') {
         throw this.createTimeoutError();
       }
       throw error;
     } finally {
-      if (timeoutHandle) {
-        clearTimeout(timeoutHandle);
-      }
+      timeout.clear();
     }
+  }
+
+  private createNodeRequestOptions(
+    parsed: URL,
+    method: string,
+    headers?: Record<string, string>,
+  ): http.RequestOptions {
+    return {
+      method,
+      hostname: parsed.hostname,
+      port: parsed.port,
+      path: `${parsed.pathname}${parsed.search}`,
+      headers: this.normalizeHeaders(headers) ?? {},
+    };
+  }
+
+  // Stream the response body into a Buffer before normalizing it for consumers.
+  private collectNodeResponse(res: http.IncomingMessage): Promise<HttpResponse> {
+    return new Promise<HttpResponse>((resolve, reject) => {
+      const chunks: Buffer[] = [];
+
+      res.on('data', (chunk: Buffer) => chunks.push(chunk));
+      res.on('end', () => {
+        const status = res.statusCode ?? 0;
+        resolve({
+          body: Buffer.concat(chunks).toString('utf8'),
+          status,
+          statusText: res.statusMessage ?? '',
+          ok: status >= 200 && status < 300,
+        });
+      });
+
+      res.on('error', reject);
+    });
+  }
+
+  // Mirror the fetch timeout behaviour for the Node http/https code path.
+  private attachNodeTimeout(req: http.ClientRequest, timeoutMs: number): () => void {
+    if (timeoutMs <= 0) {
+      return () => void 0;
+    }
+
+    const handle = setTimeout(() => {
+      req.destroy(new Error('Request timed out'));
+    }, timeoutMs);
+
+    return () => clearTimeout(handle);
   }
 
   private fetchWithNode(
@@ -201,54 +295,33 @@ export class HttpClient implements HttpClientInterface {
     const lib = parsed.protocol === 'https:' ? this.httpsModule : this.httpModule;
 
     return new Promise<HttpResponse>((resolve, reject) => {
-      let timeoutHandle: NodeJS.Timeout | undefined;
+      const requestOptions = this.createNodeRequestOptions(parsed, method, headers);
+      let clearTimeoutHandle: () => void = () => void 0;
 
-      const clearTimer = () => {
-        if (timeoutHandle) {
-          clearTimeout(timeoutHandle);
-          timeoutHandle = undefined;
-        }
-      };
-
-      const req = lib.request(
-        {
-          method,
-          hostname: parsed.hostname,
-          port: parsed.port,
-          path: `${parsed.pathname}${parsed.search}`,
-          headers: headers && typeof headers === 'object' ? headers : {},
-        },
-        (res) => {
-          const chunks: Buffer[] = [];
-
-          res.on('data', (chunk: Buffer) => chunks.push(chunk));
-          res.on('end', () => {
-            clearTimer();
-            const status = res.statusCode ?? 0;
-            resolve({
-              body: Buffer.concat(chunks).toString('utf8'),
-              status,
-              statusText: res.statusMessage ?? '',
-              ok: status >= 200 && status < 300,
-            });
+      const req = lib.request(requestOptions, (res) => {
+        this.collectNodeResponse(res)
+          .then((response) => {
+            clearTimeoutHandle();
+            resolve(response);
+          })
+          .catch((error) => {
+            clearTimeoutHandle();
+            reject(error);
           });
-        },
-      );
-
-      req.on('error', (error) => {
-        clearTimer();
-        if ((error as Error)?.message === 'Request timed out') {
-          reject(this.createTimeoutError());
-        } else {
-          reject(error);
-        }
       });
 
-      if (timeoutMs > 0) {
-        timeoutHandle = setTimeout(() => {
-          req.destroy(new Error('Request timed out'));
-        }, timeoutMs);
-      }
+      clearTimeoutHandle = this.attachNodeTimeout(req, timeoutMs);
+
+      req.on('error', (error) => {
+        clearTimeoutHandle();
+        if ((error as Error)?.message === 'Request timed out') {
+          reject(this.createTimeoutError());
+          return;
+        }
+        reject(error);
+      });
+
+      req.on('close', clearTimeoutHandle);
 
       req.end();
     });
