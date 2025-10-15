@@ -183,6 +183,8 @@ export function createWorld(levelDef) {
         }
       }
 
+      // Enemies + explosions (wired)
+      try { if (this.enemies) enemiesStep(this); resolveExplosions(this); } catch (e) { console.warn("wire-loop-hooks", e); }
       this.falling = nextFalling;
       return null;
     },
@@ -190,7 +192,7 @@ export function createWorld(levelDef) {
   };
   if (world.gemsRequired === 0) world.openExits();
   if (world.gemsRequired === 0) world.openExits();
-  return world;
+  world.queueExplosion=(...a)=>queueExplosion(world,...a); return world;
 }
 // --- Enemies + Explosions scaffold (Phase 1) ---
 export const ENEMY_TYPES = { FIREFLY: 'FIREFLY', BUTTERFLY: 'BUTTERFLY' };
@@ -217,3 +219,14 @@ export const MAGIC_WALL = { INACTIVE:0, ACTIVE:1, SPENT:2 };
 // world.magicActiveUntil, world.magicDuration
 // world.isMagicWall(x,y) -> state; world.setMagicWall(x,y,state)
 // During gravity step, if a falling boulder/diamond enters an ACTIVE wall cell, convert and place below.
+// Auto-wired Magic Wall conversion helper (call from gravity when an item enters ACTIVE)
+export function magicConvert(world, x, y, item){
+  // item: 'BOULDER'|'GEM'; assumes (x,y) is wall cell; output placed at (x,y+1) if empty
+  if(!world.isMagicWall||!world.setMagicWall) return;
+  const state = world.isMagicWall(x,y);
+  if(state!==1 /* ACTIVE */) return;
+  const belowX=x, belowY=y+1;
+  if(!world.isPassable(belowX,belowY)) return;
+  if(item==='BOULDER'){ world.setGem(belowX,belowY); }
+  else if(item==='GEM'){ world.setBoulder(belowX,belowY); }
+}
