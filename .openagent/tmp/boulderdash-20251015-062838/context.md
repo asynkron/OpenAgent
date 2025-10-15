@@ -42,3 +42,8 @@ Update 2025-10-15 (bugfix):
 - Fixed syntax error in world.js caused by a leftover fragment in the world object after introducing reachable-gems progression.
 
 Planned classic features now documented in docs/feature-plan.md (enemies+explosions, magic wall, level selector, CRT toggle, touch + npm start). Implementation will proceed in phases with deterministic update order.
+\n## Phase 1: Enemies + Explosions
+- Added enemiesStep with Firefly/Butterfly wall-hugging AI.
+- Added explosion queue and 3×3 resolution preserving steel/exit.
+- Update order: gravity → enemies → resolve explosions → player → SFX.
+- Risks: ordering edge cases with falling + enemy; performance with many entities.

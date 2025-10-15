@@ -192,3 +192,23 @@ export function createWorld(levelDef) {
   if (world.gemsRequired === 0) world.openExits();
   return world;
 }
+// --- Enemies + Explosions scaffold (Phase 1) ---
+export const ENEMY_TYPES = { FIREFLY: 'FIREFLY', BUTTERFLY: 'BUTTERFLY' };
+export const DIR = { R:0, D:1, L:2, U:3 };
+// Explosion queue items: {x,y,ttl,kind:'FIRE'|'BUTTER'}
+// Enemies: {x,y,dir,type}
+// Integration points to wire into tick order:
+// 1) gravityStep(); 2) enemiesStep(world); 3) resolveExplosions(world); 4) applyPlayer(world); 5) sfx hooks
+// Hook registration (implemented in sys/explosions.js)
+import { enemiesStep } from './entities/enemies.js';
+import { queueExplosion, resolveExplosions } from './sys/explosions.js';
+
+// World should expose helpers used by systems above:
+// - isPassable(x,y), isSteel(x,y), isExit(x,y), setGem(x,y), clearTile(x,y)
+// - player {x,y}
+// - enemies: []
+// Wire into main tick: gravity -> enemiesStep(this) -> resolveExplosions(this) -> player
+// Provide world.queueExplosion = (...args)=>queueExplosion(this,...args)
+if(typeof globalThis!=='undefined'){
+  // attach at module eval for simplicity in this scaffold; real code should set on construction
+}
