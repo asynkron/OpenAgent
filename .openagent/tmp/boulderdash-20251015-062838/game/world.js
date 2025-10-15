@@ -189,5 +189,6 @@ export function createWorld(levelDef) {
     _on(type, payload){ this._lastEvent = {type,payload}; setTimeout(()=>{ this._lastEvent=null; },0); },
   };
   if (world.gemsRequired === 0) world.openExits();
+  if (world.gemsRequired === 0) world.openExits();
   return world;
 }
