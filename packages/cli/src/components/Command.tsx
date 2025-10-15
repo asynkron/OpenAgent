@@ -158,6 +158,24 @@ function renderRunMarkdown(
   return <Text key={key}>{rendered}</Text>;
 }
 
+function renderInlineRunMarkdown(
+  content: string | null | undefined,
+  limit: number,
+): string | null {
+  if (typeof content !== 'string' || content.trim() === '') {
+    return null;
+  }
+
+  const ellipsis = '…';
+  const shouldTruncate = limit > 0 && content.length > limit;
+  const truncatedContent = shouldTruncate
+    ? `${content.slice(0, Math.max(limit - ellipsis.length, 0))}${ellipsis}`
+    : content;
+  const markdown = `\`\`\`bash\n${truncatedContent}\n\`\`\``;
+  const rendered = renderMarkdownMessage(markdown);
+  return rendered.replace(/^\s+/, '');
+}
+
 function SummaryLine({ line }: { line: SummaryLineValue }): ReactElement {
   const baseProps: TextStyleProps = {
     ...(commandSummaryLineProps.base ?? {}),
@@ -273,6 +291,20 @@ export function Command({
     }
   }
 
+  let headingDetailText = detail;
+  let inlineRunPreview: string | null = null;
+
+  if (!headingDetailText && typeof runValue === 'string' && runSegments === null) {
+    const trimmedRun = runValue.trim();
+    if (trimmedRun && !/[\r\n]/.test(runValue)) {
+      inlineRunPreview = renderInlineRunMarkdown(trimmedRun, runCharacterLimit);
+      if (inlineRunPreview) {
+        // Inline runs already render after the prompt, so skip the separate markdown block.
+        runElements = null;
+      }
+    }
+  }
+
   const containerProps: BoxStyleProps = {
     flexDirection: 'column',
     paddingX: 1,
@@ -340,6 +372,17 @@ export function Command({
   const planHeadingColor =
     typeof headingProps.color === 'string' ? (headingProps.color as string) : commandColors.fg;
 
+  const headingDetailNode = inlineRunPreview
+    ? // Avoid overriding the ANSI color codes produced by the markdown renderer.
+      (
+        <Text>{inlineRunPreview}</Text>
+      )
+    : headingDetailText
+      ? (
+          <Text {...(headingDetailProps as Record<string, unknown>)}>{headingDetailText}</Text>
+        )
+      : null;
+
   return (
     <Box {...(rootProps as Record<string, unknown>)}>
       <Box {...(planHeaderProps as Record<string, unknown>)}>
@@ -354,7 +397,7 @@ export function Command({
         <Text {...(headingProps as Record<string, unknown>)}>
           <Text color="green">❯</Text>
           <Text> </Text>
-          <Text {...(headingDetailProps as Record<string, unknown>)}>{detail}</Text>
+          {headingDetailNode}
         </Text>
         {runElements ? (
           <Box {...(runContainerProps as Record<string, unknown>)}>{runElements}</Box>
