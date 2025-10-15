@@ -25,3 +25,6 @@ How to run:
 
 Change protocol:
 - Update this context.md when adding levels, enemies, art, or engine changes.
+
+Update 2025-10-15:
+- Physics fix: Player now counts as support under rocks; rocks only crush the player if they were already falling in the previous tick. Falling state now persists across ticks for deterministic behavior.

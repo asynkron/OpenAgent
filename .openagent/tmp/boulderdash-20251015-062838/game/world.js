@@ -18,7 +18,8 @@ export function createWorld(levelDef) {
   const height = rows.length; const width = rows[0].length;
   const tilesize = 16;
   const t = new Uint8Array(width*height);
-  const falling = new Uint8Array(width*height); // 0/1 state for falling boulders/gems
+  // falling marks tiles that were falling in the previous tick
+  let falling = new Uint8Array(width*height);
   let player = {x:1,y:1};
   let gemsTotal = 0;
   for (let y=0;y<height;y++){
@@ -37,7 +38,8 @@ export function createWorld(levelDef) {
     }
   }
   const world = {
-    width, height, tilesize, t, falling,
+    width, height, tilesize, t,
+    falling,
     player,
     collected: 0, gemsRequired: Math.max(1, Math.floor(gemsTotal*0.8)),
     score: 0,
@@ -53,7 +55,7 @@ export function createWorld(levelDef) {
       if (this.state!=='play') return false;
       const nx = this.player.x + dir.x; const ny = this.player.y + dir.y;
       const id = this.get(nx,ny);
-      // pushing boulders
+      // pushing boulders (cannot push a currently falling rock)
       if ((id===TILE.BOULDER) && (dir.x!==0 && dir.y===0)){
         const bx = nx + dir.x; const by = ny + dir.y;
         if (this.get(bx,by)===TILE.EMPTY && this.falling[this.idx(nx,ny)]===0) {
@@ -87,35 +89,74 @@ export function createWorld(levelDef) {
       this.timeLeft -= dt;
       if (this.timeLeft <= 0) { this.state='timeup'; return {type:'die'}; }
 
-      // reset falling states
-      this.falling.fill(0);
+      const wasFalling = this.falling;                 // from previous tick
+      const nextFalling = new Uint8Array(width*height); // for this tick results
 
       // process gravity bottom->top
       for (let y=this.height-2; y>=0; y--) {
         for (let x=0; x<this.width; x++) {
           const id = this.get(x,y);
-          if (id===TILE.BOULDER || id===TILE.GEM) {
-            const below = this.get(x,y+1);
-            if (below===TILE.EMPTY) {
-              // crush player check
-              if (this.player.x===x && this.player.y===y+1) { this.state='dead'; this._on('die'); }
-              this.set(x,y+1,id); this.set(x,y,TILE.EMPTY); this.falling[this.idx(x,y+1)] = 1; continue;
-            }
-            const isRocky = (v)=> v===TILE.BOULDER || v===TILE.GEM;
-            // roll left
-            if (isRocky(below) && this.get(x-1,y)===TILE.EMPTY && this.get(x-1,y+1)===TILE.EMPTY) {
-              if (this.player.x===x-1 && this.player.y===y+1) { this.state='dead'; this._on('die'); }
-              this.set(x-1,y+1,id); this.set(x,y,TILE.EMPTY); this.falling[this.idx(x-1,y+1)] = 1; continue;
-            }
-            // roll right
-            if (isRocky(below) && this.get(x+1,y)===TILE.EMPTY && this.get(x+1,y+1)===TILE.EMPTY) {
-              if (this.player.x===x+1 && this.player.y===y+1) { this.state='dead'; this._on('die'); }
-              this.set(x+1,y+1,id); this.set(x,y,TILE.EMPTY); this.falling[this.idx(x+1,y+1)] = 1; continue;
+          if (id!==TILE.BOULDER && id!==TILE.GEM) continue;
+
+          const i = this.idx(x,y);
+          const fallingBefore = wasFalling[i] === 1;
+
+          const belowTile = this.get(x,y+1);
+          const playerBelow = (this.player.x===x && this.player.y===y+1);
+
+          // Vertical fall logic: player counts as support UNLESS the rock was already falling
+          if (belowTile === TILE.EMPTY) {
+            if (playerBelow) {
+              if (fallingBefore) {
+                // crush and continue falling into player's cell
+                this.state='dead'; this._on('die');
+                this.set(x,y, TILE.EMPTY);
+                this.set(x,y+1, id);
+                nextFalling[this.idx(x,y+1)] = 1;
+              } else {
+                // player is supporting the rock this tick; do not move
+                // not marked as falling yet
+              }
+              continue;
+            } else {
+              // free fall into empty space
+              this.set(x,y+1,id); this.set(x,y,TILE.EMPTY);
+              nextFalling[this.idx(x,y+1)] = 1;
+              continue;
             }
           }
+
+          const isRocky = (v)=> v===TILE.BOULDER || v===TILE.GEM;
+          // Rolling behavior (treat player's cells as blocking unless already falling)
+          if (isRocky(belowTile)) {
+            // roll left
+            const leftFree = this.get(x-1,y)===TILE.EMPTY && !(this.player.x===x-1 && this.player.y===y);
+            const downLeftFree = this.get(x-1,y+1)===TILE.EMPTY && !(this.player.x===x-1 && this.player.y===y+1);
+            if (leftFree && downLeftFree) {
+              if (this.player.x===x-1 && this.player.y===y+1) {
+                if (fallingBefore) { this.state='dead'; this._on('die'); }
+                else { continue; }
+              }
+              this.set(x-1,y+1,id); this.set(x,y,TILE.EMPTY);
+              nextFalling[this.idx(x-1,y+1)] = 1; continue;
+            }
+            // roll right
+            const rightFree = this.get(x+1,y)===TILE.EMPTY && !(this.player.x===x+1 && this.player.y===y);
+            const downRightFree = this.get(x+1,y+1)===TILE.EMPTY && !(this.player.x===x+1 && this.player.y===y+1);
+            if (rightFree && downRightFree) {
+              if (this.player.x===x+1 && this.player.y===y+1) {
+                if (fallingBefore) { this.state='dead'; this._on('die'); }
+                else { continue; }
+              }
+              this.set(x+1,y+1,id); this.set(x,y,TILE.EMPTY);
+              nextFalling[this.idx(x+1,y+1)] = 1; continue;
+            }
+          }
+          // otherwise: resting
         }
       }
 
+      this.falling = nextFalling;
       return null;
     },
     _on(type, payload){ this._lastEvent = {type,payload}; setTimeout(()=>{ this._lastEvent=null; },0); },
