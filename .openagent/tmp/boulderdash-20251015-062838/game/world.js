@@ -16,7 +16,7 @@ export const DIRS = {
 export function createWorld(levelDef) {
   const rows = levelDef.map.trim().split('\n');
   const height = rows.length; const width = rows[0].length;
-  const tilesize = 16;
+  const tilesize = 8;
   const t = new Uint8Array(width*height);
   // falling marks tiles that were falling in the previous tick
   let falling = new Uint8Array(width*height);

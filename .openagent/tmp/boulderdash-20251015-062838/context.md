@@ -28,3 +28,8 @@ Change protocol:
 
 Update 2025-10-15:
 - Physics fix: Player now counts as support under rocks; rocks only crush the player if they were already falling in the previous tick. Falling state now persists across ticks for deterministic behavior.
+
+Update 2025-10-15 (display):
+- Bigger pixels by reducing internal tilesize from 16 to 8 (crisper, chunkier look at same CSS size).
+- Stronger CRT: darker scanlines, RGB aperture grille stripes, enhanced vignette/glow, increased HUD glow.
+- All tunable via style.css variables and gradients.
