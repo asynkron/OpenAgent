@@ -1,0 +1,1 @@
+{ "name": "boulderdash-classic", "private": true, "type":"module", "scripts": { "start": "npx http-server -p 8080 ." } }
