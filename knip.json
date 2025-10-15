@@ -1,0 +1,58 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "ignore": [
+    "**/dist/**",
+    ".openagent/**",
+    "tests/__fixtures__/**",
+    "node_modules/**",
+    "packages/core/prompts/**",
+    "packages/core/debugdata/**",
+    "packages/core/scripts/**",
+    "packages/web/**"
+  ],
+  "workspaces": {
+    ".": {
+      "entry": [
+        "index.ts",
+        "scripts/**/*.{ts,cts}",
+        "tests/**/*.ts"
+      ],
+      "project": [
+        "scripts/**/*.{ts,cts}",
+        "tests/**/*.ts"
+      ]
+    },
+    "packages/core": {
+      "entry": [
+        "src/lib/index.ts",
+        "src/**/*.test.ts",
+        "src/**/__tests__/**/*.ts",
+        "scripts/**/*.ts"
+      ],
+      "project": [
+        "src/**/*.{ts,tsx}",
+        "scripts/**/*.ts"
+      ],
+      "ignore": [
+        "dist/**",
+        "prompts/**",
+        "debugdata/**"
+      ]
+    },
+    "packages/cli": {
+      "entry": [
+        "index.ts",
+        "src/runtime.ts",
+        "src/runner.ts",
+        "src/**/*.test.ts",
+        "src/**/__tests__/**/*.ts"
+      ],
+      "project": [
+        "src/**/*.{ts,tsx}"
+      ],
+      "ignore": [
+        "dist/**"
+      ]
+    }
+  }
+}
