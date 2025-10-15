@@ -49,3 +49,6 @@ body { margin: 0; display: grid; place-items: center; font-family: ui-monospace,
 }
 @keyframes flicker { 0% { opacity: 0.75; } 50% { opacity: 0.95; } 100% { opacity: 0.8; } }
 @keyframes roll { from { background-position-y: 0, 0; } to { background-position-y: 4px, 0; } }
+:root{ --crt-scanline-alpha:.12; --crt-bloom:.08; --crt-vignette:.25; --crt-aperture:.25; --crt-flicker:.02 }
+.crt-strong{ --crt-scanline-alpha:.22; --crt-bloom:.14; --crt-vignette:.35; --crt-aperture:.35; --crt-flicker:.035 }
+.crt-subtle{ --crt-scanline-alpha:.08; --crt-bloom:.04; --crt-vignette:.15; --crt-aperture:.15; --crt-flicker:.01 }
