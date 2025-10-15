@@ -133,6 +133,69 @@ describe('plan utilities', () => {
     expect(merged[0].status).toBe('failed');
   });
 
+  test('mergePlanTrees ignores command rewrites when incoming status is completed', () => {
+    const existingPlan = [
+      {
+        id: 'task-3',
+        title: 'Keep running status',
+        status: 'running',
+        command: null,
+      },
+    ];
+
+    const incomingPlan = [
+      {
+        id: 'task-3',
+        title: 'Keep running status',
+        status: 'completed',
+        command: {
+          run: 'echo done',
+          shell: '/bin/bash',
+        },
+      },
+    ];
+
+    const merged = mergePlanTrees(existingPlan, incomingPlan);
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toBe(existingPlan[0]);
+    expect(merged[0].status).toBe('running');
+    expect(merged[0].command).toBeNull();
+  });
+
+  test('mergePlanTrees resets abandoned steps to pending when command changes', () => {
+    const existingPlan = [
+      {
+        id: 'task-4',
+        title: 'Retry after cancellation',
+        status: 'abandoned',
+        command: null,
+      },
+    ];
+
+    const incomingPlan = [
+      {
+        id: 'task-4',
+        title: 'Retry after cancellation',
+        status: 'pending',
+        command: {
+          run: 'npm run retry',
+          shell: '/bin/bash',
+        },
+      },
+    ];
+
+    const merged = mergePlanTrees(existingPlan, incomingPlan);
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toBe(existingPlan[0]);
+    expect(merged[0].status).toBe('pending');
+    expect(merged[0].command).toEqual({
+      run: 'npm run retry',
+      shell: '/bin/bash',
+    });
+  });
+
   test('mergePlanTrees forces new steps to pending status regardless of incoming status', () => {
     const existingPlan = [{ id: 'a', title: 'Existing', status: 'running' }];
 

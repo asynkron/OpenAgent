@@ -9,7 +9,7 @@
 - `agentLoop.integration.test.ts` — validates the interactive loop emits expected events, respects plan persistence, and handles approvals.
 - `__fixtures__/openai-nested-shell-response-text.json` — captured OpenAI response payload (including the outer metadata) used to reproduce newline-heavy command payloads inside tests; now normalized to the current schema with explicit `id` labels, full shell/run command objects, and the required `max_bytes` default (aligned with `packages/core/src/constants.ts`) so schema validation passes during integration runs.
 - `__fixtures__/openaiNestedShellResponse.ts` — helper that loads the captured payload and extracts the nested `responseText` string for the suites.
-- `agentCancellation.integration.test.ts` — covers ESC handling and cancellation propagation across queued commands.
+- `agentCancellation.integration.test.ts` — covers ESC handling and cancellation propagation across queued commands, ensuring canceled steps drop their pending command so acknowledgements don't replay the previous instruction while still allowing the assistant to retry with fresh payloads.
 - `approvalFlow.integration.test.ts` — exercises auto-approval, session approvals, and human prompts end-to-end.
 - `cmdStats.integration.test.ts` — tracks command statistics service wiring.
 - `scripts.integration.test.ts` — smoke-tests automation scripts when invoked via the CLI runtime.

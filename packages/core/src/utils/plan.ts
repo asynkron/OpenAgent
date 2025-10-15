@@ -178,7 +178,10 @@ function mergePlanItems(existingItem, incomingItem) {
   existingItem.waitingForId = incomingItem.waitingForId || [];
 
   const incomingCommand = incomingItem.command;
-  if (incomingCommand && typeof incomingCommand === 'object') {
+  const incomingStatus = incomingItem?.status;
+  const allowCommandUpdate = !isCompletedStatus(incomingStatus);
+
+  if (allowCommandUpdate && incomingCommand && typeof incomingCommand === 'object') {
     const existingCommand = existingItem.command;
     const commandChanged =
       !existingCommand ||
@@ -189,7 +192,13 @@ function mergePlanItems(existingItem, incomingItem) {
       // Replace the stored command details when the assistant revises them so executions stay in sync.
       existingItem.command = deepCloneValue(incomingCommand);
 
-      if (isFailedStatus(existingItem.status)) {
+      const incomingIsTerminal =
+        isTerminalStatus(incomingStatus) || isAbandonedStatus(incomingStatus);
+      const shouldResetStatus =
+        isFailedStatus(existingItem.status) ||
+        (isAbandonedStatus(existingItem.status) && !incomingIsTerminal);
+
+      if (shouldResetStatus) {
         existingItem.status = 'pending';
       }
     }

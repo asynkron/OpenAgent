@@ -164,7 +164,7 @@ test('ESC cancellation aborts an in-flight command and surfaces UI feedback', as
   await ui.start();
 
   expect(runCommandMock).toHaveBeenCalledTimes(1);
-  expect(runCommandMock).toHaveBeenCalledWith('echo "pending execution"', '.', 30, '/bin/bash');
+  expect(runCommandMock).toHaveBeenCalledWith('sleep 30', '.', 30, 'bash');
   expect(cancelObserved).toBe(true);
 
   const statusEvent = ui.events.find(
