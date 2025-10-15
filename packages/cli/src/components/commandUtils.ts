@@ -125,20 +125,6 @@ function buildReplaceDetail(spec: Record<string, unknown>): string {
   return `(${parts.join(', ')})`;
 }
 
-function buildExecuteDetail(
-  execution: CommandExecution | null | undefined,
-  command: Command | null | undefined,
-): string {
-  const runValue =
-    (execution?.command && typeof execution.command.run === 'string'
-      ? execution.command.run
-      : typeof command?.run === 'string'
-        ? command.run
-        : '') || '';
-  const trimmed = runValue.trim();
-  return `(${trimmed || 'shell command'})`;
-}
-
 export function buildHeadingDetail(
   type: string,
   execution: CommandExecution | null | undefined,
@@ -157,7 +143,9 @@ export function buildHeadingDetail(
       return buildReplaceDetail(spec);
     }
     default: {
-      return buildExecuteDetail(execution, command);
+      // Execute headings stay focused on status so the syntax-highlighted
+      // preview remains the single source of shell content.
+      return '';
     }
   }
 }
