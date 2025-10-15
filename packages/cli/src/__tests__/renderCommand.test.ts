@@ -42,7 +42,10 @@ describe('renderCommand (execute summary)', () => {
 
       const outputs = logSpy.mock.calls.map((call) => call[0] as string);
       expect(outputs).toHaveLength(2);
-      expect(outputs[1]).toContain('EXECUTE (cat src/file.txt)');
+      // The heading keeps status context but leaves the shell command body to the
+      // syntax-highlighted preview.
+      expect(outputs[1]).toContain('EXECUTE');
+      expect(outputs[1]).not.toContain('cat src/file.txt');
       expect(outputs[1]).toContain('Command completed successfully.');
       expect(outputs[1]).toContain('Exit code: 0');
     } finally {
