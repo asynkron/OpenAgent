@@ -40,7 +40,9 @@ export interface ResponseCallOptions {
 }
 
 type ResponseCallSettings = Partial<Pick<CallSettings, 'abortSignal' | 'maxRetries'>>;
+type ProviderOptions = Parameters<typeof generateText>[0]['providerOptions'];
 
+// Normalize optional runtime knobs into the shape expected by the AI SDK helpers.
 function buildCallSettings(options: ResponseCallOptions | undefined): ResponseCallSettings {
   const { maxRetries } = getOpenAIRequestSettings();
 
@@ -61,21 +63,12 @@ function buildCallSettings(options: ResponseCallOptions | undefined): ResponseCa
   return settings;
 }
 
-// Intentionally avoid provider-specific options to keep the core provider-agnostic
-function parseBooleanEnv(value: string | undefined): boolean | null {
-  if (typeof value === 'undefined') return null;
-  const v = value.trim().toLowerCase();
-  if (v === '1' || v === 'true' || v === 'yes' || v === 'on') return true;
-  if (v === '0' || v === 'false' || v === 'no' || v === 'off') return false;
-  return null;
-}
-
-function buildProviderOptions(_reasoningEffort?: ReasoningEffort): any {
+function buildProviderOptions(_reasoningEffort?: ReasoningEffort): ProviderOptions {
   // Always enable strict JSON Schema for provider calls
-  return { openai: { strictJsonSchema: true } } as any;
+  return { openai: { strictJsonSchema: true } } as ProviderOptions;
 }
 
-function mapToolToSchema(tool: SupportedTool | null | undefined): SupportedTool | null {
+function mapToolToSchema(tool: SupportedTool | null | undefined): StructuredToolDefinition | null {
   if (!tool || typeof tool !== 'object') {
     return null;
   }
@@ -173,57 +166,69 @@ export interface CreateResponseParams {
   reasoningEffort?: ReasoningEffort;
 }
 
-export async function createResponse({
-  openai,
-  model,
-  input,
-  tools,
-  options,
-  reasoningEffort,
-}: CreateResponseParams): Promise<CreateResponseResult> {
-  const languageModel = resolveResponsesModel(openai, model);
-
+// Throw a predictable error instead of propagating null checks through every call site.
+function requireResponsesModel(openaiProvider: ResponsesClient | undefined, model: string): LanguageModel {
+  const languageModel = resolveResponsesModel(openaiProvider, model);
   if (!languageModel) {
     throw new Error('Invalid OpenAI client instance provided.');
   }
+  return languageModel;
+}
 
-  const callSettings = buildCallSettings(options);
-  const providerOptions = buildProviderOptions(reasoningEffort);
-  const messages = input;
-
-  const tool = mapToolToSchema(tools?.[0]);
-
-  if (tool?.schema) {
-    const structured = await generateObject({
-      model: languageModel,
-      messages,
-      schema: tool.schema,
-      schemaName: typeof tool.name === 'string' ? tool.name : undefined,
-      schemaDescription: typeof tool.description === 'string' ? tool.description : undefined,
-      providerOptions,
-      ...callSettings,
-    });
-
-    const argumentsText = JSON.stringify(structured.object);
-    const callId =
-      structured.response && typeof structured.response.id === 'string'
-        ? structured.response.id
-        : null;
-
-    return {
-      output_text: argumentsText,
-      output: [
-        {
-          type: 'function_call',
-          name: tool.name ?? 'open-agent',
-          arguments: argumentsText,
-          call_id: callId,
-        },
-      ],
-      structured,
-    };
+// Only the first tool is considered right now; keep the selection logic centralized so we
+// can relax that constraint later without touching `createResponse`.
+function selectStructuredTool(tools: SupportedTool[] | undefined): StructuredToolDefinition | null {
+  if (!tools || tools.length === 0) {
+    return null;
   }
 
+  return mapToolToSchema(tools[0]);
+}
+
+// Shared helper so both code paths emit the same response envelope.
+async function createStructuredResult(
+  languageModel: LanguageModel,
+  messages: ModelMessage[],
+  tool: StructuredToolDefinition,
+  providerOptions: ProviderOptions,
+  callSettings: ResponseCallSettings,
+): Promise<StructuredResponseResult> {
+  const structured = await generateObject({
+    model: languageModel,
+    messages,
+    schema: tool.schema,
+    schemaName: typeof tool.name === 'string' ? tool.name : undefined,
+    schemaDescription: typeof tool.description === 'string' ? tool.description : undefined,
+    providerOptions,
+    ...callSettings,
+  });
+
+  const argumentsText = JSON.stringify(structured.object);
+  const callId =
+    structured.response && typeof structured.response.id === 'string'
+      ? structured.response.id
+      : null;
+
+  return {
+    output_text: argumentsText,
+    output: [
+      {
+        type: 'function_call',
+        name: tool.name ?? 'open-agent',
+        arguments: argumentsText,
+        call_id: callId,
+      },
+    ],
+    structured,
+  };
+}
+
+async function createTextResult(
+  languageModel: LanguageModel,
+  messages: ModelMessage[],
+  providerOptions: ProviderOptions,
+  callSettings: ResponseCallSettings,
+): Promise<TextResponseResult> {
   const textResult = await generateText({
     model: languageModel,
     messages,
@@ -249,6 +254,26 @@ export async function createResponse({
     ],
     text: textResult,
   };
+}
+
+export async function createResponse({
+  openai,
+  model,
+  input,
+  tools,
+  options,
+  reasoningEffort,
+}: CreateResponseParams): Promise<CreateResponseResult> {
+  const languageModel = requireResponsesModel(openai, model);
+  const callSettings = buildCallSettings(options);
+  const providerOptions = buildProviderOptions(reasoningEffort);
+  const tool = selectStructuredTool(tools);
+
+  if (tool?.schema) {
+    return createStructuredResult(languageModel, input, tool, providerOptions, callSettings);
+  }
+
+  return createTextResult(languageModel, input, providerOptions, callSettings);
 }
 
 export default {
