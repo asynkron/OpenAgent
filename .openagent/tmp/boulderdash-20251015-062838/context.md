@@ -40,3 +40,5 @@ Update 2025-10-15 (levels + progression):
 
 Update 2025-10-15 (bugfix):
 - Fixed syntax error in world.js caused by a leftover fragment in the world object after introducing reachable-gems progression.
+
+Planned classic features now documented in docs/feature-plan.md (enemies+explosions, magic wall, level selector, CRT toggle, touch + npm start). Implementation will proceed in phases with deterministic update order.
