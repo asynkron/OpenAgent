@@ -4,71 +4,8 @@
 
 OpenAgent is a Node.js-based CLI agent that communicates with an LLM using a structured JSON protocol. It safely executes shell commands with human-in-the-loop approval, live progress tracking, and output controls.
 
-> _Demonstration note: this line was added using the `TODO: update docs` command._
-
 If you want the very slim, no extra fluff version, check this early commit:
 https://github.com/asynkron/OpenAgent/tree/9073a48225ddc2c2afc6f701af48d6ec4c04e477 - 400 LoC
-
-## Example chat
-
-```
-Plan ______________
-✔ Step 1 - Review brain directory guidance
-✔ Step 2 - Inspect relevant CLI modules for human-interaction flow
-✔ Step 3 - Draft TODO plan for implementing --nohuman flag
-▶ Step 4 - Implement --nohuman flag behavior in CLI
-• Step 5 - Run syntax/tests and verify behavior
-• Step 6 - Summarize changes and next steps
-
-Command ______________
-Shell: bash
-Directory: /Users/rogerjohansson/git/asynkron/OpenAgent
-Timeout: 60s
-Auto-approved by CLI flag (--auto-approve)
-
-Command Result ______________
-Exit Code: 0
-Runtime: 3ms
-Status: COMPLETED
-
-STDOUT ______________
-  Edited src/agent/loop.js
-  "use strict";
-
-  /**
-   * Implements the interactive agent loop that powers the CLI experience.
-   *
-   * Responsibilities:
-   * - Maintain the conversation history with OpenAI responses.
-   * - Render assistant output, prompt the human for approvals, and execute commands.
-   * - Feed execution results back to the model to continue the workflow.
-   *
-   * Consumers:
-   * - Library entry `src/lib/index.js` creates a configured loop via `createAgentLoop()` and exposes it as `agentLoop`.
-   * - Integration tests re-export the same function to run mocked scenarios.
-   */
-
-  import chalk from 'chalk';
-
-  import { SYSTEM_PROMPT } from '../config/systemPrompt.js';
-  import { getOpenAIClient, MODEL } from '../openai/client.js';
-  …
-
-
-
-Sending request to AI
-Received response from AI
-
-Command ______________
-Shell: bash
-Directory: /Users/rogerjohansson/git/asynkron/OpenAgent
-Timeout: 60s
-
-  sed -n '200,300p' src/agent/loop.js
-
-
-Auto-approved by allowlist (approved_commands.json)
-```
 
 ## Table of Contents
 
