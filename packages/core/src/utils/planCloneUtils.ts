@@ -1,3 +1,5 @@
+import type { ToolPlanStep } from '../contracts/index.js';
+
 const hasStructuredClone = typeof globalThis.structuredClone === 'function';
 
 export const deepCloneValue = <T>(value: T): T => {
@@ -17,20 +19,29 @@ export const deepCloneValue = <T>(value: T): T => {
   }
 };
 
-export interface PlanItem {
-  id?: string | number;
-  title?: string;
-  status?: string;
-  command?: unknown;
-  waitingForId?: unknown[];
-  [key: string]: unknown;
+type ToolPlanDependency = NonNullable<ToolPlanStep['waitingForId']>[number];
+
+export type PlanSnapshotStatus = ToolPlanStep['status'] | 'running';
+
+export type PlanSnapshotCommand = ToolPlanStep['command'];
+
+export interface PlanSnapshotStep extends Record<string, unknown> {
+  id?: ToolPlanStep['id'] | number;
+  title?: ToolPlanStep['title'];
+  status?: PlanSnapshotStatus;
+  waitingForId?: (ToolPlanDependency | number)[];
+  command?: PlanSnapshotCommand | null;
+  observation?: Record<string, unknown>;
+  priority?: number | string;
 }
 
-export const clonePlanTree = (plan: unknown): PlanItem[] => {
+export type PlanSnapshot = PlanSnapshotStep[];
+
+export const clonePlanTree = (plan: PlanSnapshot | null | undefined): PlanSnapshot => {
   if (!Array.isArray(plan)) {
     return [];
   }
 
   const cloned = deepCloneValue(plan);
-  return Array.isArray(cloned) ? cloned : [];
+  return Array.isArray(cloned) ? (cloned as PlanSnapshot) : [];
 };
