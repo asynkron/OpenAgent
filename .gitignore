@@ -156,3 +156,7 @@ packages/core/scripts/gitpush
 !.openagent/temp/pacman-crt-20251014-175650/
 !.openagent/temp/pacman-crt-20251014-175650/**
 # END openagent pacman tracking
+
+# Local analysis snapshots
+baseline-fta.json
+post-refactor-fta.json

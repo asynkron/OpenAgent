@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { describe, expect, test, beforeEach } from '@jest/globals';
-import { createPlanStateMachine } from '../stateMachine.js';
+import { createPlanStateMachine } from '../stateMachine/index.js';
 import { globalRegistry } from '../../planStepRegistry.js';
 
 describe('createPlanStateMachine', () => {
