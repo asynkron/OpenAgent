@@ -19,16 +19,31 @@ import type { createChatMessageEntry as CreateChatMessageEntry } from '../histor
 import type { extractOpenAgentToolCall as ExtractOpenAgentToolCall } from '../../openai/responseUtils.js';
 import type { summarizeContextUsage as SummarizeContextUsage } from '../../utils/contextUsage.js';
 import type { incrementCommandCount as IncrementCommandCount } from '../../services/commandStatsService.js';
-import type {
-  CompletionAttempt,
-  EmitEvent,
-  GuardRequestPayloadSizeFn,
-  RecordRequestPayloadSizeFn,
-} from './prePassTasks.js';
 import type { PlanManagerLike } from './planManagerAdapter.js';
 import type { PlanAutoResponseTracker } from './planReminderController.js';
 
-export type { CompletionAttempt, EmitEvent, GuardRequestPayloadSizeFn };
+export type EmitEvent = (event: Record<string, unknown>) => void;
+
+export interface GuardRequestPayloadSizeInput {
+  history: PlanHistory;
+  model: string;
+  passIndex: number;
+}
+
+export type GuardRequestPayloadSizeFn =
+  | ((options: GuardRequestPayloadSizeInput) => Promise<void>)
+  | null
+  | undefined;
+
+export type RecordRequestPayloadSizeFn =
+  | ((options: GuardRequestPayloadSizeInput) => Promise<void>)
+  | null
+  | undefined;
+
+export type CompletionAttempt =
+  | { status: 'canceled' }
+  | { status: 'missing-content' }
+  | { status: 'success'; responseContent: string };
 
 export type CommandRunOutcome = CommandExecutionResult;
 
@@ -71,6 +86,22 @@ export interface ExecuteAgentPassOptions {
   incrementCommandCountFn?: typeof IncrementCommandCount;
   guardRequestPayloadSizeFn?: GuardRequestPayloadSizeFn;
   recordRequestPayloadSizeFn?: RecordRequestPayloadSizeFn;
+}
+
+export interface NormalizedExecuteAgentPassOptions extends ExecuteAgentPassOptions {
+  emitEvent: EmitEvent;
+  requestModelCompletionFn: typeof RequestModelCompletion;
+  executeAgentCommandFn: typeof ExecuteAgentCommand;
+  parseAssistantResponseFn: typeof ParseAssistantResponse;
+  validateAssistantResponseSchemaFn: typeof ValidateAssistantResponseSchema;
+  validateAssistantResponseFn: typeof ValidateAssistantResponse;
+  createChatMessageEntryFn: typeof CreateChatMessageEntry;
+  extractOpenAgentToolCallFn: typeof ExtractOpenAgentToolCall;
+  summarizeContextUsageFn: typeof SummarizeContextUsage;
+  incrementCommandCountFn: typeof IncrementCommandCount;
+  createObservationBuilderFn: (deps: ObservationBuilderDeps) => ObservationBuilder;
+  combineStdStreamsFn: ObservationBuilderDeps['combineStdStreams'];
+  buildPreviewFn: ObservationBuilderDeps['buildPreview'];
 }
 
 export type PlanHistory = ChatMessageEntry[];

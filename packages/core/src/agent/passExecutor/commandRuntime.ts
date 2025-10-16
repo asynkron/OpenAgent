@@ -128,12 +128,12 @@ const ensureCommandApproval = async (
 export class CommandRuntime {
   constructor(private readonly options: CommandRuntimeOptions) {}
 
-  async execute(candidate: ExecutableCandidate): Promise<'continue' | 'stop'> {
+  async execute(candidate: ExecutableCandidate): Promise<'continue' | 'command-rejected'> {
     const { planStep, command, normalizedRun } = this.prepareCommand(candidate);
 
     const approvalResult = await ensureCommandApproval(this.options, command, planStep);
     if (approvalResult === 'rejected') {
-      return 'stop';
+      return 'command-rejected';
     }
 
     const commandOutcome = await this.executeCommand(command, planStep);
