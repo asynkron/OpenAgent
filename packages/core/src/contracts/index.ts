@@ -17,6 +17,7 @@
 // Tool schema (Zod) and DTOs
 // -----------------------------
 import { jsonSchema as asJsonSchema } from '@ai-sdk/provider-utils';
+import type { JSONSchema7 } from '@ai-sdk/provider';
 import type { GenerateObjectResult, GenerateTextResult, ToolSet } from 'ai';
 import { z } from 'zod';
 
@@ -198,7 +199,7 @@ export const ToolResponseJsonSchema = {
       },
     },
   },
-} as const;
+} satisfies JSONSchema7;
 
 export const ToolDefinition = Object.freeze({
   name: 'open-agent',
@@ -249,7 +250,7 @@ export const RuntimeToolResponseJsonSchema = {
       },
     },
   },
-} as const;
+} satisfies JSONSchema7;
 
 // ----------------------------------
 // Requests (runtime -> AI SDK client)
