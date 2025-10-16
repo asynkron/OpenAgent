@@ -1,4 +1,4 @@
-import type { PlanItem } from './planCloneUtils.js';
+import type { PlanSnapshot, PlanSnapshotStep } from './planCloneUtils.js';
 import { deepCloneValue } from './planCloneUtils.js';
 import { isAbandonedStatus, isCompletedStatus, isFailedStatus, isTerminalStatus } from './planStatusUtils.js';
 import { commandsAreEqual } from './planComparisonUtils.js';
@@ -12,25 +12,27 @@ const normalizePlanIdentifier = (value: unknown): string => {
   return trimmed || '';
 };
 
-const createPlanKey = (item: unknown, fallbackIndex: number): string => {
+const createPlanKey = (item: PlanSnapshotStep | null | undefined, fallbackIndex: number): string => {
   if (!item || typeof item !== 'object') {
     return `index:${fallbackIndex}`;
   }
 
-  const planItem = item as PlanItem;
-  const id = normalizePlanIdentifier(planItem.id);
+  const id = normalizePlanIdentifier(item.id);
   if (id) {
     return `id:${id.toLowerCase()}`;
   }
 
-  if (typeof planItem.title === 'string' && planItem.title.trim().length > 0) {
-    return `title:${planItem.title.trim().toLowerCase()}`;
+  if (typeof item.title === 'string' && item.title.trim().length > 0) {
+    return `title:${item.title.trim().toLowerCase()}`;
   }
 
   return `index:${fallbackIndex}`;
 };
 
-const mergePlanItems = (existingItem: PlanItem, incomingItem: PlanItem): PlanItem | null => {
+const mergePlanItems = (
+  existingItem: PlanSnapshotStep,
+  incomingItem: PlanSnapshotStep,
+): PlanSnapshotStep | null => {
   if (!existingItem || typeof existingItem !== 'object') {
     return deepCloneValue(incomingItem);
   }
@@ -43,7 +45,10 @@ const mergePlanItems = (existingItem: PlanItem, incomingItem: PlanItem): PlanIte
     return null;
   }
 
-  existingItem.waitingForId = incomingItem.waitingForId || [];
+  const dependencies = Array.isArray(incomingItem.waitingForId)
+    ? deepCloneValue(incomingItem.waitingForId)
+    : [];
+  existingItem.waitingForId = dependencies;
 
   const incomingCommand = incomingItem.command;
   const incomingStatus = incomingItem?.status;
@@ -74,21 +79,24 @@ const mergePlanItems = (existingItem: PlanItem, incomingItem: PlanItem): PlanIte
   return existingItem;
 };
 
-export const mergePlanTrees = (existingPlan: unknown = [], incomingPlan: unknown = []): PlanItem[] => {
-  const existing = Array.isArray(existingPlan) ? existingPlan : [];
-  const incoming = Array.isArray(incomingPlan) ? incomingPlan : [];
+export const mergePlanTrees = (
+  existingPlan: PlanSnapshot | null | undefined = [],
+  incomingPlan: PlanSnapshot | null | undefined = [],
+): PlanSnapshot => {
+  const existing: PlanSnapshot = Array.isArray(existingPlan) ? existingPlan : [];
+  const incoming: PlanSnapshot = Array.isArray(incomingPlan) ? incomingPlan : [];
 
   if (incoming.length === 0) {
     return [];
   }
 
-  const existingIndex = new Map<string, { item: PlanItem; index: number }>();
+  const existingIndex = new Map<string, { item: PlanSnapshotStep; index: number }>();
   existing.forEach((item, index) => {
     existingIndex.set(createPlanKey(item, index), { item, index });
   });
 
   const usedKeys = new Set<string>();
-  const result: PlanItem[] = [];
+  const result: PlanSnapshot = [];
 
   incoming.forEach((item, index) => {
     const key = createPlanKey(item, index);
@@ -100,10 +108,10 @@ export const mergePlanTrees = (existingPlan: unknown = [], incomingPlan: unknown
       if (mergedItem) {
         result.push(mergedItem);
       }
-    } else if (!isAbandonedStatus((item as PlanItem)?.status)) {
+    } else if (!isAbandonedStatus(item?.status)) {
       const cloned = deepCloneValue(item);
       if (cloned && typeof cloned === 'object') {
-        (cloned as PlanItem).status = 'pending';
+        (cloned as PlanSnapshotStep).status = 'pending';
       }
       result.push(cloned);
     }
