@@ -18,6 +18,7 @@ import {
   type CreateResponseResult,
   type ResponseCallOptions,
   type ResponsesClient,
+  type ToolResponseStreamPartial,
 } from '../openai/responses.js';
 import { getOpenAIRequestSettings } from '../openai/client.js';
 import { createEscWaiter, resetEscState, type EscState } from './escState.js';
@@ -126,7 +127,10 @@ export async function requestModelCompletion({
   const streamDebugId = `structured-response-stream-${++structuredStreamDebugCounter}`;
   let streamPanelCleared = false;
 
-  const emitStructuredStreamInstruction = (action: 'replace' | 'remove', value?: unknown): void => {
+  const emitStructuredStreamInstruction = (
+    action: 'replace' | 'remove',
+    value?: ToolResponseStreamPartial,
+  ): void => {
     try {
       emitEvent({
         type: 'debug',
@@ -144,7 +148,7 @@ export async function requestModelCompletion({
     }
   };
 
-  const emitStructuredStreamPartial = (value: unknown): void => {
+  const emitStructuredStreamPartial = (value: ToolResponseStreamPartial): void => {
     streamPanelCleared = false;
     emitStructuredStreamInstruction('replace', value);
   };

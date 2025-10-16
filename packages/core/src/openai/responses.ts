@@ -9,7 +9,7 @@ import {
   type ToolSet,
 } from 'ai';
 import type { FlexibleSchema } from '@ai-sdk/provider-utils';
-import { ToolDefinition } from '../contracts/index.js';
+import { ToolDefinition, type ToolResponse } from '../contracts/index.js';
 import { getOpenAIRequestSettings } from './client.js';
 
 type ReasoningEffort = 'low' | 'medium' | 'high';
@@ -41,6 +41,18 @@ export interface ResponseCallOptions {
 
 type ResponseCallSettings = Partial<Pick<CallSettings, 'abortSignal' | 'maxRetries'>>;
 type ProviderOptions = Parameters<typeof generateText>[0]['providerOptions'];
+
+// Minimal deep-partial helper so stream callbacks surface the partially
+// populated tool payload while matching the AI SDK's array semantics.
+type DeepPartial<T> = T extends (...arguments_: any[]) => unknown
+  ? T
+  : T extends Array<infer U>
+    ? Array<DeepPartial<U> | undefined>
+    : T extends object
+      ? { [K in keyof T]?: DeepPartial<T[K]> }
+      : T;
+
+export type ToolResponseStreamPartial = DeepPartial<ToolResponse>;
 
 // Normalize optional runtime knobs into the shape expected by the AI SDK helpers.
 function buildCallSettings(options: ResponseCallOptions | undefined): ResponseCallSettings {
@@ -87,7 +99,7 @@ function mapToolToSchema(tool: SupportedTool | null | undefined): StructuredTool
 interface StructuredToolDefinition {
   name?: string;
   description?: string;
-  schema: FlexibleSchema<unknown>;
+  schema: FlexibleSchema<ToolResponse>;
 }
 
 type SupportedTool = typeof ToolDefinition | StructuredToolDefinition;
@@ -146,13 +158,13 @@ type ResponseOutput = ResponseFunctionCall | ResponseMessage;
 interface StructuredResponseResult {
   output_text: string;
   output: ResponseOutput[];
-  structured: GenerateObjectResult<unknown>;
+  structured: GenerateObjectResult<ToolResponse>;
 }
 
 interface TextResponseResult {
   output_text: string;
   output: ResponseOutput[];
-  text: GenerateTextResult<ToolSet, unknown>;
+  text: GenerateTextResult<ToolSet, string>;
 }
 
 export type CreateResponseResult = StructuredResponseResult | TextResponseResult;
@@ -164,7 +176,7 @@ export interface CreateResponseParams {
   tools?: SupportedTool[];
   options?: ResponseCallOptions;
   reasoningEffort?: ReasoningEffort;
-  onStructuredStreamPartial?: (value: unknown) => void;
+  onStructuredStreamPartial?: (value: ToolResponseStreamPartial) => void;
   onStructuredStreamFinish?: () => void;
 }
 
@@ -188,7 +200,7 @@ function selectStructuredTool(tools: SupportedTool[] | undefined): StructuredToo
 }
 
 interface StructuredStreamCallbacks {
-  onPartial?: (value: unknown) => void;
+  onPartial?: (value: ToolResponseStreamPartial) => void;
   onComplete?: () => void;
 }
 
@@ -273,14 +285,14 @@ async function createStructuredResult(
       ? (responseRecord.id as string)
       : null;
 
-  const structured: GenerateObjectResult<unknown> = {
+  const structured: GenerateObjectResult<ToolResponse> = {
     object,
     reasoning: undefined,
     finishReason,
     usage,
     warnings,
     request,
-    response: response as GenerateObjectResult<unknown>['response'],
+    response: response as GenerateObjectResult<ToolResponse>['response'],
     providerMetadata,
     toJsonResponse(init?: ResponseInit): Response {
       const status = typeof init?.status === 'number' ? init.status : 200;
