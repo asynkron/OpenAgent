@@ -15,7 +15,7 @@ const ESLINT_CONFIG_FILES = [
 ];
 
 // Detects whether ESLint is configured in the project and highlights relevant tooling.
-export const EslintBootProbe = {
+const EslintBootProbe = {
   name: 'ESLint',
   async run(context) {
     const details = [];

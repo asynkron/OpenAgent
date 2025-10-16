@@ -19,7 +19,7 @@ type InkTextProps = Record<string, unknown>;
  * Renders assistant messages using Ink so Markdown formatting carries through to
  * the terminal UI.
  */
-export function AgentResponse({ message }: AgentResponseProps): ReactElement | null {
+function AgentResponse({ message }: AgentResponseProps): ReactElement | null {
   const prepared = wrapStructuredContent(message);
 
   if (!prepared) {

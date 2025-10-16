@@ -20,7 +20,7 @@ type ContextUsageProps = {
 /**
  * Mirrors the legacy context usage status line.
  */
-export function ContextUsage({ usage }: ContextUsageProps): ReactElement | null {
+function ContextUsage({ usage }: ContextUsageProps): ReactElement | null {
   const line = useMemo(() => {
     if (!usage || typeof usage !== 'object') {
       return '';

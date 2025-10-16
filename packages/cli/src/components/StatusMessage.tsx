@@ -25,7 +25,7 @@ function resolveColor(level: StatusLevel | undefined) {
 /**
  * Lightweight status line renderer that mirrors the legacy console output.
  */
-export function StatusMessage({ status }: { status?: StatusPayload | null }): ReactElement | null {
+function StatusMessage({ status }: { status?: StatusPayload | null }): ReactElement | null {
   if (!status || typeof status !== 'object') {
     return null;
   }

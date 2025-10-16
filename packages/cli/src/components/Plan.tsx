@@ -18,7 +18,7 @@ type PlanProps = {
 /**
  * High-level plan renderer that lists every step using `PlanDetail` rows.
  */
-export function Plan({ plan }: PlanProps): ReactElement {
+function Plan({ plan }: PlanProps): ReactElement {
   const nodes: PlanNode[] = createPlanNodes(plan ?? []);
   const hasSteps = nodes.length > 0;
 

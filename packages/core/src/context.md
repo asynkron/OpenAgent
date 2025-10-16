@@ -31,7 +31,7 @@
 ## Risks / Gaps
 
 - Agent loop is complex with many dependencies; ensure integration tests remain up-to-date when changing event contracts.
-- Some utilities (e.g., `utils/fetch.js`) wrap `undici`; monitor upstream API changes to avoid deprecations.
+- Utility layer (`utils/fetch.ts`) relies on the built-in Fetch/Abort APIs with Node `http`/`https` fallbacks; keep an eye on upstream Node changes to stay compatible.
 
 ## Related Context
 

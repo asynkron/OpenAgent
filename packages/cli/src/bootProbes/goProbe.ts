@@ -22,7 +22,7 @@ function formatExampleEntries(entries) {
   return entries.length > 3 ? `${sample}, …` : sample;
 }
 
-export const GoBootProbe = {
+const GoBootProbe = {
   name: 'Go',
   async run(context) {
     const details = [];

@@ -2,7 +2,7 @@
 import { createBootProbeResult } from './context.js';
 
 // Detects Git repositories and surfaces useful metadata for reasoning about version control.
-export const GitBootProbe = {
+const GitBootProbe = {
   name: 'Git',
   async run(context) {
     const details = [];

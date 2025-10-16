@@ -1,97 +1,44 @@
-// @ts-nocheck
-/**
- * Hosts the side-effecting primitives that execute shell commands and exposes
- * higher-level helpers for read operations.
- *
- * Responsibilities:
- * - Launch child processes with timeout handling and capture their output streams.
- * - Re-export the specialized helpers defined in their dedicated modules.
- *
- * Consumers:
- * - `src/agent/loop.js` invokes these helpers while executing assistant generated commands.
- * - Root `index.js` re-exports them for unit and integration tests.
- */
-
 import { spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, openSync, closeSync, readFileSync, rmSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import type { ChildProcess } from 'node:child_process';
 
 import { register as registerCancellation } from '../utils/cancellation.js';
+import { substituteBuiltinCommand } from './commandSubstitution.js';
+import {
+  prepareTempOutputs,
+  safeClose,
+  safeReadFile,
+  cleanupTempDir,
+  type TempOutputs,
+} from './tempFileManager.js';
+import {
+  appendLine,
+  createDetailMessage,
+  getCommandLabel,
+  getOperationDescription,
+} from './commandHelpers.js';
 
-const SCRATCH_ROOT = resolve('.openagent', 'temp');
-const APPLY_PATCH_SCRIPT = resolve(
-  fileURLToPath(new URL('../../scripts/apply_patch.mjs', import.meta.url)),
-);
-const READ_SCRIPT = resolve(fileURLToPath(new URL('../../scripts/read.mjs', import.meta.url)));
-const APPLY_PATCH_COMMAND = `node ${JSON.stringify(APPLY_PATCH_SCRIPT)}`;
-const READ_COMMAND = `node ${JSON.stringify(READ_SCRIPT)}`;
-
-function substituteBuiltinCommand(command) {
-  if (typeof command !== 'string') {
-    return command;
-  }
-
-  const leadingWhitespaceMatch = command.match(/^\s*/);
-  const leadingWhitespace = leadingWhitespaceMatch ? leadingWhitespaceMatch[0] : '';
-  const trimmed = command.slice(leadingWhitespace.length);
-
-  if (/^apply_patch(?=\s|$)/.test(trimmed)) {
-    return `${leadingWhitespace}${trimmed.replace(/^apply_patch\b/, APPLY_PATCH_COMMAND)}`;
-  }
-
-  if (/^read(?=\s|$)/.test(trimmed)) {
-    return `${leadingWhitespace}${trimmed.replace(/^read\b/, READ_COMMAND)}`;
-  }
-
-  return command;
+export interface RunOptions {
+  shell?: string | boolean;
+  stdin?: string;
+  closeStdin?: boolean;
+  commandLabel?: string;
+  description?: string;
 }
 
-function prepareTempOutputs() {
-  mkdirSync(SCRATCH_ROOT, { recursive: true });
-  const tempDir = mkdtempSync(join(SCRATCH_ROOT, 'cmd-'));
-  const stdoutPath = join(tempDir, 'stdout.log');
-  const stderrPath = join(tempDir, 'stderr.log');
-  const stdoutFd = openSync(stdoutPath, 'w');
-  const stderrFd = openSync(stderrPath, 'w');
-  return { tempDir, stdoutPath, stderrPath, stdoutFd, stderrFd };
+export interface CommandResult {
+  stdout: string;
+  stderr: string;
+  exit_code: number | null;
+  killed: boolean;
+  runtime_ms: number;
 }
 
-function safeClose(fd) {
-  if (typeof fd !== 'number') {
-    return;
-  }
-  try {
-    closeSync(fd);
-  } catch (_error) {
-    // Ignore close errors.
-  }
-}
-
-function safeReadFile(path) {
-  if (!path) {
-    return '';
-  }
-  try {
-    return readFileSync(path, 'utf8');
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return `Failed to read command output: ${message}`;
-  }
-}
-
-function cleanupTempDir(tempDir) {
-  if (!tempDir) {
-    return;
-  }
-  try {
-    rmSync(tempDir, { recursive: true, force: true });
-  } catch (_error) {
-    // Ignore cleanup errors.
-  }
-}
-
-export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
+export async function runCommand(
+  cmd: unknown,
+  cwd: string | undefined,
+  timeoutSec: number | null | undefined,
+  shellOrOptions: string | boolean | RunOptions | undefined,
+): Promise<CommandResult> {
   if (typeof cmd !== 'string') {
     throw new TypeError('runCommand expects a normalized command string.');
   }
@@ -106,32 +53,27 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
 
   return new Promise((resolve) => {
     const startTime = Date.now();
-    let child;
+    let child: ChildProcess | null = null;
     let killed = false;
     let canceled = false;
     let timedOut = false;
     let settled = false;
-    let timeoutHandle;
-    let forceKillHandle;
-    let stdoutFd;
-    let stderrFd;
-    let stdoutPath;
-    let stderrPath;
-    let tempDir;
-    let stderrExtras = '';
+    let timeoutHandle: NodeJS.Timeout | undefined;
+    let forceKillHandle: NodeJS.Timeout | undefined;
+    let tempData: (TempOutputs & { stderrExtras: string }) | null = null;
 
-    let tempPrepError = null;
+    let tempPrepError: Error | null = null;
     try {
       const temp = prepareTempOutputs();
-      ({ tempDir, stdoutPath, stderrPath, stdoutFd, stderrFd } = temp);
+      tempData = { ...temp, stderrExtras: '' };
     } catch (error) {
       tempPrepError = error instanceof Error ? error : new Error(String(error));
     }
 
-    if (tempPrepError) {
+    if (tempPrepError || !tempData) {
       resolve({
         stdout: '',
-        stderr: `Failed to prepare command capture: ${tempPrepError.message}`,
+        stderr: `Failed to prepare command capture: ${tempPrepError?.message || 'unknown error'}`,
         exit_code: null,
         killed: false,
         runtime_ms: 0,
@@ -139,10 +81,12 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
       return;
     }
 
-    const options =
+    const { tempDir, stdoutPath, stderrPath, stdoutFd, stderrFd } = tempData;
+
+    const options: RunOptions =
       shellOrOptions && typeof shellOrOptions === 'object' && !Array.isArray(shellOrOptions)
         ? { ...shellOrOptions }
-        : { shell: shellOrOptions };
+        : { shell: shellOrOptions as string | boolean | undefined };
 
     const {
       shell,
@@ -152,54 +96,22 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
       description: providedDescription,
     } = options;
 
-    const spawnOptions = {
+    const commandLabel = getCommandLabel(providedLabel, trimmedCommand);
+    const operationDescription = getOperationDescription(providedDescription, commandLabel);
+    const effectiveCloseStdin = closeStdin !== undefined ? Boolean(closeStdin) : stdin === undefined;
+    const shouldPipeStdin = stdin !== undefined || effectiveCloseStdin === false;
+
+    const spawnOptions: {
+      cwd: string | undefined;
+      shell: string | boolean;
+      stdio: ('pipe' | 'ignore' | number)[];
+    } = {
       cwd,
       shell: shell !== undefined ? shell : true,
+      stdio: [shouldPipeStdin ? 'pipe' : 'ignore', stdoutFd, stderrFd],
     };
 
-    const appendLine = (output, line) => {
-      if (!line) {
-        return output;
-      }
-      const normalized = String(line);
-      if (!normalized) {
-        return output;
-      }
-      const needsNewline = output && !output.endsWith('\n');
-      return `${output || ''}${needsNewline ? '\n' : ''}${normalized}`;
-    };
-
-    const detailFor = (kind) => {
-      if (!kind) {
-        return null;
-      }
-      const suffix = commandLabel ? ` (${commandLabel})` : '';
-      if (kind === 'timeout') {
-        const seconds = timeoutSec ?? 60;
-        return `Command timed out after ${seconds}s${suffix}.`;
-      }
-      if (kind === 'canceled') {
-        return `Command was canceled${suffix}.`;
-      }
-      return null;
-    };
-
-    const commandLabel = providedLabel ? String(providedLabel).trim() : trimmedCommand;
-
-    const operationDescription =
-      providedDescription && String(providedDescription).trim()
-        ? String(providedDescription).trim()
-        : commandLabel
-          ? `shell: ${commandLabel}`
-          : 'shell command';
-
-    const effectiveCloseStdin =
-      closeStdin !== undefined ? Boolean(closeStdin) : stdin === undefined;
-
-    const shouldPipeStdin = stdin !== undefined || effectiveCloseStdin === false;
-    spawnOptions.stdio = [shouldPipeStdin ? 'pipe' : 'ignore', stdoutFd, stderrFd];
-
-    const clearPendingTimers = () => {
+    const clearPendingTimers = (): void => {
       if (timeoutHandle) {
         clearTimeout(timeoutHandle);
         timeoutHandle = undefined;
@@ -210,14 +122,15 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
       }
     };
 
-    const closeOutputFds = () => {
+    const closeOutputFds = (): void => {
       safeClose(stdoutFd);
       safeClose(stderrFd);
-      stdoutFd = undefined;
-      stderrFd = undefined;
     };
 
-    const finalize = (payload, { unregisterCancellation } = {}) => {
+    const finalize = (
+      payload: CommandResult,
+      { unregisterCancellation }: { unregisterCancellation?: () => void } = {},
+    ): void => {
       if (settled) return;
       settled = true;
       clearPendingTimers();
@@ -226,21 +139,24 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
       if (unregisterCancellation && typeof unregisterCancellation === 'function') {
         try {
           unregisterCancellation();
-        } catch (_error) {
+        } catch {
           // Ignore unregister errors.
         }
       }
       resolve(payload);
     };
 
-    const complete = (code, cleanup = {}) => {
+    const complete = (
+      code: number | null,
+      cleanup: { unregisterCancellation?: () => void } = {},
+    ): void => {
       closeOutputFds();
 
       const stdoutContent = safeReadFile(stdoutPath);
       let stderrContent = safeReadFile(stderrPath);
 
-      if (stderrExtras) {
-        stderrContent = appendLine(stderrContent, stderrExtras);
+      if (tempData && tempData.stderrExtras) {
+        stderrContent = appendLine(stderrContent, tempData.stderrExtras);
       }
 
       if (timedOut || canceled) {
@@ -249,7 +165,11 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
           : 'Command was canceled.';
         stderrContent = appendLine(stderrContent, baseMarker);
 
-        const detailMarker = detailFor(timedOut ? 'timeout' : 'canceled');
+        const detailMarker = createDetailMessage(
+          timedOut ? 'timeout' : 'canceled',
+          timeoutSec,
+          commandLabel,
+        );
         if (detailMarker) {
           stderrContent = appendLine(stderrContent, detailMarker);
         }
@@ -267,28 +187,28 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
       );
     };
 
-    const handleCancel = (reason) => {
+    const handleCancel = (reason?: unknown): void => {
       if (settled) return;
       killed = true;
       canceled = true;
       if (child) {
         try {
           child.kill('SIGTERM');
-        } catch (_error) {
+        } catch {
           // Ignore kill errors.
         }
         forceKillHandle = setTimeout(() => {
-          if (!settled) {
+          if (!settled && child) {
             try {
               child.kill('SIGKILL');
-            } catch (_error) {
+            } catch {
               // Ignore kill errors.
             }
           }
         }, 1000);
       } else {
         const message =
-          detailFor('canceled') ||
+          createDetailMessage('canceled', timeoutSec, commandLabel) ||
           (reason ? `Command was canceled: ${String(reason)}` : 'Command was canceled.');
         finalize(
           {
@@ -309,7 +229,7 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
     });
 
     try {
-      child = spawn(normalizedCommand, spawnOptions);
+      child = spawn(trimmedCommand, spawnOptions as any);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       finalize(
@@ -331,7 +251,9 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
           child.stdin.write(stdin);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
-          stderrExtras = appendLine(stderrExtras, message);
+          if (tempData) {
+            tempData.stderrExtras = appendLine(tempData.stderrExtras, message);
+          }
         }
       }
       if (effectiveCloseStdin) {
@@ -352,7 +274,9 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
     child.on('error', (error) => {
       if (settled) return;
       const message = error instanceof Error ? error.message : String(error);
-      stderrExtras = appendLine(stderrExtras, message);
+      if (tempData) {
+        tempData.stderrExtras = appendLine(tempData.stderrExtras, message);
+      }
       complete(null, { unregisterCancellation: cancellation?.unregister });
     });
 
@@ -362,20 +286,22 @@ export async function runCommand(cmd, cwd, timeoutSec, shellOrOptions) {
         if (settled) return;
         killed = true;
         timedOut = true;
-        try {
-          child.kill('SIGTERM');
-        } catch (_error) {
-          // Ignore kill errors.
-        }
-        forceKillHandle = setTimeout(() => {
-          if (!settled) {
-            try {
-              child.kill('SIGKILL');
-            } catch (_error) {
-              // Ignore kill errors.
-            }
+        if (child) {
+          try {
+            child.kill('SIGTERM');
+          } catch {
+            // Ignore kill errors.
           }
-        }, 1000);
+          forceKillHandle = setTimeout(() => {
+            if (!settled && child) {
+              try {
+                child.kill('SIGKILL');
+              } catch {
+                // Ignore kill errors.
+              }
+            }
+          }, 1000);
+        }
       }, timeoutMs);
     }
 

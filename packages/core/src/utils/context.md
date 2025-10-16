@@ -9,7 +9,7 @@
 - `asyncQueue.ts` — generic async iterator/queue abstraction used by the agent runtime for event pipelines.
 - `cancellation.ts` — cooperative cancellation registry (`register`, `cancel`) for long-running commands with typed tokens/entries so registrants surface misuse at compile time.
 - `contextUsage.ts` — tracks token usage metrics for display in the CLI.
-- `fetch.ts` — thin wrapper around `undici`/`node-fetch` semantics with timeout & error normalization; now prefers the global Fetch API with typed fallbacks to Node's `http`/`https` modules. Recent refactors split timeout handling, header normalization, and Node streaming into focused helpers so the code is easier to reason about during failure analysis.
+- `fetch.ts` — fetch-like wrapper that prefers the global implementation and falls back to Node's `http`/`https` modules. Recent refactors split timeout handling, header normalization, and Node streaming into focused helpers so the code is easier to reason about during failure analysis.
 - `jsonAssetValidator.ts` — validates JSON files against provided schemas; leveraged by scripts/tests.
 - `output.ts` — formatting helpers for CLI output and logs, now typed to guarantee string outputs. The `combineStdStreams` helper tolerates missing exit codes so observation builders can share the same implementation across typed and untyped callers.
 - `plan.ts` — plan tree clone/merge/progress utilities used by agent runtime & UI.

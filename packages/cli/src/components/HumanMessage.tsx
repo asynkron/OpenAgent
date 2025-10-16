@@ -18,7 +18,7 @@ type InkTextProps = Record<string, unknown>;
 /**
  * Renders human-provided inputs within the timeline so conversations stay paired.
  */
-export function HumanMessage({ message }: HumanMessageProps): ReactElement | null {
+function HumanMessage({ message }: HumanMessageProps): ReactElement | null {
   const prepared = wrapStructuredContent(message);
 
   if (!prepared) {

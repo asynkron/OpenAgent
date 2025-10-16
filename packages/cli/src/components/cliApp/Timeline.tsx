@@ -120,7 +120,7 @@ type TimelineProps = {
   entries: TimelineEntry[];
 };
 
-export function Timeline({ entries }: TimelineProps): ReactElement | null {
+function Timeline({ entries }: TimelineProps): ReactElement | null {
   if (!entries || entries.length === 0) {
     return null;
   }

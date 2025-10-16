@@ -1,11 +1,8 @@
 import {
   clonePlanForExecution,
   collectExecutablePlanSteps,
-  getPriorityScore,
   type PlanStep,
-  type ExecutablePlanStep,
   hasCommandPayload,
-  normalizeWaitingForIds,
 } from './planExecution.js';
 import {
   createObservationHistoryEntry,
@@ -19,327 +16,133 @@ import { createPlanReminderController } from './planReminderController.js';
 import type { ChatMessageEntry } from '../historyEntry.js';
 import type { CommandResult } from '../observationBuilder.js';
 import type { ExecuteAgentPassOptions } from './types.js';
+import { extractPlanStepIdentifier } from './planStepIdentifier.js';
+import {
+  COMPLETED_STATUS,
+  RUNNING_STATUS,
+  FAILED_STATUS,
+  isCompletedStatus,
+  hasPendingWork,
+  normalizeAssistantMessage,
+} from './planStepStatus.js';
+import { summarizePlanForHistory, type PlanHistorySnapshot } from './planSnapshot.js';
+import { PlanDependencyManager } from './planDependencyManager.js';
+import { globalRegistry } from './planStepRegistry.js';
+import { pickNextExecutableCandidate, type ExecutableCandidate } from './planExecutableSelector.js';
 
-export interface ExecutableCandidate extends ExecutablePlanStep {
-  index: number;
-  priority: number;
-}
-
-const COMPLETED_STATUS = 'completed';
-
-// Track identifiers for steps we've already removed so future assistant
-// responses cannot resurrect them. The set lives at module scope so it
-// survives across `PlanRuntime` instances within the same agent session.
-const completedPlanStepIds = new Set<string>();
-
-const normalizePlanIdentifier = (value: unknown): string | null => {
-  if (typeof value === 'string' || typeof value === 'number') {
-    const normalized = String(value).trim();
-    return normalized ? normalized : null;
-  }
-
-  return null;
-};
-
-const extractPlanStepIdentifier = (step: PlanStep | null | undefined): string | null => {
-  if (!step || typeof step !== 'object') {
-    return null;
-  }
-
-  const id = normalizePlanIdentifier(step.id);
-  if (id) {
-    return id;
-  }
-
-  const fallback = normalizePlanIdentifier((step as Record<string, unknown>).step);
-  return fallback;
-};
-
-const arraysEqual = (left: string[], right: string[]): boolean => {
-  if (left.length !== right.length) {
-    return false;
-  }
-
-  for (let index = 0; index < left.length; index += 1) {
-    if (left[index] !== right[index]) {
-      return false;
-    }
-  }
-
-  return true;
-};
-
-const isCompletedStatus = (status: unknown): boolean =>
-  typeof status === 'string' && status.trim().toLowerCase() === COMPLETED_STATUS;
-
-const pickNextExecutableCandidate = (entries: ExecutablePlanStep[]): ExecutableCandidate | null => {
-  let best: ExecutableCandidate | null = null;
-
-  for (let index = 0; index < entries.length; index += 1) {
-    const entry = entries[index];
-    const candidate: ExecutableCandidate = {
-      ...entry,
-      index,
-      priority: getPriorityScore(entry.step),
-    };
-
-    if (!best) {
-      best = candidate;
-      continue;
-    }
-
-    if (candidate.priority < best.priority) {
-      best = candidate;
-      continue;
-    }
-
-    if (candidate.priority === best.priority && candidate.index < best.index) {
-      best = candidate;
-    }
-  }
-
-  return best;
-};
-
-const normalizeAssistantMessage = (value: unknown): string =>
-  typeof value === 'string' ? value.replace(/[\u2018\u2019]/g, "'") : '';
+export type { ExecutableCandidate, PlanHistorySnapshot };
+export { summarizePlanForHistory };
 
 export interface PlanRuntimeOptions {
-  history: ChatMessageEntry[];
-  passIndex: number;
-  emitEvent: ExecuteAgentPassOptions['emitEvent'];
-  planReminderMessage: string;
-  planManager: PlanManagerAdapter | null;
-  planAutoResponseTracker: PlanAutoResponseTracker | null;
-  getNoHumanFlag?: ExecuteAgentPassOptions['getNoHumanFlag'];
-  setNoHumanFlag?: ExecuteAgentPassOptions['setNoHumanFlag'];
+  readonly history: ChatMessageEntry[];
+  readonly passIndex: number;
+  readonly emitEvent: ExecuteAgentPassOptions['emitEvent'];
+  readonly planReminderMessage: string;
+  readonly planManager: PlanManagerAdapter | null;
+  readonly planAutoResponseTracker: PlanAutoResponseTracker | null;
+  readonly getNoHumanFlag?: ExecuteAgentPassOptions['getNoHumanFlag'];
+  readonly setNoHumanFlag?: ExecuteAgentPassOptions['setNoHumanFlag'];
 }
 
-export type PlanHistorySnapshot = Record<string, unknown>;
-
-const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
-
-const buildPlanStepSnapshot = (step: PlanStep): PlanHistorySnapshot => {
-  const snapshot: PlanHistorySnapshot = {};
-
-  if (Object.prototype.hasOwnProperty.call(step, 'id')) {
-    snapshot.id = step.id;
-  } else {
-    const fallbackId = extractPlanStepIdentifier(step);
-    if (fallbackId) {
-      snapshot.id = fallbackId;
-    }
-  }
-
-  const statusCandidate = (step as Record<string, unknown>).status;
-  if (typeof statusCandidate === 'string' && statusCandidate.trim().length > 0) {
-    snapshot.status = statusCandidate;
-  }
-
-  const observationCandidate = (step as Record<string, unknown>).observation;
-  if (observationCandidate && typeof observationCandidate === 'object') {
-    const observationForLLM = (observationCandidate as ObservationRecord).observation_for_llm;
-    if (observationForLLM && typeof observationForLLM === 'object') {
-      for (const [key, value] of Object.entries(observationForLLM)) {
-        snapshot[key] = cloneJson(value);
-      }
-    }
-
-    const metadata = (observationCandidate as ObservationRecord).observation_metadata;
-    if (metadata && typeof metadata === 'object') {
-      snapshot.metadata = cloneJson(metadata);
-    }
-  }
-
-  if (!Object.prototype.hasOwnProperty.call(snapshot, 'status')) {
-    snapshot.status = 'pending';
-  }
-
-  return snapshot;
-};
-
-export const summarizePlanForHistory = (
-  plan: PlanStep[] | null | undefined,
-): PlanHistorySnapshot[] => {
-  if (!Array.isArray(plan) || plan.length === 0) {
-    return [];
-  }
-
-  return plan.map((step) => buildPlanStepSnapshot(step));
-};
+interface PlanState {
+  activePlan: PlanStep[];
+  initialIncomingPlan: PlanStep[] | null;
+  planMutated: boolean;
+}
 
 export class PlanRuntime {
-  private activePlan: PlanStep[] = [];
-  private incomingPlan: PlanStep[] | null = null;
+  private readonly state: PlanState = {
+    activePlan: [],
+    initialIncomingPlan: null,
+    planMutated: false,
+  };
+
+  private readonly dependencyManager = new PlanDependencyManager();
   private readonly planReminder: ReturnType<typeof createPlanReminderController>;
-  private planMutated = false;
-  private initialIncomingPlan: PlanStep[] | null = null;
 
   constructor(private readonly options: PlanRuntimeOptions) {
     this.planReminder = createPlanReminderController(options.planAutoResponseTracker);
   }
 
-  private normalizeActivePlanDependencies(): void {
-    let mutated = false;
+  private markMutated(): void {
+    this.state.planMutated = true;
+  }
 
-    this.activePlan.forEach((step) => {
-      if (!step || typeof step !== 'object') {
-        return;
-      }
-
-      const sanitized = normalizeWaitingForIds(step);
-      const current = Array.isArray(step.waitingForId) ? step.waitingForId : [];
-      let changed = current.length !== sanitized.length;
-
-      if (!changed) {
-        for (let index = 0; index < sanitized.length; index += 1) {
-          if (normalizePlanIdentifier(current[index]) !== sanitized[index]) {
-            changed = true;
-            break;
-          }
-        }
-      }
-
-      if (changed) {
-        step.waitingForId = sanitized;
-        mutated = true;
-      }
-    });
-
-    if (mutated) {
-      this.planMutated = true;
+  private normalizeDependencies(): void {
+    if (this.dependencyManager.normalizeDependencies(this.state.activePlan)) {
+      this.markMutated();
     }
   }
 
   private removeDependencyReferences(stepId: string): void {
-    let mutated = false;
-
-    this.activePlan.forEach((step) => {
-      if (!step || typeof step !== 'object') {
-        return;
-      }
-
-      const sanitized = normalizeWaitingForIds(step);
-      const filtered = sanitized.filter((value) => value !== stepId);
-      if (!arraysEqual(filtered, sanitized)) {
-        step.waitingForId = filtered;
-        mutated = true;
-        return;
-      }
-
-      const current = Array.isArray(step.waitingForId) ? step.waitingForId : [];
-      let changed = current.length !== sanitized.length;
-      if (!changed) {
-        for (let index = 0; index < sanitized.length; index += 1) {
-          if (normalizePlanIdentifier(current[index]) !== sanitized[index]) {
-            changed = true;
-            break;
-          }
-        }
-      }
-
-      if (changed) {
-        step.waitingForId = sanitized;
-        mutated = true;
-      }
-    });
-
-    if (mutated) {
-      this.planMutated = true;
+    if (this.dependencyManager.removeDependencyReferences(this.state.activePlan, stepId)) {
+      this.markMutated();
     }
   }
 
   private completePlanStep(planStep: PlanStep): void {
     const identifier = extractPlanStepIdentifier(planStep);
-    if (planStep && typeof planStep === 'object') {
-      // Keep the step in the active plan so the assistant can see the completion
-      // when we emit the observation; removal happens when the next response arrives.
-      planStep.status = COMPLETED_STATUS;
-      this.planMutated = true;
-    }
+
+    planStep.status = COMPLETED_STATUS;
+    this.markMutated();
+
     if (identifier) {
-      completedPlanStepIds.add(identifier);
+      globalRegistry.markCompleted(identifier);
       this.removeDependencyReferences(identifier);
       return;
     }
 
-    this.normalizeActivePlanDependencies();
+    this.normalizeDependencies();
   }
 
   private pruneCompletedSteps(): void {
-    if (!Array.isArray(this.activePlan) || this.activePlan.length === 0) {
+    if (this.state.activePlan.length === 0) {
       return;
     }
 
     const removedStepIds: string[] = [];
 
-    const filteredPlan = this.activePlan.filter((candidate) => {
+    const filteredPlan = this.state.activePlan.filter((candidate) => {
       if (!isCompletedStatus(candidate?.status)) {
         return true;
       }
 
-      const identifier = extractPlanStepIdentifier(candidate as PlanStep);
+      const identifier = extractPlanStepIdentifier(candidate);
       if (identifier) {
         removedStepIds.push(identifier);
-        completedPlanStepIds.add(identifier);
+        globalRegistry.markCompleted(identifier);
       }
 
       return false;
     });
 
-    if (filteredPlan.length !== this.activePlan.length) {
-      this.activePlan = filteredPlan;
-      this.planMutated = true;
+    if (filteredPlan.length !== this.state.activePlan.length) {
+      this.state.activePlan = filteredPlan;
+      this.markMutated();
     }
 
-    removedStepIds.forEach((identifier) => {
+    for (const identifier of removedStepIds) {
       this.removeDependencyReferences(identifier);
-    });
-  }
-
-  private filterOutCompletedPlanSteps(plan: PlanStep[] | null): PlanStep[] | null {
-    if (!Array.isArray(plan)) {
-      return null;
     }
-
-    if (plan.length === 0) {
-      return [];
-    }
-
-    const filtered = plan.filter((candidate) => {
-      const identifier = extractPlanStepIdentifier(candidate as PlanStep);
-      if (!identifier) {
-        return true;
-      }
-
-      return !completedPlanStepIds.has(identifier);
-    });
-
-    if (filtered.length === 0) {
-      return [];
-    }
-
-    return filtered;
   }
 
   async initialize(incomingPlan: PlanStep[] | null): Promise<void> {
     const normalizedIncoming = Array.isArray(incomingPlan) ? [...incomingPlan] : null;
+
     if (Array.isArray(normalizedIncoming) && normalizedIncoming.length === 0) {
-      // The assistant intentionally cleared the active plan. Allow identifiers to be reused
-      // on the next response by resetting the registry of completed steps.
-      completedPlanStepIds.clear();
+      globalRegistry.clear();
     }
-    const sanitizedIncoming = this.filterOutCompletedPlanSteps(normalizedIncoming);
-    this.initialIncomingPlan = sanitizedIncoming;
-    this.incomingPlan = Array.isArray(sanitizedIncoming) ? [...sanitizedIncoming] : [];
-    this.activePlan = [...this.incomingPlan];
+
+    const sanitizedIncoming = globalRegistry.filterCompletedSteps(normalizedIncoming);
+    this.state.initialIncomingPlan = sanitizedIncoming;
+    this.state.activePlan = Array.isArray(sanitizedIncoming) ? [...sanitizedIncoming] : [];
 
     if (this.options.planManager) {
       try {
         const resolved = await this.options.planManager.resolveActivePlan(normalizedIncoming);
         if (Array.isArray(resolved)) {
-          const sanitizedResolved = this.filterOutCompletedPlanSteps(resolved);
-          this.activePlan = Array.isArray(sanitizedResolved) ? [...sanitizedResolved] : [];
+          const sanitizedResolved = globalRegistry.filterCompletedSteps(resolved);
+          this.state.activePlan = Array.isArray(sanitizedResolved) ? [...sanitizedResolved] : [];
         }
       } catch (error) {
         this.options.emitEvent?.({
@@ -351,30 +154,30 @@ export class PlanRuntime {
       }
     }
 
-    if (!Array.isArray(this.activePlan)) {
-      this.activePlan = [];
+    if (!Array.isArray(this.state.activePlan)) {
+      this.state.activePlan = [];
     }
 
-    this.normalizeActivePlanDependencies();
+    this.normalizeDependencies();
     this.pruneCompletedSteps();
-    this.normalizeActivePlanDependencies();
+    this.normalizeDependencies();
 
     this.emitPlanSnapshot();
-    this.planMutated = false;
+    this.state.planMutated = false;
   }
 
   cloneActivePlan(): PlanStep[] {
-    return clonePlanForExecution(this.activePlan);
+    return clonePlanForExecution(this.state.activePlan);
   }
 
   emitPlanSnapshot(): void {
-    this.options.emitEvent?.({ type: 'plan', plan: clonePlanForExecution(this.activePlan) });
+    this.options.emitEvent?.({ type: 'plan', plan: clonePlanForExecution(this.state.activePlan) });
   }
 
   buildPlanObservation(): ObservationRecord {
     return {
       observation_for_llm: {
-        plan: summarizePlanForHistory(this.activePlan),
+        plan: summarizePlanForHistory(this.state.activePlan),
       },
       observation_metadata: {
         timestamp: new Date().toISOString(),
@@ -383,8 +186,8 @@ export class PlanRuntime {
   }
 
   selectNextExecutableEntry(): ExecutableCandidate | null {
-    this.normalizeActivePlanDependencies();
-    const candidates = collectExecutablePlanSteps(this.activePlan);
+    this.normalizeDependencies();
+    const candidates = collectExecutablePlanSteps(this.state.activePlan);
     return pickNextExecutableCandidate(candidates);
   }
 
@@ -392,8 +195,8 @@ export class PlanRuntime {
     if (!planStep) {
       return;
     }
-    planStep.status = 'running';
-    this.planMutated = true;
+    planStep.status = RUNNING_STATUS;
+    this.markMutated();
   }
 
   applyCommandObservation({
@@ -407,7 +210,7 @@ export class PlanRuntime {
   }): void {
     if (planStep) {
       planStep.observation = observation;
-      this.planMutated = true;
+      this.markMutated();
     }
 
     const alternateExitCode = (() => {
@@ -421,13 +224,13 @@ export class PlanRuntime {
     if (exitCode === 0 && planStep) {
       this.completePlanStep(planStep);
     } else if (exitCode !== null && planStep) {
-      planStep.status = 'failed';
-      this.planMutated = true;
+      planStep.status = FAILED_STATUS;
+      this.markMutated();
     }
 
     if (commandResult?.killed && planStep?.command) {
       delete planStep.command;
-      this.planMutated = true;
+      this.markMutated();
     }
   }
 
@@ -449,7 +252,7 @@ export class PlanRuntime {
 
     if (planStep) {
       planStep.observation = observation;
-      this.planMutated = true;
+      this.markMutated();
     }
 
     const planObservation = this.buildPlanObservation();
@@ -458,26 +261,22 @@ export class PlanRuntime {
     );
   }
 
-  private getPlanReminder() {
-    return this.planReminder;
-  }
-
   resetPlanReminder(): void {
-    this.getPlanReminder().reset();
+    this.planReminder.reset();
   }
 
   private async clearPersistentPlan(): Promise<void> {
     if (!this.options.planManager) {
-      this.activePlan = [];
-      completedPlanStepIds.clear();
+      this.state.activePlan = [];
+      globalRegistry.clear();
       this.emitPlanSnapshot();
       return;
     }
 
     try {
       const cleared = await this.options.planManager.resetPlanSnapshot();
-      this.activePlan = Array.isArray(cleared) ? cleared : [];
-      completedPlanStepIds.clear();
+      this.state.activePlan = Array.isArray(cleared) ? cleared : [];
+      globalRegistry.clear();
     } catch (error) {
       this.options.emitEvent?.({
         type: 'status',
@@ -485,8 +284,8 @@ export class PlanRuntime {
         message: 'Failed to clear persistent plan state after completion.',
         details: error instanceof Error ? error.message : String(error),
       });
-      this.activePlan = [];
-      completedPlanStepIds.clear();
+      this.state.activePlan = [];
+      globalRegistry.clear();
     }
 
     this.emitPlanSnapshot();
@@ -510,8 +309,9 @@ export class PlanRuntime {
 
     const trimmedMessage = parsedMessage.trim();
     const normalizedMessage = normalizeAssistantMessage(trimmedMessage);
-    const activePlanEmpty = this.activePlan.length === 0;
-    const incomingPlanEmpty = !this.initialIncomingPlan || this.initialIncomingPlan.length === 0;
+    const activePlanEmpty = this.state.activePlan.length === 0;
+    const incomingPlanEmpty =
+      !this.state.initialIncomingPlan || this.state.initialIncomingPlan.length === 0;
 
     if (
       activePlanEmpty &&
@@ -534,21 +334,9 @@ export class PlanRuntime {
     }
 
     if (!activePlanEmpty) {
-      const hasPendingSteps = this.activePlan.some((candidate) => {
-        if (!candidate || typeof candidate !== 'object') {
-          return false;
-        }
-
-        const status =
-          typeof candidate.status === 'string' ? candidate.status.trim().toLowerCase() : '';
-        return status !== 'completed' && status !== 'failed' && status !== 'abandoned';
-      });
-
-      const hasPendingCommands = this.activePlan.some(
-        (candidate) =>
-          candidate &&
-          typeof candidate === 'object' &&
-          hasCommandPayload((candidate as PlanStep).command),
+      const hasPendingSteps = this.state.activePlan.some(hasPendingWork);
+      const hasPendingCommands = this.state.activePlan.some((candidate) =>
+        hasCommandPayload(candidate?.command),
       );
 
       if (hasPendingSteps && hasPendingCommands) {
@@ -567,18 +355,18 @@ export class PlanRuntime {
   }
 
   async finalize(): Promise<void> {
-    if (!this.planMutated) {
+    if (!this.state.planMutated) {
       return;
     }
 
-    if (this.activePlan.length === 0) {
+    if (this.state.activePlan.length === 0) {
       await this.clearPersistentPlan();
     } else {
       this.emitPlanSnapshot();
 
       if (this.options.planManager) {
         try {
-          await this.options.planManager.syncPlanSnapshot(this.activePlan);
+          await this.options.planManager.syncPlanSnapshot(this.state.activePlan);
         } catch (error) {
           this.options.emitEvent?.({
             type: 'status',

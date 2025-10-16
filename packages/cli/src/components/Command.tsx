@@ -43,7 +43,7 @@ const DEFAULT_MAX_RUN_CHARACTERS = 270;
 /**
  * Displays command execution details, mirroring the textual summaries.
  */
-export function Command({
+function Command({
   command: commandData,
   result,
   preview = {},

@@ -10,7 +10,7 @@ type PlanDetailProps = {
 /**
  * Displays a single plan entry with indentation that mirrors the hierarchy.
  */
-export function PlanDetail({ node }: PlanDetailProps): ReactElement | null {
+function PlanDetail({ node }: PlanDetailProps): ReactElement | null {
   if (!node) {
     return null;
   }

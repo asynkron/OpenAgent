@@ -14,7 +14,7 @@ import { cancel as cancelActive } from '@asynkron/openagent-core';
 import AskHuman from './AskHuman.js';
 import Plan from './Plan.js';
 import DebugPanel from './DebugPanel.js';
-import { Timeline } from './cliApp/Timeline.js';
+import Timeline from './cliApp/Timeline.js';
 import { useSlashCommandRouter } from './cliApp/slashCommands.js';
 import {
   type AgentRuntimeLike,
@@ -46,7 +46,7 @@ const MAX_COMMAND_LOG_ENTRIES = 50;
 const MemoPlan = memo(Plan);
 const MemoDebugPanel = memo(DebugPanel);
 
-export function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): ReactElement {
+function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): ReactElement {
   const runtimeRef = useRef<AgentRuntimeLike | null>(coerceRuntime(runtime));
   runtimeRef.current = coerceRuntime(runtime);
 

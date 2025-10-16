@@ -45,7 +45,7 @@ export interface InkTextAreaProps extends HorizontalPaddingInput {
   [key: string]: unknown;
 }
 
-export function InkTextArea(props: InkTextAreaProps) {
+function InkTextArea(props: InkTextAreaProps) {
   const {
     value = '',
     onChange,

@@ -48,7 +48,7 @@ function formatExampleEntries(entries: Dirent[]): string {
   return entries.length > 3 ? `${sample}, …` : sample;
 }
 
-export const ContainerBootProbe = {
+const ContainerBootProbe = {
   name: 'Container / DevOps',
   async run(context: BootProbeContext): Promise<BootProbeResult> {
     const details = [];

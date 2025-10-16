@@ -74,7 +74,7 @@ const askHumanProps = humanProps?.askHuman ?? {};
  * Collects free-form user input while keeping the prompt visible inside the Ink
  * layout.
  */
-export function AskHuman({ onSubmit, thinking = false, contextUsage = null, passCounter = 0 }) {
+function AskHuman({ onSubmit, thinking = false, contextUsage = null, passCounter = 0 }) {
   const [value, setValue] = useState('');
   const [locked, setLocked] = useState(false);
   const mountedRef = useRef(true);

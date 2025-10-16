@@ -11,7 +11,7 @@ const DOTNET_FILES = [
   'Directory.Build.targets',
 ];
 
-export const DotNetBootProbe = {
+const DotNetBootProbe = {
   name: '.NET',
   async run(context: BootProbeContext): Promise<BootProbeResult> {
     const details: string[] = [];
