@@ -30,3 +30,8 @@
 
 - Prompt assets referenced throughout: [`../packages/core/prompts/context.md`](../packages/core/prompts/context.md).
 - Release automation described here ties to [`../scripts/context.md`](../scripts/context.md) and [`.github/workflows/context.md`](../.github/workflows/context.md).
+
+## Operational Cross-Links and Maintenance
+
+- See fta-hotspots and prioritized remediation: [docs/fta-hotspots.md](./fta-hotspots.md).
+- For upkeep on prompt copies and context indexes, follow: [docs/maintenance.md](./maintenance.md).

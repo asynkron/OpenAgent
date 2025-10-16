@@ -30,3 +30,7 @@ _Opportunities_
 
 - Prioritize a pass on `passExecutor.ts`, coordinating with CLI consumers to ensure any event shape changes propagate smoothly.
 - Schedule a follow-up on `chat.ts` to align frontend transport layering with the CLI/WebSocket contract, ideally after the backend socket adapter stabilizes.
+
+---
+
+For maintenance processes and repo-wide upkeep, see [docs/maintenance.md](./maintenance.md).
