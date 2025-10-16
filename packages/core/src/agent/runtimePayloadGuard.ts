@@ -15,7 +15,7 @@ import type {
   GuardRequestPayloadSizeFn,
   GuardRequestPayloadSizeInput,
   RecordRequestPayloadSizeFn,
-} from './passExecutor/prePassTasks.js';
+} from './passExecutor/types.js';
 
 interface PayloadGuardConfig {
   historyDumpRoot?: string;

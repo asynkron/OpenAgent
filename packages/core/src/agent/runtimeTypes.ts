@@ -3,7 +3,7 @@ import type { HistoryCompactor, HistoryCompactorOptions } from './historyCompact
 import type {
   GuardRequestPayloadSizeFn,
   RecordRequestPayloadSizeFn,
-} from './passExecutor/prePassTasks.js';
+} from './passExecutor/types.js';
 import type { ExecuteAgentPassOptions } from './passExecutor.js';
 import type { createPlanManager, PlanManagerOptions } from './planManager.js';
 import type { PromptCoordinatorOptions } from './promptCoordinator.js';
