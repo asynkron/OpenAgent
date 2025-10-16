@@ -1,4 +1,4 @@
-import type { PlanItem } from './planCloneUtils.js';
+import type { PlanSnapshotStep } from './planCloneUtils.js';
 
 const normalizePlanIdentifier = (value: unknown): string => {
   if (typeof value !== 'string') {
@@ -21,7 +21,7 @@ export const planToMarkdown = (plan: unknown): string => {
       return;
     }
 
-    const planItem = item as PlanItem;
+    const planItem = item as PlanSnapshotStep;
     const title =
       typeof planItem.title === 'string' && planItem.title.trim().length > 0
         ? planItem.title.trim()
