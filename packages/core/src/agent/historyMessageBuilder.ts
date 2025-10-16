@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * History message helpers shared across the agent runtime.
  *
@@ -19,18 +18,65 @@ const JSON_INDENT = 2 as const;
 
 export type JsonLike = Record<string, unknown>;
 
-export interface ObservationForLLM extends JsonLike {
-  plan?: unknown[];
-  json_parse_error?: boolean;
-  schema_validation_error?: boolean;
-  response_validation_error?: boolean;
-  canceled_by_human?: boolean;
-  operation_canceled?: boolean;
-  exit_code?: number;
-  truncated?: boolean;
-  truncation_notice?: string;
-  message?: string;
+export type PlanSummary = Array<Record<string, unknown>>;
+
+export interface ObservationParseAttempt {
+  strategy: string;
+  message: string;
 }
+
+export interface CommandOutputObservationForLLM {
+  stdout: string;
+  stderr: string;
+  truncated: boolean;
+  truncation_notice?: string;
+  exit_code?: number;
+}
+
+export interface JsonParseErrorObservationForLLM {
+  json_parse_error: true;
+  message: string;
+  attempts: ObservationParseAttempt[];
+  response_snippet: string;
+}
+
+export interface SchemaValidationErrorObservationForLLM {
+  schema_validation_error: true;
+  message: string;
+  details: string[];
+  response_snippet: string;
+}
+
+export interface ResponseValidationErrorObservationForLLM {
+  response_validation_error: true;
+  message: string;
+  details: string[];
+  response_snippet: string;
+}
+
+export interface PlanObservationForLLM {
+  plan: PlanSummary;
+}
+
+export interface CommandRejectedObservationForLLM {
+  canceled_by_human: true;
+  message: string;
+}
+
+export interface OperationCanceledObservationForLLM {
+  operation_canceled: true;
+  reason: string;
+  message: string;
+}
+
+export type ObservationForLLM =
+  | CommandOutputObservationForLLM
+  | JsonParseErrorObservationForLLM
+  | SchemaValidationErrorObservationForLLM
+  | ResponseValidationErrorObservationForLLM
+  | PlanObservationForLLM
+  | CommandRejectedObservationForLLM
+  | OperationCanceledObservationForLLM;
 
 export interface ObservationMetadata extends JsonLike {}
 
@@ -60,16 +106,18 @@ export interface AutoResponseContent extends JsonLike {
   auto_response?: string;
 }
 
+type NonPlanObservationForLLM = Exclude<ObservationForLLM, PlanObservationForLLM>;
+
 export type ObservationSummaryContent =
   | {
       type: 'plan-update';
       message: string;
-      plan: unknown[];
+      plan: PlanObservationForLLM['plan'];
       metadata?: ObservationMetadata;
     }
   | {
       type: 'observation';
-      payload: ObservationForLLM;
+      payload: NonPlanObservationForLLM;
       summary?: string;
       details?: string;
       metadata?: ObservationMetadata;
@@ -86,15 +134,50 @@ const hasKeys = (value: unknown): value is JsonLike =>
 const PLAN_UPDATE_MESSAGE =
   'Here is the updated plan with the latest command observations.' as const;
 
+const isPlanObservation = (
+  payload: ObservationForLLM | null | undefined,
+): payload is PlanObservationForLLM =>
+  Boolean(payload) && Array.isArray((payload as PlanObservationForLLM).plan);
+
+const isJsonParseErrorObservation = (
+  payload: ObservationForLLM,
+): payload is JsonParseErrorObservationForLLM =>
+  'json_parse_error' in payload && payload.json_parse_error === true;
+
+const isSchemaValidationErrorObservation = (
+  payload: ObservationForLLM,
+): payload is SchemaValidationErrorObservationForLLM =>
+  'schema_validation_error' in payload && payload.schema_validation_error === true;
+
+const isResponseValidationErrorObservation = (
+  payload: ObservationForLLM,
+): payload is ResponseValidationErrorObservationForLLM =>
+  'response_validation_error' in payload && payload.response_validation_error === true;
+
+const isCommandRejectedObservation = (
+  payload: ObservationForLLM,
+): payload is CommandRejectedObservationForLLM =>
+  'canceled_by_human' in payload && payload.canceled_by_human === true;
+
+const isOperationCanceledObservation = (
+  payload: ObservationForLLM,
+): payload is OperationCanceledObservationForLLM =>
+  'operation_canceled' in payload && payload.operation_canceled === true;
+
+const isCommandOutputObservation = (
+  payload: ObservationForLLM,
+): payload is CommandOutputObservationForLLM =>
+  'stdout' in payload && 'stderr' in payload && 'truncated' in payload;
+
 const buildObservationContent = ({
   observation,
   command,
 }: ObservationInput): ObservationSummaryContent => {
-  const payload: ObservationForLLM = (observation?.observation_for_llm ?? {}) as ObservationForLLM;
+  const payload = observation?.observation_for_llm ?? null;
   const metadata: ObservationMetadata = (observation?.observation_metadata ??
     {}) as ObservationMetadata;
 
-  if (Array.isArray(payload.plan)) {
+  if (isPlanObservation(payload)) {
     const planContent: ObservationSummaryContent = {
       type: 'plan-update',
       message: PLAN_UPDATE_MESSAGE,
@@ -108,17 +191,22 @@ const buildObservationContent = ({
     return planContent;
   }
 
+  if (!payload) {
+    throw new TypeError('Observation payload is required to build history content.');
+  }
+
+  const nonPlanPayload: NonPlanObservationForLLM = payload as NonPlanObservationForLLM;
   const summaryParts: string[] = [];
 
-  if (payload.json_parse_error) {
+  if (isJsonParseErrorObservation(nonPlanPayload)) {
     summaryParts.push('I could not parse the previous assistant JSON response.');
-  } else if (payload.schema_validation_error) {
+  } else if (isSchemaValidationErrorObservation(nonPlanPayload)) {
     summaryParts.push('The previous assistant response failed schema validation.');
-  } else if (payload.response_validation_error) {
+  } else if (isResponseValidationErrorObservation(nonPlanPayload)) {
     summaryParts.push('The previous assistant response failed protocol validation checks.');
-  } else if (payload.canceled_by_human) {
+  } else if (isCommandRejectedObservation(nonPlanPayload)) {
     summaryParts.push('A human reviewer declined the proposed command.');
-  } else if (payload.operation_canceled) {
+  } else if (isOperationCanceledObservation(nonPlanPayload)) {
     summaryParts.push('The operation was canceled before completion.');
   } else {
     if (command && typeof command === 'object') {
@@ -127,39 +215,42 @@ const buildObservationContent = ({
       summaryParts.push('I have an update from the last command execution.');
     }
 
-    if (typeof payload.exit_code === 'number') {
-      summaryParts.push(`It finished with exit code ${payload.exit_code}.`);
+    if (isCommandOutputObservation(nonPlanPayload) && typeof nonPlanPayload.exit_code === 'number') {
+      summaryParts.push(`It finished with exit code ${nonPlanPayload.exit_code}.`);
     }
 
-    if (payload.truncated) {
-      summaryParts.push(
-        payload.truncation_notice
-          ? String(payload.truncation_notice)
-          : 'Note: the output shown below is truncated.',
-      );
-    } else if (payload.truncation_notice) {
-      summaryParts.push(String(payload.truncation_notice));
+    if (isCommandOutputObservation(nonPlanPayload)) {
+      if (nonPlanPayload.truncated) {
+        summaryParts.push(
+          nonPlanPayload.truncation_notice
+            ? String(nonPlanPayload.truncation_notice)
+            : 'Note: the output shown below is truncated.',
+        );
+      } else if (nonPlanPayload.truncation_notice) {
+        summaryParts.push(String(nonPlanPayload.truncation_notice));
+      }
     }
   }
 
   const content: ObservationSummaryContent = {
     type: 'observation',
-    payload,
+    payload: nonPlanPayload,
   };
 
   if (summaryParts.length > 0) {
     content.summary = summaryParts.join(' ');
   }
 
-  if (
-    payload.message &&
-    (payload.json_parse_error ||
-      payload.schema_validation_error ||
-      payload.response_validation_error ||
-      payload.canceled_by_human ||
-      payload.operation_canceled)
-  ) {
-    content.details = String(payload.message);
+  if ('message' in nonPlanPayload) {
+    if (
+      isJsonParseErrorObservation(nonPlanPayload) ||
+      isSchemaValidationErrorObservation(nonPlanPayload) ||
+      isResponseValidationErrorObservation(nonPlanPayload) ||
+      isCommandRejectedObservation(nonPlanPayload) ||
+      isOperationCanceledObservation(nonPlanPayload)
+    ) {
+      content.details = String(nonPlanPayload.message);
+    }
   }
 
   if (hasKeys(metadata)) {

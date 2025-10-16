@@ -1,5 +1,9 @@
 import type { ChatMessageEntry } from '../historyEntry.js';
-import { createObservationHistoryEntry } from '../historyMessageBuilder.js';
+import {
+  createObservationHistoryEntry,
+  type ObservationParseAttempt,
+  type ObservationRecord,
+} from '../historyMessageBuilder.js';
 import type { ParseFailure } from '../responseParser.js';
 import type {
   AssistantResponseValidationResult,
@@ -20,7 +24,7 @@ interface ResponseEvaluationContext {
   validateAssistantResponseFn: Required<ExecuteAgentPassOptions>['validateAssistantResponseFn'];
 }
 
-const mapParseAttempts = (result: ParseFailure): Array<Record<string, string>> => {
+const mapParseAttempts = (result: ParseFailure): ObservationParseAttempt[] => {
   if (!Array.isArray(result.attempts)) {
     return [];
   }
@@ -38,7 +42,7 @@ const pushObservation = ({
 }: {
   history: ChatMessageEntry[];
   passIndex: number;
-  observation: Record<string, unknown>;
+  observation: ObservationRecord;
 }): void => {
   history.push(createObservationHistoryEntry({ observation, pass: passIndex }));
 };

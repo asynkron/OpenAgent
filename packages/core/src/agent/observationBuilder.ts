@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Formats command execution results for rendering and observation reporting.
  *
@@ -15,9 +14,10 @@
  */
 import { DEFAULT_COMMAND_MAX_BYTES, DEFAULT_COMMAND_TAIL_LINES } from '../constants.js';
 import type {
-  ObservationRecord,
-  ObservationForLLM,
+  CommandOutputObservationForLLM,
   ObservationMetadata,
+  ObservationRecord,
+  OperationCanceledObservationForLLM,
 } from './historyMessageBuilder.js';
 import type { AssistantCommand } from './responseParser.js';
 
@@ -28,10 +28,12 @@ export interface ObservationRenderPayload {
   stderrPreview: string;
 }
 
-export type ObservationPayload = ObservationRecord & {
-  observation_for_llm: ObservationForLLM;
+export interface ObservationPayload extends ObservationRecord {
+  observation_for_llm:
+    | CommandOutputObservationForLLM
+    | OperationCanceledObservationForLLM;
   observation_metadata: ObservationMetadata;
-};
+}
 
 export interface BuildObservationOptions {
   command?: AssistantCommand | null;
@@ -202,8 +204,8 @@ export class ObservationBuilder {
       observation_for_llm: {
         stdout: filteredStdout,
         stderr: filteredStderr,
-        ...(typeof normalizedExitCode === 'number' ? { exit_code: normalizedExitCode } : {}),
         truncated,
+        ...(typeof normalizedExitCode === 'number' ? { exit_code: normalizedExitCode } : {}),
         ...(truncationNotice ? { truncation_notice: truncationNotice } : {}),
       },
       observation_metadata: {
