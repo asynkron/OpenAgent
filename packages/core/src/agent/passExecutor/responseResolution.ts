@@ -43,5 +43,7 @@ export const resolveAssistantResponse = ({
     return { status: 'schema-failed', reason: 'validation' };
   }
 
-  return { status: 'success', ...resolution };
+  const { status: _ignored, ...success } = resolution;
+
+  return { status: 'success', ...success };
 };

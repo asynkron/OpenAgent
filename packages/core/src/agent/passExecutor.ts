@@ -35,7 +35,11 @@ export async function executeAgentPass(options: ExecuteAgentPassOptions): Promis
     debugEmitter,
   });
 
-  return planOutcome === 'stop' ? finalizePass(false) : finalizePass(true);
+  if (planOutcome === 'stop') {
+    return finalizePass(false);
+  }
+
+  return finalizePass(true);
 }
 
 export default {

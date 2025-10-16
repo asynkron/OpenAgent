@@ -7,7 +7,7 @@ const loadPlanExecutor = async () => {
   jest.resetModules();
 
   const commandRuntimeConfig: {
-    loopResults: Array<'continue' | 'stop'>;
+    loopResults: Array<'continue' | 'command-rejected'>;
     execute?: jest.Mock;
     createCommandRuntime?: jest.Mock;
   } = { loopResults: [] };
@@ -119,5 +119,23 @@ describe('executePlan', () => {
     expect(commandRuntimeConfig.createCommandRuntime).toHaveBeenCalled();
     expect(commandRuntimeConfig.execute).toHaveBeenCalled();
     expect(planRuntimeConfig.instances[0].finalize).toHaveBeenCalled();
+  });
+
+  test('returns command-rejected when approval halts execution', async () => {
+    const { executePlan, planRuntimeConfig, commandRuntimeConfig } = await loadPlanExecutor();
+    const options = createNormalizedOptions();
+    planRuntimeConfig.nextExecutables = [{}];
+    commandRuntimeConfig.loopResults = ['command-rejected'];
+
+    const outcome = await executePlan({
+      parsedResponse: buildResponse({ plan: [{} as never] }),
+      options,
+      planManagerAdapter: null,
+      observationBuilder: createObservationBuilderStub(),
+      debugEmitter: { emit: jest.fn() },
+    });
+
+    expect(outcome).toBe('command-rejected');
+    expect(planRuntimeConfig.instances[0].finalize).not.toHaveBeenCalled();
   });
 });

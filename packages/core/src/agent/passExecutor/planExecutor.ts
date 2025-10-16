@@ -8,7 +8,7 @@ import type { NormalizedExecuteAgentPassOptions } from './types.js';
 import type { ToolResponse } from '../../contracts/index.js';
 import type { PlanStep } from './planExecution.js';
 
-export type PlanExecutorOutcome = 'continue' | 'stop' | 'no-executable';
+export type PlanExecutorOutcome = 'continue' | 'stop' | 'no-executable' | 'command-rejected';
 
 export const executePlan = async ({
   parsedResponse,
@@ -33,7 +33,7 @@ export const executePlan = async ({
     emitEvent: options.emitEvent,
     planReminderMessage: options.planReminderMessage,
     planManager: planManagerAdapter,
-    planAutoResponseTracker: options.planAutoResponseTracker,
+    planAutoResponseTracker: options.planAutoResponseTracker ?? null,
     getNoHumanFlag: options.getNoHumanFlag,
     setNoHumanFlag: options.setNoHumanFlag,
   });
@@ -60,7 +60,7 @@ export const executePlan = async ({
   const commandRuntime = createCommandRuntime({
     approvalManager: options.approvalManager,
     emitEvent: options.emitEvent,
-    emitAutoApproveStatus: options.emitAutoApproveStatus,
+    emitAutoApproveStatus: options.emitAutoApproveStatus ?? false,
     runCommandFn: options.runCommandFn,
     executeAgentCommandFn: options.executeAgentCommandFn,
     incrementCommandCountFn: options.incrementCommandCountFn,
@@ -72,8 +72,8 @@ export const executePlan = async ({
   try {
     while (nextExecutable) {
       const loopResult = await commandRuntime.execute(nextExecutable);
-      if (loopResult === 'stop') {
-        return 'stop';
+      if (loopResult === 'command-rejected') {
+        return 'command-rejected';
       }
       nextExecutable = planRuntime.selectNextExecutableEntry();
     }
