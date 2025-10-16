@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 
 const ORIGINAL_ENV = { ...process.env };
 
-let mockGenerateObject;
 let mockGenerateText;
+let mockStreamObject;
 let mockGetOpenAIRequestSettings;
 
 beforeEach(() => {
@@ -18,13 +18,22 @@ beforeEach(() => {
   Object.assign(process.env, ORIGINAL_ENV);
   delete process.env.OPENAI_REASONING_EFFORT;
 
-  mockGenerateObject = jest.fn();
   mockGenerateText = jest.fn();
+  mockStreamObject = jest.fn(() => ({
+    partialObjectStream: (async function* partialStream() {})(),
+    object: Promise.resolve({}),
+    finishReason: Promise.resolve('stop'),
+    usage: Promise.resolve({ inputTokens: 0, outputTokens: 0, totalTokens: 0 }),
+    warnings: Promise.resolve(undefined),
+    request: Promise.resolve({}),
+    response: Promise.resolve({}),
+    providerMetadata: Promise.resolve(undefined),
+  }));
   mockGetOpenAIRequestSettings = jest.fn(() => ({ timeoutMs: null, maxRetries: null }));
 
   jest.unstable_mockModule('ai', () => ({
-    generateObject: mockGenerateObject,
     generateText: mockGenerateText,
+    streamObject: mockStreamObject,
   }));
 
   jest.unstable_mockModule('../client.js', () => ({
@@ -49,7 +58,7 @@ describe('createResponse', () => {
       messages: [],
       providerOptions: { openai: { strictJsonSchema: true } },
     });
-    expect(mockGenerateObject).not.toHaveBeenCalled();
+    expect(mockStreamObject).not.toHaveBeenCalled();
   });
 
   test('parses AGENT_REASONING_EFFORT env for configured reasoning effort (no providerOptions)', async () => {
@@ -91,12 +100,21 @@ describe('createResponse', () => {
       responses: jest.fn().mockReturnValue(modelRef),
     };
     const tool = { name: 'example', description: 'desc', schema: { mock: true } };
-    mockGenerateObject.mockResolvedValue({ object: { ok: true }, response: {} });
+    mockStreamObject.mockImplementation(() => ({
+      partialObjectStream: (async function* partialStream() {})(),
+      object: Promise.resolve({ ok: true }),
+      finishReason: Promise.resolve('stop'),
+      usage: Promise.resolve({ inputTokens: 1, outputTokens: 2, totalTokens: 3 }),
+      warnings: Promise.resolve(undefined),
+      request: Promise.resolve({}),
+      response: Promise.resolve({ id: 'resp-1' }),
+      providerMetadata: Promise.resolve(undefined),
+    }));
 
     const { createResponse } = await import('../responses.js');
     await createResponse({ openai, model: 'gpt-5-codex', input: [], tools: [tool] });
 
-    expect(mockGenerateObject).toHaveBeenCalledWith({
+    expect(mockStreamObject).toHaveBeenCalledWith({
       model: modelRef,
       messages: [],
       schema: tool.schema,

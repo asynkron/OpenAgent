@@ -1,19 +1,22 @@
 import { describe, expect, jest, test } from '@jest/globals';
 
-let generateObjectMock: jest.Mock;
+let streamObjectMock: jest.Mock;
 
 // Mock the AI SDK entrypoints for this suite
 jest.unstable_mockModule('ai', () => {
-  generateObjectMock = jest.fn(async (_options: Record<string, unknown>) => {
-    // Provide a structured object-shaped result similar to the SDK
-    return {
-      object: { message: 'ok', plan: [] },
-      response: { id: 'test-id' },
-    } as Record<string, unknown>;
-  });
+  streamObjectMock = jest.fn(() => ({
+    partialObjectStream: (async function* partialStream() {})(),
+    object: Promise.resolve({ message: 'ok', plan: [] }),
+    finishReason: Promise.resolve('stop'),
+    usage: Promise.resolve({ inputTokens: 1, outputTokens: 2, totalTokens: 3 }),
+    warnings: Promise.resolve(undefined),
+    request: Promise.resolve({}),
+    response: Promise.resolve({ id: 'test-id' }),
+    providerMetadata: Promise.resolve(undefined),
+  }));
 
   return {
-    generateObject: generateObjectMock,
+    streamObject: streamObjectMock,
     generateText: jest.fn(),
   };
 });
@@ -34,9 +37,9 @@ describe('createResponse uses generateObject with tool schema', () => {
     });
 
     expect(result).toBeTruthy();
-    expect(generateObjectMock).toHaveBeenCalledTimes(1);
+    expect(streamObjectMock).toHaveBeenCalledTimes(1);
 
-    const call = generateObjectMock.mock.calls[0][0];
+    const call = streamObjectMock.mock.calls[0][0];
     expect(call).toBeTruthy();
 
     // The schema provided to generateObject should be the flexible wrapper
@@ -49,5 +52,49 @@ describe('createResponse uses generateObject with tool schema', () => {
     expect(jsonSchema).toBeTruthy();
     expect(jsonSchema).toHaveProperty('properties');
     expect(jsonSchema.properties).toHaveProperty('plan');
+  });
+
+  test('emits structured stream callbacks when provided', async () => {
+    const { createResponse } = await import('../responses.ts');
+    const partials = [
+      { step: 'one' },
+      { step: 'two' },
+    ];
+
+    streamObjectMock.mockImplementation(() => ({
+      partialObjectStream: (async function* partialStream() {
+        for (const value of partials) {
+          yield value;
+        }
+      })(),
+      object: Promise.resolve({ message: 'done' }),
+      finishReason: Promise.resolve('stop'),
+      usage: Promise.resolve({ inputTokens: 1, outputTokens: 1, totalTokens: 2 }),
+      warnings: Promise.resolve(undefined),
+      request: Promise.resolve({}),
+      response: Promise.resolve({ id: 'test-id' }),
+      providerMetadata: Promise.resolve(undefined),
+    }));
+
+    const onPartial = jest.fn();
+    const onFinish = jest.fn();
+
+    const languageModel = {};
+    const openaiProvider = { responses: jest.fn().mockReturnValue(languageModel) } as Record<string, unknown>;
+
+    await createResponse({
+      openai: openaiProvider as any,
+      model: 'test-model',
+      input: [],
+      tools: [ToolDefinition as Record<string, unknown>],
+      onStructuredStreamPartial: onPartial,
+      onStructuredStreamFinish: onFinish,
+    });
+
+    expect(onPartial).toHaveBeenCalledTimes(partials.length);
+    expect(onPartial).toHaveBeenNthCalledWith(1, partials[0]);
+    expect(onPartial).toHaveBeenNthCalledWith(2, partials[1]);
+    expect(onFinish).toHaveBeenCalledTimes(1);
+    expect(openaiProvider.responses).toHaveBeenCalledWith('test-model');
   });
 });
