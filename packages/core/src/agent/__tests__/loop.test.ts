@@ -1,9 +1,14 @@
 import { createAgentRuntime } from '../loop.js';
 import { QUEUE_DONE } from '../../utils/asyncQueue.js';
 import type { ResponsesClient, ResponsesProvider } from '../../openai/responses.js';
+import type {
+  PromptCoordinatorEvent,
+  PromptRequestMetadata,
+} from '../promptCoordinator.js';
+import type { RuntimeEvent } from '../runtimeTypes.js';
 
 class TestOutputsQueue {
-  readonly items: Array<Record<string, unknown>> = [];
+  readonly items: RuntimeEvent[] = [];
 
   closed = false;
 
@@ -41,13 +46,16 @@ class TestInputsQueue {
 }
 
 class StubPromptCoordinator {
-  private readonly emitEvent: (event: Record<string, unknown>) => void;
+  private readonly emitEvent: (event: PromptCoordinatorEvent) => void;
 
-  constructor({ emitEvent }: { emitEvent: (event: Record<string, unknown>) => void }) {
+  constructor({ emitEvent }: { emitEvent: (event: PromptCoordinatorEvent) => void }) {
     this.emitEvent = emitEvent;
   }
 
-  async request(prompt: string, metadata: Record<string, unknown> = {}): Promise<string> {
+  async request(
+    prompt: string,
+    metadata: PromptRequestMetadata = { scope: 'user-input' },
+  ): Promise<string> {
     this.emitEvent({ type: 'request-input', prompt, metadata });
     return 'exit';
   }

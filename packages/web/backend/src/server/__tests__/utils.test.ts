@@ -121,19 +121,19 @@ describe('formatAgentEvent', () => {
       type: 'request-input',
       prompt: 'hello',
       level: 'warn',
-      metadata: { nested: { value: 1 } },
+      metadata: { scope: 'user-input', nested: { value: 1 } },
     });
     expect(payload).toEqual({
       type: 'agent_request_input',
       prompt: 'hello',
       level: 'warn',
-      metadata: { nested: { value: 1 } },
+      metadata: { scope: 'user-input', nested: { value: 1 } },
     });
   });
 
   it('drops request input metadata when serialisation fails', () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    const cyclic: Record<string, unknown> = {};
+    const cyclic: Record<string, unknown> = { scope: 'user-input' };
     cyclic.self = cyclic;
 
     const payload = formatAgentEvent({

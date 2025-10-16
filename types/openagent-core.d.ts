@@ -1,4 +1,27 @@
 declare module '@asynkron/openagent-core' {
+  export type PromptRequestScope = 'user-input' | 'approval' | (string & {});
+
+  export interface PromptRequestMetadata extends Record<string, unknown> {
+    scope: PromptRequestScope;
+  }
+
+  export interface PromptRequestEvent {
+    type: 'request-input';
+    prompt: string;
+    metadata: PromptRequestMetadata;
+    __id?: string;
+  }
+
+  export interface PromptCoordinatorStatusEvent {
+    type: 'status';
+    level: string;
+    message: string;
+    details?: unknown;
+    __id?: string;
+  }
+
+  export type PromptCoordinatorEvent = PromptRequestEvent | PromptCoordinatorStatusEvent;
+
   export type CommandResult = {
     stdout: string;
     stderr: string;
