@@ -1,4 +1,9 @@
-import { createObservationHistoryEntry, type ObservationRecord } from '../../historyMessageBuilder.js';
+import {
+  createObservationHistoryEntry,
+  type CommandRejectedObservationForLLM,
+  type ObservationRecord,
+  type PlanObservationForLLM,
+} from '../../historyMessageBuilder.js';
 import type { ChatMessageEntry } from '../../historyEntry.js';
 import type { PlanStep } from '../planExecution.js';
 import { summarizePlanForHistory } from '../planSnapshot.js';
@@ -6,14 +11,18 @@ import { summarizePlanForHistory } from '../planSnapshot.js';
 export const buildPlanObservation = (
   activePlan: PlanStep[],
   timestamp: Date = new Date(),
-): ObservationRecord => ({
-  observation_for_llm: {
+): ObservationRecord => {
+  const planObservation: PlanObservationForLLM = {
     plan: summarizePlanForHistory(activePlan),
-  },
-  observation_metadata: {
-    timestamp: timestamp.toISOString(),
-  },
-});
+  };
+
+  return {
+    observation_for_llm: planObservation,
+    observation_metadata: {
+      timestamp: timestamp.toISOString(),
+    },
+  };
+};
 
 export const createPlanObservationHistoryEntry = ({
   activePlan,
@@ -31,11 +40,15 @@ export const createPlanObservationHistoryEntry = ({
 
 export const createCommandRejectionObservation = (
   timestamp: Date = new Date(),
-): ObservationRecord => ({
-  observation_for_llm: {
+): ObservationRecord => {
+  const payload: CommandRejectedObservationForLLM = {
     canceled_by_human: true,
     message:
       'Human declined to execute the proposed command and asked the AI to propose an alternative approach without executing a command.',
-  },
-  observation_metadata: { timestamp: timestamp.toISOString() },
-});
+  };
+
+  return {
+    observation_for_llm: payload,
+    observation_metadata: { timestamp: timestamp.toISOString() },
+  };
+};

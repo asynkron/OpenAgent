@@ -19,7 +19,10 @@ describe('processCommandExecution', () => {
     const observationBuilder = {
       build: jest.fn().mockReturnValue({
         renderPayload: { text: 'ok' },
-        observation: { observation_for_llm: {}, observation_metadata: {} },
+        observation: {
+          observation_for_llm: { stdout: '', stderr: '', truncated: false },
+          observation_metadata: { timestamp: '2024-01-01T00:00:00.000Z' },
+        },
       }),
     };
 
