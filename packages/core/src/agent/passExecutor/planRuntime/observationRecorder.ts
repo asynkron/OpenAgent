@@ -1,12 +1,12 @@
-import { createObservationHistoryEntry, type ObservationRecord } from '../../historyMessageBuilder.js';
+import { createObservationHistoryEntry } from '../../historyMessageBuilder.js';
 import type { ChatMessageEntry } from '../../historyEntry.js';
-import type { PlanStep } from '../planExecution.js';
+import type { PlanStep, PlanStepObservation } from '../planExecution.js';
 import { summarizePlanForHistory } from '../planSnapshot.js';
 
 export const buildPlanObservation = (
   activePlan: PlanStep[],
   timestamp: Date = new Date(),
-): ObservationRecord => ({
+): PlanStepObservation => ({
   observation_for_llm: {
     plan: summarizePlanForHistory(activePlan),
   },
@@ -31,7 +31,7 @@ export const createPlanObservationHistoryEntry = ({
 
 export const createCommandRejectionObservation = (
   timestamp: Date = new Date(),
-): ObservationRecord => ({
+): PlanStepObservation => ({
   observation_for_llm: {
     canceled_by_human: true,
     message:

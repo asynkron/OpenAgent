@@ -1,18 +1,25 @@
-export type PlanStatus = 'pending' | 'running' | 'completed' | 'failed' | 'abandoned' | string;
+import type {
+  PlanStepObservation,
+  ToolCommand,
+  ToolPlanStep,
+} from '../../contracts/index.js';
 
-export interface PlanCommand {
-  run?: string;
-  shell?: string;
-  [key: string]: unknown;
-}
+export type PlanStatus = ToolPlanStep['status'] | 'running';
 
-export interface PlanStep {
-  id?: string | number;
-  status?: PlanStatus;
-  command?: PlanCommand | null;
-  priority?: number | string;
-  [key: string]: unknown;
-}
+export type PlanCommand = Partial<ToolCommand> & {
+  key?: string;
+};
+
+export type PlanStep =
+  Partial<Omit<ToolPlanStep, 'command' | 'observation' | 'waitingForId' | 'status' | 'id'>> & {
+    id?: string | number;
+    status?: PlanStatus;
+    command?: PlanCommand | null;
+    observation?: PlanStepObservation | null;
+    waitingForId?: string[];
+    priority?: number | string;
+    step?: string | number;
+  };
 
 export interface ExecutablePlanStep {
   step: PlanStep;
@@ -78,12 +85,14 @@ export const collectExecutablePlanSteps = (
       return;
     }
 
-    const status = typeof item.status === 'string' ? item.status.trim().toLowerCase() : '';
+    const status: PlanStatus | null = typeof item.status === 'string'
+      ? (item.status.trim().toLowerCase() as PlanStatus)
+      : null;
     const waitingFor = normalizeWaitingForIds(item);
 
     if (
       waitingFor.length === 0 &&
-      !TERMINAL_PLAN_STATUSES.has(status) &&
+      (!status || !TERMINAL_PLAN_STATUSES.has(status)) &&
       hasCommandPayload(item.command)
     ) {
       executable.push({ step: item, command: item.command! });
@@ -113,3 +122,5 @@ export const clonePlanForExecution = (plan: PlanStep[] | null | undefined): Plan
 
   return JSON.parse(JSON.stringify(plan)) as PlanStep[];
 };
+
+export type { PlanStepObservation } from '../../contracts/index.js';

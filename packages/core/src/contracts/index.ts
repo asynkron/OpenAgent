@@ -20,6 +20,7 @@ import { jsonSchema as asJsonSchema } from '@ai-sdk/provider-utils';
 import { z } from 'zod';
 
 import { DEFAULT_COMMAND_MAX_BYTES, DEFAULT_COMMAND_TAIL_LINES } from '../constants.js';
+import type { ObservationRecord } from '../agent/historyMessageBuilder.js';
 
 // Explicit TS interfaces for clarity/scanability
 export interface ToolCommand {
@@ -33,13 +34,15 @@ export interface ToolCommand {
   max_bytes: number;
 }
 
+export type PlanStepObservation = ObservationRecord;
+
 export interface ToolPlanStep {
   id: string;
   title: string;
   status: 'pending' | 'completed' | 'failed' | 'abandoned';
   waitingForId?: string[];
   command: ToolCommand;
-  observation?: Record<string, unknown>;
+  observation?: PlanStepObservation;
 }
 
 export interface ToolResponse {

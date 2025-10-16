@@ -1,4 +1,4 @@
-import type { PlanStep } from '../../planExecution.js';
+import type { PlanStep, PlanStepObservation } from '../../planExecution.js';
 import type { CommandResult } from '../../../observationBuilder.js';
 import type { ExecutableCandidate } from '../../planExecutableSelector.js';
 
@@ -19,7 +19,7 @@ export interface PlanStateMachine {
   setInitialIncomingPlan(plan: PlanStep[] | null): void;
   replaceActivePlan(plan: PlanStep[]): void;
   clearActivePlan(): void;
-  attachObservation(planStep: PlanStep | null, observation: Record<string, unknown>): boolean;
+  attachObservation(planStep: PlanStep | null, observation: PlanStepObservation): boolean;
   normalizeDependencies(): boolean;
   pruneCompletedSteps(): { mutated: boolean; removedStepIds: string[] };
   removeDependencyReferences(stepId: string): boolean;
@@ -27,7 +27,7 @@ export interface PlanStateMachine {
   markCommandRunning(planStep: PlanStep | null): boolean;
   applyCommandObservation(input: {
     planStep: PlanStep | null;
-    observation: Record<string, unknown>;
+    observation: PlanStepObservation;
     commandResult: CommandResult;
   }): CommandObservationResult;
   selectNextExecutable(): ExecutableCandidate | null;

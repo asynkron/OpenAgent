@@ -1,7 +1,7 @@
-import type { PlanStep } from '../planExecution.js';
+import type { PlanStep, PlanStepObservation } from '../planExecution.js';
 import type { PlanManagerAdapter } from '../planManagerAdapter.js';
 import { refusalHeuristics } from '../refusalDetection.js';
-import { createRefusalAutoResponseEntry, type ObservationRecord } from '../../historyMessageBuilder.js';
+import { createRefusalAutoResponseEntry } from '../../historyMessageBuilder.js';
 import { createCommandRejectionObservation } from './observationRecorder.js';
 import type { PlanStateMachine } from './stateMachine/index.js';
 import {
@@ -108,7 +108,7 @@ export const handleCommandRejection = ({
     }),
   ] as CommandRejectionResult['effects'];
 
-  const observation: ObservationRecord = createCommandRejectionObservation();
+  const observation: PlanStepObservation = createCommandRejectionObservation();
   stateMachine.attachObservation(planStep, observation);
 
   effects.push(

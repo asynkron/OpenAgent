@@ -5,8 +5,11 @@ import {
   createPlanObservationHistoryEntry,
   createCommandRejectionObservation,
 } from '../observationRecorder.js';
+import type { PlanStep } from '../../planExecution.js';
 
-const samplePlan = [{ id: 'step-1', status: 'pending', command: { run: 'echo hi' } }];
+const samplePlan: PlanStep[] = [
+  { id: 'step-1', status: 'pending', command: { run: 'echo hi' } },
+];
 
 describe('observationRecorder helpers', () => {
   test('buildPlanObservation serializes plan snapshots with metadata', () => {

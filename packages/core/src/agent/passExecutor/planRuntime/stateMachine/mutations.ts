@@ -1,4 +1,4 @@
-import { clonePlanForExecution, type PlanStep } from '../../planExecution.js';
+import { clonePlanForExecution, type PlanStep, type PlanStepObservation } from '../../planExecution.js';
 import { FAILED_STATUS, RUNNING_STATUS } from '../../planStepStatus.js';
 import type { CommandResult } from '../../../observationBuilder.js';
 import type { CommandObservationResult, PlanState } from './types.js';
@@ -13,11 +13,11 @@ export interface MutationHelpers {
   setInitialIncomingPlan(plan: PlanStep[] | null): void;
   replaceActivePlan(plan: PlanStep[]): void;
   clearActivePlan(): void;
-  attachObservation(planStep: PlanStep | null, observation: Record<string, unknown>): boolean;
+  attachObservation(planStep: PlanStep | null, observation: PlanStepObservation): boolean;
   markCommandRunning(planStep: PlanStep | null): boolean;
   applyCommandObservation(input: {
     planStep: PlanStep | null;
-    observation: Record<string, unknown>;
+    observation: PlanStepObservation;
     commandResult: CommandResult;
   }): CommandObservationResult;
 }
