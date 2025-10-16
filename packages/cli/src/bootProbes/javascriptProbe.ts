@@ -29,7 +29,7 @@ type ToolAvailability = {
   summary: string;
 };
 
-export const JavaScriptBootProbe = {
+const JavaScriptBootProbe = {
   name: 'JavaScript',
   async run(context: BootProbeContext): Promise<BootProbeResult> {
     const details: string[] = [];
