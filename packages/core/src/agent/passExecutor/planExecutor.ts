@@ -38,14 +38,19 @@ export const executePlan = async ({
     setNoHumanFlag: options.setNoHumanFlag,
   });
 
-  await planRuntime.initialize(incomingPlan);
+  const initialization = await planRuntime.initialize(incomingPlan);
+  planRuntime.applyEffects(initialization.effects);
 
   let nextExecutable: ExecutableCandidate | null = planRuntime.selectNextExecutableEntry();
 
   if (!nextExecutable) {
     const assistantMessage = typeof parsedResponse.message === 'string' ? parsedResponse.message : '';
     const outcome = await planRuntime.handleNoExecutable({ parsedMessage: assistantMessage });
-    return outcome === 'continue' ? 'no-executable' : 'stop';
+    planRuntime.applyEffects(outcome.effects);
+    if (outcome.type === 'continue-refusal' || outcome.type === 'continue-pending') {
+      return 'no-executable';
+    }
+    return 'stop';
   }
 
   planRuntime.resetPlanReminder();
@@ -83,7 +88,8 @@ export const executePlan = async ({
     }
   }
 
-  await planRuntime.finalize();
+  const finalization = await planRuntime.finalize();
+  planRuntime.applyEffects(finalization.effects);
   planRuntime.resetPlanReminder();
 
   return 'continue';

@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { jest } from '@jest/globals';
 import { resolveAssistantResponse } from '../responseResolution.js';
-import { createNormalizedOptions } from './testUtils.js';
+import { createNormalizedOptions } from '../__testUtils__/passExecutor.js';
 
 const createParseSuccess = (parsed: unknown) =>
   jest.fn(() => ({ ok: true, value: parsed, recovery: { strategy: 'direct' } }));

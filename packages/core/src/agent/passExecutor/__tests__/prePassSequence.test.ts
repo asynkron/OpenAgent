@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { jest } from '@jest/globals';
 import { runPrePassSequence } from '../prePassSequence.js';
-import { createNormalizedOptions, createObservationBuilderStub } from './testUtils.js';
+import { createNormalizedOptions, createObservationBuilderStub } from '../__testUtils__/passExecutor.js';
 
 describe('runPrePassSequence', () => {
   test('returns completed result when model response is available', async () => {

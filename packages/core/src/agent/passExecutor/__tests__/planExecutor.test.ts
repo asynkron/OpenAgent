@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { jest } from '@jest/globals';
 import type { ToolResponse } from '../../../contracts/index.js';
-import { createNormalizedOptions, createObservationBuilderStub } from './testUtils.js';
+import { createNormalizedOptions, createObservationBuilderStub } from '../__testUtils__/passExecutor.js';
 
 const loadPlanExecutor = async () => {
   jest.resetModules();
@@ -33,14 +33,18 @@ const loadPlanExecutor = async () => {
   jest.unstable_mockModule('../planRuntime.js', () => {
     class FakePlanRuntime {
       options: Record<string, unknown>;
-      initialize = jest.fn(async () => {});
+      initialize = jest.fn(async () => ({ type: 'plan-initialized', effects: [] }));
       selectNextExecutableEntry = jest.fn(() => planRuntimeConfig.nextExecutables.shift() ?? null);
       handleNoExecutable = jest.fn(async ({ parsedMessage }) => {
         this.lastNoExecutableMessage = parsedMessage;
-        return planRuntimeConfig.noExecutableResult;
+        return planRuntimeConfig.noExecutableResult === 'continue'
+          ? { type: 'continue-pending', effects: [] }
+          : { type: 'stop-cleared', effects: [] };
       });
       resetPlanReminder = jest.fn();
-      finalize = jest.fn(async () => {});
+      finalize = jest.fn(async () => ({ type: 'completed', effects: [] }));
+      applyEffects = jest.fn();
+      emitPlanSnapshot = jest.fn(() => ({ type: 'plan-snapshot', plan: [] }));
 
       constructor(options: Record<string, unknown>) {
         this.options = options;
@@ -81,6 +85,7 @@ describe('executePlan', () => {
 
     expect(outcome).toBe('no-executable');
     expect(planRuntimeConfig.instances[0].handleNoExecutable).toHaveBeenCalledWith({ parsedMessage: 'hello' });
+    expect(planRuntimeConfig.instances[0].applyEffects).toHaveBeenCalled();
   });
 
   test('returns stop when no executable steps remain and runtime halts', async () => {
@@ -97,6 +102,7 @@ describe('executePlan', () => {
     });
 
     expect(outcome).toBe('stop');
+    expect(planRuntimeConfig.instances[0].applyEffects).toHaveBeenCalled();
   });
 
   test('executes commands while toggling thinking state', async () => {

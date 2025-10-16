@@ -98,7 +98,8 @@ const ensureCommandApproval = async (
     const outcome = await approvalManager.requestHumanDecision({ command: commandPayload });
 
     if (outcome.decision === 'reject') {
-      planRuntime.handleCommandRejection(planStep);
+      const rejection = planRuntime.handleCommandRejection(planStep);
+      planRuntime.applyEffects(rejection.effects);
       return 'rejected';
     }
 
@@ -163,7 +164,8 @@ export class CommandRuntime {
     planStep: ExecutableCandidate['step'] | null,
   ) {
     this.options.planRuntime.markCommandRunning(planStep);
-    this.options.planRuntime.emitPlanSnapshot();
+    const snapshotEffect = this.options.planRuntime.emitPlanSnapshot();
+    this.options.planRuntime.applyEffects([snapshotEffect]);
 
     return await executeCommandSafely(
       this.options.executeAgentCommandFn,
@@ -220,7 +222,8 @@ export class CommandRuntime {
       planStep: planStep ? (clonePlanForExecution([planStep])[0] ?? null) : null,
     });
 
-    this.options.planRuntime.emitPlanSnapshot();
+    const snapshotEffect = this.options.planRuntime.emitPlanSnapshot();
+    this.options.planRuntime.applyEffects([snapshotEffect]);
   }
 }
 
