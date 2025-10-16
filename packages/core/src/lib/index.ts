@@ -98,6 +98,13 @@ export {
   applyStartupFlagsFromArgv,
   startupFlagAccessors,
 };
+export type {
+  PromptCoordinatorEvent,
+  PromptCoordinatorStatusEvent,
+  PromptRequestEvent,
+  PromptRequestMetadata,
+  PromptRequestScope,
+} from '../agent/promptCoordinator.js';
 
 const exported = {
   ...startupFlagAccessors,

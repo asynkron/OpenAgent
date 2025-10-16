@@ -25,6 +25,7 @@ import {
   type ExitState,
   type InputRequestState,
   type PlanProgressState,
+  type RequestInputRuntimeEvent,
   type RuntimeEvent,
   type SlashCommandHandler,
   type TimelinePayload,
@@ -267,16 +268,15 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
   );
 
   const handleRequestInputEvent = useCallback(
-    (event: RuntimeEvent): void => {
+    (event: RequestInputRuntimeEvent): void => {
       flushPendingAssistantMessage();
-      const inputEvent = event as any;
-      setInputRequest({
-        prompt: typeof inputEvent.prompt === 'string' ? inputEvent.prompt : '▷',
-        metadata:
-          inputEvent.metadata === undefined || inputEvent.metadata === null
-            ? null
-            : cloneValue(inputEvent.metadata),
-      });
+      const promptValue =
+        typeof event.prompt === 'string' && event.prompt.length > 0 ? event.prompt : '▷';
+      const metadata =
+        event.metadata === undefined || event.metadata === null
+          ? null
+          : (cloneValue(event.metadata) as InputRequestState['metadata']);
+      setInputRequest({ prompt: promptValue, metadata });
     },
     [flushPendingAssistantMessage],
   );
@@ -319,7 +319,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
           handleErrorEvent(event);
           break;
         case 'request-input':
-          handleRequestInputEvent(event);
+          handleRequestInputEvent(event as RequestInputRuntimeEvent);
           break;
         case 'debug':
           handleDebugEvent(event as DebugRuntimeEvent);

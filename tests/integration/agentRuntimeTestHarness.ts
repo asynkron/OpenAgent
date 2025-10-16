@@ -148,6 +148,19 @@ export async function loadAgentWithMockedModules() {
   }));
 
   jest.unstable_mockModule('dotenv/config', () => ({}));
+  jest.unstable_mockModule('ai', () => ({
+    streamObject: jest.fn(() => ({
+      partialObjectStream: (async function* partialStream() {})(),
+      object: Promise.resolve({}),
+      finishReason: Promise.resolve('stop'),
+      usage: Promise.resolve({}),
+      warnings: Promise.resolve(undefined),
+      request: Promise.resolve({}),
+      response: Promise.resolve({}),
+      providerMetadata: Promise.resolve(undefined),
+    })),
+    generateText: jest.fn(),
+  }));
 
   const agentModule = await import('../../index.js');
 

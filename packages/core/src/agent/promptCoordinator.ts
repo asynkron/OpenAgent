@@ -1,21 +1,40 @@
-// @ts-nocheck
-/**
- * Coordinates prompt requests coming from the agent runtime with responses from the UI layer.
- *
- * Responsibilities:
- * - Buffer prompt responses while the runtime waits for input.
- * - Relay UI cancellation requests to the shared ESC state.
- *
- * Consumers:
- * - Agent loop when requesting human input.
- *
- * Note: The runtime still imports the compiled `promptCoordinator.js`; run `tsc`
- * to regenerate it after editing this source until the build pipeline emits from
- * TypeScript directly.
- */
 import type { EscState } from './escState.js';
 
-export type EmitEventFn = (event: Record<string, unknown>) => void;
+/**
+ * The runtime differentiates between prompt scopes so downstream hosts can
+ * decide which queue (general input vs. approval) should receive the next
+ * response. We keep the union open-ended to allow experiments without
+ * updating the coordinator every time a new scope appears.
+ */
+export type PromptRequestScope = 'user-input' | 'approval' | (string & {});
+
+/**
+ * Metadata that accompanies prompt requests. The scope is the only required
+ * field today, but the record stays extensible so callers can flow additional
+ * context (e.g. prompt identifiers) without loosening the type to `unknown`.
+ */
+export interface PromptRequestMetadata extends Record<string, unknown> {
+  scope: PromptRequestScope;
+}
+
+export interface PromptRequestEvent {
+  type: 'request-input';
+  prompt: string;
+  metadata: PromptRequestMetadata;
+  __id?: string;
+}
+
+export interface PromptCoordinatorStatusEvent {
+  type: 'status';
+  level: string;
+  message: string;
+  details?: unknown;
+  __id?: string;
+}
+
+export type PromptCoordinatorEvent = PromptRequestEvent | PromptCoordinatorStatusEvent;
+
+export type EmitEventFn = (event: PromptCoordinatorEvent) => void;
 export type CancelFn = (reason?: unknown) => void;
 
 export interface PromptCoordinatorOptions {
@@ -24,6 +43,11 @@ export interface PromptCoordinatorOptions {
   cancelFn?: CancelFn | null;
 }
 
+/**
+ * Coordinates prompt requests coming from the agent runtime with responses
+ * supplied by UI layers. It buffers inputs until the runtime awaits them and
+ * forwards UI-driven cancellations back to the shared ESC state.
+ */
 export class PromptCoordinator {
   private readonly emitEvent: EmitEventFn;
   private readonly escState: EscState | null;
@@ -52,8 +76,26 @@ export class PromptCoordinator {
     return false;
   }
 
-  request(prompt: string, metadata: Record<string, unknown> = {}): Promise<string> {
-    this.emitEvent({ type: 'request-input', prompt, metadata });
+  private normalizeMetadata(metadata: PromptRequestMetadata | null | undefined): PromptRequestMetadata {
+    if (metadata && typeof metadata === 'object') {
+      const scope =
+        typeof metadata.scope === 'string' && metadata.scope.trim().length > 0
+          ? metadata.scope
+          : 'user-input';
+      return { ...metadata, scope };
+    }
+
+    return { scope: 'user-input' };
+  }
+
+  request(prompt: string, metadata?: PromptRequestMetadata | null): Promise<string> {
+    const event: PromptRequestEvent = {
+      type: 'request-input',
+      prompt,
+      metadata: this.normalizeMetadata(metadata ?? null),
+    };
+
+    this.emitEvent(event);
 
     if (this.buffered.length > 0) {
       const next = this.buffered.shift();

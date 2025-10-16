@@ -1,4 +1,10 @@
 declare module '@asynkron/openagent-core' {
+  export type PromptRequestScope = 'user-input' | 'approval' | (string & {});
+
+  export interface PromptRequestMetadata extends Record<string, unknown> {
+    scope: PromptRequestScope;
+  }
+
   export interface AgentRuntime {
     submitPrompt(prompt: string): void;
   }

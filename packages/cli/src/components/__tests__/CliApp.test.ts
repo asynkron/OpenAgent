@@ -98,7 +98,7 @@ describe('CliApp slash command handling', () => {
     const { unmount } = render(React.createElement(CliApp, { runtime }));
 
     try {
-      runtime.emit({ type: 'request-input', prompt: '▷' });
+      runtime.emit({ type: 'request-input', prompt: '▷', metadata: { scope: 'user-input' } });
       await flush();
 
       expect(typeof latestAskHumanProps?.onSubmit).toBe('function');
@@ -134,7 +134,7 @@ describe('CliApp assistant message handling', () => {
       });
       await flush();
 
-      runtime.emit({ type: 'request-input', prompt: '▷' });
+      runtime.emit({ type: 'request-input', prompt: '▷', metadata: { scope: 'user-input' } });
       await flush();
 
       expect(lastFrame()).toContain('Structured response preserved.');

@@ -6,7 +6,11 @@ import type {
 } from './passExecutor/types.js';
 import type { ExecuteAgentPassOptions } from './passExecutor.js';
 import type { createPlanManager, PlanManagerOptions } from './planManager.js';
-import type { PromptCoordinatorOptions } from './promptCoordinator.js';
+import type {
+  PromptCoordinatorEvent,
+  PromptCoordinatorOptions,
+  PromptRequestMetadata,
+} from './promptCoordinator.js';
 import type { ApprovalManager, ApprovalManagerOptions } from './approvalManager.js';
 import type { EscState, EscStateController } from './escState.js';
 import type { AsyncQueue as AsyncQueueType } from '../utils/asyncQueue.js';
@@ -45,7 +49,7 @@ export interface EscController {
 }
 
 export interface PromptCoordinatorLike {
-  request(prompt: string, metadata?: UnknownRecord): Promise<string>;
+  request(prompt: string, metadata?: PromptRequestMetadata | null): Promise<string>;
   handlePrompt(value: string): void;
   handleCancel(payload?: unknown): void;
   close(): void;
@@ -91,7 +95,7 @@ export type PlanManagerFactoryConfig = PlanManagerOptions & {
 };
 
 export interface PromptCoordinatorFactoryConfig extends PromptCoordinatorOptions {
-  emitEvent: (event: UnknownRecord) => void;
+  emitEvent: (event: PromptCoordinatorEvent) => void;
   escState: EscState | null;
 }
 

@@ -1,4 +1,5 @@
 import type { WebSocket } from 'ws';
+import type { PromptRequestMetadata } from '@asynkron/openagent-core';
 
 export function normaliseAgentText(value: unknown): string {
   if (typeof value === 'string') {
@@ -60,7 +61,7 @@ interface RequestInputEvent extends AgentEventBase {
   type: 'request-input';
   prompt?: unknown;
   level?: unknown;
-  metadata?: unknown;
+  metadata?: PromptRequestMetadata | null;
 }
 
 export type AgentEvent =
@@ -131,7 +132,7 @@ export interface AgentRequestInputPayload {
   type: 'agent_request_input';
   prompt: string;
   level?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: PromptRequestMetadata;
 }
 
 export type AgentPayload =
@@ -264,13 +265,18 @@ function normaliseCommandPreview(preview: unknown): AgentCommandPreviewPayload |
   return payload;
 }
 
-function serialiseMetadata(metadata: unknown): Record<string, unknown> | undefined {
+function serialiseMetadata(metadata: unknown): PromptRequestMetadata | undefined {
   if (!isRecord(metadata)) {
     return undefined;
   }
 
   try {
-    return JSON.parse(JSON.stringify(metadata)) as Record<string, unknown>;
+    const serialised = JSON.parse(JSON.stringify(metadata)) as Record<string, unknown>;
+    const scope =
+      typeof serialised.scope === 'string' && serialised.scope.trim().length > 0
+        ? serialised.scope
+        : 'user-input';
+    return { ...serialised, scope } as PromptRequestMetadata;
   } catch (error) {
     console.warn('Failed to serialise agent metadata', error);
     return undefined;

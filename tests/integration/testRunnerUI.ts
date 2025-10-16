@@ -1,3 +1,5 @@
+import type { PromptRequestMetadata } from '@asynkron/openagent-core';
+
 // Minimal reactive UI harness used by integration tests to drive the agent runtime.
 export const INPUT_SCOPES = {
   USER: 'user-input',
@@ -89,7 +91,8 @@ export function createTestRunnerUI(runtime, { onEvent } = {}) {
       notifyListeners(event);
 
       if (event.type === 'request-input') {
-        const scope = event.metadata?.scope ?? INPUT_SCOPES.USER;
+        const metadata = (event as { metadata?: PromptRequestMetadata | null }).metadata;
+        const scope = metadata?.scope ?? INPUT_SCOPES.USER;
         const response = await waitForResponse(scope);
         runtime.submitPrompt(response ?? '');
       }

@@ -7,6 +7,7 @@ import type {
   CommandPreview,
   CommandResult,
 } from '../commandUtils.js';
+import type { PromptRequestMetadata } from '@asynkron/openagent-core';
 
 type RuntimeEventBase<
   Type extends string,
@@ -69,7 +70,7 @@ export type ErrorRuntimeEvent = RuntimeEventBase<
 
 export type RequestInputRuntimeEvent = RuntimeEventBase<
   'request-input',
-  { prompt?: string; metadata?: unknown }
+  { prompt?: string; metadata?: PromptRequestMetadata | null }
 >;
 
 export type DebugRuntimeEvent = RuntimeEventBase<
@@ -181,7 +182,7 @@ export type ExitState =
 
 export type InputRequestState = {
   prompt: string;
-  metadata: unknown;
+  metadata: PromptRequestMetadata | null;
 };
 
 export type PlanProgressState = {
