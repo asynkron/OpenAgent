@@ -54,6 +54,10 @@ const isAbortLikeError = (error: unknown): boolean => {
 
 type EmitEvent = (event: Record<string, unknown>) => void;
 
+const STREAM_DEBUG_ACTION_FIELD = '__openagentStreamAction';
+const STREAM_DEBUG_VALUE_FIELD = '__openagentStreamValue';
+let structuredStreamDebugCounter = 0;
+
 export interface RequestModelCompletionOptions {
   openai: ResponsesClient;
   model: string;
@@ -119,6 +123,40 @@ export async function requestModelCompletion({
 
   const cancellationOp = registerCancellation(cancellationRegistration);
 
+  const streamDebugId = `structured-response-stream-${++structuredStreamDebugCounter}`;
+  let streamPanelCleared = false;
+
+  const emitStructuredStreamInstruction = (action: 'replace' | 'remove', value?: unknown): void => {
+    try {
+      emitEvent({
+        type: 'debug',
+        id: streamDebugId,
+        payload:
+          action === 'remove'
+            ? { [STREAM_DEBUG_ACTION_FIELD]: 'remove' }
+            : {
+                [STREAM_DEBUG_ACTION_FIELD]: 'replace',
+                [STREAM_DEBUG_VALUE_FIELD]: value,
+              },
+      });
+    } catch (_error) {
+      // Ignore debug stream emission failures to keep the request resilient.
+    }
+  };
+
+  const emitStructuredStreamPartial = (value: unknown): void => {
+    streamPanelCleared = false;
+    emitStructuredStreamInstruction('replace', value);
+  };
+
+  const clearStructuredStreamPanel = (): void => {
+    if (streamPanelCleared) {
+      return;
+    }
+    streamPanelCleared = true;
+    emitStructuredStreamInstruction('remove');
+  };
+
   const requestOptions: ResponseCallOptions = {};
   if (controller) {
     requestOptions.signal = controller.signal;
@@ -144,6 +182,8 @@ export async function requestModelCompletion({
     input: requestPayload.messages,
     tools: [requestPayload.tool],
     options: requestPayload.options,
+    onStructuredStreamPartial: emitStructuredStreamPartial,
+    onStructuredStreamFinish: clearStructuredStreamPanel,
   });
 
   try {
@@ -192,6 +232,7 @@ export async function requestModelCompletion({
       });
 
       history.push(createObservationHistoryEntry({ observation, pass: passIndex }));
+      clearStructuredStreamPanel();
       return { status: 'canceled' };
     }
 
@@ -217,6 +258,7 @@ export async function requestModelCompletion({
       });
 
       history.push(createObservationHistoryEntry({ observation, pass: passIndex }));
+      clearStructuredStreamPanel();
       return { status: 'canceled' };
     }
 
@@ -231,6 +273,7 @@ export async function requestModelCompletion({
       timeoutId = null;
     }
     stopThinkingFn();
+    clearStructuredStreamPanel();
   }
 }
 

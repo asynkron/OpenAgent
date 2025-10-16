@@ -7,7 +7,7 @@
 
 ## Key Subdirectories
 
-- `agent/` — orchestration loop, command execution strategies, approval flow, and plan management. See [`agent/context.md`](agent/context.md).
+- `agent/` — orchestration loop, command execution strategies, approval flow, and plan management. See [`agent/context.md`](agent/context.md). `modelRequest.ts` now relays partial structured response snapshots via debug events so UIs can render in-progress payloads.
 - `bindings/` — adapters for alternative front-ends (currently the WebSocket binding).
 - `contracts/` — canonical DTO module exporting tool DTOs, model request/response types, completion wrapper types, and observation/history shapes for single-path imports. The OpenAgent tool schema now defaults `command.tail_lines` to 200 lines, requires `command.max_bytes` with a 16 KiB default cap (roughly 200 lines), and propagates those limits through the runtime JSON schema.
 - `constants.ts` — shared runtime defaults (command byte/line caps, etc.) consumed by schemas, parsers, and tests to keep limit tuning in one place.
@@ -16,6 +16,7 @@
 - `openai/` — client configuration, request/response helpers, response extraction utilities.
   - Includes `contracts.ts` barrel that re-exports request/response DTOs and the OpenAgent tool schema for single-path imports.
   - Canonical DTOs live under `contracts/index.ts` with consistent names (ModelRequest/ModelResponse, OpenAgentToolResponse, etc.). Prefer importing from `src/contracts`.
+  - `responses.ts` now calls the AI SDK `streamObject` helper and exposes optional callbacks for partial structured responses, enabling downstream consumers to stream debug previews while awaiting the final object.
 - `config/` — system prompt discovery/building.
 - `lib/` — curated export surface (startup flags, runtime factory) consumed by package entry.
 - `utils/` — shared helpers (async queues, cancellation, text formatting, plan math, JSON validation, HTTP fetch wrapper).

@@ -1,6 +1,6 @@
 import {
-  generateObject,
   generateText,
+  streamObject,
   type CallSettings,
   type GenerateObjectResult,
   type GenerateTextResult,
@@ -164,6 +164,8 @@ export interface CreateResponseParams {
   tools?: SupportedTool[];
   options?: ResponseCallOptions;
   reasoningEffort?: ReasoningEffort;
+  onStructuredStreamPartial?: (value: unknown) => void;
+  onStructuredStreamFinish?: () => void;
 }
 
 // Throw a predictable error instead of propagating null checks through every call site.
@@ -185,6 +187,11 @@ function selectStructuredTool(tools: SupportedTool[] | undefined): StructuredToo
   return mapToolToSchema(tools[0]);
 }
 
+interface StructuredStreamCallbacks {
+  onPartial?: (value: unknown) => void;
+  onComplete?: () => void;
+}
+
 // Shared helper so both code paths emit the same response envelope.
 async function createStructuredResult(
   languageModel: LanguageModel,
@@ -192,8 +199,9 @@ async function createStructuredResult(
   tool: StructuredToolDefinition,
   providerOptions: ProviderOptions,
   callSettings: ResponseCallSettings,
+  callbacks: StructuredStreamCallbacks = {},
 ): Promise<StructuredResponseResult> {
-  const structured = await generateObject({
+  const streamResult = streamObject({
     model: languageModel,
     messages,
     schema: tool.schema,
@@ -203,11 +211,86 @@ async function createStructuredResult(
     ...callSettings,
   });
 
-  const argumentsText = JSON.stringify(structured.object);
-  const callId =
-    structured.response && typeof structured.response.id === 'string'
-      ? structured.response.id
+  const { onPartial, onComplete } = callbacks;
+  let completionNotified = false;
+
+  const notifyComplete = (): void => {
+    if (completionNotified) {
+      return;
+    }
+    completionNotified = true;
+    try {
+      onComplete?.();
+    } catch (_error) {
+      // Ignore completion handler failures so we never block the response.
+    }
+  };
+
+  const streamTask =
+    typeof onPartial === 'function'
+      ? (async () => {
+          try {
+            for await (const partial of streamResult.partialObjectStream) {
+              try {
+                onPartial(partial);
+              } catch (_error) {
+                // Swallow downstream handler failures to keep streaming resilient.
+              }
+            }
+          } catch (_error) {
+            // Surface fatal errors through the awaited object below; ignore here.
+          } finally {
+            notifyComplete();
+          }
+        })()
       : null;
+
+  const [
+    object,
+    finishReason,
+    usage,
+    warnings,
+    request,
+    response,
+    providerMetadata,
+  ] = await Promise.all([
+    streamResult.object,
+    streamResult.finishReason,
+    streamResult.usage,
+    streamResult.warnings,
+    streamResult.request,
+    streamResult.response,
+    streamResult.providerMetadata,
+  ]);
+
+  await streamTask?.catch(() => {});
+  notifyComplete();
+
+  const argumentsText = JSON.stringify(object);
+  const responseRecord = response as Record<string, unknown>;
+  const callId =
+    responseRecord && typeof responseRecord.id === 'string'
+      ? (responseRecord.id as string)
+      : null;
+
+  const structured: GenerateObjectResult<unknown> = {
+    object,
+    reasoning: undefined,
+    finishReason,
+    usage,
+    warnings,
+    request,
+    response: response as GenerateObjectResult<unknown>['response'],
+    providerMetadata,
+    toJsonResponse(init?: ResponseInit): Response {
+      const status = typeof init?.status === 'number' ? init.status : 200;
+      const headers = new Headers(init?.headers);
+      if (!headers.has('content-type')) {
+        headers.set('content-type', 'application/json; charset=utf-8');
+      }
+      return new Response(JSON.stringify(object), { ...init, status, headers });
+    },
+  };
 
   return {
     output_text: argumentsText,
@@ -263,6 +346,8 @@ export async function createResponse({
   tools,
   options,
   reasoningEffort,
+  onStructuredStreamPartial,
+  onStructuredStreamFinish,
 }: CreateResponseParams): Promise<CreateResponseResult> {
   const languageModel = requireResponsesModel(openai, model);
   const callSettings = buildCallSettings(options);
@@ -270,7 +355,10 @@ export async function createResponse({
   const tool = selectStructuredTool(tools);
 
   if (tool?.schema) {
-    return createStructuredResult(languageModel, input, tool, providerOptions, callSettings);
+    return createStructuredResult(languageModel, input, tool, providerOptions, callSettings, {
+      onPartial: onStructuredStreamPartial,
+      onComplete: onStructuredStreamFinish,
+    });
   }
 
   return createTextResult(languageModel, input, providerOptions, callSettings);
