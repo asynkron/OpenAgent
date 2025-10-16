@@ -2,18 +2,71 @@
 import { jest } from '@jest/globals';
 import type { ToolResponse } from '../../../contracts/index.js';
 import { createNormalizedOptions, createObservationBuilderStub } from './testUtils.js';
+import type { CommandRuntimeResult } from '../commandRuntime.js';
+
+const createSuccessResult = (): CommandRuntimeResult =>
+  ({
+    status: 'executed',
+    approval: {
+      status: 'approved',
+      approvalSource: 'none',
+      command: {},
+      planStep: null,
+      normalizedRun: '',
+    },
+    execution: {
+      status: 'executed',
+      approvalSource: 'none',
+      command: {},
+      planStep: null,
+      normalizedRun: '',
+      outcome: {
+        result: {},
+        executionDetails: {},
+      },
+    },
+    stats: {
+      status: 'stats-recorded',
+      key: '',
+      command: {},
+      planStep: null,
+      normalizedRun: '',
+    },
+    emission: {
+      status: 'emitted',
+      command: {},
+      planStep: null,
+      normalizedRun: '',
+      outcome: {
+        result: {},
+        executionDetails: {},
+      },
+      observation: {},
+      commandResult: {},
+      preview: null,
+    },
+  }) as CommandRuntimeResult;
+
+const createRejectionResult = (): CommandRuntimeResult =>
+  ({
+    status: 'rejected',
+    command: {},
+    planStep: null,
+    normalizedRun: '',
+    reason: 'human-declined',
+  }) as CommandRuntimeResult;
 
 const loadPlanExecutor = async () => {
   jest.resetModules();
 
   const commandRuntimeConfig: {
-    loopResults: Array<'continue' | 'command-rejected'>;
+    loopResults: CommandRuntimeResult[];
     execute?: jest.Mock;
     createCommandRuntime?: jest.Mock;
   } = { loopResults: [] };
 
   jest.unstable_mockModule('../commandRuntime.js', () => {
-    const execute = jest.fn(async () => commandRuntimeConfig.loopResults.shift() ?? 'continue');
+    const execute = jest.fn(async () => commandRuntimeConfig.loopResults.shift() ?? createSuccessResult());
     const createCommandRuntime = jest.fn(() => ({ execute }));
     commandRuntimeConfig.execute = execute;
     commandRuntimeConfig.createCommandRuntime = createCommandRuntime;
@@ -125,7 +178,7 @@ describe('executePlan', () => {
     const { executePlan, planRuntimeConfig, commandRuntimeConfig } = await loadPlanExecutor();
     const options = createNormalizedOptions();
     planRuntimeConfig.nextExecutables = [{}];
-    commandRuntimeConfig.loopResults = ['command-rejected'];
+    commandRuntimeConfig.loopResults = [createRejectionResult()];
 
     const outcome = await executePlan({
       parsedResponse: buildResponse({ plan: [{} as never] }),

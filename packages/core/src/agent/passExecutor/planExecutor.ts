@@ -2,6 +2,7 @@ import type ObservationBuilder from '../observationBuilder.js';
 import { PlanRuntime } from './planRuntime.js';
 import type { ExecutableCandidate } from './planRuntime.js';
 import { createCommandRuntime } from './commandRuntime.js';
+import type { CommandRuntimeResult } from './commandRuntime.js';
 import type { DebugEmitter } from './debugEmitter.js';
 import type { PlanManagerAdapter } from './planManagerAdapter.js';
 import type { NormalizedExecuteAgentPassOptions } from './types.js';
@@ -71,8 +72,8 @@ export const executePlan = async ({
 
   try {
     while (nextExecutable) {
-      const loopResult = await commandRuntime.execute(nextExecutable);
-      if (loopResult === 'command-rejected') {
+      const loopResult: CommandRuntimeResult = await commandRuntime.execute(nextExecutable);
+      if (loopResult.status === 'rejected') {
         return 'command-rejected';
       }
       nextExecutable = planRuntime.selectNextExecutableEntry();

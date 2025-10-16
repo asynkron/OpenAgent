@@ -47,3 +47,10 @@ export const createNormalizedOptions = (
   recordRequestPayloadSizeFn: null,
   ...overrides,
 });
+
+describe('passExecutor test utils', () => {
+  test('expose observation builder and options helpers', () => {
+    expect(typeof createObservationBuilderStub).toBe('function');
+    expect(typeof createNormalizedOptions).toBe('function');
+  });
+});
