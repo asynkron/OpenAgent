@@ -9,6 +9,7 @@
 - Prompt & protocol maintenance (`prompt-maintenance.md`, `context-indexing.md`) now documents the sync workflow for mirrored copies and context indexes.
 - Operational runbooks (`ops-overview.md`, `publishing.md`) highlight implementation hotspots for the agent loop, CLI runner, and release automation.
 - FTA review notes (`fta-hotspots.md`) capture the latest static-analysis priorities so engineering work can target the highest-risk files first.
+- Type-tightening investigations (`core-unknown-surfaces.md`) document lingering `Record<string, unknown>` shims inside the core runtime so follow-up refactors have a clear backlog.
 - Engineering design notes (`class-interface-refactor-ideas.md`, `js-dependency-graph.md`) keep architectural diagrams aligned with the current module layout.
 - Workspace notes (`workspace-structure.md`) capture the package split, npm naming strategy, follow-on release steps, and
   guidance on co-locating package-level unit tests while keeping integration suites at the repository root.

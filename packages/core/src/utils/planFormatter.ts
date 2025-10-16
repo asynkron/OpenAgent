@@ -1,13 +1,13 @@
-import type { PlanItem } from './planCloneUtils.js';
+import type { PlanItem, PlanTree } from './planCloneUtils.js';
 
-const normalizePlanIdentifier = (value: unknown): string => {
-  if (typeof value !== 'string') {
+const normalizePlanIdentifier = (value: string | number | null | undefined): string => {
+  if (typeof value !== 'string' && typeof value !== 'number') {
     return '';
   }
-  return value.trim() || '';
+  return String(value).trim() || '';
 };
 
-export const planToMarkdown = (plan: unknown): string => {
+export const planToMarkdown = (plan: PlanTree | null | undefined): string => {
   const header = '# Active Plan\n\n';
 
   if (!Array.isArray(plan) || plan.length === 0) {
@@ -17,25 +17,13 @@ export const planToMarkdown = (plan: unknown): string => {
   const lines: string[] = [];
 
   plan.forEach((item, index) => {
-    if (!item || typeof item !== 'object') {
-      return;
-    }
-
     const planItem = item as PlanItem;
-    const title =
-      typeof planItem.title === 'string' && planItem.title.trim().length > 0
-        ? planItem.title.trim()
-        : `Task ${index + 1}`;
-    const status =
-      typeof planItem.status === 'string' && planItem.status.trim().length > 0
-        ? planItem.status.trim()
-        : '';
+    const title = planItem.title.trim().length > 0 ? planItem.title.trim() : `Task ${index + 1}`;
+    const status = planItem.status.trim();
     const priority = Number.isFinite(Number(planItem.priority)) ? Number(planItem.priority) : null;
-    const dependencies = Array.isArray(planItem.waitingForId)
-      ? planItem.waitingForId
-          .filter((value) => normalizePlanIdentifier(value))
-          .map((value) => String(value).trim())
-      : [];
+    const dependencies = planItem.waitingForId
+      .map((value) => normalizePlanIdentifier(value))
+      .filter((value): value is string => Boolean(value));
 
     const details: string[] = [];
     if (priority !== null) {

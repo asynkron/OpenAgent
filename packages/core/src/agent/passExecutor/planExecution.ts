@@ -1,25 +1,15 @@
-export type PlanStatus = 'pending' | 'running' | 'completed' | 'failed' | 'abandoned' | string;
+import { clonePlanTree, type PlanCommand, type PlanItem, type PlanTree } from '../../utils/plan.js';
+import type { PlanStatus as KnownPlanStatus } from '../../utils/planStatusUtils.js';
 
-export interface PlanCommand {
-  run?: string;
-  shell?: string;
-  [key: string]: unknown;
-}
-
-export interface PlanStep {
-  id?: string | number;
-  status?: PlanStatus;
-  command?: PlanCommand | null;
-  priority?: number | string;
-  [key: string]: unknown;
-}
+export type PlanStatus = PlanItem['status'];
+export type PlanStep = PlanItem;
 
 export interface ExecutablePlanStep {
   step: PlanStep;
   command: PlanCommand;
 }
 
-const TERMINAL_PLAN_STATUSES = new Set<PlanStatus>(['completed', 'failed', 'abandoned']);
+const TERMINAL_PLAN_STATUSES = new Set<KnownPlanStatus>(['completed', 'failed', 'abandoned']);
 
 const normalizeIdentifier = (value: unknown): string | null => {
   if (typeof value === 'string' || typeof value === 'number') {
@@ -31,7 +21,7 @@ const normalizeIdentifier = (value: unknown): string | null => {
 };
 
 export const normalizeWaitingForIds = (step: PlanStep | null | undefined): string[] => {
-  if (!step || typeof step !== 'object') {
+  if (!step) {
     return [];
   }
 
@@ -52,20 +42,19 @@ export const normalizeWaitingForIds = (step: PlanStep | null | undefined): strin
   return normalized;
 };
 
-export const hasCommandPayload = (command: unknown): command is PlanCommand => {
+export const hasCommandPayload = (command: PlanCommand | null | undefined): command is PlanCommand => {
   if (!command || typeof command !== 'object') {
     return false;
   }
 
-  const normalized = command as PlanCommand;
-  const run = typeof normalized.run === 'string' ? normalized.run.trim() : '';
-  const shell = typeof normalized.shell === 'string' ? normalized.shell.trim() : '';
+  const run = typeof command.run === 'string' ? command.run.trim() : '';
+  const shell = typeof command.shell === 'string' ? command.shell.trim() : '';
 
   return Boolean(run || shell);
 };
 
 export const collectExecutablePlanSteps = (
-  plan: PlanStep[] | null | undefined,
+  plan: PlanTree | null | undefined,
 ): ExecutablePlanStep[] => {
   const executable: ExecutablePlanStep[] = [];
 
@@ -74,16 +63,12 @@ export const collectExecutablePlanSteps = (
   }
 
   plan.forEach((item) => {
-    if (!item || typeof item !== 'object') {
-      return;
-    }
-
     const status = typeof item.status === 'string' ? item.status.trim().toLowerCase() : '';
     const waitingFor = normalizeWaitingForIds(item);
 
     if (
       waitingFor.length === 0 &&
-      !TERMINAL_PLAN_STATUSES.has(status) &&
+      !TERMINAL_PLAN_STATUSES.has(status as KnownPlanStatus) &&
       hasCommandPayload(item.command)
     ) {
       executable.push({ step: item, command: item.command! });
@@ -94,11 +79,11 @@ export const collectExecutablePlanSteps = (
 };
 
 export const getPriorityScore = (step: PlanStep | null | undefined): number => {
-  if (!step || typeof step !== 'object') {
+  if (!step) {
     return Number.POSITIVE_INFINITY;
   }
 
-  const numericPriority = Number((step as PlanStep).priority);
+  const numericPriority = Number(step.priority);
   if (Number.isFinite(numericPriority)) {
     return numericPriority;
   }
@@ -106,10 +91,6 @@ export const getPriorityScore = (step: PlanStep | null | undefined): number => {
   return Number.POSITIVE_INFINITY;
 };
 
-export const clonePlanForExecution = (plan: PlanStep[] | null | undefined): PlanStep[] => {
-  if (!Array.isArray(plan)) {
-    return [];
-  }
-
-  return JSON.parse(JSON.stringify(plan)) as PlanStep[];
+export const clonePlanForExecution = (plan: PlanTree | null | undefined): PlanTree => {
+  return clonePlanTree(plan ?? []);
 };

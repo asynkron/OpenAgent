@@ -3,22 +3,10 @@
  * The helpers live outside the main export so individual checks remain testable.
  */
 import type { AssistantResponseValidationResult, PlanValidationState } from './types.js';
+import type { PlanCommand, PlanItem } from '../../utils/plan.js';
 
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'abandoned']);
 const ALLOWED_STATUSES = new Set(['pending', 'completed', 'failed', 'abandoned']);
-
-type CommandPayload = Record<string, unknown> & {
-  run?: unknown;
-  shell?: unknown;
-};
-
-type PlanItem = Record<string, unknown> & {
-  id?: unknown;
-  step?: unknown;
-  title?: unknown;
-  status?: unknown;
-  command?: unknown;
-};
 
 type AssistantResponsePayload = Record<string, unknown> & {
   message?: unknown;
@@ -37,13 +25,14 @@ function normalizeStatus(value: unknown): string {
   return value.trim().toLowerCase();
 }
 
-function hasExecutableCommand(command: unknown): command is CommandPayload {
-  if (!isPlainObject(command)) {
+function hasExecutableCommand(command: unknown): command is PlanCommand {
+  if (!command || typeof command !== 'object') {
     return false;
   }
 
-  const run = typeof command.run === 'string' ? command.run.trim() : '';
-  const shell = typeof command.shell === 'string' ? command.shell.trim() : '';
+  const candidate = command as PlanCommand;
+  const run = typeof candidate.run === 'string' ? candidate.run.trim() : '';
+  const shell = typeof candidate.shell === 'string' ? candidate.shell.trim() : '';
 
   return Boolean(run || shell);
 }
@@ -59,7 +48,7 @@ function validatePlanItem(
     return;
   }
 
-  const candidate = item as PlanItem;
+  const candidate = item as Partial<PlanItem> & { step?: unknown };
   const idLabel = typeof candidate.id === 'string' ? candidate.id.trim() : '';
   const stepLabel = typeof candidate.step === 'string' ? candidate.step.trim() : '';
   if (!idLabel) {

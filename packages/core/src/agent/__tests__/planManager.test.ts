@@ -14,9 +14,10 @@ describe('createPlanManager', () => {
 
     await planManager.update([
       {
-        step: '1',
+        id: '1',
         title: 'Do something',
         status: 'pending',
+        waitingForId: [],
         command: { run: 'echo hi', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
       },
     ]);
@@ -24,7 +25,7 @@ describe('createPlanManager', () => {
     const merged = await planManager.update([]);
     expect(Array.isArray(merged)).toBe(true);
     expect(merged).toHaveLength(1);
-    expect(merged[0].step).toBe('1');
+    expect(merged[0].id).toBe('1');
   });
 
   test('sync persists provided plan snapshot without merging', async () => {
@@ -35,18 +36,20 @@ describe('createPlanManager', () => {
     await planManager.initialize();
     await planManager.update([
       {
-        step: '1',
+        id: '1',
         title: 'Do something',
         status: 'pending',
+        waitingForId: [],
         command: { run: 'echo hi', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
       },
     ]);
 
     const runningPlan = [
       {
-        step: '1',
+        id: '1',
         title: 'Do something',
         status: 'running',
+        waitingForId: [],
         command: { run: 'echo hi', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
       },
     ];

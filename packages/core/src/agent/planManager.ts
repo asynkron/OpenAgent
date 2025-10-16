@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Plan manager and progress tracking helpers.
  *
@@ -7,10 +6,12 @@
  * session and never written to or read from disk.
  */
 
-import { mergePlanTrees, computePlanProgress, clonePlanTree } from '../utils/plan.js';
-
-export type PlanNode = Record<string, unknown>;
-export type PlanTree = PlanNode[];
+import {
+  mergePlanTrees,
+  computePlanProgress,
+  clonePlanTree,
+  type PlanTree,
+} from '../utils/plan.js';
 
 export interface PlanProgress {
   completedSteps: number;
@@ -33,14 +34,14 @@ export type EmitStatusFn = (event: {
 export interface PlanManagerOptions {
   emit: EmitFn;
   emitStatus: EmitStatusFn;
-  clonePlan?: (plan: PlanTree) => PlanTree;
+  clonePlan?: (plan: PlanTree | null | undefined) => PlanTree;
   computeProgress?: (plan: PlanTree) => PlanProgress;
 }
 
-const defaultClone = (plan: PlanTree): PlanTree => clonePlanTree(plan);
+const defaultClone = (plan: PlanTree | null | undefined): PlanTree => clonePlanTree(plan ?? []);
 
 const isErrorWithCode = (value: unknown): value is { code?: unknown } =>
-  Boolean(value) && typeof value === 'object' && 'code' in value;
+  typeof value === 'object' && value !== null && 'code' in value;
 
 function formatStatusEvent(level: string, message: string, details?: unknown) {
   const event: { type: 'status'; level: string; message: string; details?: unknown } = {
@@ -103,14 +104,16 @@ export function createPlanManager({
     },
     async update(nextPlan: PlanTree | null | undefined): Promise<PlanTree> {
       const merging = true;
-      if (!Array.isArray(nextPlan) || nextPlan.length === 0) {
+      const sanitizedNextPlan = clonePlan(nextPlan);
+
+      if (!nextPlan || nextPlan.length === 0) {
         if (!merging) {
           activePlan = [];
         }
       } else if (merging && activePlan.length > 0) {
-        activePlan = mergePlanTrees(activePlan, nextPlan as PlanTree);
+        activePlan = mergePlanTrees(activePlan, sanitizedNextPlan);
       } else {
-        activePlan = clonePlan(nextPlan as PlanTree);
+        activePlan = sanitizedNextPlan;
       }
 
       emitPlanProgressEvent(activePlan);
@@ -118,7 +121,7 @@ export function createPlanManager({
       return clonePlan(activePlan);
     },
     async sync(nextPlan: PlanTree | null | undefined): Promise<PlanTree> {
-      if (!Array.isArray(nextPlan)) {
+      if (!nextPlan) {
         activePlan = [];
       } else {
         activePlan = clonePlan(nextPlan);

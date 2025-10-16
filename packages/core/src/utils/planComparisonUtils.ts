@@ -1,3 +1,5 @@
+import type { PlanCommand } from './planCloneUtils.js';
+
 export const valuesAreEqual = (a: unknown, b: unknown): boolean => {
   if (a === b) {
     return true;
@@ -46,12 +48,11 @@ export const valuesAreEqual = (a: unknown, b: unknown): boolean => {
   return true;
 };
 
-export const commandsAreEqual = (existingCommand: unknown, incomingCommand: unknown): boolean => {
-  if (!existingCommand || typeof existingCommand !== 'object') {
-    return false;
-  }
-
-  if (!incomingCommand || typeof incomingCommand !== 'object') {
+export const commandsAreEqual = (
+  existingCommand: PlanCommand | null | undefined,
+  incomingCommand: PlanCommand | null | undefined,
+): boolean => {
+  if (!existingCommand || !incomingCommand) {
     return false;
   }
 

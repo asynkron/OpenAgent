@@ -13,6 +13,10 @@ type RuntimeEventBase<
   Payload extends Record<string, unknown> = Record<string, unknown>,
 > = Payload & { type: Type; __id?: string };
 
+export interface RequestInputMetadata {
+  scope: string;
+}
+
 export type BannerRuntimeEvent = RuntimeEventBase<
   'banner',
   { title?: string | null; subtitle?: string | null }
@@ -69,7 +73,7 @@ export type ErrorRuntimeEvent = RuntimeEventBase<
 
 export type RequestInputRuntimeEvent = RuntimeEventBase<
   'request-input',
-  { prompt?: string; metadata?: unknown }
+  { prompt?: string; metadata?: RequestInputMetadata | null }
 >;
 
 export type DebugRuntimeEvent = RuntimeEventBase<
@@ -181,7 +185,7 @@ export type ExitState =
 
 export type InputRequestState = {
   prompt: string;
-  metadata: unknown;
+  metadata: RequestInputMetadata | null;
 };
 
 export type PlanProgressState = {

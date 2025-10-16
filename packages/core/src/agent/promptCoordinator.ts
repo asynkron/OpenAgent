@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Coordinates prompt requests coming from the agent runtime with responses from the UI layer.
  *
@@ -15,7 +14,28 @@
  */
 import type { EscState } from './escState.js';
 
-export type EmitEventFn = (event: Record<string, unknown>) => void;
+export type PromptRequestScope = 'approval' | 'user-input' | (string & {});
+
+export interface PromptRequestMetadata {
+  scope: PromptRequestScope;
+}
+
+export interface PromptRequestEvent {
+  type: 'request-input';
+  prompt: string;
+  metadata: PromptRequestMetadata;
+}
+
+export interface PromptStatusEvent {
+  type: 'status';
+  level: 'info' | 'warn' | 'error';
+  message: string;
+  details?: unknown;
+}
+
+export type PromptCoordinatorEvent = PromptRequestEvent | PromptStatusEvent;
+
+export type EmitEventFn = (event: PromptCoordinatorEvent) => void;
 export type CancelFn = (reason?: unknown) => void;
 
 export interface PromptCoordinatorOptions {
@@ -52,7 +72,10 @@ export class PromptCoordinator {
     return false;
   }
 
-  request(prompt: string, metadata: Record<string, unknown> = {}): Promise<string> {
+  request(
+    prompt: string,
+    metadata: PromptRequestMetadata = { scope: 'user-input' },
+  ): Promise<string> {
     this.emitEvent({ type: 'request-input', prompt, metadata });
 
     if (this.buffered.length > 0) {
