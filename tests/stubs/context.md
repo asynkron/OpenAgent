@@ -7,7 +7,7 @@
 
 ## Key Files
 
-- `ai.ts` — stub for the Vercel `ai` package; tests mock `generateText` / `generateObject` on top of this placeholder.
+- `ai.ts` — stub for the Vercel `ai` package; tests mock `generateText` / `generateObject` / `streamObject` on top of this placeholder.
 - `aiSdkOpenAI.ts` — stub for `@ai-sdk/openai`, returning a callable provider with a `responses()` helper so tests mimic the real SDK surface.
 - `openai.ts` — placeholder for the official OpenAI SDK; instantiation throws so tests must mock it explicitly.
 

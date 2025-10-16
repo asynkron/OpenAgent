@@ -8,3 +8,10 @@ export async function generateText() {
 export async function generateObject() {
   throw new Error('generateObject stub invoked without a test mock.');
 }
+
+// The runtime streams structured tool responses with `streamObject`; expose a
+// matching placeholder so Jest can mock it during tests without hitting the
+// real SDK surface.
+export function streamObject() {
+  throw new Error('streamObject stub invoked without a test mock.');
+}
