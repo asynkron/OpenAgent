@@ -1,6 +1,6 @@
 import type { ChatDomController } from './chat_domController.js';
 import type { ChatRouteAction } from './chat_router.js';
-import type { ChatSessionController } from './chat_session.js';
+import type { ChatSessionState } from './chat_sessionController.js';
 
 export interface ChatActionRunner {
   run(actions: ChatRouteAction[]): void;
@@ -11,7 +11,7 @@ export function createChatActionRunner({
   session,
 }: {
   dom: ChatDomController;
-  session: ChatSessionController;
+  session: ChatSessionState;
 }): ChatActionRunner {
   const ensureConversationStarted = (): void => {
     if (!session.startConversation()) {
