@@ -17,6 +17,7 @@
 // Tool schema (Zod) and DTOs
 // -----------------------------
 import { jsonSchema as asJsonSchema } from '@ai-sdk/provider-utils';
+import type { GenerateObjectResult, GenerateTextResult, ToolSet } from 'ai';
 import { z } from 'zod';
 
 import { DEFAULT_COMMAND_MAX_BYTES, DEFAULT_COMMAND_TAIL_LINES } from '../constants.js';
@@ -203,7 +204,7 @@ export const ToolDefinition = Object.freeze({
   name: 'open-agent',
   description:
     'Return the response envelope that matches the OpenAgent protocol (message, plan, and command fields).',
-  schema: asJsonSchema(() => ToolResponseJsonSchema as any),
+  schema: asJsonSchema<ToolResponse>(() => ToolResponseJsonSchema),
 });
 
 // Runtime (AJV) validation schema — less strict than provider schema
@@ -285,12 +286,12 @@ export type AiResponseOutput = AiResponseFunctionCall | AiResponseMessage;
 export type StructuredModelResponse = {
   output_text: string;
   output: AiResponseOutput[];
-  structured: unknown;
+  structured: GenerateObjectResult<ToolResponse>;
 };
 export type TextModelResponse = {
   output_text: string;
   output: AiResponseOutput[];
-  text: unknown;
+  text: GenerateTextResult<ToolSet, string>;
 };
 
 // ---------------------------------

@@ -1,4 +1,5 @@
 import { describe, expect, jest, test } from '@jest/globals';
+import type { ToolResponse } from '../../contracts/index.js';
 
 let streamObjectMock: jest.Mock;
 
@@ -56,9 +57,9 @@ describe('createResponse uses generateObject with tool schema', () => {
 
   test('emits structured stream callbacks when provided', async () => {
     const { createResponse } = await import('../responses.ts');
-    const partials = [
-      { step: 'one' },
-      { step: 'two' },
+    const partials: Array<Partial<ToolResponse>> = [
+      { message: 'First partial message' },
+      { plan: [] },
     ];
 
     streamObjectMock.mockImplementation(() => ({
