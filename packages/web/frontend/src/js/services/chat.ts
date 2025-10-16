@@ -8,17 +8,21 @@ import {
   createChatInputController,
   type ChatInputController,
 } from './chat_inputController.js';
+import { createChatActionRunner } from './chat_actionRunner.js';
+import {
+  createChatConnection,
+  type ChatConnection,
+  type ChatSocketStatusUpdate,
+} from './chat_connection.js';
 import {
   createChatRouter,
   parseAgentPayload,
   type AgentIncomingPayload,
-  type ChatRouteAction,
 } from './chat_router.js';
 import {
-  createChatSocketManager,
-  type ChatSocketManager,
-  type ChatSocketStatusUpdate,
-} from './chat_socket.js';
+  createChatSessionController,
+  type ChatSessionController,
+} from './chat_session.js';
 
 type OptionalElement<T extends Element> = T | null | undefined;
 
@@ -91,89 +95,54 @@ export function createChatService({
     autoResizeInput: autoResize,
   });
 
-  let destroyed = false;
-  let hasConversation = false;
-  let socketConnected = false;
-  let socketManager: ChatSocketManager | null = null;
+  const session: ChatSessionController = createChatSessionController();
   const router = createChatRouter();
+  const actionRunner = createChatActionRunner({ dom, session });
 
   const ensureConversationStarted = (): void => {
-    if (hasConversation) {
-      return;
-    }
-    hasConversation = true;
-    dom.ensureConversationStarted();
-  };
-
-  const updatePanelState = (): void => {
-    dom.updatePanelState(hasConversation);
-  };
-
-  const applyRouteActions = (actions: ChatRouteAction[]): void => {
-    for (const action of actions) {
-      if (destroyed) {
-        return;
-      }
-      switch (action.type) {
-        case 'thinking':
-          dom.setThinking(action.active);
-          break;
-        case 'status':
-          if (action.clear) {
-            dom.setStatus('');
-          } else {
-            dom.setStatus(action.message, { level: action.level });
-          }
-          break;
-        case 'message':
-          if (action.startConversation) {
-            ensureConversationStarted();
-          }
-          if (action.text) {
-            dom.appendMessage(action.role, action.text);
-          }
-          break;
-        case 'plan':
-          if (action.startConversation) {
-            ensureConversationStarted();
-          }
-          dom.updatePlan(action.steps);
-          break;
-        case 'event':
-          if (action.startConversation) {
-            ensureConversationStarted();
-          }
-          dom.appendEvent(action.eventType, action.payload);
-          break;
-        case 'command':
-          if (action.startConversation) {
-            ensureConversationStarted();
-          }
-          dom.appendCommand(action.payload);
-          break;
-        default:
-          break;
-      }
+    if (session.startConversation()) {
+      dom.ensureConversationStarted();
     }
   };
 
-  const handleAgentPayload = (payload: AgentIncomingPayload): void => {
-    if (destroyed) {
+  let inputController: ChatInputController | null = null;
+  let connection: ChatConnection | null = null;
+
+  const routeAgentPayload = (payload: AgentIncomingPayload): void => {
+    if (session.isDestroyed()) {
       return;
     }
     const actions = router.route(payload);
-    applyRouteActions(actions);
+    actionRunner.run(actions);
   };
 
   const handleSocketStatus = (status: ChatSocketStatusUpdate): void => {
-    if (destroyed) {
+    if (session.isDestroyed()) {
       return;
     }
     dom.setThinking(false);
     dom.setStatus(status.message, { level: status.level });
   };
 
-  let inputController: ChatInputController | null = null;
+  connection = createChatConnection({
+    windowRef,
+    reconnectDelay,
+    parsePayload: parseAgentPayload,
+    onStatus: handleSocketStatus,
+    onPayload: routeAgentPayload,
+    onConnectionChange(connected) {
+      session.setSocketConnected(connected);
+      if (!inputController) {
+        return;
+      }
+      if (connected) {
+        dom.setThinking(false);
+        inputController.flushPending();
+      }
+    },
+  });
+
+  session.setSocketConnected(connection.isConnected());
 
   inputController = createChatInputController({
     startForm: startForm ?? null,
@@ -188,45 +157,27 @@ export function createChatService({
       return true;
     },
     onQueueUpdate(pending) {
-      if (pending.length > 0 && !socketConnected) {
+      if (pending.length > 0 && !session.isSocketConnected()) {
         dom.setStatus('Waiting for the agent runtime connection...');
-        socketManager?.connect();
+        connection?.connect();
       }
     },
   });
 
-  socketManager = createChatSocketManager({
-    windowRef,
-    reconnectDelay,
-    parsePayload: parseAgentPayload,
-    onStatus: handleSocketStatus,
-    onPayload: handleAgentPayload,
-    onConnectionChange(connected) {
-      socketConnected = connected;
-      if (!inputController) {
-        return;
-      }
-      if (connected) {
-        dom.setThinking(false);
-        inputController.flushPending();
-      }
-    },
-  });
-
-  inputController.registerSender((message) => socketManager?.sendPrompt(message) ?? false);
+  inputController.registerSender((message) => connection?.sendPrompt(message) ?? false);
 
   dom.setStatus('');
-  updatePanelState();
+  dom.updatePanelState(session.hasConversation());
 
   return {
     connect(): void {
-      socketManager?.connect();
+      connection?.connect();
     },
     dispose(): void {
-      destroyed = true;
+      session.markDestroyed();
       dom.dispose();
-      socketManager?.dispose();
-      socketManager = null;
+      connection?.dispose();
+      connection = null;
       inputController?.dispose();
       inputController = null;
     },
