@@ -1,30 +1,23 @@
-import { autoResize } from './chat_dom.js';
-import {
-  createChatDomController,
-  type ChatDomController,
-  type ChatInputElement,
-} from './chat_domController.js';
-import {
-  createChatInputController,
-  type ChatInputController,
-} from './chat_inputController.js';
 import { createChatActionRunner } from './chat_actionRunner.js';
+import { createChatBootstrap } from './chat_bootstrap.js';
 import {
-  createChatConnection,
-  type ChatConnection,
-  type ChatSocketStatusUpdate,
-} from './chat_connection.js';
-import {
-  createChatRouter,
-  parseAgentPayload,
-  type AgentIncomingPayload,
-} from './chat_router.js';
+  createChatLifecycle,
+  type ChatLifecycle,
+  type ChatLifecycleEvent,
+} from './chat_lifecycle.js';
+import { createChatRouter, parseAgentPayload } from './chat_router.js';
 import {
   createChatSessionController,
-  type ChatSessionController,
-} from './chat_session.js';
+  createChatSessionState,
+  type ChatSessionApi,
+} from './chat_sessionController.js';
+import type { ChatInputElement } from './chat_domController.js';
 
 type OptionalElement<T extends Element> = T | null | undefined;
+
+type ChatLifecycleSubscription = () => void;
+
+type ChatServiceTeardown = () => void;
 
 export interface ChatServiceOptions {
   panel: OptionalElement<HTMLElement>;
@@ -48,6 +41,25 @@ export interface ChatServiceApi {
   dispose(): void;
 }
 
+function subscribeLifecycle(
+  lifecycle: ChatLifecycle,
+  handler: (event: ChatLifecycleEvent) => void,
+): ChatLifecycleSubscription {
+  return lifecycle.subscribe(handler);
+}
+
+function composeTeardown(...teardowns: ChatServiceTeardown[]): ChatServiceTeardown {
+  return () => {
+    for (const teardown of teardowns) {
+      try {
+        teardown();
+      } catch (error) {
+        console.warn('Failed to tear down chat service dependency', error);
+      }
+    }
+  };
+}
+
 export function createChatService({
   panel: panelElement,
   startContainer,
@@ -64,122 +76,73 @@ export function createChatService({
   windowRef = window,
   documentRef = document,
 }: ChatServiceOptions): ChatServiceApi | null {
-  if (!panelElement) {
-    return null;
-  }
-
-  const panelRef = panelElement;
-  const sendButtons = new Set<HTMLButtonElement>();
-
-  const startButton = startForm?.querySelector<HTMLButtonElement>('button[type="submit"]');
-  if (startButton) {
-    sendButtons.add(startButton);
-  }
-  const chatButton = chatForm?.querySelector<HTMLButtonElement>('button[type="submit"]');
-  if (chatButton) {
-    sendButtons.add(chatButton);
-  }
-
-  const dom: ChatDomController = createChatDomController({
-    panel: panelRef,
+  const bootstrap = createChatBootstrap({
+    panel: panelElement ?? null,
     startContainer: startContainer ?? null,
+    startForm: startForm ?? null,
+    startInput: startInput ?? null,
     chatContainer: chatContainer ?? null,
     chatBody: chatBody ?? null,
     messageList: messageList ?? null,
-    chatInput: chatInput ?? null,
+    chatForm: chatForm ?? null,
+    chatInput: (chatInput ?? null) as ChatInputElement | null,
     planContainer: planContainer ?? null,
     statusElement: statusElement ?? null,
     windowRef,
     documentRef,
-    sendButtons,
-    autoResizeInput: autoResize,
   });
 
-  const session: ChatSessionController = createChatSessionController();
+  if (!bootstrap) {
+    return null;
+  }
+
+  const { dom, input, updateHandlers, dispose: disposeBootstrap } = bootstrap;
+
+  const sessionState = createChatSessionState();
+  const actionRunner = createChatActionRunner({ dom, session: sessionState });
   const router = createChatRouter();
-  const actionRunner = createChatActionRunner({ dom, session });
 
-  const ensureConversationStarted = (): void => {
-    if (session.startConversation()) {
-      dom.ensureConversationStarted();
-    }
-  };
-
-  let inputController: ChatInputController | null = null;
-  let connection: ChatConnection | null = null;
-
-  const routeAgentPayload = (payload: AgentIncomingPayload): void => {
-    if (session.isDestroyed()) {
-      return;
-    }
-    const actions = router.route(payload);
-    actionRunner.run(actions);
-  };
-
-  const handleSocketStatus = (status: ChatSocketStatusUpdate): void => {
-    if (session.isDestroyed()) {
-      return;
-    }
-    dom.setThinking(false);
-    dom.setStatus(status.message, { level: status.level });
-  };
-
-  connection = createChatConnection({
+  const lifecycle = createChatLifecycle({
     windowRef,
     reconnectDelay,
     parsePayload: parseAgentPayload,
-    onStatus: handleSocketStatus,
-    onPayload: routeAgentPayload,
-    onConnectionChange(connected) {
-      session.setSocketConnected(connected);
-      if (!inputController) {
-        return;
-      }
-      if (connected) {
-        dom.setThinking(false);
-        inputController.flushPending();
-      }
-    },
   });
 
-  session.setSocketConnected(connection.isConnected());
-
-  inputController = createChatInputController({
-    startForm: startForm ?? null,
-    startInput: startInput ?? null,
-    chatForm: chatForm ?? null,
-    chatInput: chatInput ?? null,
-    autoResizeInput: autoResize,
-    isBlocked: () => dom.isThinking(),
-    onMessageSubmit(message) {
-      ensureConversationStarted();
-      dom.appendMessage('user', message);
-      return true;
-    },
-    onQueueUpdate(pending) {
-      if (pending.length > 0 && !session.isSocketConnected()) {
-        dom.setStatus('Waiting for the agent runtime connection...');
-        connection?.connect();
-      }
-    },
+  const session: ChatSessionApi = createChatSessionController({
+    dom,
+    input,
+    lifecycle,
+    routePayload: (payload) => router.route(payload),
+    runActions: (actions) => actionRunner.run(actions),
+    state: sessionState,
   });
 
-  inputController.registerSender((message) => connection?.sendPrompt(message) ?? false);
+  updateHandlers({
+    onMessageSubmit: (message) => session.handleUserMessage(message),
+    onQueueUpdate: (pending) => session.handleQueueUpdate(pending),
+  });
 
-  dom.setStatus('');
-  dom.updatePanelState(session.hasConversation());
+  const unsubscribeLifecycle = subscribeLifecycle(lifecycle, (event) => {
+    session.handleLifecycleEvent(event);
+  });
+
+  input.registerSender((message) => lifecycle.sendPrompt(message));
+
+  session.initialize();
+
+  const dispose = composeTeardown(
+    unsubscribeLifecycle,
+    () => session.dispose(),
+    () => lifecycle.dispose(),
+    () => disposeBootstrap(),
+  );
 
   return {
     connect(): void {
-      connection?.connect();
+      lifecycle.connect();
     },
     dispose(): void {
-      session.markDestroyed();
-      dom.dispose();
-      connection?.dispose();
-      connection = null;
-      inputController?.dispose();
-      inputController = null;
+      dispose();
     },
   };
 }

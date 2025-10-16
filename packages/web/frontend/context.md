@@ -8,7 +8,7 @@
 
 ## Key Components
 
-- `src/js/` — TypeScript sources for chat services, plan renderer, and unified application bootstrap logic. Chat wiring now reuses `services/chat_highlight.ts`, `services/chat_dom.ts`, and `services/chat_domController.ts` to keep markdown rendering, DOM listener utilities, and UI mutations isolated from the main chat orchestrator; helper controllers (`services/chat_session.ts`, `services/chat_actionRunner.ts`, and `services/chat_connection.ts`) further split session state, action dispatch, and socket wiring from `services/chat.ts`.
+- `src/js/` — TypeScript sources for chat services, plan renderer, and unified application bootstrap logic. Chat wiring now reuses `services/chat_highlight.ts`, `services/chat_dom.ts`, and `services/chat_domController.ts` to keep markdown rendering, DOM listener utilities, and UI mutations isolated from the main chat orchestrator; helper controllers (`services/chat_sessionController.ts`, `services/chat_actionRunner.ts`, and `services/chat_lifecycle.ts`) further split session state, action dispatch, and socket wiring from `services/chat.ts`.
 - `src/css/` — Stylesheets bundled alongside JavaScript for the frontend UI.
 - `scripts/ensure-esbuild.mjs` — Rebuild helper guaranteeing esbuild binary compatibility before bundling.
 
@@ -38,3 +38,4 @@
 - WebSocket lifecycle cleanup now removes listeners and ignores stale socket messages in `services/chat.ts`, preventing duplicate renders after reconnects and reducing memory pressure during repeated reconnect cycles.
 - Extracted DOM mutations into `services/chat_domController.ts` so `services/chat.ts` focuses on socket orchestration while the controller manages message rendering, status updates, and plan display resets.
 - Further decomposed the chat orchestration into `chat_socket.ts`, `chat_router.ts`, and `chat_inputController.ts` so socket lifecycle, payload routing, and input handling stay isolated and testable; new Jest suites cover reconnection, routing, and queued input dispatch behaviour.
+- Refactored the chat entrypoint to compose `chat_bootstrap.ts`, `chat_lifecycle.ts`, and `chat_sessionController.ts`, pushing socket observers, pending-queue prompts, and DOM bootstrap glue into dedicated modules while tightening discriminated-union typings across lifecycle events.
