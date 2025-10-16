@@ -55,6 +55,47 @@ describe('executeAgentPass', () => {
     expect(finalPlanEvent.plan[0].status).toBe('completed');
   });
 
+  test('returns true when a human rejects the command so the next pass can run', async () => {
+    const {
+      executeAgentPass,
+      parseAssistantResponse,
+      executeAgentCommand,
+      planHasOpenSteps,
+    } = await setupPassExecutor();
+
+    planHasOpenSteps.mockReturnValue(true);
+    parseAssistantResponse.mockImplementation(() => ({
+      ok: true,
+      value: {
+        message: 'Executing plan',
+        plan: [
+          {
+            step: '1',
+            title: 'Rejected step',
+            status: 'pending',
+            command: { run: 'echo nope', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
+          },
+        ],
+      },
+      recovery: { strategy: 'direct' },
+    }));
+
+    const approvalManager = {
+      shouldAutoApprove: jest.fn(() => ({ approved: false, source: null })),
+      requestHumanDecision: jest.fn(async () => ({ decision: 'reject' as const })),
+      recordSessionApproval: jest.fn(),
+    };
+
+    const context = createTestContext(3);
+    context.approvalManager = approvalManager as never;
+
+    const result = await executeAgentPass(context);
+
+    expect(result).toBe(true);
+    expect(approvalManager.requestHumanDecision).toHaveBeenCalledTimes(1);
+    expect(executeAgentCommand).not.toHaveBeenCalled();
+  });
+
   test('merges incoming plans and marks successful commands as completed', async () => {
     const { executeAgentPass, parseAssistantResponse, executeAgentCommand, planHasOpenSteps } =
       await setupPassExecutor({

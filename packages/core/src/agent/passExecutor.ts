@@ -39,6 +39,12 @@ export async function executeAgentPass(options: ExecuteAgentPassOptions): Promis
     return finalizePass(false);
   }
 
+  if (planOutcome === 'command-rejected') {
+    // Treat human rejections as a successful pass so the next iteration can
+    // react to the feedback instead of terminating the loop early.
+    return finalizePass(true);
+  }
+
   return finalizePass(true);
 }
 
