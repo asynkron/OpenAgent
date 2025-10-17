@@ -5,7 +5,7 @@
 
 import { SYSTEM_PROMPT } from '../config/systemPrompt.js';
 import { getOpenAIClient, MODEL } from '../openai/client.js';
-import type { ResponsesClient } from '../openai/responses.js';
+import type { ResponsesClient } from '../contracts/index.js';
 import { runCommand } from '../commands/run.js';
 import {
   isPreapprovedCommand,

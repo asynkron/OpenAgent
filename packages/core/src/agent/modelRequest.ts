@@ -13,13 +13,13 @@
  * TypeScript directly.
  */
 import { register as registerCancellation } from '../utils/cancellation.js';
-import {
-  createResponse,
-  type CreateResponseResult,
-  type ResponseCallOptions,
-  type ResponsesClient,
-  type ToolResponseStreamPartial,
-} from '../openai/responses.js';
+import { createResponse } from '../openai/responses.js';
+import type {
+  CreateResponseResult,
+  ResponseCallOptions,
+  ResponsesClient,
+  ToolResponseStreamPartial,
+} from '../contracts/index.js';
 import { getOpenAIRequestSettings } from '../openai/client.js';
 import { createEscWaiter, resetEscState, type EscState } from './escState.js';
 import { createObservationHistoryEntry, type ObservationRecord } from './historyMessageBuilder.js';

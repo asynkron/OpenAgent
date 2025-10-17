@@ -1,4 +1,4 @@
-import type { ResponsesClient } from '../openai/responses.js';
+import type { ResponsesClient } from '../contracts/index.js';
 import type { HistoryCompactor, HistoryCompactorOptions } from './historyCompactor.js';
 import type {
   GuardRequestPayloadSizeFn,
