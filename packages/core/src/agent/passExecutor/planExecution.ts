@@ -1,20 +1,9 @@
 import { TERMINAL_PLAN_STATUS_SET, normalizePlanStatus, type PlanStatus } from '../../utils/planStatusTypes.js';
+import type { PlanCommand, PlanEntry } from './planTypes.js';
 
 export type { PlanStatus } from '../../utils/planStatusTypes.js';
-
-export interface PlanCommand {
-  run?: string;
-  shell?: string;
-  [key: string]: unknown;
-}
-
-export interface PlanStep {
-  id?: string | number;
-  status?: PlanStatus | string;
-  command?: PlanCommand | null;
-  priority?: number | string;
-  [key: string]: unknown;
-}
+export type { PlanCommand } from './planTypes.js';
+export type PlanStep = PlanEntry;
 
 export interface ExecutablePlanStep {
   step: PlanStep;

@@ -7,6 +7,7 @@ import {
   syncPlanSnapshot,
 } from '../persistence.js';
 import { globalRegistry } from '../../planStepRegistry.js';
+import type { PlanEntry } from '../../planTypes.js';
 
 describe('planRuntime persistence helpers', () => {
   beforeEach(() => {
@@ -23,7 +24,7 @@ describe('planRuntime persistence helpers', () => {
   test('resolveActivePlan filters completed steps', async () => {
     globalRegistry.markCompleted('done');
     const planManager = {
-      async resolveActivePlan() {
+      async resolveActivePlan(): Promise<PlanEntry[]> {
         return [
           { id: 'done', status: 'completed', command: { run: 'echo ok' } },
           { id: 'next', status: 'pending', command: { run: 'echo next' } },
@@ -51,7 +52,7 @@ describe('planRuntime persistence helpers', () => {
 
   test('resetPersistedPlan clears state on success and failure', async () => {
     const planManager = {
-      async resetPlanSnapshot() {
+      async resetPlanSnapshot(): Promise<PlanEntry[]> {
         return [{ id: 'fresh', command: { run: 'echo refreshed' } }];
       },
     };
