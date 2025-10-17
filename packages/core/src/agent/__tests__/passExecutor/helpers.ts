@@ -6,7 +6,14 @@ import { DEFAULT_COMMAND_MAX_BYTES } from '../../../constants.js';
 export const createMockRequestModelCompletion = () => {
   const requestModelCompletion = jest
     .fn()
-    .mockResolvedValue({ status: 'success', completion: { id: 'cmpl_1' } });
+    .mockResolvedValue({
+      status: 'success',
+      completion: {
+        output_text: '',
+        output: [],
+        text: {} as never,
+      },
+    });
   jest.unstable_mockModule('../../modelRequest.js', () => ({
     requestModelCompletion,
     default: { requestModelCompletion },
