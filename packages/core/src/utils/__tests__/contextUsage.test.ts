@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* eslint-env jest */
 import { afterEach, beforeEach, describe, expect, test } from '@jest/globals';
 

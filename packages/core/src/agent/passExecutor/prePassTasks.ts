@@ -1,15 +1,26 @@
 import type ObservationBuilder from '../observationBuilder.js';
-import type { ResponsesClient } from '../../contracts/index.js';
+import type { ResponsesClient } from '../../openai/responses.js';
 import type { EscState } from '../escState.js';
 import type { HistoryCompactor } from '../historyCompactor.js';
 import type { ChatMessageEntry } from '../historyEntry.js';
-import type {
-  EmitEvent,
-  GuardRequestPayloadSizeFn,
-  GuardRequestPayloadSizeInput,
-  RecordRequestPayloadSizeFn,
-} from './types.js';
-import type { DebugEmitter } from './debugEmitter.js';
+
+export type EmitEvent = (event: Record<string, unknown>) => void;
+
+export interface GuardRequestPayloadSizeInput {
+  history: ChatMessageEntry[];
+  model: string;
+  passIndex: number;
+}
+
+export type GuardRequestPayloadSizeFn =
+  | ((options: GuardRequestPayloadSizeInput) => Promise<void>)
+  | null
+  | undefined;
+
+export type RecordRequestPayloadSizeFn =
+  | ((options: GuardRequestPayloadSizeInput) => Promise<void>)
+  | null
+  | undefined;
 
 type SummarizeContextUsageFn =
   (typeof import('../../utils/contextUsage.js'))['summarizeContextUsage'];
@@ -130,7 +141,7 @@ export const requestAssistantCompletion = async ({
   requestModelCompletionFn: RequestModelCompletionFn;
   extractOpenAgentToolCallFn: ExtractOpenAgentToolCallFn;
   createChatMessageEntryFn: CreateChatMessageEntryFn;
-  emitDebug: DebugEmitter['emit'];
+  emitDebug: (payloadOrFactory: unknown) => void;
   emitEvent: EmitEvent;
   observationBuilder: ObservationBuilder;
   openai: ResponsesClient;

@@ -13,20 +13,19 @@
  * TypeScript directly.
  */
 import { register as registerCancellation } from '../utils/cancellation.js';
-import { createResponse } from '../openai/responses.js';
-import type {
-  CreateResponseResult,
-  ResponseCallOptions,
-  ResponsesClient,
-  ToolResponseStreamPartial,
-} from '../contracts/index.js';
+import {
+  createResponse,
+  type CreateResponseResult,
+  type ResponseCallOptions,
+  type ResponsesClient,
+  type ToolResponseStreamPartial,
+} from '../openai/responses.js';
 import { getOpenAIRequestSettings } from '../openai/client.js';
 import { createEscWaiter, resetEscState, type EscState } from './escState.js';
 import { createObservationHistoryEntry, type ObservationRecord } from './historyMessageBuilder.js';
 import { buildOpenAgentRequestPayload } from './modelRequestPayload.js';
 import type { ObservationBuilder } from './observationBuilder.js';
 import type { ChatMessageEntry } from './historyEntry.js';
-import type { EmitEvent } from './passExecutor/types.js';
 
 interface CancellationRegistrationOptions {
   description: string;
@@ -53,6 +52,8 @@ const isAbortLikeError = (error: unknown): boolean => {
   const message = getErrorStringProperty(error, 'message');
   return /abort|cancell?ed|timeout/i.test(message);
 };
+
+type EmitEvent = (event: Record<string, unknown>) => void;
 
 const STREAM_DEBUG_ACTION_FIELD = '__openagentStreamAction';
 const STREAM_DEBUG_VALUE_FIELD = '__openagentStreamValue';

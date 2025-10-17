@@ -1,16 +1,9 @@
-import { describe, expect, it } from '@jest/globals';
-
+// @ts-nocheck
 import { AmnesiaManager, applyDementiaPolicy } from '../amnesiaManager.js';
 import { createChatMessageEntry } from '../historyEntry.js';
 
-type HistoryEntryOptions = {
-  pass: number;
-  role?: string;
-  content?: string;
-};
-
 describe('AmnesiaManager', () => {
-  const buildHistoryEntry = ({ pass, role = 'assistant', content }: HistoryEntryOptions) =>
+  const buildHistoryEntry = ({ pass, role = 'assistant', content }) =>
     createChatMessageEntry({ eventType: 'chat-message', role, pass, content });
 
   it('removes plan update entries older than the threshold', () => {
@@ -93,11 +86,7 @@ describe('AmnesiaManager', () => {
 });
 
 describe('applyDementiaPolicy', () => {
-  const buildHistoryEntry = ({
-    pass,
-    role = 'assistant',
-    content = 'content',
-  }: HistoryEntryOptions) =>
+  const buildHistoryEntry = ({ pass, role = 'assistant', content = 'content' }) =>
     createChatMessageEntry({ eventType: 'chat-message', role, pass, content });
 
   it('removes entries older than the configured limit', () => {

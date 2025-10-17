@@ -1,8 +1,10 @@
 import { PlanDependencyManager } from '../../planDependencyManager.js';
 import { globalRegistry } from '../../planStepRegistry.js';
 import { extractPlanStepIdentifier } from '../../planStepIdentifier.js';
-import { COMPLETED_STATUS } from '../../planStepStatus.js';
-import { isCompletedStatus } from '../../../../utils/planStatusUtils.js';
+import {
+  COMPLETED_STATUS,
+  isCompletedStatus,
+} from '../../planStepStatus.js';
 import type { PlanStep } from '../../planExecution.js';
 import type { PlanState } from './types.js';
 

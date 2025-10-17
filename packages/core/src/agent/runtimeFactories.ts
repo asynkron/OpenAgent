@@ -3,11 +3,11 @@ import { createPlanManager } from './planManager.js';
 import { PromptCoordinator } from './promptCoordinator.js';
 import type {
   ApprovalManagerFactoryConfig,
+  PlanAutoResponseTracker,
   PlanManagerFactoryConfig,
   PromptCoordinatorFactoryConfig,
   RuntimeEmitter,
 } from './runtimeTypes.js';
-import type { PlanAutoResponseTracker } from './passExecutor/planReminderController.js';
 
 export interface InitializeWithFactoryOptions<TCandidate, TConfig> {
   factory?: ((config: TConfig) => TCandidate | null | undefined) | null;

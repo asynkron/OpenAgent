@@ -2,7 +2,6 @@
 import { describe, expect, test, beforeEach } from '@jest/globals';
 import { createPlanStateMachine } from '../stateMachine/index.js';
 import { globalRegistry } from '../../planStepRegistry.js';
-import type { PlanEntry } from '../../planTypes.js';
 
 describe('createPlanStateMachine', () => {
   beforeEach(() => {
@@ -11,7 +10,7 @@ describe('createPlanStateMachine', () => {
 
   test('marks commands as running and mutated', () => {
     const machine = createPlanStateMachine();
-    const step: PlanEntry = { id: 'step-1', status: 'pending', command: { run: 'echo hello' } };
+    const step = { id: 'step-1', status: 'pending', command: { run: 'echo hello' } };
 
     machine.replaceActivePlan([step]);
     machine.resetMutationFlag();
@@ -25,11 +24,10 @@ describe('createPlanStateMachine', () => {
 
   test('completes commands when exit code succeeds', () => {
     const machine = createPlanStateMachine();
-    const initialPlan: PlanEntry[] = [
+    machine.replaceActivePlan([
       { id: 'first', status: 'pending', command: { run: 'echo first' } },
       { id: 'second', status: 'pending', command: { run: 'echo second' } },
-    ];
-    machine.replaceActivePlan(initialPlan);
+    ]);
     machine.resetMutationFlag();
 
     const [first, second] = machine.state.activePlan;
@@ -50,13 +48,8 @@ describe('createPlanStateMachine', () => {
 
   test('detects pending executable work', () => {
     const machine = createPlanStateMachine();
-    const waiting: PlanEntry = {
-      id: 'child',
-      status: 'pending',
-      waitingForId: ['parent'],
-      command: { run: 'run child' },
-    };
-    const parent: PlanEntry = { id: 'parent', status: 'pending', command: { run: 'run parent' } };
+    const waiting = { id: 'child', status: 'pending', waitingForId: ['parent'], command: { run: 'run child' } };
+    const parent = { id: 'parent', status: 'pending', command: { run: 'run parent' } };
 
     machine.replaceActivePlan([parent, waiting]);
 

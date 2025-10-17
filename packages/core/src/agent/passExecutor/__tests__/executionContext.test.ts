@@ -1,19 +1,12 @@
 /* eslint-env jest */
 import { jest } from '@jest/globals';
 import { createExecutionContext } from '../executionContext.js';
-import ObservationBuilder, { type ObservationBuilderDeps } from '../../observationBuilder.js';
-
-import type { EmitEvent } from '../types.js';
-
-const createEmitEventMock = (): jest.MockedFunction<EmitEvent> =>
-  jest.fn<ReturnType<EmitEvent>, Parameters<EmitEvent>>();
-
 
 const createOptions = (overrides: Partial<Parameters<typeof createExecutionContext>[0]> = {}) => ({
   openai: {},
   model: 'gpt-5-codex',
   history: [],
-  emitEvent: createEmitEventMock(),
+  emitEvent: jest.fn(),
   runCommandFn: jest.fn(),
   applyFilterFn: jest.fn(),
   tailLinesFn: jest.fn(),
@@ -30,13 +23,7 @@ const createOptions = (overrides: Partial<Parameters<typeof createExecutionConte
 
 describe('createExecutionContext', () => {
   test('materializes observation builder with provided factory', () => {
-    const createObservationBuilderFn = jest.fn(
-      (deps: ObservationBuilderDeps) =>
-        new ObservationBuilder({
-          ...deps,
-          now: () => new Date('2025-01-01T00:00:00Z'),
-        }),
-    );
+    const createObservationBuilderFn = jest.fn(() => ({}) as unknown);
     const options = createOptions({ createObservationBuilderFn });
 
     const context = createExecutionContext(options);
@@ -70,7 +57,7 @@ describe('createExecutionContext', () => {
     const recordRequestPayloadSizeFn = jest.fn(async () => {
       throw new Error('boom');
     });
-    const emitEvent = createEmitEventMock();
+    const emitEvent = jest.fn();
     const options = createOptions({ recordRequestPayloadSizeFn, emitEvent });
 
     const context = createExecutionContext(options);
@@ -88,7 +75,7 @@ describe('createExecutionContext', () => {
     expect(() =>
       createExecutionContext({
         ...createOptions(),
-        passIndex: undefined,
+        passIndex: undefined as unknown as number,
       }),
     ).toThrow('executeAgentPass requires a numeric passIndex.');
   });

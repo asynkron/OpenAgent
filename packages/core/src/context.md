@@ -9,7 +9,7 @@
 
 - `agent/` — orchestration loop, command execution strategies, approval flow, and plan management. See [`agent/context.md`](agent/context.md). `modelRequest.ts` now relays partial structured response snapshots via debug events so UIs can render in-progress payloads.
 - `bindings/` — adapters for alternative front-ends (currently the WebSocket binding).
-- `contracts/` — canonical DTO module exporting tool DTOs, model request/response types, completion wrapper types, and observation/history shapes for single-path imports. A shared helper now builds both the provider-facing and runtime JSON Schema variants (preserving the `command.tail_lines`/`command.max_bytes` defaults) and the OpenAI response envelope/streaming types are exported directly from here so adapters reuse the same DTOs instead of redefining them. Plan step observations are now modeled as strict objects in the schema so the provider declaration sets `additionalProperties: false`, matching the OpenAI `response_format` requirements. The module also defines the normalized `CommandRequest` interface (plus its limit metadata) consumed by command runners and approval services.
+- `contracts/` — canonical DTO module exporting tool DTOs, model request/response types, completion wrapper types, and observation/history shapes for single-path imports. The OpenAgent tool schema now defaults `command.tail_lines` to 200 lines, requires `command.max_bytes` with a 16 KiB default cap (roughly 200 lines), and propagates those limits through the runtime JSON schema. JSON schema definitions now explicitly satisfy the `JSONSchema7` contract so provider utilities accept the generated validators without type assertions.
 - `constants.ts` — shared runtime defaults (command byte/line caps, etc.) consumed by schemas, parsers, and tests to keep limit tuning in one place.
 - `commands/` — shell command executors and helpers.
 - `services/` — command approval allowlist/session tracking plus command statistics collection.
@@ -17,10 +17,8 @@
   - Includes `contracts.ts` barrel that re-exports request/response DTOs and the OpenAgent tool schema for single-path imports.
   - Canonical DTOs live under `contracts/index.ts` with consistent names (ModelRequest/ModelResponse, OpenAgentToolResponse, etc.). Prefer importing from `src/contracts`.
   - `responses.ts` now calls the AI SDK `streamObject` helper and exposes optional callbacks for partial structured responses, enabling downstream consumers to stream debug previews while awaiting the final object.
-- `config/` — system prompt discovery/building. The system prompt builder now ships with typed helpers for directory discovery and AGENTS.md aggregation instead of relying on `@ts-nocheck` escapes.
-- `lib/` — curated export surface (startup flags, runtime factory) consumed by package entry. Startup flag helpers are now fully
- typed and expose ergonomic accessors for CLI consumers without leaking mutable state.
-- `prompts/` — Prompt manager scaffold plus exports for downstream packages. The manager now uses explicit interfaces for PromptIO interactions so tests and future implementations can compile without suppressing type checks.
+- `config/` — system prompt discovery/building.
+- `lib/` — curated export surface (startup flags, runtime factory) consumed by package entry.
 - `utils/` — shared helpers (async queues, cancellation, text formatting, plan math, JSON validation, HTTP fetch wrapper).
 - The entire tree now ships `.ts` sources that compile into `dist/src/**` before publishing.
 

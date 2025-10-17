@@ -21,11 +21,11 @@ export const TERMINAL_PLAN_STATUS_VALUES = [
   ABANDONED_STATUS,
 ] as const;
 
-const PLAN_STATUS_LOOKUP = new Set<PlanStatus>(PLAN_STATUS_VALUES);
-const TERMINAL_PLAN_STATUS_LOOKUP = new Set<PlanStatus>(TERMINAL_PLAN_STATUS_VALUES);
+const PLAN_STATUS_LOOKUP = new Set<string>(PLAN_STATUS_VALUES);
+const TERMINAL_PLAN_STATUS_LOOKUP = new Set<string>(TERMINAL_PLAN_STATUS_VALUES);
 
-export const PLAN_STATUS_SET: ReadonlySet<PlanStatus> = PLAN_STATUS_LOOKUP;
-export const TERMINAL_PLAN_STATUS_SET: ReadonlySet<PlanStatus> = TERMINAL_PLAN_STATUS_LOOKUP;
+export const PLAN_STATUS_SET: ReadonlySet<string> = PLAN_STATUS_LOOKUP;
+export const TERMINAL_PLAN_STATUS_SET: ReadonlySet<string> = TERMINAL_PLAN_STATUS_LOOKUP;
 
 export const normalizePlanStatus = (value: unknown): PlanStatus | null => {
   if (typeof value !== 'string') {
@@ -33,9 +33,7 @@ export const normalizePlanStatus = (value: unknown): PlanStatus | null => {
   }
 
   const normalized = value.trim().toLowerCase();
-  return PLAN_STATUS_LOOKUP.has(normalized as PlanStatus)
-    ? (normalized as PlanStatus)
-    : null;
+  return PLAN_STATUS_LOOKUP.has(normalized) ? (normalized as PlanStatus) : null;
 };
 
 export const isPlanStatus = (value: unknown): value is PlanStatus => normalizePlanStatus(value) !== null;

@@ -1,12 +1,9 @@
-import type { ResponsesClient } from '../contracts/index.js';
-import type { CommandRequest } from '../contracts/index.js';
-import type { CommandConfig } from '../services/commandApprovalService.js';
+import type { ResponsesClient } from '../openai/responses.js';
 import type { HistoryCompactor, HistoryCompactorOptions } from './historyCompactor.js';
 import type {
   GuardRequestPayloadSizeFn,
   RecordRequestPayloadSizeFn,
 } from './passExecutor/types.js';
-import type { PlanAutoResponseTracker } from './passExecutor/planReminderController.js';
 import type { ExecuteAgentPassOptions } from './passExecutor.js';
 import type { createPlanManager, PlanManagerOptions } from './planManager.js';
 import type {
@@ -19,8 +16,6 @@ import type { EscState, EscStateController } from './escState.js';
 import type { AsyncQueue as AsyncQueueType } from '../utils/asyncQueue.js';
 import type { ChatMessageEntry } from './historyEntry.js';
 import type { AmnesiaManager as AmnesiaManagerType } from './amnesiaManager.js';
-
-export type { PlanAutoResponseTracker } from './passExecutor/planReminderController.js';
 
 export type UnknownRecord = Record<string, unknown>;
 
@@ -62,6 +57,12 @@ export interface PromptCoordinatorLike {
 
 export interface HistoryCompactorLike {
   compactIfNeeded?: HistoryCompactor['compactIfNeeded'];
+}
+
+export interface PlanAutoResponseTracker {
+  increment(): number;
+  reset(): void;
+  getCount(): number;
 }
 
 export type IdGeneratorFn = (context: { counter: number }) => string | number | null | undefined;
@@ -117,15 +118,10 @@ export interface AgentRuntimeOptions {
   runCommandFn?: ExecuteAgentPassOptions['runCommandFn'];
   applyFilterFn?: ExecuteAgentPassOptions['applyFilterFn'];
   tailLinesFn?: ExecuteAgentPassOptions['tailLinesFn'];
-  isPreapprovedCommandFn?: (
-    command: CommandRequest | null | undefined,
-    cfg?: CommandConfig,
-  ) => boolean;
-  isSessionApprovedFn?: (command: CommandRequest | null | undefined) => boolean;
-  approveForSessionFn?: (
-    command: CommandRequest | null | undefined,
-  ) => void | Promise<void>;
-  preapprovedCfg?: CommandConfig;
+  isPreapprovedCommandFn?: (command: unknown, cfg?: unknown) => boolean;
+  isSessionApprovedFn?: (command: unknown) => boolean;
+  approveForSessionFn?: (command: unknown) => void | Promise<void>;
+  preapprovedCfg?: unknown;
   getAutoApproveFlag?: () => boolean;
   getNoHumanFlag?: () => boolean;
   getPlanMergeFlag?: () => boolean;

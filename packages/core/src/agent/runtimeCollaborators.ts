@@ -9,12 +9,12 @@ import {
 import type {
   ApprovalManagerFactoryConfig,
   EscController,
+  PlanAutoResponseTracker,
   PlanManagerFactoryConfig,
   PromptCoordinatorFactoryConfig,
   PromptCoordinatorLike,
   RuntimeEmitter,
 } from './runtimeTypes.js';
-import type { PlanAutoResponseTracker } from './passExecutor/planReminderController.js';
 import type { PlanManagerOptions } from './planManager.js';
 import type { PlanManagerLike as ExecutorPlanManagerLike } from './passExecutor/planManagerAdapter.js';
 import type { EscStateController } from './escState.js';
@@ -74,10 +74,9 @@ export const createPlanManagerBundle = ({
 
   const planAutoResponseTracker: PlanAutoResponseTracker =
     maybeTracker &&
-    typeof maybeTracker === 'object' &&
     typeof maybeTracker.increment === 'function' &&
     typeof maybeTracker.reset === 'function' &&
-    (typeof maybeTracker.getCount === 'undefined' || typeof maybeTracker.getCount === 'function')
+    typeof maybeTracker.getCount === 'function'
       ? maybeTracker
       : defaultPlanAutoResponseTracker();
 

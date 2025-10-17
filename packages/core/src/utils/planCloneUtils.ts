@@ -1,5 +1,4 @@
-import type { PlanCommand, PlanSnapshot } from '../agent/passExecutor/planTypes.js';
-import type { PlanStatus } from './planStatusTypes.js';
+import type { ToolPlanStep } from '../contracts/index.js';
 
 const hasStructuredClone = typeof globalThis.structuredClone === 'function';
 
@@ -20,9 +19,23 @@ export const deepCloneValue = <T>(value: T): T => {
   }
 };
 
-export type PlanSnapshotStatus = PlanStatus;
-export type PlanSnapshotCommand = PlanCommand;
-export type { PlanSnapshot, PlanSnapshotStep } from '../agent/passExecutor/planTypes.js';
+type ToolPlanDependency = NonNullable<ToolPlanStep['waitingForId']>[number];
+
+export type PlanSnapshotStatus = ToolPlanStep['status'] | 'running';
+
+export type PlanSnapshotCommand = ToolPlanStep['command'];
+
+export interface PlanSnapshotStep extends Record<string, unknown> {
+  id?: ToolPlanStep['id'] | number;
+  title?: ToolPlanStep['title'];
+  status?: PlanSnapshotStatus;
+  waitingForId?: (ToolPlanDependency | number)[];
+  command?: PlanSnapshotCommand | null;
+  observation?: Record<string, unknown>;
+  priority?: number | string;
+}
+
+export type PlanSnapshot = PlanSnapshotStep[];
 
 export const clonePlanTree = (plan: PlanSnapshot | null | undefined): PlanSnapshot => {
   if (!Array.isArray(plan)) {

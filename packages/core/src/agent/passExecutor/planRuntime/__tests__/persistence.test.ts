@@ -7,7 +7,6 @@ import {
   syncPlanSnapshot,
 } from '../persistence.js';
 import { globalRegistry } from '../../planStepRegistry.js';
-import type { PlanEntry } from '../../planTypes.js';
 
 describe('planRuntime persistence helpers', () => {
   beforeEach(() => {
@@ -24,7 +23,7 @@ describe('planRuntime persistence helpers', () => {
   test('resolveActivePlan filters completed steps', async () => {
     globalRegistry.markCompleted('done');
     const planManager = {
-      async resolveActivePlan(): Promise<PlanEntry[]> {
+      async resolveActivePlan() {
         return [
           { id: 'done', status: 'completed', command: { run: 'echo ok' } },
           { id: 'next', status: 'pending', command: { run: 'echo next' } },
@@ -52,15 +51,13 @@ describe('planRuntime persistence helpers', () => {
 
   test('resetPersistedPlan clears state on success and failure', async () => {
     const planManager = {
-      async resetPlanSnapshot(): Promise<PlanEntry[]> {
-        return [{ id: 'fresh', status: 'pending', command: { run: 'echo refreshed' } }];
+      async resetPlanSnapshot() {
+        return [{ id: 'fresh', command: { run: 'echo refreshed' } }];
       },
     };
 
     const success = await resetPersistedPlan(planManager);
-    expect(success.plan).toEqual([
-      { id: 'fresh', status: 'pending', command: { run: 'echo refreshed' } },
-    ]);
+    expect(success.plan).toEqual([{ id: 'fresh', command: { run: 'echo refreshed' } }]);
     expect(success.warning).toBeNull();
 
     const failingManager = {

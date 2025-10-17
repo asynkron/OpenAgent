@@ -3,22 +3,13 @@ import {
   streamObject,
   type CallSettings,
   type GenerateObjectResult,
+  type GenerateTextResult,
   type LanguageModel,
   type ModelMessage,
+  type ToolSet,
 } from 'ai';
 import type { FlexibleSchema } from '@ai-sdk/provider-utils';
-import {
-  ToolDefinition,
-  type ToolResponse,
-  type ToolResponseStreamPartial,
-  type ResponsesProvider,
-  type ResponsesClient,
-  type ResponseCallOptions,
-  type CreateResponseResult,
-  type StructuredModelResponse,
-  type TextModelResponse,
-  type AiResponseOutput,
-} from '../contracts/index.js';
+import { ToolDefinition, type ToolResponse } from '../contracts/index.js';
 import { getOpenAIRequestSettings } from './client.js';
 
 type ReasoningEffort = 'low' | 'medium' | 'high';
@@ -43,8 +34,25 @@ export function getConfiguredReasoningEffort(): ReasoningEffort | null {
   return ENV_REASONING_EFFORT;
 }
 
+export interface ResponseCallOptions {
+  signal?: AbortSignal;
+  maxRetries?: number;
+}
+
 type ResponseCallSettings = Partial<Pick<CallSettings, 'abortSignal' | 'maxRetries'>>;
 type ProviderOptions = Parameters<typeof generateText>[0]['providerOptions'];
+
+// Minimal deep-partial helper so stream callbacks surface the partially
+// populated tool payload while matching the AI SDK's array semantics.
+type DeepPartial<T> = T extends (...arguments_: any[]) => unknown
+  ? T
+  : T extends Array<infer U>
+    ? Array<DeepPartial<U> | undefined>
+    : T extends object
+      ? { [K in keyof T]?: DeepPartial<T[K]> }
+      : T;
+
+export type ToolResponseStreamPartial = DeepPartial<ToolResponse>;
 
 // Normalize optional runtime knobs into the shape expected by the AI SDK helpers.
 function buildCallSettings(options: ResponseCallOptions | undefined): ResponseCallSettings {
@@ -96,6 +104,14 @@ interface StructuredToolDefinition {
 
 type SupportedTool = typeof ToolDefinition | StructuredToolDefinition;
 
+export type ResponsesProvider = (model: string) => LanguageModel;
+
+type ResponsesFunction = ResponsesProvider & {
+  responses?: ResponsesProvider;
+};
+
+export type ResponsesClient = { responses: ResponsesProvider } | ResponsesFunction;
+
 function resolveResponsesModel(
   openaiProvider: ResponsesClient | undefined,
   model: string,
@@ -118,6 +134,40 @@ function resolveResponsesModel(
 
   return null;
 }
+
+interface ResponseFunctionCall {
+  type: 'function_call';
+  name: string;
+  arguments: string;
+  call_id: string | null;
+}
+
+interface ResponseMessageContent {
+  type: 'output_text';
+  text: string;
+}
+
+interface ResponseMessage {
+  type: 'message';
+  role: 'assistant';
+  content: ResponseMessageContent[];
+}
+
+type ResponseOutput = ResponseFunctionCall | ResponseMessage;
+
+interface StructuredResponseResult {
+  output_text: string;
+  output: ResponseOutput[];
+  structured: GenerateObjectResult<ToolResponse>;
+}
+
+interface TextResponseResult {
+  output_text: string;
+  output: ResponseOutput[];
+  text: GenerateTextResult<ToolSet, string>;
+}
+
+export type CreateResponseResult = StructuredResponseResult | TextResponseResult;
 
 export interface CreateResponseParams {
   openai: ResponsesClient;
@@ -162,7 +212,7 @@ async function createStructuredResult(
   providerOptions: ProviderOptions,
   callSettings: ResponseCallSettings,
   callbacks: StructuredStreamCallbacks = {},
-): Promise<StructuredModelResponse> {
+): Promise<StructuredResponseResult> {
   const streamResult = streamObject({
     model: languageModel,
     messages,
@@ -254,18 +304,16 @@ async function createStructuredResult(
     },
   };
 
-  const output: AiResponseOutput[] = [
-    {
-      type: 'function_call',
-      name: tool.name ?? 'open-agent',
-      arguments: argumentsText,
-      call_id: callId,
-    },
-  ];
-
   return {
     output_text: argumentsText,
-    output,
+    output: [
+      {
+        type: 'function_call',
+        name: tool.name ?? 'open-agent',
+        arguments: argumentsText,
+        call_id: callId,
+      },
+    ],
     structured,
   };
 }
@@ -275,7 +323,7 @@ async function createTextResult(
   messages: ModelMessage[],
   providerOptions: ProviderOptions,
   callSettings: ResponseCallSettings,
-): Promise<TextModelResponse> {
+): Promise<TextResponseResult> {
   const textResult = await generateText({
     model: languageModel,
     messages,
@@ -285,22 +333,20 @@ async function createTextResult(
 
   const normalizedText = typeof textResult.text === 'string' ? textResult.text : '';
 
-  const output: AiResponseOutput[] = [
-    {
-      type: 'message',
-      role: 'assistant',
-      content: [
-        {
-          type: 'output_text',
-          text: normalizedText,
-        },
-      ],
-    },
-  ];
-
   return {
     output_text: normalizedText,
-    output,
+    output: [
+      {
+        type: 'message',
+        role: 'assistant',
+        content: [
+          {
+            type: 'output_text',
+            text: normalizedText,
+          },
+        ],
+      },
+    ],
     text: textResult,
   };
 }
@@ -329,19 +375,6 @@ export async function createResponse({
 
   return createTextResult(languageModel, input, providerOptions, callSettings);
 }
-
-export type {
-  ResponseCallOptions,
-  ToolResponseStreamPartial,
-  ResponsesClient,
-  ResponsesProvider,
-  CreateResponseResult,
-  StructuredModelResponse,
-  TextModelResponse,
-  AiResponseOutput,
-  AiResponseFunctionCall,
-  AiResponseMessage,
-} from '../contracts/index.js';
 
 export default {
   createResponse,

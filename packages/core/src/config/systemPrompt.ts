@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Builds the system prompt that governs the agent runtime.
  *
@@ -6,8 +7,8 @@
  * - Aggregate their contents and append them to the base system prompt.
  *
  * Consumers:
- * - `src/agent/loop.ts` reads `SYSTEM_PROMPT` to seed the conversation history.
- * - Root `index.ts` re-exports the discovery helpers for unit tests.
+ * - `src/agent/loop.js` reads `SYSTEM_PROMPT` to seed the conversation history.
+ * - Root `index.js` re-exports the discovery helpers for unit tests.
  */
 
 import * as fs from 'node:fs';
@@ -15,12 +16,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 
-export interface WorkspaceRootInfo {
-  root: string;
-  source: 'git' | 'cwd';
-}
-
-function detectWorkspaceRoot(startDir: string = process.cwd()): WorkspaceRootInfo {
+function detectWorkspaceRoot(startDir = process.cwd()) {
   try {
     const output = execSync('git rev-parse --show-toplevel', {
       cwd: startDir,
@@ -33,16 +29,15 @@ function detectWorkspaceRoot(startDir: string = process.cwd()): WorkspaceRootInf
   } catch (_error) {
     // ignored
   }
-
   return { root: path.resolve(startDir), source: 'cwd' };
 }
 
 const PACKAGE_ROOT = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
-const PROMPT_FILENAMES: ReadonlyArray<string> = ['system.md', 'developer.md'];
+const PROMPT_FILENAMES = ['system.md', 'developer.md'];
 
-function resolvePromptDirectories(rootDir: string): string[] {
-  const seen = new Set<string>();
-  const directories: string[] = [];
+function resolvePromptDirectories(rootDir) {
+  const seen = new Set();
+  const directories = [];
   const candidates = [path.join(rootDir, 'prompts'), path.join(PACKAGE_ROOT, 'prompts')];
 
   for (const candidate of candidates) {
@@ -65,11 +60,11 @@ function resolvePromptDirectories(rootDir: string): string[] {
   return directories;
 }
 
-export function findAgentFiles(rootDir: string): string[] {
-  const discovered: string[] = [];
+export function findAgentFiles(rootDir) {
+  const discovered = [];
 
-  const walk = (current: string): void => {
-    let entries: fs.Dirent[] = [];
+  function walk(current) {
+    let entries = [];
     try {
       entries = fs.readdirSync(current, { withFileTypes: true });
     } catch (_error) {
@@ -92,13 +87,13 @@ export function findAgentFiles(rootDir: string): string[] {
         discovered.push(fullPath);
       }
     }
-  };
+  }
 
   walk(rootDir);
   return discovered;
 }
 
-export function buildAgentsPrompt(rootDir: string): string {
+export function buildAgentsPrompt(rootDir) {
   const agentFiles = findAgentFiles(rootDir);
   if (agentFiles.length === 0) {
     return '';
@@ -116,7 +111,7 @@ export function buildAgentsPrompt(rootDir: string): string {
         return '';
       }
     })
-    .filter((section): section is string => section.length > 0);
+    .filter(Boolean);
 
   if (sections.length === 0) {
     return '';
@@ -125,7 +120,7 @@ export function buildAgentsPrompt(rootDir: string): string {
   return sections.join('\n\n---\n\n');
 }
 
-function readFileIfExists(filePath: string): string {
+function readFileIfExists(filePath) {
   try {
     const content = fs.readFileSync(filePath, 'utf8').trim();
     return content ? content : '';
@@ -134,11 +129,11 @@ function readFileIfExists(filePath: string): string {
   }
 }
 
-export function buildBaseSystemPrompt(rootDir: string): string {
-  const sections: string[] = [];
+export function buildBaseSystemPrompt(rootDir) {
+  const sections = [];
 
   const promptDirs = resolvePromptDirectories(rootDir);
-  const seenFiles = new Set<string>();
+  const seenFiles = new Set();
 
   for (const promptDir of promptDirs) {
     for (const fileName of PROMPT_FILENAMES) {
@@ -158,7 +153,7 @@ export function buildBaseSystemPrompt(rootDir: string): string {
   }
 
   const brainDir = path.join(rootDir, 'brain');
-  let brainFiles: string[] = [];
+  let brainFiles = [];
   try {
     brainFiles = fs
       .readdirSync(brainDir)

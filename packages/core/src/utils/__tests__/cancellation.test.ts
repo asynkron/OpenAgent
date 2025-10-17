@@ -1,5 +1,6 @@
+// @ts-nocheck
 /* eslint-env jest */
-import { afterEach, describe, expect, jest, test } from '@jest/globals';
+import { jest } from '@jest/globals';
 
 import { register, cancel, isCanceled, getActiveOperation } from '../cancellation.js';
 

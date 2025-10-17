@@ -1,7 +1,6 @@
 import { spawn } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
 
-import type { CommandRequest } from '../contracts/index.js';
 import { register as registerCancellation } from '../utils/cancellation.js';
 import { substituteBuiltinCommand } from './commandSubstitution.js';
 import {
@@ -19,8 +18,6 @@ import {
 } from './commandHelpers.js';
 
 export interface RunOptions {
-  cwd?: string;
-  timeoutSec?: number | null;
   shell?: string | boolean;
   stdin?: string;
   closeStdin?: boolean;
@@ -38,130 +35,23 @@ export interface CommandResult {
 
 export type PartialCommandResult = Partial<CommandResult>;
 
-type CommandInput = CommandRequest | string;
-
-type NormalizedRunConfig = {
-  commandText: string;
-  cwd: string | undefined;
-  timeoutSec: number | null | undefined;
-  shell: string | boolean;
-  labelSource: string;
-  descriptionSource: string;
-  stdin?: string;
-  closeStdin?: boolean;
-};
-
-const sanitizeTimeout = (value: number | null | undefined): number | null | undefined => {
-  if (value === null) {
-    return null;
-  }
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-  return undefined;
-};
-
-const normalizeRunConfig = (command: CommandInput, options: RunOptions = {}): NormalizedRunConfig => {
-  const extractCommandText = (input: CommandInput): string => {
-    if (typeof input === 'string') {
-      return input;
-    }
-    if (!input || typeof input !== 'object' || typeof input.run !== 'string') {
-      throw new TypeError('runCommand expects a normalized command string.');
-    }
-    return input.run;
-  };
-
-  const commandText = extractCommandText(command);
-  const reason =
-    typeof command === 'string'
-      ? ''
-      : typeof command.reason === 'string'
-        ? command.reason.trim()
-        : '';
-  const cwd = (() => {
-    const override = typeof options.cwd === 'string' ? options.cwd.trim() : '';
-    if (override) {
-      return override;
-    }
-    if (typeof command !== 'string' && typeof command.cwd === 'string') {
-      const normalized = command.cwd.trim();
-      if (normalized) {
-        return normalized;
-      }
-    }
-    return undefined;
-  })();
-
-  const timeoutFromOptions = sanitizeTimeout(options.timeoutSec);
-  const timeoutFromCommand =
-    typeof command === 'string' ? undefined : sanitizeTimeout(command.limits?.timeoutSec);
-  const timeoutSec = timeoutFromOptions ?? timeoutFromCommand;
-
-  const shellOverride = options.shell;
-  const shellFromCommand =
-    typeof command === 'string'
-      ? undefined
-      : typeof command.shell === 'string' && command.shell.trim()
-        ? command.shell.trim()
-        : undefined;
-  const shell =
-    typeof shellOverride === 'string' || typeof shellOverride === 'boolean'
-      ? shellOverride
-      : shellFromCommand ?? true;
-
-  const trimmedCommand = typeof commandText === 'string' ? commandText.trim() : '';
-  const labelSource =
-    typeof options.commandLabel === 'string' && options.commandLabel.trim()
-      ? options.commandLabel.trim()
-      : reason;
-  const descriptionSource =
-    typeof options.description === 'string' && options.description.trim()
-      ? options.description.trim()
-      : reason;
-
-  return {
-    commandText,
-    cwd,
-    timeoutSec,
-    shell,
-    labelSource,
-    descriptionSource,
-    stdin: options.stdin,
-    closeStdin: options.closeStdin,
-  } satisfies NormalizedRunConfig;
-};
-
 export async function runCommand(
-  command: CommandInput,
-  options: RunOptions | string | boolean | undefined = {},
+  cmd: unknown,
+  cwd: string | undefined,
+  timeoutSec: number | null | undefined,
+  shellOrOptions: string | boolean | RunOptions | undefined,
 ): Promise<CommandResult> {
-  const mergedOptions: RunOptions =
-    options && typeof options === 'object' && !Array.isArray(options)
-      ? options
-      : typeof options === 'string' || typeof options === 'boolean'
-        ? { shell: options }
-        : {};
+  if (typeof cmd !== 'string') {
+    throw new TypeError('runCommand expects a normalized command string.');
+  }
 
-  const normalized = normalizeRunConfig(command, mergedOptions);
-  const normalizedCommand = substituteBuiltinCommand(normalized.commandText);
+  const normalizedCommand = substituteBuiltinCommand(cmd);
 
   if (typeof normalizedCommand !== 'string') {
     throw new TypeError('runCommand expects a normalized command string.');
   }
 
   const trimmedCommand = normalizedCommand.trim();
-
-  if (!trimmedCommand) {
-    throw new TypeError('runCommand expects a normalized command string.');
-  }
-
-  const commandLabel = getCommandLabel(normalized.labelSource, trimmedCommand);
-  const operationDescription = getOperationDescription(
-    normalized.descriptionSource,
-    commandLabel,
-  );
-  const { shell, stdin, closeStdin, cwd, timeoutSec } = normalized;
 
   return new Promise((resolve) => {
     const startTime = Date.now();
@@ -195,8 +85,22 @@ export async function runCommand(
 
     const { tempDir, stdoutPath, stderrPath, stdoutFd, stderrFd } = tempData;
 
-    const effectiveCloseStdin =
-      closeStdin !== undefined ? Boolean(closeStdin) : stdin === undefined;
+    const options: RunOptions =
+      shellOrOptions && typeof shellOrOptions === 'object' && !Array.isArray(shellOrOptions)
+        ? { ...shellOrOptions }
+        : { shell: shellOrOptions as string | boolean | undefined };
+
+    const {
+      shell,
+      stdin,
+      closeStdin,
+      commandLabel: providedLabel,
+      description: providedDescription,
+    } = options;
+
+    const commandLabel = getCommandLabel(providedLabel ?? '', trimmedCommand);
+    const operationDescription = getOperationDescription(providedDescription ?? '', commandLabel);
+    const effectiveCloseStdin = closeStdin !== undefined ? Boolean(closeStdin) : stdin === undefined;
     const shouldPipeStdin = stdin !== undefined || effectiveCloseStdin === false;
 
     const spawnOptions: {
@@ -205,7 +109,7 @@ export async function runCommand(
       stdio: ('pipe' | 'ignore' | number)[];
     } = {
       cwd,
-      shell,
+      shell: shell !== undefined ? shell : true,
       stdio: [shouldPipeStdin ? 'pipe' : 'ignore', stdoutFd, stderrFd],
     };
 

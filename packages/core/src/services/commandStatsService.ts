@@ -4,8 +4,6 @@ import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import * as fsp from 'node:fs/promises';
 import type { FileHandle } from 'node:fs/promises';
-
-import type { CommandRequest } from '../contracts/index.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function resolveDefaultStatsPath(): string {
@@ -24,58 +22,10 @@ function resolveDefaultStatsPath(): string {
 
 const DEFAULT_STATS_PATH = resolveDefaultStatsPath();
 
-type CommandStatsRecord = Record<string, number>;
-
-type CommandStatsInput = string | CommandRequest;
-
-const resolveCommandKey = (input: CommandStatsInput): string => {
-  if (typeof input === 'string') {
-    const normalized = input.trim();
-    return normalized || 'unknown';
-  }
-
-  const run = typeof input.run === 'string' ? input.run.trim() : '';
-  if (!run) {
-    return 'unknown';
-  }
-
-  const [firstToken] = run.split(/\s+/);
-  return firstToken || 'unknown';
-};
-
-const parseStats = (raw: string): CommandStatsRecord => {
-  try {
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') {
-      return {};
-    }
-
-    return Object.entries(parsed as Record<string, unknown>).reduce<CommandStatsRecord>(
-      (acc, [key, value]) => {
-        if (!key) {
-          return acc;
-        }
-
-        if (typeof value === 'number' && Number.isFinite(value)) {
-          acc[key] = value;
-          return acc;
-        }
-
-        const coerced = typeof value === 'string' ? Number.parseInt(value, 10) : Number(value);
-        if (Number.isFinite(coerced)) {
-          acc[key] = coerced;
-        }
-        return acc;
-      },
-      {},
-    );
-  } catch {
-    return {};
-  }
-};
+type CommandStats = Record<string, unknown>;
 
 export async function incrementCommandCount(
-  command: CommandStatsInput,
+  cmdKey: string,
   logPath: string | null = null,
 ): Promise<boolean> {
   try {
@@ -83,15 +33,17 @@ export async function incrementCommandCount(
     const dir = path.dirname(targetPath);
     await fsp.mkdir(dir, { recursive: true });
 
-    let data: CommandStatsRecord = {};
+    let data: CommandStats = {};
     try {
       const raw = await fsp.readFile(targetPath, { encoding: 'utf8' });
-      data = parseStats(raw);
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        data = parsed as CommandStats;
+      }
     } catch {
       data = {};
     }
 
-    const cmdKey = resolveCommandKey(command);
     const existing = data[cmdKey];
     let nextValue: number;
     if (typeof existing === 'number' && Number.isFinite(existing)) {

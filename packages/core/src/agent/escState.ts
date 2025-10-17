@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Cancellation helpers triggered by UI ESC events.
  *

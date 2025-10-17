@@ -1,6 +1,5 @@
+// @ts-nocheck
 /* eslint-env jest */
-import { describe, expect, test } from '@jest/globals';
-
 import { createEscState, createEscWaiter, resetEscState } from '../escState.js';
 
 describe('createEscState', () => {

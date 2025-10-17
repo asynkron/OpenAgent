@@ -1,6 +1,5 @@
+// @ts-nocheck
 /* eslint-env jest */
-import { describe, expect, test } from '@jest/globals';
-
 import { buildPreview, combineStdStreams } from '../output.js';
 
 describe('combineStdStreams', () => {

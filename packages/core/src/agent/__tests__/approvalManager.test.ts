@@ -1,5 +1,5 @@
+// @ts-nocheck
 /* eslint-env jest */
-import { describe, expect, test } from '@jest/globals';
 import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
 import { ApprovalManager } from '../approvalManager.js';
 
@@ -61,8 +61,8 @@ describe('ApprovalManager.shouldAutoApprove', () => {
 });
 
 describe('ApprovalManager.requestHumanDecision', () => {
-  const makeManager = ({ responses }: { responses: Array<string | undefined> }) => {
-    const logs = { info: [] as string[], warn: [] as string[], success: [] as string[] };
+  const makeManager = ({ responses }) => {
+    const logs = { info: [], warn: [], success: [] };
     let approvedCommand = null;
     const manager = new ApprovalManager({
       isPreapprovedCommand: () => false,

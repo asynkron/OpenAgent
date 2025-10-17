@@ -1,7 +1,6 @@
 /* eslint-env jest */
 import { jest } from '@jest/globals';
 import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
-import type { CreateResponseResult } from '../../contracts/index.js';
 
 // Reusable helpers that keep the main pass executor spec readable while
 // preserving the original mock wiring for each dependency.
@@ -53,19 +52,13 @@ export const createPlanManager = () => ({
   sync: jest.fn(),
 });
 
-type MockModelCompletion = { status: 'success'; completion: CreateResponseResult };
-
-const createMockCompletion = (): CreateResponseResult => ({
-  output_text: '',
-  output: [],
-  text: {} as never,
-});
+type MockModelCompletion = { status: 'success'; completion: { id: string } };
 
 const createMockRequestModelCompletion = () => {
   const requestModelCompletion = jest.fn(
     async (): Promise<MockModelCompletion> => ({
       status: 'success',
-      completion: createMockCompletion(),
+      completion: { id: 'cmpl_1' },
     }),
   );
   jest.unstable_mockModule('../modelRequest.js', () => ({

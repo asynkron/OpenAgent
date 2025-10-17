@@ -4,7 +4,6 @@ import type { ApprovalManager } from '../approvalManager.js';
 import type { ExecuteAgentPassOptions } from './types.js';
 import type { PlanRuntime } from './planRuntime.js';
 import type { ExecutableCandidate } from './planRuntime.js';
-import type { DebugEmitter } from './debugEmitter.js';
 import {
   prepareCommandCandidate,
   runApprovedCommand,
@@ -29,7 +28,7 @@ interface CommandRuntimeOptions {
   incrementCommandCountFn: NonNullable<ExecuteAgentPassOptions['incrementCommandCountFn']>;
   observationBuilder: ObservationBuilder;
   planRuntime: PlanRuntime;
-  emitDebug: DebugEmitter['emit'];
+  emitDebug: (payload: unknown) => void;
 }
 
 export class CommandRuntime {

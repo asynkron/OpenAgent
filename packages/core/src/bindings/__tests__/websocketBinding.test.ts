@@ -1,5 +1,6 @@
+// @ts-nocheck
 /* eslint-env jest */
-import { describe, expect, jest, test } from '@jest/globals';
+import { jest } from '@jest/globals';
 
 import { createWebSocketBinding } from '../websocket.js';
 import { AsyncQueue } from '../../utils/asyncQueue.js';

@@ -8,7 +8,6 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import chalk from 'chalk';
 
-import type { CommandRequest } from '../contracts/index.js';
 import { shellSplit } from '../utils/text.js';
 
 export interface CommandConfig {
@@ -16,6 +15,12 @@ export interface CommandConfig {
     name: string;
     subcommands?: string[];
   }>;
+}
+
+export interface Command {
+  run?: string;
+  shell?: string;
+  cwd?: string;
 }
 
 interface CommandApprovalServiceOptions {
@@ -50,17 +55,14 @@ export class CommandApprovalService {
   /**
    * Determine whether the provided command is automatically approved.
    */
-  isPreapprovedCommand(
-    command: CommandRequest | null | undefined,
-    cfg: CommandConfig = this.config,
-  ): boolean {
+  isPreapprovedCommand(command: Command, cfg: CommandConfig = this.config): boolean {
     return CommandApprovalService.isPreapprovedCommand(command, cfg);
   }
 
   /**
    * Whether the command has already been approved during this session.
    */
-  isSessionApproved(command: CommandRequest | null | undefined): boolean {
+  isSessionApproved(command: Command): boolean {
     try {
       return this.sessionApprovals.has(CommandApprovalService.commandSignature(command));
     } catch (_err) {
@@ -71,7 +73,7 @@ export class CommandApprovalService {
   /**
    * Record the command signature for session-long approvals.
    */
-  approveForSession(command: CommandRequest | null | undefined): void {
+  approveForSession(command: Command): void {
     try {
       this.sessionApprovals.add(CommandApprovalService.commandSignature(command));
     } catch (_err) {
@@ -158,23 +160,19 @@ export class CommandApprovalService {
   /**
    * Compute a stable signature for storing approvals.
    */
-  static commandSignature(cmd: CommandRequest | null | undefined): string {
-    const shell = typeof cmd?.shell === 'string' && cmd.shell.trim() ? cmd.shell.trim() : 'bash';
-    const run = typeof cmd?.run === 'string' ? cmd.run : '';
-    const cwd = typeof cmd?.cwd === 'string' && cmd.cwd.trim() ? cmd.cwd.trim() : '.';
-
+  static commandSignature(cmd: Command): string {
     return JSON.stringify({
-      shell,
-      run,
-      cwd,
+      shell: cmd?.shell || 'bash',
+      run: typeof cmd?.run === 'string' ? cmd.run : '',
+      cwd: cmd?.cwd || '.',
     });
   }
 
   /**
    * Validate shell option for command.
    */
-  private static validateShellOption(command: CommandRequest | null | undefined): boolean {
-    const shellOpt = command && 'shell' in command ? command?.shell : undefined;
+  private static validateShellOption(command: Command): boolean {
+    const shellOpt = command && 'shell' in command ? command.shell : undefined;
     if (typeof shellOpt === 'string') {
       const normalized = String(shellOpt).trim().toLowerCase();
       return ['bash', 'sh'].includes(normalized);
@@ -323,10 +321,7 @@ export class CommandApprovalService {
   /**
    * Core allowlist evaluation shared by the instance and the static export.
    */
-  static isPreapprovedCommand(
-    command: CommandRequest | null | undefined,
-    cfg: CommandConfig,
-  ): boolean {
+  static isPreapprovedCommand(command: Command, cfg: CommandConfig): boolean {
     try {
       const runRaw = (command && command.run ? String(command.run) : '').trim();
       if (!runRaw) return false;
@@ -359,18 +354,18 @@ export const isCommandStringSafe = CommandApprovalService.isCommandStringSafe;
 export const commandSignature = CommandApprovalService.commandSignature;
 
 export function isPreapprovedCommand(
-  command: CommandRequest | null | undefined,
-  cfg: CommandConfig = defaultCommandApprovalService.config,
+  command: unknown,
+  cfg: unknown = defaultCommandApprovalService.config,
 ): boolean {
-  return CommandApprovalService.isPreapprovedCommand(command, cfg);
+  return CommandApprovalService.isPreapprovedCommand(command as Command, cfg as CommandConfig);
 }
 
-export function isSessionApproved(cmd: CommandRequest | null | undefined): boolean {
-  return defaultCommandApprovalService.isSessionApproved(cmd);
+export function isSessionApproved(cmd: unknown): boolean {
+  return defaultCommandApprovalService.isSessionApproved(cmd as Command);
 }
 
-export function approveForSession(cmd: CommandRequest | null | undefined): void {
-  return defaultCommandApprovalService.approveForSession(cmd);
+export function approveForSession(cmd: unknown): void {
+  return defaultCommandApprovalService.approveForSession(cmd as Command);
 }
 
 export function resetSessionApprovals(): void {

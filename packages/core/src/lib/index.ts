@@ -105,8 +105,6 @@ export type {
   PromptRequestMetadata,
   PromptRequestScope,
 } from '../agent/promptCoordinator.js';
-export type { CommandRequest, CommandRequestLimits } from '../contracts/index.js';
-export type { RunOptions as RunCommandOptions } from '../commands/run.js';
 
 const exported = {
   ...startupFlagAccessors,

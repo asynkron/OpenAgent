@@ -1,6 +1,5 @@
+// @ts-nocheck
 /* eslint-env jest */
-import { describe, expect, test } from '@jest/globals';
-
 import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
 import {
   createObservationHistoryEntry,

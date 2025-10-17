@@ -12,7 +12,7 @@
 - `fetch.ts` — fetch-like wrapper that prefers the global implementation and falls back to Node's `http`/`https` modules. Recent refactors split timeout handling, header normalization, and Node streaming into focused helpers so the code is easier to reason about during failure analysis.
 - `jsonAssetValidator.ts` — validates JSON files against provided schemas; leveraged by scripts/tests.
 - `output.ts` — formatting helpers for CLI output and logs, now typed to guarantee string outputs. The `combineStdStreams` helper tolerates missing exit codes so observation builders can share the same implementation across typed and untyped callers.
-- `plan.ts` — plan tree clone/merge/progress utilities used by agent runtime & UI. The helpers now share a `PlanSnapshot` type alias derived from the tool schema so cloning, merging, formatting, and progress math operate on the same strongly typed step shape. `planCloneUtils.ts` now sources its step definition from `passExecutor/planTypes.ts`, ensuring runtime code and utilities stay aligned when the plan entry schema evolves, and plan analyzers/formatters now require the parsed DTOs instead of normalizing `unknown` inputs on every call.
+- `plan.ts` — plan tree clone/merge/progress utilities used by agent runtime & UI. The helpers now share a `PlanSnapshot` type alias derived from the tool schema so cloning, merging, formatting, and progress math operate on the same strongly typed step shape.
   - Incoming items with `status: 'abandoned'` now remove the matching plan branch during merge.
   - Steps waiting on dependencies now remain blocked if any dependency failed instead of treating failure as completion.
   - Merging no longer downgrades locally completed/failed steps when the assistant resends them as pending, preventing command replays.
@@ -23,7 +23,7 @@
   - Deep-clone helper ensures persisted plans round-trip without clearing locally managed status/observation fields.
   - Merge keys normalize `id` values case-insensitively so assistant resends with different casing still hit the same step.
   - Progress helpers only treat canonical terminal statuses (`completed`, `failed`) as finished; tests assert unrecognized values like `done` remain pending.
-- `planStatusTypes.ts` — centralizes canonical plan statuses, terminal status lookups, and normalization helpers so executor utilities and plan formatters share the same literal set. The companion `planStatusUtils.ts` now serves as the single export surface for status guard helpers consumed across the runtime and tests.
+- `planStatusTypes.ts` — centralizes canonical plan statuses, terminal status lookups, and normalization helpers so executor utilities and plan formatters share the same literal set.
 - `text.ts` (emits `text.js` for runtime consumption) — string helpers (filters, tailing, shell splitting).
 
 Recent migrations tightened the TypeScript coverage for `asyncQueue`, `contextUsage`, `jsonAssetValidator`, `cancellation`, `fetch`,

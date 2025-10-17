@@ -2,10 +2,6 @@
 import { jest } from '@jest/globals';
 import { runPrePassSequence } from '../prePassSequence.js';
 import { createNormalizedOptions, createObservationBuilderStub } from '../__testUtils__/passExecutor.js';
-import type { EmitEvent } from '../types.js';
-
-const createEmitEventMock = (): jest.MockedFunction<EmitEvent> =>
-  jest.fn<ReturnType<EmitEvent>, Parameters<EmitEvent>>();
 
 describe('runPrePassSequence', () => {
   test('returns completed result when model response is available', async () => {
@@ -13,25 +9,9 @@ describe('runPrePassSequence', () => {
     const createChatMessageEntryFn = jest.fn((entry) => ({ ...entry, id: 'entry-1' }));
     const requestModelCompletionFn = jest.fn(async () => ({
       status: 'success',
-      completion: {
-        output_text: '{"message":"hello"}',
-        output: [
-          {
-            type: 'function_call',
-            name: 'open-agent',
-            arguments: '{"message":"hello"}',
-            call_id: 'call-123',
-          },
-        ],
-        // Tests do not rely on the text/structured payload; keep the placeholder minimal.
-        text: {} as never,
-      },
+      completion: { id: 'cmpl_123' },
     }));
-    const extractOpenAgentToolCallFn = jest.fn(() => ({
-      name: 'open-agent',
-      call_id: 'call-123',
-      arguments: '{"message":"hello"}',
-    }));
+    const extractOpenAgentToolCallFn = jest.fn(() => ({ arguments: '{"message":"hello"}' }));
     const summarizeContextUsageFn = jest.fn(() => ({ total: 10 }));
     const guardRequestPayloadSizeFn = jest.fn();
 
@@ -76,20 +56,12 @@ describe('runPrePassSequence', () => {
   });
 
   test('flags missing content when tool arguments are empty', async () => {
-    const emitEvent = createEmitEventMock();
+    const emitEvent = jest.fn();
     const requestModelCompletionFn = jest.fn(async () => ({
       status: 'success',
-      completion: {
-        output_text: '',
-        output: [],
-        text: {} as never,
-      },
+      completion: { id: 'cmpl_missing' },
     }));
-    const extractOpenAgentToolCallFn = jest.fn(() => ({
-      name: 'open-agent',
-      call_id: null,
-      arguments: '',
-    }));
+    const extractOpenAgentToolCallFn = jest.fn(() => ({ arguments: '' }));
 
     const options = createNormalizedOptions({
       emitEvent,

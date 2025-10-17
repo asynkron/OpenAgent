@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* eslint-env jest */
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';

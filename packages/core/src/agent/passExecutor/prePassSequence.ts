@@ -1,5 +1,5 @@
 import type ObservationBuilder from '../observationBuilder.js';
-import type { ResponsesClient } from '../../contracts/index.js';
+import type { ResponsesClient } from '../../openai/responses.js';
 import type { EscState } from '../escState.js';
 import type { HistoryCompactor } from '../historyCompactor.js';
 import type { ChatMessageEntry } from '../historyEntry.js';

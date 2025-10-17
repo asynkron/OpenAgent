@@ -1,21 +1,13 @@
-import type { PlanSnapshot, PlanSnapshotStep } from './planCloneUtils.js';
+import type { PlanSnapshotStep } from './planCloneUtils.js';
 
-type IdentifierCandidate =
-  | PlanSnapshotStep['id']
-  | (PlanSnapshotStep['waitingForId'] extends Array<infer U> ? U : never)
-  | null
-  | undefined;
-
-const normalizePlanIdentifier = (value: IdentifierCandidate): string => {
-  if (value === null || value === undefined) {
+const normalizePlanIdentifier = (value: unknown): string => {
+  if (typeof value !== 'string') {
     return '';
   }
-
-  const normalized = String(value).trim();
-  return normalized || '';
+  return value.trim() || '';
 };
 
-export const planToMarkdown = (plan: PlanSnapshot | null | undefined): string => {
+export const planToMarkdown = (plan: unknown): string => {
   const header = '# Active Plan\n\n';
 
   if (!Array.isArray(plan) || plan.length === 0) {
@@ -24,21 +16,25 @@ export const planToMarkdown = (plan: PlanSnapshot | null | undefined): string =>
 
   const lines: string[] = [];
 
-  plan.forEach((planItem, index) => {
-    if (!planItem || typeof planItem !== 'object') {
+  plan.forEach((item, index) => {
+    if (!item || typeof item !== 'object') {
       return;
     }
 
+    const planItem = item as PlanSnapshotStep;
     const title =
       typeof planItem.title === 'string' && planItem.title.trim().length > 0
         ? planItem.title.trim()
         : `Task ${index + 1}`;
-    const status = planItem.status ? String(planItem.status).trim() : '';
+    const status =
+      typeof planItem.status === 'string' && planItem.status.trim().length > 0
+        ? planItem.status.trim()
+        : '';
     const priority = Number.isFinite(Number(planItem.priority)) ? Number(planItem.priority) : null;
     const dependencies = Array.isArray(planItem.waitingForId)
       ? planItem.waitingForId
-          .map((value) => normalizePlanIdentifier(value))
-          .filter((value) => value.length > 0)
+          .filter((value) => normalizePlanIdentifier(value))
+          .map((value) => String(value).trim())
       : [];
 
     const details: string[] = [];

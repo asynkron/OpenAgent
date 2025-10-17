@@ -2,10 +2,6 @@
 import { describe, expect, test, jest } from '@jest/globals';
 import { prepareCommandCandidate, runApprovedCommand } from '../executor.js';
 import type { PlanRuntime } from '../../planRuntime.js';
-import type { EmitEvent } from '../../types.js';
-
-const createEmitEventMock = (): jest.MockedFunction<EmitEvent> =>
-  jest.fn<ReturnType<EmitEvent>, Parameters<EmitEvent>>();
 
 const createPlanRuntimeMock = () => ({
   markCommandRunning: jest.fn(),
@@ -41,7 +37,7 @@ describe('runApprovedCommand', () => {
       {
         executeAgentCommandFn: executeAgentCommandFn as never,
         runCommandFn: jest.fn(),
-        emitEvent: createEmitEventMock(),
+        emitEvent: jest.fn(),
         planRuntime,
       },
       {

@@ -2,7 +2,6 @@
 import { describe, expect, test, jest } from '@jest/globals';
 import { finalizePlanRuntime } from '../finalization.js';
 import { createPlanStateMachine } from '../stateMachine/index.js';
-import type { PlanEntry } from '../../planTypes.js';
 
 const createPlanManagerMock = () => ({
   resolveActivePlan: jest.fn(),
@@ -13,8 +12,9 @@ const createPlanManagerMock = () => ({
 describe('finalizePlanRuntime', () => {
   test('persists plan snapshot and records observation when plan mutated', async () => {
     const stateMachine = createPlanStateMachine();
-    const activePlan: PlanEntry[] = [{ id: 'root', status: 'running', command: { run: 'ls' } }];
-    stateMachine.replaceActivePlan(activePlan);
+    stateMachine.replaceActivePlan([
+      { id: 'root', status: 'running', command: { run: 'ls' } },
+    ]);
     const planManager = createPlanManagerMock();
 
     const result = await finalizePlanRuntime({

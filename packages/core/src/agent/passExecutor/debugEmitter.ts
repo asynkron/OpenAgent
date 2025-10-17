@@ -1,10 +1,23 @@
-import type { DebugPayload } from './types.js';
+import type { DebugMetadata } from './types.js';
 
-export type DebugListener = ((payload: DebugPayload) => void) | null | undefined;
+export type DebugListener = ((payload: DebugMetadata) => void) | null | undefined;
 
 export interface DebugEmitter {
-  emit(payloadOrFactory: DebugPayload | (() => DebugPayload)): void;
+  emit(payload: unknown): void;
 }
+
+const normalizePayload = (candidate: unknown): DebugMetadata | null => {
+  if (!candidate || typeof candidate !== 'object') {
+    return null;
+  }
+
+  const payload = candidate as Record<string, unknown>;
+  if (typeof payload.stage !== 'string') {
+    return null;
+  }
+
+  return payload as DebugMetadata;
+};
 
 export const createDebugEmitter = (listener: DebugListener): DebugEmitter => {
   if (typeof listener !== 'function') {
@@ -16,14 +29,11 @@ export const createDebugEmitter = (listener: DebugListener): DebugEmitter => {
   }
 
   return {
-    emit(payloadOrFactory: DebugPayload | (() => DebugPayload)): void {
-      let resolved: DebugPayload;
+    emit(payload: unknown): void {
+      let resolved: unknown = payload;
 
       try {
-        resolved =
-          typeof payloadOrFactory === 'function'
-            ? (payloadOrFactory as () => DebugPayload)()
-            : payloadOrFactory;
+        resolved = typeof payload === 'function' ? (payload as () => unknown)() : payload;
       } catch (error) {
         listener({
           stage: 'debug-payload-error',
@@ -32,7 +42,12 @@ export const createDebugEmitter = (listener: DebugListener): DebugEmitter => {
         return;
       }
 
-      listener(resolved);
+      const normalized = normalizePayload(resolved);
+      if (!normalized) {
+        return;
+      }
+
+      listener(normalized);
     },
   } satisfies DebugEmitter;
 };
