@@ -5,16 +5,14 @@
 
 ## Rules for TypeScript
 
-Write types as if you were writing Golang.
-Avoid Record<string, unknown> and use explicit types instead.
-Avoid any.
-Avoid unknown unless absolutely necessary.
-Avoid union types unless absolutely necessary.
-Avoid generics unless absolutely necessary.
-
-I want the types to be as explicit as possible to make it easy to understand the data structures used in the code.
-
-I want a folder of contracts, one file per contract, that defines all types used in the project.
+- Write types as if you were writing Golang.
+- Avoid Record<string, unknown> and use explicit types instead.
+- Avoid any.
+- Avoid unknown unless absolutely necessary.
+- Avoid union types unless absolutely necessary.
+- Avoid generics unless absolutely necessary.
+- I want the types to be as explicit as possible to make it easy to understand the data structures used in the code.
+- I want a folder of contracts, one file per contract, that defines all types used in the project.
 
 ## Clean up existing mess
 
