@@ -59,7 +59,7 @@ export interface PlanStep {
 /**
  * High-level plan returned by the assistant.
  */
-export interface Plan {
+export interface PlanResponse {
   message: string;
   plan: PlanStep[];
 }

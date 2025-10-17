@@ -5,7 +5,7 @@ import { createCommandRuntime } from './commandRuntime.js';
 import type { DebugEmitter } from './debugEmitter.js';
 import type { PlanManagerAdapter } from './planManagerAdapter.js';
 import type { NormalizedExecuteAgentPassOptions } from './types.js';
-import type { ToolResponse } from '../../contracts/index.js';
+import type { PlanResponse } from '../../contracts/index.js';
 import type { PlanStep } from './planExecution.js';
 
 export type PlanExecutorOutcome = 'continue' | 'stop' | 'no-executable' | 'command-rejected';
@@ -17,7 +17,7 @@ export const executePlan = async ({
   observationBuilder,
   debugEmitter,
 }: {
-  parsedResponse: ToolResponse;
+  parsedResponse: PlanResponse;
   options: NormalizedExecuteAgentPassOptions;
   planManagerAdapter: PlanManagerAdapter | null;
   observationBuilder: ObservationBuilder;

@@ -9,7 +9,7 @@ import {
   type ToolSet,
 } from 'ai';
 import type { FlexibleSchema } from '@ai-sdk/provider-utils';
-import { ToolDefinition, type ToolResponse } from '../contracts/index.js';
+import { ToolDefinition, type PlanResponse } from '../contracts/index.js';
 import { getOpenAIRequestSettings } from './client.js';
 
 type ReasoningEffort = 'low' | 'medium' | 'high';
@@ -52,7 +52,7 @@ type DeepPartial<T> = T extends (...arguments_: any[]) => unknown
       ? { [K in keyof T]?: DeepPartial<T[K]> }
       : T;
 
-export type ToolResponseStreamPartial = DeepPartial<ToolResponse>;
+export type PlanResponseStreamPartial = DeepPartial<PlanResponse>;
 
 // Normalize optional runtime knobs into the shape expected by the AI SDK helpers.
 function buildCallSettings(options: ResponseCallOptions | undefined): ResponseCallSettings {
@@ -99,7 +99,7 @@ function mapToolToSchema(tool: SupportedTool | null | undefined): StructuredTool
 interface StructuredToolDefinition {
   name?: string;
   description?: string;
-  schema: FlexibleSchema<ToolResponse>;
+  schema: FlexibleSchema<PlanResponse>;
 }
 
 type SupportedTool = typeof ToolDefinition | StructuredToolDefinition;
@@ -158,7 +158,7 @@ type ResponseOutput = ResponseFunctionCall | ResponseMessage;
 interface StructuredResponseResult {
   output_text: string;
   output: ResponseOutput[];
-  structured: GenerateObjectResult<ToolResponse>;
+  structured: GenerateObjectResult<PlanResponse>;
 }
 
 interface TextResponseResult {
@@ -176,7 +176,7 @@ export interface CreateResponseParams {
   tools?: SupportedTool[];
   options?: ResponseCallOptions;
   reasoningEffort?: ReasoningEffort;
-  onStructuredStreamPartial?: (value: ToolResponseStreamPartial) => void;
+  onStructuredStreamPartial?: (value: PlanResponseStreamPartial) => void;
   onStructuredStreamFinish?: () => void;
 }
 
@@ -200,7 +200,7 @@ function selectStructuredTool(tools: SupportedTool[] | undefined): StructuredToo
 }
 
 interface StructuredStreamCallbacks {
-  onPartial?: (value: ToolResponseStreamPartial) => void;
+  onPartial?: (value: PlanResponseStreamPartial) => void;
   onComplete?: () => void;
 }
 
@@ -285,14 +285,14 @@ async function createStructuredResult(
       ? (responseRecord.id as string)
       : null;
 
-  const structured: GenerateObjectResult<ToolResponse> = {
+  const structured: GenerateObjectResult<PlanResponse> = {
     object,
     reasoning: undefined,
     finishReason,
     usage,
     warnings,
     request,
-    response: response as GenerateObjectResult<ToolResponse>['response'],
+    response: response as GenerateObjectResult<PlanResponse>['response'],
     providerMetadata,
     toJsonResponse(init?: ResponseInit): Response {
       const status = typeof init?.status === 'number' ? init.status : 200;

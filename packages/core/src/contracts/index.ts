@@ -9,7 +9,7 @@
  * Naming Conventions
  * - ModelRequest / ModelResponse — payloads to/from the AI SDK.
  * - ModelCompletion* — result envelope from the runtime call wrapper.
- * - Tool* — DTOs produced by the OpenAgent tool schema (ToolResponse, ToolPlanStep, ToolCommand).
+ * - PlanResponse / PlanStep / CommandDefinition — DTOs produced by the OpenAgent tool schema.
  * - OpenAgentObservation* — observation payloads we send back to the model.
  */
 
@@ -24,7 +24,7 @@ import { z } from 'zod';
 import { PlanStatus, TERMINAL_PLAN_STATUSES } from './planStatus.js';
 import type { CommandDefinition, CommandDraft, CommandExecutionDetails } from './command.js';
 import type {
-  Plan,
+  PlanResponse,
   PlanObservation,
   PlanObservationMetadata,
   PlanObservationPayload,
@@ -46,7 +46,7 @@ const PlanObservationMetadataSchema: z.ZodType<PlanObservationMetadata | null | 
 const PlanObservationPayloadSchema: z.ZodType<PlanObservationPayload> = z.lazy(() =>
   z
     .object({
-      plan: z.array(ToolPlanStepSchema).optional(),
+      plan: z.array(z.lazy(() => PlanStepSchema)).optional(),
       stdout: z.string().optional(),
       stderr: z.string().optional(),
       truncated: z.boolean().optional(),
@@ -71,23 +71,10 @@ const PlanObservationSchema: z.ZodType<PlanObservation> = z.lazy(() =>
     .strict(),
 );
 
-export type ToolCommand = CommandDefinition;
-export type ToolPlanStep = PlanStep;
-export type ToolResponse = Plan;
-export type ToolObservation = PlanObservation;
-export type ToolObservationMetadata = PlanObservationMetadata;
-export type ToolObservationPayload = PlanObservationPayload;
-export type ToolCommandDraft = CommandDraft;
-export type ToolCommandExecutionDetails = CommandExecutionDetails;
-export type ToolChatMessageContent = ChatMessageContent;
-export type ToolChatMessageContentPart = ChatMessageContentPart;
-export type ToolChatMessagePayload = ChatMessagePayload;
-export type ToolChatMessageEntry = ChatMessageEntry;
-
 export { PlanStatus, TERMINAL_PLAN_STATUSES } from './planStatus.js';
 export type { CommandDraft, CommandDefinition, CommandExecutionDetails } from './command.js';
 export type {
-  Plan,
+  PlanResponse,
   PlanObservation,
   PlanObservationMetadata,
   PlanObservationPayload,
@@ -101,7 +88,7 @@ export type {
 } from './history.js';
 
 // Zod schemas that mirror the interfaces above
-export const ToolCommandSchema = z
+export const CommandSchema = z
   .object({
     reason: z.string().default(''),
     shell: z.string(),
@@ -114,26 +101,26 @@ export const ToolCommandSchema = z
   })
   .strict();
 
-export const ToolPlanStepSchema: z.ZodType<ToolPlanStep> = z
+export const PlanStepSchema: z.ZodType<PlanStep> = z
   .object({
     id: z.string(),
     title: z.string(),
     status: z.nativeEnum(PlanStatus),
     waitingForId: z.array(z.string()).default([]),
-    command: ToolCommandSchema,
+    command: CommandSchema,
     observation: PlanObservationSchema.optional(),
   })
   .strict();
 
-export const ToolResponseSchema = z
+export const PlanResponseSchema = z
   .object({
     message: z.string(),
-    plan: z.array(ToolPlanStepSchema),
+    plan: z.array(PlanStepSchema),
   })
   .strict();
 
 // JSON Schema (AJV + provider wrapper) and named tool definition
-export const ToolResponseJsonSchema = {
+export const PlanResponseJsonSchema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
   type: 'object',
   additionalProperties: false,
@@ -256,11 +243,11 @@ export const ToolDefinition = Object.freeze({
   name: 'open-agent',
   description:
     'Return the response envelope that matches the OpenAgent protocol (message, plan, and command fields).',
-  schema: asJsonSchema<ToolResponse>(() => ToolResponseJsonSchema),
+  schema: asJsonSchema<PlanResponse>(() => PlanResponseJsonSchema),
 });
 
 // Runtime (AJV) validation schema — less strict than provider schema
-export const RuntimeToolResponseJsonSchema = {
+export const RuntimePlanResponseJsonSchema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
   type: 'object',
   additionalProperties: false,
@@ -338,7 +325,7 @@ export type AiResponseOutput = AiResponseFunctionCall | AiResponseMessage;
 export type StructuredModelResponse = {
   output_text: string;
   output: AiResponseOutput[];
-  structured: GenerateObjectResult<ToolResponse>;
+  structured: GenerateObjectResult<PlanResponse>;
 };
 export type TextModelResponse = {
   output_text: string;

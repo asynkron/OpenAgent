@@ -1,4 +1,4 @@
-import type { ToolObservation, ToolPlanStep } from '../contracts/index.js';
+import type { PlanObservation, PlanStep } from '../contracts/index.js';
 
 const hasStructuredClone = typeof globalThis.structuredClone === 'function';
 
@@ -19,19 +19,19 @@ export const deepCloneValue = <T>(value: T): T => {
   }
 };
 
-type ToolPlanDependency = NonNullable<ToolPlanStep['waitingForId']>[number];
+type PlanStepDependency = NonNullable<PlanStep['waitingForId']>[number];
 
-export type PlanSnapshotStatus = ToolPlanStep['status'] | 'running';
+export type PlanSnapshotStatus = PlanStep['status'] | 'running';
 
-export type PlanSnapshotCommand = ToolPlanStep['command'];
+export type PlanSnapshotCommand = PlanStep['command'];
 
 export interface PlanSnapshotStep {
-  id?: ToolPlanStep['id'] | number;
-  title?: ToolPlanStep['title'];
+  id?: PlanStep['id'] | number;
+  title?: PlanStep['title'];
   status?: PlanSnapshotStatus;
-  waitingForId?: (ToolPlanDependency | number)[];
+  waitingForId?: (PlanStepDependency | number)[];
   command?: PlanSnapshotCommand | null;
-  observation?: ToolObservation | null;
+  observation?: PlanObservation | null;
   priority?: number | string;
 }
 

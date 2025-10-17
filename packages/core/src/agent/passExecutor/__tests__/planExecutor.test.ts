@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { jest } from '@jest/globals';
-import type { ToolResponse } from '../../../contracts/index.js';
+import type { PlanResponse } from '../../../contracts/index.js';
 import { createNormalizedOptions, createObservationBuilderStub } from '../__testUtils__/passExecutor.js';
 
 const loadPlanExecutor = async () => {
@@ -62,7 +62,7 @@ const loadPlanExecutor = async () => {
   return { ...module, commandRuntimeConfig, planRuntimeConfig };
 };
 
-const buildResponse = (overrides: Partial<ToolResponse> = {}): ToolResponse => ({
+const buildResponse = (overrides: Partial<PlanResponse> = {}): PlanResponse => ({
   message: 'hello',
   plan: [],
   commands: [],

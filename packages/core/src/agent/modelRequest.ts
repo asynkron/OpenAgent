@@ -18,7 +18,7 @@ import {
   type CreateResponseResult,
   type ResponseCallOptions,
   type ResponsesClient,
-  type ToolResponseStreamPartial,
+  type PlanResponseStreamPartial,
 } from '../openai/responses.js';
 import { getOpenAIRequestSettings } from '../openai/client.js';
 import { createEscWaiter, resetEscState, type EscState } from './escState.js';
@@ -123,7 +123,7 @@ export async function requestModelCompletion({
 
   const emitStructuredStreamInstruction = (
     action: 'replace' | 'remove',
-    value?: ToolResponseStreamPartial,
+    value?: PlanResponseStreamPartial,
   ): void => {
     try {
       const payload =
@@ -151,7 +151,7 @@ export async function requestModelCompletion({
     }
   };
 
-  const emitStructuredStreamPartial = (value: ToolResponseStreamPartial): void => {
+  const emitStructuredStreamPartial = (value: PlanResponseStreamPartial): void => {
     streamPanelCleared = false;
     emitStructuredStreamInstruction('replace', value);
   };

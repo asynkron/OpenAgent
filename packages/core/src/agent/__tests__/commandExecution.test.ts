@@ -3,6 +3,10 @@
 import { jest } from '@jest/globals';
 
 import { executeAgentCommand } from '../commandExecution.js';
+import {
+  DEFAULT_COMMAND_MAX_BYTES,
+  DEFAULT_COMMAND_TAIL_LINES,
+} from '../../constants.js';
 
 describe('executeAgentCommand', () => {
   const makeDeps = () => ({
@@ -17,7 +21,19 @@ describe('executeAgentCommand', () => {
 
     expect(deps.runCommandFn).toHaveBeenCalledWith('node index.js', '/project', 120, undefined);
     expect(result.stdout).toBe('run');
-    expect(executionDetails).toEqual({ type: 'EXECUTE', command });
+    expect(executionDetails).toEqual({
+      type: 'EXECUTE',
+      command: {
+        reason: '',
+        shell: '',
+        run: 'node index.js',
+        cwd: '/project',
+        timeout_sec: 120,
+        filter_regex: '',
+        tail_lines: DEFAULT_COMMAND_TAIL_LINES,
+        max_bytes: DEFAULT_COMMAND_MAX_BYTES,
+      },
+    });
   });
 
   test('defaults cwd and timeout when omitted', async () => {

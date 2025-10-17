@@ -18,3 +18,4 @@
 - Update these interfaces first when adjusting the runtime payloads; downstream packages import from here.
 - Keep property names aligned with the JSON protocol (snake_case for command payloads).
 - When introducing new plan metadata fields, document them in `plan.ts` so validation schemas stay accurate.
+- Legacy `Tool*` alias exports have been removed; import the canonical contract names (e.g., `PlanResponse`, `PlanStep`, `CommandDefinition`) directly from this module.

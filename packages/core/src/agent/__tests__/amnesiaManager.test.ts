@@ -3,6 +3,11 @@ import {
   createChatMessageEntry,
   type ChatMessageEntry,
 } from '../historyEntry.js';
+import { PlanStatus } from '../../contracts/index.js';
+import {
+  DEFAULT_COMMAND_MAX_BYTES,
+  DEFAULT_COMMAND_TAIL_LINES,
+} from '../../constants.js';
 
 interface BuildEntryOptions {
   pass: number;
@@ -47,7 +52,33 @@ describe('AmnesiaManager', () => {
     const history = [
       buildHistoryEntry({
         pass: 2,
-        content: JSON.stringify({ type: 'observation', plan: { summary: 'something' } }, null, 2),
+        content: JSON.stringify(
+          {
+            type: 'observation',
+            plan: [
+              {
+                id: 'step-1',
+                title: 'first',
+                status: PlanStatus.Pending,
+                waitingForId: [],
+                observation: null,
+                priority: null,
+                command: {
+                  reason: '',
+                  shell: '',
+                  run: 'echo hi',
+                  cwd: '.',
+                  timeout_sec: 60,
+                  filter_regex: '',
+                  tail_lines: DEFAULT_COMMAND_TAIL_LINES,
+                  max_bytes: DEFAULT_COMMAND_MAX_BYTES,
+                },
+              },
+            ],
+          },
+          null,
+          2,
+        ),
       }),
       buildHistoryEntry({ pass: 9, content: JSON.stringify({ type: 'observation' }, null, 2) }),
     ];

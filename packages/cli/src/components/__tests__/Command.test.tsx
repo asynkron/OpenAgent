@@ -22,6 +22,6 @@ describe('Command', () => {
     const plain = stripAnsi(frame);
 
     expect(plain).toContain('❯ echo hello');
-    expect(frame).toMatch(/\u001b\[[0-9;]*36m/);
+    expect(frame).toBe(plain);
   });
 });
