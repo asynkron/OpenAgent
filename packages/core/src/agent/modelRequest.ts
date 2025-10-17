@@ -26,34 +26,28 @@ import { createObservationHistoryEntry, type ObservationRecord } from './history
 import { buildOpenAgentRequestPayload } from './modelRequestPayload.js';
 import type { ObservationBuilder } from './observationBuilder.js';
 import type { ChatMessageEntry } from './historyEntry.js';
+import type { RuntimeEvent, RuntimeProperty, RuntimeDebugPayload } from './runtimeTypes.js';
 
 interface CancellationRegistrationOptions {
   description: string;
   onCancel?: () => void;
 }
 
-const getErrorStringProperty = (error: unknown, property: 'name' | 'message'): string => {
-  if (error && typeof error === 'object') {
-    const value = (error as Record<string, unknown>)[property];
-    if (typeof value === 'string') {
-      return value;
-    }
+const isAbortLikeError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
   }
 
-  return '';
-};
-
-const isAbortLikeError = (error: unknown): boolean => {
-  const name = getErrorStringProperty(error, 'name');
+  const name = error.name ?? '';
   if (name === 'AbortError' || name === 'TimeoutError') {
     return true;
   }
 
-  const message = getErrorStringProperty(error, 'message');
+  const message = error.message ?? '';
   return /abort|cancell?ed|timeout/i.test(message);
 };
 
-type EmitEvent = (event: Record<string, unknown>) => void;
+type EmitEvent = (event: RuntimeEvent) => void;
 
 const STREAM_DEBUG_ACTION_FIELD = '__openagentStreamAction';
 const STREAM_DEBUG_VALUE_FIELD = '__openagentStreamValue';
@@ -132,16 +126,25 @@ export async function requestModelCompletion({
     value?: ToolResponseStreamPartial,
   ): void => {
     try {
+      const payload =
+        action === 'remove'
+          ? { [STREAM_DEBUG_ACTION_FIELD]: 'remove' as const }
+          : (() => {
+              try {
+                const serialized = JSON.parse(JSON.stringify(value ?? null)) as RuntimeProperty;
+                return {
+                  [STREAM_DEBUG_ACTION_FIELD]: 'replace' as const,
+                  [STREAM_DEBUG_VALUE_FIELD]: serialized,
+                };
+              } catch (_serializationError) {
+                return { [STREAM_DEBUG_ACTION_FIELD]: 'replace' as const };
+              }
+            })();
+
       emitEvent({
         type: 'debug',
         id: streamDebugId,
-        payload:
-          action === 'remove'
-            ? { [STREAM_DEBUG_ACTION_FIELD]: 'remove' }
-            : {
-                [STREAM_DEBUG_ACTION_FIELD]: 'replace',
-                [STREAM_DEBUG_VALUE_FIELD]: value,
-              },
+        payload,
       });
     } catch (_error) {
       // Ignore debug stream emission failures to keep the request resilient.

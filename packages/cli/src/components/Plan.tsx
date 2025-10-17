@@ -4,6 +4,7 @@ import { Box, Text } from 'ink';
 import { createPlanNodes, type PlanNode, type PlanStep } from './planUtils.js';
 import PlanDetail from './PlanDetail.js';
 import theme, { type Theme } from '../theme.js';
+import { toBoxProps, toTextProps, type BoxStyleProps, type TextStyleProps } from '../styleTypes.js';
 
 const planTheme: Theme['plan'] | undefined = theme?.plan;
 type PlanColors = Theme['plan']['colors'];
@@ -22,35 +23,34 @@ function Plan({ plan }: PlanProps): ReactElement {
   const nodes: PlanNode[] = createPlanNodes(plan ?? []);
   const hasSteps = nodes.length > 0;
 
-  const headingProps: Record<string, unknown> = {
-    ...(planProps.heading ?? {}),
-  };
+  const headingStyle: TextStyleProps = { ...(planProps.heading ?? {}) };
 
-  if (headingProps.color === undefined) {
-    headingProps.color = planColors.heading ?? planColors.fg ?? 'blueBright';
+  if (headingStyle.color === undefined) {
+    headingStyle.color = planColors.heading ?? planColors.fg ?? 'blueBright';
   }
-  if (headingProps.bold === undefined) {
-    headingProps.bold = true;
+  if (headingStyle.bold === undefined) {
+    headingStyle.bold = true;
   }
 
-  const containerProps: Record<string, unknown> = {
-    ...(planProps.container ?? {}),
-  };
+  const containerStyle: BoxStyleProps = { ...(planProps.container ?? {}) };
 
-  if (containerProps.flexDirection === undefined) {
-    containerProps.flexDirection = 'column';
+  if (containerStyle.flexDirection === undefined) {
+    containerStyle.flexDirection = 'column';
   }
-  if (containerProps.marginTop === undefined) {
-    containerProps.marginTop = 1;
+  if (containerStyle.marginTop === undefined) {
+    containerStyle.marginTop = 1;
   }
 
-  if (!containerProps.backgroundColor && planColors.bg) {
-    containerProps.backgroundColor = planColors.bg;
+  if (!containerStyle.backgroundColor && planColors.bg) {
+    containerStyle.backgroundColor = planColors.bg;
   }
+
+  const headingProps = toTextProps(headingStyle);
+  const containerProps = toBoxProps(containerStyle);
 
   return (
-    <Box {...(containerProps as Record<string, unknown>)}>
-      <Text {...(headingProps as Record<string, unknown>)}>Plan</Text>
+    <Box {...containerProps}>
+      <Text {...headingProps}>Plan</Text>
       {hasSteps ? (
         nodes.map((node) => <PlanDetail key={node.id} node={node} />)
       ) : (

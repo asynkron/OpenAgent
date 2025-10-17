@@ -1,11 +1,14 @@
 import type {
   AgentRuntimeOptions,
   AsyncQueueLike,
+  DebugRuntimeEvent,
   IdGeneratorFn,
+  RuntimeProperty,
+  RuntimeDebugPayload,
   RuntimeEmitter,
   RuntimeEvent,
   RuntimeEventObserver,
-  UnknownRecord,
+  StatusRuntimeEvent,
 } from './runtimeTypes.js';
 
 type LoggerLevel = 'log' | 'info' | 'warn' | 'error' | 'debug';
@@ -19,7 +22,7 @@ interface RuntimeEmitterConfig {
   isDebugEnabled: () => boolean;
 }
 
-const cloneEvent = (event: unknown): RuntimeEvent => {
+const cloneEvent = (event: RuntimeEvent): RuntimeEvent => {
   try {
     const serialized = JSON.stringify(event);
     const parsed = JSON.parse(serialized);
@@ -44,7 +47,11 @@ export function createRuntimeEmitter({
 }: RuntimeEmitterConfig): RuntimeEmitter {
   let counter = 0;
 
-  const logWithFallback = (level: LoggerLevel, message: string, details: unknown = null): void => {
+  const logWithFallback = (
+    level: LoggerLevel,
+    message: string,
+    details: RuntimeProperty = null,
+  ): void => {
     const sink = logger ?? console;
     const fn = sink && typeof sink[level] === 'function' ? sink[level].bind(sink) : null;
     if (fn) {
@@ -66,7 +73,7 @@ export function createRuntimeEmitter({
     return `${idPrefix}${counter++}`;
   };
 
-  const emit = (event: unknown): void => {
+  const emit = (event: RuntimeEvent): void => {
     if (!event || typeof event !== 'object') {
       throw new TypeError('Agent emit expected event to be an object.');
     }
@@ -88,25 +95,27 @@ export function createRuntimeEmitter({
           type: 'status',
           level: 'warn',
           message: 'eventObservers item threw.',
-        } satisfies UnknownRecord);
+        });
       }
     }
   };
 
-  const emitFactoryWarning = (message: string, error: unknown = null): void => {
-    const warning: UnknownRecord = { type: 'status', level: 'warn', message };
-    if (error != null) {
-      warning.details = error instanceof Error ? error.message : String(error);
-    }
+  const emitFactoryWarning = (message: string, error: string | null = null): void => {
+    const warning: StatusRuntimeEvent = {
+      type: 'status',
+      level: 'warn',
+      message,
+      details: error,
+    };
     emit(warning);
   };
 
-  const emitDebug = (payloadOrFactory: unknown): void => {
+  const emitDebug = (payloadOrFactory: RuntimeDebugPayload): void => {
     if (!isDebugEnabled()) {
       return;
     }
 
-    let payload: unknown;
+    let payload: RuntimeProperty | void;
     try {
       payload = typeof payloadOrFactory === 'function' ? payloadOrFactory() : payloadOrFactory;
     } catch (error) {
@@ -123,7 +132,8 @@ export function createRuntimeEmitter({
       return;
     }
 
-    emit({ type: 'debug', payload });
+    const debugEvent: DebugRuntimeEvent = { type: 'debug', payload: payload as RuntimeProperty };
+    emit(debugEvent);
   };
 
   return {

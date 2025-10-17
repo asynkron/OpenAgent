@@ -20,6 +20,7 @@ import { HistoryCompactor } from './historyCompactor.js';
 import { AsyncQueue, QUEUE_DONE } from '../utils/asyncQueue.js';
 import { cancel as cancelActive } from '../utils/cancellation.js';
 import { AmnesiaManager, applyDementiaPolicy } from './amnesiaManager.js';
+import type { ApprovalConfig } from './approvalManager.js';
 import type {
   AgentInputEvent,
   AgentRuntime,
@@ -59,7 +60,7 @@ export function createAgentRuntime({
   isPreapprovedCommandFn = isPreapprovedCommand,
   isSessionApprovedFn = isSessionApproved,
   approveForSessionFn = approveForSession,
-  preapprovedCfg = PREAPPROVED_CFG,
+  preapprovedCfg = PREAPPROVED_CFG as ApprovalConfig,
   getAutoApproveFlag = () => false,
   getNoHumanFlag = () => false,
   getPlanMergeFlag = () => false,
@@ -202,7 +203,7 @@ export function createAgentRuntime({
     approveForSession: approveForSessionFn,
     getAutoApproveFlag,
     askHuman: async (prompt) => promptCoordinator.request(prompt, { scope: 'approval' }),
-    preapprovedCfg: preapprovedCfg as Record<string, unknown> | undefined,
+    preapprovedCfg: preapprovedCfg ?? { allowlist: [] },
     logWarn: (message) => emit({ type: 'status', level: 'warn', message }),
     logSuccess: (message) => emit({ type: 'status', level: 'info', message }),
   };
@@ -361,7 +362,7 @@ export function createAgentRuntime({
               model,
               history,
               emitEvent: emit,
-              onDebug: emitDebug,
+              onDebug: (payload) => emitDebug(payload),
               runCommandFn,
               applyFilterFn,
               tailLinesFn,

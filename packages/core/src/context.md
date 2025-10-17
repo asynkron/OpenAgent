@@ -17,6 +17,7 @@
   - Includes `contracts.ts` barrel that re-exports request/response DTOs and the OpenAgent tool schema for single-path imports.
   - Canonical DTOs live under the root `contracts` directory; the local `contracts/index.ts` now mirrors those interfaces while providing schema helpers. Prefer importing runtime types from `contracts` when authoring new modules.
   - `responses.ts` now calls the AI SDK `streamObject` helper and exposes optional callbacks for partial structured responses, enabling downstream consumers to stream debug previews while awaiting the final object.
+- `prompts/` — typed manager/IO definitions (`manager.ts`, `types.ts`) backing future prompt discovery work. The manager now accepts structured metadata (`promptId`, `description`, `tags`, and `extra` key-value entries) instead of loose records.
 - `config/` — system prompt discovery/building.
 - `lib/` — curated export surface (startup flags, runtime factory) consumed by package entry.
 - `utils/` — shared helpers (async queues, cancellation, text formatting, plan math, JSON validation, HTTP fetch wrapper).

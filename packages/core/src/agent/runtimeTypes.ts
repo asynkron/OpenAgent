@@ -1,4 +1,7 @@
 import type { ResponsesClient } from '../openai/responses.js';
+import type { ContextUsageSummary } from '../utils/contextUsage.js';
+import type { PlanProgress } from '../utils/plan.js';
+import type { CommandDraft } from '../../../../contracts/index.js';
 import type { HistoryCompactor, HistoryCompactorOptions } from './historyCompactor.js';
 import type {
   GuardRequestPayloadSizeFn,
@@ -9,17 +12,97 @@ import type { createPlanManager, PlanManagerOptions } from './planManager.js';
 import type {
   PromptCoordinatorEvent,
   PromptCoordinatorOptions,
+  PromptRequestEvent,
   PromptRequestMetadata,
 } from './promptCoordinator.js';
-import type { ApprovalManager, ApprovalManagerOptions } from './approvalManager.js';
-import type { EscState, EscStateController } from './escState.js';
+import type { ApprovalManager, ApprovalManagerOptions, ApprovalConfig } from './approvalManager.js';
+import type { EscPayload, EscState, EscStateController } from './escState.js';
 import type { AsyncQueue as AsyncQueueType } from '../utils/asyncQueue.js';
 import type { ChatMessageEntry } from './historyEntry.js';
 import type { AmnesiaManager as AmnesiaManagerType } from './amnesiaManager.js';
 
-export type UnknownRecord = Record<string, unknown>;
+export type RuntimeProperty =
+  | string
+  | number
+  | boolean
+  | null
+  | RuntimeProperty[]
+  | { [key: string]: RuntimeProperty }
+  | object;
 
-export type RuntimeEvent = UnknownRecord & { type: string; __id?: string };
+export interface RuntimeEventBase {
+  type: string;
+  __id?: string;
+}
+
+export interface StatusRuntimeEvent extends RuntimeEventBase {
+  type: 'status';
+  level: 'info' | 'warn' | 'error' | 'debug';
+  message: string;
+  details?: RuntimeProperty;
+}
+
+export interface PlanProgressRuntimeEvent extends RuntimeEventBase {
+  type: 'plan-progress';
+  progress: PlanProgress;
+}
+
+export interface DebugRuntimeEvent extends RuntimeEventBase {
+  type: 'debug';
+  payload: RuntimeProperty;
+}
+
+export interface BannerRuntimeEvent extends RuntimeEventBase {
+  type: 'banner';
+  title: string;
+}
+
+export interface ThinkingRuntimeEvent extends RuntimeEventBase {
+  type: 'thinking';
+  state: 'start' | 'stop';
+}
+
+export interface PassRuntimeEvent extends RuntimeEventBase {
+  type: 'pass';
+  pass: number;
+}
+
+export interface AssistantMessageRuntimeEvent extends RuntimeEventBase {
+  type: 'assistant-message';
+  message: string;
+}
+
+export interface ContextUsageRuntimeEvent extends RuntimeEventBase {
+  type: 'context-usage';
+  usage: ContextUsageSummary;
+}
+
+export interface ErrorRuntimeEvent extends RuntimeEventBase {
+  type: 'error';
+  message: string;
+  details?: string;
+  raw?: RuntimeProperty;
+  attempts?: RuntimeProperty;
+}
+
+export type PromptRequestRuntimeEvent = PromptRequestEvent & RuntimeEventBase;
+
+export interface GenericRuntimeEvent extends RuntimeEventBase {
+  [key: string]: RuntimeProperty | undefined;
+}
+
+export type RuntimeEvent =
+  | StatusRuntimeEvent
+  | PlanProgressRuntimeEvent
+  | DebugRuntimeEvent
+  | BannerRuntimeEvent
+  | ThinkingRuntimeEvent
+  | PassRuntimeEvent
+  | AssistantMessageRuntimeEvent
+  | ContextUsageRuntimeEvent
+  | ErrorRuntimeEvent
+  | PromptRequestRuntimeEvent
+  | GenericRuntimeEvent;
 
 export type RuntimeEventObserver = (event: RuntimeEvent) => void;
 
@@ -38,9 +121,18 @@ export type GuardedRequestModelCompletion = GuardableRequestModelCompletion & {
 
 export type AsyncQueueLike<T> = Pick<AsyncQueueType<T>, 'push' | 'close' | 'next'>;
 
-export type AgentInputEvent =
-  | { type: 'prompt'; prompt?: string; value?: string }
-  | { type: 'cancel'; payload?: unknown };
+export interface AgentPromptInputEvent {
+  type: 'prompt';
+  prompt?: string | null;
+  value?: string | null;
+}
+
+export interface AgentCancelInputEvent {
+  type: 'cancel';
+  payload?: EscPayload;
+}
+
+export type AgentInputEvent = AgentPromptInputEvent | AgentCancelInputEvent;
 
 export interface EscController {
   state: EscState;
@@ -51,7 +143,7 @@ export interface EscController {
 export interface PromptCoordinatorLike {
   request(prompt: string, metadata?: PromptRequestMetadata | null): Promise<string>;
   handlePrompt(value: string): void;
-  handleCancel(payload?: unknown): void;
+  handleCancel(payload?: EscPayload): void;
   close(): void;
 }
 
@@ -118,10 +210,10 @@ export interface AgentRuntimeOptions {
   runCommandFn?: ExecuteAgentPassOptions['runCommandFn'];
   applyFilterFn?: ExecuteAgentPassOptions['applyFilterFn'];
   tailLinesFn?: ExecuteAgentPassOptions['tailLinesFn'];
-  isPreapprovedCommandFn?: (command: unknown, cfg?: unknown) => boolean;
-  isSessionApprovedFn?: (command: unknown) => boolean;
-  approveForSessionFn?: (command: unknown) => void | Promise<void>;
-  preapprovedCfg?: unknown;
+  isPreapprovedCommandFn?: (command: CommandDraft, cfg: ApprovalConfig) => boolean;
+  isSessionApprovedFn?: (command: CommandDraft) => boolean;
+  approveForSessionFn?: (command: CommandDraft) => void | Promise<void>;
+  preapprovedCfg?: ApprovalConfig | null;
   getAutoApproveFlag?: () => boolean;
   getNoHumanFlag?: () => boolean;
   getPlanMergeFlag?: () => boolean;
@@ -146,7 +238,7 @@ export interface AgentRuntimeOptions {
   createChatMessageEntryFn?: (typeof import('./historyEntry.js'))['createChatMessageEntry'];
   executeAgentPassFn?: (typeof import('./passExecutor.js'))['executeAgentPass'];
   createPlanAutoResponseTrackerFn?: () => PlanAutoResponseTracker | null;
-  cancelFn?: (reason?: unknown) => void;
+  cancelFn?: (reason?: EscPayload) => void;
   planReminderMessage?: string;
   userInputPrompt?: string;
   noHumanAutoMessage?: string;
@@ -160,7 +252,7 @@ export interface AgentRuntime {
   readonly inputs: AsyncQueueLike<AgentInputEvent>;
   start(): Promise<void>;
   submitPrompt(value: string): void;
-  cancel(payload?: unknown): void;
+  cancel(payload?: EscPayload): void;
   getHistorySnapshot(): HistorySnapshot;
 }
 
@@ -168,12 +260,14 @@ export interface RuntimeLogger {
   logWithFallback(
     level: 'log' | 'info' | 'warn' | 'error' | 'debug',
     message: string,
-    details?: unknown,
+    details?: RuntimeProperty,
   ): void;
 }
 
+export type RuntimeDebugPayload = RuntimeProperty | (() => RuntimeProperty | void);
+
 export interface RuntimeEmitter extends RuntimeLogger {
-  emit(event: unknown): void;
-  emitFactoryWarning(message: string, error?: unknown): void;
-  emitDebug(payloadOrFactory: unknown): void;
+  emit(event: RuntimeEvent): void;
+  emitFactoryWarning(message: string, error?: string | null): void;
+  emitDebug(payloadOrFactory: RuntimeDebugPayload): void;
 }

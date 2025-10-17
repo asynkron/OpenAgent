@@ -1,13 +1,15 @@
 import { clonePlanForExecution } from '../planExecution.js';
+import { deepCloneValue } from '../../../utils/planCloneUtils.js';
 import type ObservationBuilder from '../../observationBuilder.js';
 import type { ExecuteAgentPassOptions } from '../types.js';
 import type { PlanRuntime } from '../planRuntime.js';
 import type { CommandExecutedResult, CommandContinueResult } from './types.js';
+import type { RuntimeProperty, RuntimeDebugPayload } from '../../runtimeTypes.js';
 
 export interface ResultProcessorOptions {
   readonly observationBuilder: ObservationBuilder;
   readonly planRuntime: PlanRuntime;
-  readonly emitDebug: (payload: unknown) => void;
+  readonly emitDebug: (payload: RuntimeDebugPayload) => void;
   readonly emitEvent: ExecuteAgentPassOptions['emitEvent'];
   readonly incrementCommandCountFn: NonNullable<ExecuteAgentPassOptions['incrementCommandCountFn']>;
 }
@@ -66,21 +68,29 @@ export const processCommandExecution = async (
     commandResult: executed.result,
   });
 
+  const sanitizedCommand = deepCloneValue(executed.command ?? null) as RuntimeProperty;
+  const sanitizedResult = deepCloneValue(executed.result) as RuntimeProperty;
+  const sanitizedExecution = deepCloneValue(executed.outcome.executionDetails) as RuntimeProperty;
+  const sanitizedObservation = deepCloneValue(observation) as RuntimeProperty;
+  const sanitizedPlanStep = executed.planStep
+    ? ((clonePlanForExecution([executed.planStep])[0] ?? null) as RuntimeProperty)
+    : null;
+
   options.emitDebug(() => ({
     stage: 'command-execution',
-    command: executed.command,
-    result: executed.outcome.result,
-    execution: executed.outcome.executionDetails,
-    observation,
+    command: sanitizedCommand,
+    result: sanitizedResult,
+    execution: sanitizedExecution,
+    observation: sanitizedObservation,
   }));
 
   options.emitEvent?.({
     type: 'command-result',
-    command: executed.command,
-    result: executed.result,
-    preview: renderPayload,
-    execution: executed.outcome.executionDetails,
-    planStep: executed.planStep ? (clonePlanForExecution([executed.planStep])[0] ?? null) : null,
+    command: sanitizedCommand,
+    result: sanitizedResult,
+    preview: deepCloneValue(renderPayload) as RuntimeProperty,
+    execution: sanitizedExecution,
+    planStep: sanitizedPlanStep,
   });
 
   const snapshotEffect = options.planRuntime.emitPlanSnapshot();

@@ -1,9 +1,19 @@
+export type SchemaValidationParamValue = string | number | boolean | string[] | number[] | boolean[] | null;
+
+export interface SchemaValidationParams {
+  missingProperty?: string;
+  additionalProperty?: string;
+  allowedValues?: string[];
+  type?: string;
+  [key: string]: SchemaValidationParamValue | undefined;
+}
+
 export interface SchemaValidationError {
   path: string;
   message: string;
   keyword: string;
   instancePath: string;
-  params: Record<string, unknown>;
+  params: SchemaValidationParams;
 }
 
 export interface SchemaValidationResult {

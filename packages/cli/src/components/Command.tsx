@@ -18,6 +18,7 @@ import {
   type SummaryLineStyleMap,
   type TextStyleProps,
 } from './command/theme.js';
+import { toBoxProps, toTextProps } from '../styleTypes.js';
 import type { PlanStep } from './planUtils.js';
 
 const { colors: commandColors, container, heading, headingDetail, summaryLine, runContainer } =
@@ -64,12 +65,12 @@ function Command({
 
   const { detail, summaryLines } = data;
 
-  const headingProps: TextStyleProps = { ...commandHeadingProps };
-  if (headingProps.color === undefined) {
-    headingProps.color = commandColors.fg;
+  const headingStyle: TextStyleProps = { ...commandHeadingProps };
+  if (headingStyle.color === undefined) {
+    headingStyle.color = commandColors.fg;
   }
 
-  const headingDetailProps: TextStyleProps = { ...commandHeadingDetailProps };
+  const headingDetailStyle: TextStyleProps = { ...commandHeadingDetailProps };
 
   const planStepHeading = buildPlanStepHeading(planStep);
 
@@ -89,7 +90,7 @@ function Command({
   const summaryFallbackColor =
     typeof baseSummaryColorValue === 'string' ? baseSummaryColorValue : commandColors.fg;
 
-  const containerProps: BoxStyleProps = {
+  const containerStyle: BoxStyleProps = {
     flexDirection: 'column',
     paddingX: 1,
     paddingY: 1,
@@ -100,49 +101,46 @@ function Command({
   };
 
   const derivedBorderStyle =
-    typeof containerProps.borderStyle === 'string' && containerProps.borderStyle
-      ? containerProps.borderStyle
+    typeof containerStyle.borderStyle === 'string' && containerStyle.borderStyle
+      ? containerStyle.borderStyle
       : 'round';
   const derivedBorderColor =
-    typeof containerProps.borderColor === 'string' && containerProps.borderColor.trim() !== ''
-      ? containerProps.borderColor
+    typeof containerStyle.borderColor === 'string' && containerStyle.borderColor.trim() !== ''
+      ? containerStyle.borderColor
       : '#ffffff';
 
   const rootProps: BoxStyleProps = {
     flexDirection: 'column',
     width: '100%',
-    alignSelf: containerProps.alignSelf ?? 'stretch',
-    flexGrow: containerProps.flexGrow ?? 1,
-    marginTop: containerProps.marginTop ?? 1,
+    alignSelf: containerStyle.alignSelf ?? 'stretch',
+    flexGrow: containerStyle.flexGrow ?? 1,
+    marginTop: containerStyle.marginTop ?? 1,
     borderStyle: derivedBorderStyle,
     borderColor: derivedBorderColor,
   };
 
-  delete containerProps.alignSelf;
-  delete containerProps.flexGrow;
-  delete containerProps.marginTop;
+  delete containerStyle.alignSelf;
+  delete containerStyle.flexGrow;
+  delete containerStyle.marginTop;
   // Border styling lives on the outer wrapper so the plan header and body share the same frame.
-  delete containerProps.borderStyle;
-  delete containerProps.borderColor;
+  delete containerStyle.borderStyle;
+  delete containerStyle.borderColor;
 
-  if (!containerProps.color) {
-    containerProps.color = commandColors.fg;
-  }
-  if (!containerProps.backgroundColor) {
-    containerProps.backgroundColor = 'black';
+  if (!containerStyle.backgroundColor) {
+    containerStyle.backgroundColor = 'black';
   }
 
-  const runContainerProps: BoxStyleProps = {
+  const runContainerStyle: BoxStyleProps = {
     flexDirection: 'column',
     marginTop: 1,
     ...commandRunContainerProps,
   };
-  if (!runContainerProps.flexDirection) {
-    runContainerProps.flexDirection = 'column';
+  if (!runContainerStyle.flexDirection) {
+    runContainerStyle.flexDirection = 'column';
   }
 
   const horizontalPadding =
-    typeof containerProps.paddingX === 'number' ? containerProps.paddingX : 1;
+    typeof containerStyle.paddingX === 'number' ? containerStyle.paddingX : 1;
 
   const planHeaderProps: BoxStyleProps = {
     flexDirection: 'row',
@@ -154,7 +152,14 @@ function Command({
   };
 
   const planHeadingColor =
-    typeof headingProps.color === 'string' ? (headingProps.color as string) : commandColors.fg;
+    typeof headingStyle.color === 'string' ? headingStyle.color : commandColors.fg;
+
+  const headingProps = toTextProps(headingStyle);
+  const headingDetailProps = toTextProps(headingDetailStyle);
+  const containerProps = toBoxProps(containerStyle);
+  const runContainerProps = toBoxProps(runContainerStyle);
+  const rootBoxProps = toBoxProps(rootProps);
+  const planHeaderBoxProps = toBoxProps(planHeaderProps);
 
   const headingDetailNode = inlineRunPreview
     ? // Avoid overriding the ANSI color codes produced by the markdown renderer.
@@ -163,13 +168,13 @@ function Command({
       )
     : headingDetailText
       ? (
-          <Text {...(headingDetailProps as Record<string, unknown>)}>{headingDetailText}</Text>
+          <Text {...headingDetailProps}>{headingDetailText}</Text>
         )
       : null;
 
   return (
-    <Box {...(rootProps as Record<string, unknown>)}>
-      <Box {...(planHeaderProps as Record<string, unknown>)}>
+    <Box {...rootBoxProps}>
+      <Box {...planHeaderBoxProps}>
         <Text color="#ff5f56">●</Text>
         <Text> </Text>
         <Text color="#ffbd2e">●</Text>
@@ -177,14 +182,14 @@ function Command({
         <Text color="#28c840">●</Text>
         {planStepHeading ? <Text color={planHeadingColor}>{`  ${planStepHeading}`}</Text> : null}
       </Box>
-      <Box {...(containerProps as Record<string, unknown>)}>
-        <Text {...(headingProps as Record<string, unknown>)}>
+      <Box {...containerProps}>
+        <Text {...headingProps}>
           <Text color="green">❯</Text>
           <Text> </Text>
           {headingDetailNode}
         </Text>
         {runElements ? (
-          <Box {...(runContainerProps as Record<string, unknown>)}>{runElements}</Box>
+          <Box {...runContainerProps}>{runElements}</Box>
         ) : null}
         {summaryLines.map((line, index) => (
           <SummaryLine

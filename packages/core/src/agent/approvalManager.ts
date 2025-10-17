@@ -26,8 +26,13 @@ export interface AutoApprovalResult {
   source: AutoApprovalSource;
 }
 
+export interface ApprovalAllowlistEntry {
+  name: string;
+  subcommands?: string[];
+}
+
 export interface ApprovalConfig {
-  allowlist?: string[];
+  allowlist: ApprovalAllowlistEntry[];
 }
 
 export interface ApprovalManagerOptions {
@@ -63,7 +68,7 @@ export class ApprovalManager {
     approveForSession,
     getAutoApproveFlag,
     askHuman,
-    preapprovedCfg = {},
+    preapprovedCfg = { allowlist: [] },
     logInfo,
     logWarn,
     logSuccess,

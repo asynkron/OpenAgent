@@ -1,4 +1,11 @@
-import type { EscState } from './escState.js';
+import type { EscPayload, EscState } from './escState.js';
+import type {
+  PromptMetadataEntry,
+  PromptRequestMetadata,
+  PromptRequestScope,
+} from '../prompts/types.js';
+
+export type { PromptRequestMetadata, PromptRequestScope } from '../prompts/types.js';
 
 /**
  * The runtime differentiates between prompt scopes so downstream hosts can
@@ -6,17 +13,6 @@ import type { EscState } from './escState.js';
  * response. We keep the union open-ended to allow experiments without
  * updating the coordinator every time a new scope appears.
  */
-export type PromptRequestScope = 'user-input' | 'approval' | (string & {});
-
-/**
- * Metadata that accompanies prompt requests. The scope is the only required
- * field today, but the record stays extensible so callers can flow additional
- * context (e.g. prompt identifiers) without loosening the type to `unknown`.
- */
-export interface PromptRequestMetadata extends Record<string, unknown> {
-  scope: PromptRequestScope;
-}
-
 export interface PromptRequestEvent {
   type: 'request-input';
   prompt: string;
@@ -28,14 +24,14 @@ export interface PromptCoordinatorStatusEvent {
   type: 'status';
   level: string;
   message: string;
-  details?: unknown;
+  details?: string | null;
   __id?: string;
 }
 
 export type PromptCoordinatorEvent = PromptRequestEvent | PromptCoordinatorStatusEvent;
 
 export type EmitEventFn = (event: PromptCoordinatorEvent) => void;
-export type CancelFn = (reason?: unknown) => void;
+export type CancelFn = (reason?: EscPayload) => void;
 
 export interface PromptCoordinatorOptions {
   emitEvent?: EmitEventFn;
@@ -76,16 +72,37 @@ export class PromptCoordinator {
     return false;
   }
 
-  private normalizeMetadata(metadata: PromptRequestMetadata | null | undefined): PromptRequestMetadata {
-    if (metadata && typeof metadata === 'object') {
-      const scope =
-        typeof metadata.scope === 'string' && metadata.scope.trim().length > 0
-          ? metadata.scope
-          : 'user-input';
-      return { ...metadata, scope };
-    }
+  private normalizeMetadata(
+    metadata: PromptRequestMetadata | null | undefined,
+  ): PromptRequestMetadata {
+    const scope =
+      metadata && typeof metadata.scope === 'string' && metadata.scope.trim().length > 0
+        ? (metadata.scope as PromptRequestScope)
+        : ('user-input' as PromptRequestScope);
 
-    return { scope: 'user-input' };
+    const promptId =
+      metadata && typeof metadata.promptId === 'string' ? metadata.promptId : null;
+    const description =
+      metadata && typeof metadata.description === 'string' ? metadata.description : null;
+    const tags =
+      metadata && Array.isArray(metadata.tags) ? metadata.tags.filter((tag): tag is string => typeof tag === 'string') : [];
+    const extraEntries =
+      metadata && Array.isArray(metadata.extra)
+        ? metadata.extra
+            .map((entry) => ({
+              key: typeof entry.key === 'string' ? entry.key : String(entry.key),
+              value: entry.value ?? null,
+            }))
+            .filter((entry: PromptMetadataEntry) => entry.key.length > 0)
+        : [];
+
+    return {
+      scope,
+      promptId,
+      description,
+      tags,
+      extra: extraEntries,
+    };
   }
 
   request(prompt: string, metadata?: PromptRequestMetadata | null): Promise<string> {
@@ -111,7 +128,7 @@ export class PromptCoordinator {
     this.resolveNext(typeof value === 'string' ? value : '');
   }
 
-  handleCancel(payload: unknown = null): void {
+  handleCancel(payload: EscPayload = null): void {
     if (this.cancelFn) {
       this.cancelFn('ui-cancel');
     }
@@ -142,7 +159,12 @@ export class PromptCoordinator {
       escState.trigger?.(normalizedPayload);
     }
 
-    this.emitEvent({ type: 'status', level: 'warn', message: 'Cancellation requested by UI.' });
+    this.emitEvent({
+      type: 'status',
+      level: 'warn',
+      message: 'Cancellation requested by UI.',
+      details: null,
+    });
   }
 
   close(): void {

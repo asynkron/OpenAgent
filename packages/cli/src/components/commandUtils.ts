@@ -22,10 +22,26 @@ export type Command = {
 
 export type CommandExecution = {
   type?: string | null;
-  spec?: Record<string, unknown> | null;
+  spec?: CommandExecutionSpec | null;
   command?: Command | null;
   description?: string | null;
 };
+
+export type EditSpecification = {
+  path?: string;
+  encoding?: string;
+  edits?: unknown[];
+};
+
+export type ReplaceSpecification = {
+  pattern?: unknown;
+  replacement?: unknown;
+  files?: string[];
+  dry_run?: boolean;
+  dryRun?: boolean;
+};
+
+export type CommandExecutionSpec = EditSpecification | ReplaceSpecification;
 
 export type CommandPreview = {
   stdoutPreview?: string | null;
@@ -93,7 +109,13 @@ function pluralize(word: string, count: number): string {
   return `${word}${count === 1 ? '' : 's'}`;
 }
 
-function buildEditDetail(spec: Record<string, unknown>): string {
+const isEditSpecification = (value: unknown): value is EditSpecification =>
+  Boolean(value) && typeof value === 'object';
+
+const isReplaceSpecification = (value: unknown): value is ReplaceSpecification =>
+  Boolean(value) && typeof value === 'object';
+
+function buildEditDetail(spec: EditSpecification): string {
   const parts: string[] = [];
   if (typeof spec.path === 'string') {
     parts.push(spec.path);
@@ -107,7 +129,7 @@ function buildEditDetail(spec: Record<string, unknown>): string {
   return `(${parts.join(', ')})`;
 }
 
-function buildReplaceDetail(spec: Record<string, unknown>): string {
+function buildReplaceDetail(spec: ReplaceSpecification): string {
   const parts: string[] = [];
   if ('pattern' in spec) {
     parts.push(`pattern: ${JSON.stringify(spec.pattern ?? '')}`);
@@ -132,14 +154,15 @@ export function buildHeadingDetail(
 ): string {
   switch (type) {
     case 'EDIT': {
-      const spec = (execution?.spec as Record<string, unknown>) || command?.edit || {};
+      const specCandidate = execution?.spec ?? command?.edit;
+      const spec: EditSpecification = isEditSpecification(specCandidate) ? specCandidate : {};
       return buildEditDetail(spec);
     }
     case 'REPLACE': {
-      const spec =
-        (execution?.spec as Record<string, unknown>) ||
-        command?.replace ||
-        ({} as Record<string, unknown>);
+      const specCandidate = execution?.spec ?? command?.replace;
+      const spec: ReplaceSpecification = isReplaceSpecification(specCandidate)
+        ? specCandidate
+        : {};
       return buildReplaceDetail(spec);
     }
     default: {

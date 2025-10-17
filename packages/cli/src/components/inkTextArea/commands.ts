@@ -48,12 +48,24 @@ export interface SlashCommandDynamicContext {
   command: unknown;
 }
 
+export interface SlashCommandSourceObject {
+  id?: string | number;
+  label?: unknown;
+  title?: unknown;
+  name?: unknown;
+  key?: unknown;
+  description?: unknown;
+  keywords?: unknown;
+  insertValue?: unknown;
+  replacement?: unknown;
+}
+
 export type SlashCommandSourceItem =
   | null
   | undefined
   | string
   | number
-  | { [key: string]: unknown };
+  | SlashCommandSourceObject;
 
 export interface NormalizedSlashCommand {
   id: string;
@@ -105,25 +117,29 @@ function createSimpleItem(item: string | number, index: number): SlashCommandIte
   };
 }
 
-function extractLabel(item: Record<string, unknown>, index: number): string {
+function isSourceObject(value: unknown): value is SlashCommandSourceObject {
+  return Boolean(value) && typeof value === 'object';
+}
+
+function extractLabel(item: SlashCommandSourceObject, index: number): string {
   const labelSource =
     item.label ?? item.title ?? item.name ?? item.id ?? item.key ?? `item-${index}`;
   return toStringValue(labelSource, `item-${index}`);
 }
 
-function extractDescription(item: Record<string, unknown>): string | undefined {
+function extractDescription(item: SlashCommandSourceObject): string | undefined {
   return typeof item.description === 'string' && item.description.length > 0
     ? item.description
     : undefined;
 }
 
-function extractKeywords(item: Record<string, unknown>): string[] {
+function extractKeywords(item: SlashCommandSourceObject): string[] {
   return Array.isArray(item.keywords)
     ? item.keywords.filter((keyword): keyword is string => typeof keyword === 'string')
     : [];
 }
 
-function extractInsertValue(item: Record<string, unknown>): string | undefined {
+function extractInsertValue(item: SlashCommandSourceObject): string | undefined {
   return typeof item.insertValue === 'string'
     ? item.insertValue
     : typeof item.replacement === 'string'
@@ -140,6 +156,10 @@ export function normalizeSlashItem(
       return createSimpleItem(item, index);
     }
 
+    return null;
+  }
+
+  if (!isSourceObject(item)) {
     return null;
   }
 

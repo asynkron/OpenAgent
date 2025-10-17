@@ -30,6 +30,7 @@ import {
   type SlashCommandHandler,
   type TimelinePayload,
   type StatusRuntimeEvent,
+  type ThinkingRuntimeEvent,
 } from './cliApp/types.js';
 import { coerceRuntime, cloneValue, normalizeStatus } from './cliApp/runtimeUtils.js';
 import { useCommandLog } from './cliApp/useCommandLog.js';
@@ -297,9 +298,11 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
         case 'pass':
           handlePassEvent(event);
           break;
-        case 'thinking':
-          setThinking(event.state === 'start');
+        case 'thinking': {
+          const thinkingEvent = event as ThinkingRuntimeEvent;
+          setThinking(thinkingEvent.state === 'start');
           break;
+        }
         case 'assistant-message':
           handleAssistantMessage(event as AssistantMessageRuntimeEvent);
           break;

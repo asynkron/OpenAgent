@@ -9,10 +9,10 @@ import type {
 } from '../commandUtils.js';
 import type { PromptRequestMetadata } from '@asynkron/openagent-core';
 
-type RuntimeEventBase<
-  Type extends string,
-  Payload extends Record<string, unknown> = Record<string, unknown>,
-> = Payload & { type: Type; __id?: string };
+type RuntimeEventBase<Type extends string, Payload extends object = object> = Payload & {
+  type: Type;
+  __id?: string;
+};
 
 export type BannerRuntimeEvent = RuntimeEventBase<
   'banner',

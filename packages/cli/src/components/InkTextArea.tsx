@@ -24,10 +24,11 @@ import { useCaretBlink } from './inkTextArea/useCaretBlink.js';
 import { useCommandMenu } from './inkTextArea/useCommandMenu.js';
 import { useStdoutWidth } from './inkTextArea/useStdoutWidth.js';
 import type { SlashCommandSelectEvent } from './inkTextArea/types.js';
+import { toBoxProps, toTextProps, type BoxStyleProps, type TextStyleProps } from '../styleTypes.js';
 
 type LegacySlashMenuItem = SlashCommandSourceItem;
 
-export interface InkTextAreaProps extends HorizontalPaddingInput {
+export interface InkTextAreaProps extends HorizontalPaddingInput, BoxStyleProps {
   value?: string;
   onChange?: (value: string) => void;
   onSubmit?: (value: string) => void;
@@ -38,11 +39,10 @@ export interface InkTextAreaProps extends HorizontalPaddingInput {
   slashMenuItems?: ReadonlyArray<LegacySlashMenuItem>;
   commandMenus?: ReadonlyArray<SlashCommandDefinition>;
   onSlashCommandSelect?: (event: SlashCommandSelectEvent) => void;
-  textProps?: Record<string, unknown>;
+  textProps?: TextStyleProps;
   debug?: boolean;
   showDebugMetrics?: boolean;
   commandMenuTitle?: string;
-  [key: string]: unknown;
 }
 
 function InkTextArea(props: InkTextAreaProps) {
@@ -57,14 +57,10 @@ function InkTextArea(props: InkTextAreaProps) {
     slashMenuItems,
     commandMenus,
     onSlashCommandSelect,
-    textProps: explicitTextProps = {},
+    textProps: explicitTextProps,
     debug = false,
     showDebugMetrics = false,
     commandMenuTitle,
-    ...rest
-  } = props;
-
-  const {
     padding,
     paddingX,
     paddingY,
@@ -85,13 +81,10 @@ function InkTextArea(props: InkTextAreaProps) {
     borderBottom,
     borderLeft,
     borderRight,
-    ...textPropsFromRest
-  } = rest as Record<string, unknown>;
+  } = props;
 
-  const textProps = {
-    ...textPropsFromRest,
-    ...explicitTextProps,
-  } as Record<string, unknown>;
+  const textStyle: TextStyleProps = { ...(explicitTextProps ?? {}) };
+  const textProps = toTextProps(textStyle);
 
   const interactive = isActive && !isDisabled;
   const [caretIndex, setCaretIndex] = useState(() => clamp(0, 0, value.length));
@@ -498,13 +491,10 @@ function InkTextArea(props: InkTextAreaProps) {
     </Box>
   ) : null;
 
-  const containerStyle: Record<string, unknown> = {
+  const containerStyle: BoxStyleProps = {
     flexDirection: 'column',
     width: '100%',
     alignSelf: 'stretch',
-  };
-
-  const boxOptions = {
     padding,
     paddingX,
     paddingY,
@@ -527,14 +517,10 @@ function InkTextArea(props: InkTextAreaProps) {
     borderRight,
   };
 
-  for (const [key, value] of Object.entries(boxOptions)) {
-    if (value !== undefined) {
-      containerStyle[key] = value;
-    }
-  }
+  const containerProps = toBoxProps(containerStyle);
 
   return (
-    <Box {...containerStyle}>
+    <Box {...containerProps}>
       <Box flexDirection="column" width="100%">
         {rowElements}
       </Box>

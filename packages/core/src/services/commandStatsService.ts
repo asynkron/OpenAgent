@@ -22,7 +22,33 @@ function resolveDefaultStatsPath(): string {
 
 const DEFAULT_STATS_PATH = resolveDefaultStatsPath();
 
-type CommandStats = Record<string, unknown>;
+interface CommandStats {
+  [commandKey: string]: number;
+}
+
+const parseCommandStats = (raw: string): CommandStats => {
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') {
+      return {};
+    }
+
+    const stats: CommandStats = {};
+    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        stats[key] = value;
+      } else if (typeof value === 'string') {
+        const coerced = Number.parseInt(value, 10);
+        if (Number.isFinite(coerced)) {
+          stats[key] = coerced;
+        }
+      }
+    }
+    return stats;
+  } catch {
+    return {};
+  }
+};
 
 export async function incrementCommandCount(
   cmdKey: string,
@@ -36,10 +62,7 @@ export async function incrementCommandCount(
     let data: CommandStats = {};
     try {
       const raw = await fsp.readFile(targetPath, { encoding: 'utf8' });
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object') {
-        data = parsed as CommandStats;
-      }
+      data = parseCommandStats(raw);
     } catch {
       data = {};
     }

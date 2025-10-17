@@ -11,6 +11,7 @@ import type { ChatMessageEntry } from '../historyEntry.js';
 import type { requestModelCompletion as RequestModelCompletion } from '../modelRequest.js';
 import type { executeAgentCommand as ExecuteAgentCommand } from '../commandExecution.js';
 import type { parseAssistantResponse as ParseAssistantResponse } from '../responseParser.js';
+import type { RuntimeProperty, RuntimeEvent } from '../runtimeTypes.js';
 import type {
   validateAssistantResponseSchema as ValidateAssistantResponseSchema,
   validateAssistantResponse as ValidateAssistantResponse,
@@ -22,7 +23,7 @@ import type { incrementCommandCount as IncrementCommandCount } from '../../servi
 import type { PlanManagerLike } from './planManagerAdapter.js';
 import type { PlanAutoResponseTracker } from './planReminderController.js';
 
-export type EmitEvent = (event: Record<string, unknown>) => void;
+export type EmitEvent = (event: RuntimeEvent) => void;
 
 export interface GuardRequestPayloadSizeInput {
   history: PlanHistory;
@@ -47,8 +48,9 @@ export type CompletionAttempt =
 
 export type CommandRunOutcome = CommandExecutionResult;
 
-export interface DebugMetadata extends Record<string, unknown> {
+export interface DebugMetadata {
   stage: string;
+  [key: string]: RuntimeProperty;
 }
 
 export interface ExecuteAgentPassOptions {

@@ -88,17 +88,23 @@ const handleSchemaFailure = (
   context: ResponseEvaluationContext,
   schemaValidation: SchemaValidationResult,
 ): AssistantResponseResolution => {
+  const serializedErrors = schemaValidation.errors.map((error) => ({
+    path: error.path,
+    message: error.message,
+    keyword: error.keyword,
+  }));
+
   context.emitDebug(() => ({
     stage: 'assistant-response-schema-validation-error',
     message: 'Assistant response failed schema validation.',
-    errors: schemaValidation.errors,
+    errors: serializedErrors,
     raw: context.responseContent,
   }));
 
   context.emitEvent?.({
     type: 'schema_validation_failed',
     message: 'Assistant response failed schema validation.',
-    errors: schemaValidation.errors,
+    errors: serializedErrors,
     raw: context.responseContent,
   });
 

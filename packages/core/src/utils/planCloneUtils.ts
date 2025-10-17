@@ -1,4 +1,4 @@
-import type { ToolPlanStep } from '../contracts/index.js';
+import type { ToolObservation, ToolPlanStep } from '../contracts/index.js';
 
 const hasStructuredClone = typeof globalThis.structuredClone === 'function';
 
@@ -25,13 +25,13 @@ export type PlanSnapshotStatus = ToolPlanStep['status'] | 'running';
 
 export type PlanSnapshotCommand = ToolPlanStep['command'];
 
-export interface PlanSnapshotStep extends Record<string, unknown> {
+export interface PlanSnapshotStep {
   id?: ToolPlanStep['id'] | number;
   title?: ToolPlanStep['title'];
   status?: PlanSnapshotStatus;
   waitingForId?: (ToolPlanDependency | number)[];
   command?: PlanSnapshotCommand | null;
-  observation?: Record<string, unknown>;
+  observation?: ToolObservation | null;
   priority?: number | string;
 }
 

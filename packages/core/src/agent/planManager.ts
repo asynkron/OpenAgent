@@ -13,6 +13,7 @@ import {
   type PlanSnapshot,
   type PlanProgress,
 } from '../utils/plan.js';
+import type { StatusRuntimeEvent } from './runtimeTypes.js';
 
 export interface PlanManagerEvents {
   type: 'plan-progress';
@@ -20,12 +21,7 @@ export interface PlanManagerEvents {
 }
 
 export type EmitFn = (event: PlanManagerEvents) => void;
-export type EmitStatusFn = (event: {
-  type: 'status';
-  level: string;
-  message: string;
-  details?: unknown;
-}) => void;
+export type EmitStatusFn = (event: StatusRuntimeEvent) => void;
 
 export interface PlanManagerOptions {
   emit: EmitFn;

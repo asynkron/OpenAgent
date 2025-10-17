@@ -23,6 +23,7 @@ export type PlanSummary = Array<Record<string, unknown>>;
 export interface ObservationParseAttempt {
   strategy: string;
   message: string;
+  [key: string]: string;
 }
 
 export interface CommandOutputObservationForLLM {

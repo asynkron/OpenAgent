@@ -1,8 +1,6 @@
-/**
- * Central theme definition for the CLI timeline. Exposes both color palette and
- * component-level Ink props so styling lives in one place.
- */
-export const theme = {
+import type { BoxStyleProps, TextStyleProps, TextStyleMap } from './styleTypes.js';
+
+const theme = {
   human: {
     colors: {
       fg: '#f5f5f5',
@@ -18,10 +16,10 @@ export const theme = {
         width: '100%',
         alignSelf: 'stretch',
         flexGrow: 1,
-      },
+      } satisfies BoxStyleProps,
       text: {
         color: '#f5f5f5',
-      },
+      } satisfies TextStyleProps,
       askHuman: {
         container: {
           flexDirection: 'column',
@@ -29,28 +27,28 @@ export const theme = {
           paddingX: 1,
           paddingY: 0,
           backgroundColor: '#192834',
-        },
+        } satisfies BoxStyleProps,
         inputRow: {
           flexDirection: 'row',
           paddingX: 1,
           paddingY: 1,
-        },
+        } satisfies BoxStyleProps,
         footer: {
           flexDirection: 'column',
           paddingX: 1,
           paddingBottom: 1,
-        },
+        } satisfies BoxStyleProps,
         footerHint: {
           dimColor: true,
           color: '#f5f5f5',
-        },
+        } satisfies TextStyleProps,
         spinnerText: {
           color: '#f5f5f5',
           marginLeft: 1,
-        },
+        } satisfies TextStyleProps,
         textArea: {
           marginLeft: 1,
-        },
+        } satisfies BoxStyleProps,
       },
     },
   },
@@ -69,10 +67,10 @@ export const theme = {
         width: '100%',
         alignSelf: 'stretch',
         flexGrow: 1,
-      },
+      } satisfies BoxStyleProps,
       text: {
         color: '#f5f5f5',
-      },
+      } satisfies TextStyleProps,
     },
   },
   plan: {
@@ -91,11 +89,11 @@ export const theme = {
         width: '100%',
         alignSelf: 'stretch',
         flexGrow: 1,
-      },
+      } satisfies BoxStyleProps,
       heading: {
         color: '#7dd3fc',
         bold: true,
-      },
+      } satisfies TextStyleProps,
     },
   },
   command: {
@@ -116,39 +114,39 @@ export const theme = {
         width: '100%',
         alignSelf: 'stretch',
         flexGrow: 1,
-      },
+      } satisfies BoxStyleProps,
       heading: {
         color: '#f5f5f5',
-      },
+      } satisfies TextStyleProps,
       headingBadge: {
         backgroundColor: '',
         color: '#f5f5f5',
         bold: true,
-      },
+      } satisfies TextStyleProps,
       summaryLine: {
         base: {
           color: '#f5f5f5',
-        },
+        } satisfies TextStyleProps,
         arrow: {
           dimColor: true,
-        },
+        } satisfies TextStyleProps,
         indent: {
           dimColor: true,
-        },
+        } satisfies TextStyleProps,
         default: {
           dimColor: true,
-        },
+        } satisfies TextStyleProps,
         error: {
           color: 'red',
-        },
+        } satisfies TextStyleProps,
         success: {
           color: 'green',
-        },
-      },
+        } satisfies TextStyleProps,
+      } satisfies TextStyleMap,
       runContainer: {
         flexDirection: 'column',
         marginTop: 1,
-      },
+      } satisfies BoxStyleProps,
     },
   },
   prompt: {
@@ -166,10 +164,10 @@ export const theme = {
         width: '100%',
         alignSelf: 'stretch',
         flexGrow: 1,
-      },
+      } satisfies BoxStyleProps,
       text: {
         color: '#ffffff',
-      },
+      } satisfies TextStyleProps,
     },
   },
 } as const;

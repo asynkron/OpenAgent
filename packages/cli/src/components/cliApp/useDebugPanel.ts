@@ -18,7 +18,12 @@ function parseManagedDebugPayload(payload: unknown): ManagedDebugInstruction | n
     return null;
   }
 
-  const record = payload as Record<string, unknown>;
+  type ManagedPayload = {
+    [STREAM_ACTION_FIELD]?: unknown;
+    [STREAM_VALUE_FIELD]?: unknown;
+  };
+
+  const record = payload as ManagedPayload;
   const action = record[STREAM_ACTION_FIELD];
 
   if (action === 'remove') {

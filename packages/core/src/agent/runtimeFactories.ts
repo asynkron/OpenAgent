@@ -43,7 +43,8 @@ export function initializeWithFactory<TCandidate, TConfig>({
       onInvalid?.(candidate);
     } catch (error) {
       if (warnMessage) {
-        emitter.emitFactoryWarning(warnMessage, error);
+        const message = error instanceof Error ? error.message : String(error);
+        emitter.emitFactoryWarning(warnMessage, message);
       }
       return fallback(config);
     }

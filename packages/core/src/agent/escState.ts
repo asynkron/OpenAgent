@@ -10,11 +10,11 @@
  * TypeScript directly.
  */
 
-export type EscPayload = string | { reason: string };
+export type EscPayload = string | { reason: string } | null;
 
 export type EscWaiter = (payload: EscPayload | null) => void;
 
-export type EscTrigger = (payload?: EscPayload | null) => void;
+export type EscTrigger = (payload?: EscPayload) => void;
 
 export interface EscState {
   triggered: boolean;

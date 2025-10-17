@@ -84,9 +84,9 @@ export const applyPlanRuntimeEffects = (
       case 'emit':
         context.emitEvent?.(effect.event);
         break;
-      case 'plan-snapshot':
-        context.emitEvent?.({ type: 'plan', plan: clonePlanForExecution(effect.plan) });
-        break;
+    case 'plan-snapshot':
+      context.emitEvent?.({ type: 'plan', plan: clonePlanForExecution(effect.plan) } as RuntimeEvent);
+      break;
       case 'history-entry':
         context.history.push(effect.entry);
         break;

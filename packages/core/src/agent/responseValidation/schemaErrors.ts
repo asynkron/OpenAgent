@@ -1,6 +1,6 @@
 /** Helpers to translate AJV error structures into human-readable diagnostics. */
 import type { ErrorObject } from 'ajv';
-import type { SchemaValidationError } from './types.js';
+import type { SchemaValidationError, SchemaValidationParams } from './types.js';
 
 function decodePointerSegment(segment: string): string {
   return segment.replace(/~1/g, '/').replace(/~0/g, '~');
@@ -60,11 +60,23 @@ export function buildSchemaErrorMessage(error: ErrorObject | null | undefined): 
 
 export function describeSchemaError(error: ErrorObject | null | undefined): SchemaValidationError {
   const pathLabel = formatInstancePath(error?.instancePath ?? '');
+  const params: SchemaValidationParams = {
+    missingProperty:
+      typeof error?.params?.missingProperty === 'string' ? error?.params?.missingProperty : undefined,
+    additionalProperty:
+      typeof error?.params?.additionalProperty === 'string'
+        ? error?.params?.additionalProperty
+        : undefined,
+    allowedValues: Array.isArray(error?.params?.allowedValues)
+      ? (error?.params?.allowedValues as string[])
+      : undefined,
+    type: typeof error?.params?.type === 'string' ? error?.params?.type : undefined,
+  };
   return {
     path: pathLabel,
     message: buildSchemaErrorMessage(error),
     keyword: error?.keyword ?? 'unknown',
     instancePath: error?.instancePath ?? '',
-    params: (error?.params ?? {}) as Record<string, unknown>,
+    params,
   };
 }

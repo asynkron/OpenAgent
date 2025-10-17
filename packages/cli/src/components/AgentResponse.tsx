@@ -3,6 +3,7 @@ import { Box, Text } from 'ink';
 
 import { renderMarkdownMessage, wrapStructuredContent } from '../render.js';
 import theme from '../theme.js';
+import { toBoxProps, toTextProps, type BoxStyleProps, type TextStyleProps } from '../styleTypes.js';
 
 const { agent } = theme;
 const agentColors = agent.colors;
@@ -11,9 +12,6 @@ const agentProps = agent.props;
 type AgentResponseProps = {
   message?: unknown;
 };
-
-type InkBoxProps = Record<string, unknown>;
-type InkTextProps = Record<string, unknown>;
 
 /**
  * Renders assistant messages using Ink so Markdown formatting carries through to
@@ -28,19 +26,22 @@ function AgentResponse({ message }: AgentResponseProps): ReactElement | null {
 
   const rendered = renderMarkdownMessage(prepared);
 
-  const containerProps: InkBoxProps = { ...(agentProps.container ?? {}) };
-  if (!containerProps.backgroundColor) {
-    containerProps.backgroundColor = agentColors.bg;
+  const containerStyle: BoxStyleProps = { ...(agentProps.container ?? {}) };
+  if (!containerStyle.backgroundColor) {
+    containerStyle.backgroundColor = agentColors.bg;
   }
 
-  const textProps: InkTextProps = { ...(agentProps.text ?? {}) };
-  if (!textProps.color) {
-    textProps.color = agentColors.fg;
+  const textStyle: TextStyleProps = { ...(agentProps.text ?? {}) };
+  if (!textStyle.color) {
+    textStyle.color = agentColors.fg;
   }
+
+  const containerProps = toBoxProps(containerStyle);
+  const textProps = toTextProps(textStyle);
 
   return (
-    <Box {...(containerProps as Record<string, unknown>)}>
-      <Text {...(textProps as Record<string, unknown>)}>{rendered}</Text>
+    <Box {...containerProps}>
+      <Text {...textProps}>{rendered}</Text>
     </Box>
   );
 }

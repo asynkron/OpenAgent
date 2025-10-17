@@ -2,7 +2,10 @@ import type { ReactElement } from 'react';
 import { Text } from 'ink';
 
 import type { SummaryLine as SummaryLineValue } from '../commandUtils.js';
-import type { SummaryLineStyleMap, TextStyleProps } from './theme.js';
+import type { TextStyleProps } from '../../styleTypes.js';
+import type { TextStyleMap } from '../../styleTypes.js';
+import { toTextProps } from '../../styleTypes.js';
+import type { SummaryLineStyleMap } from './theme.js';
 
 type SummaryLineProps = {
   line: SummaryLineValue;
@@ -17,9 +20,7 @@ function buildTextProps(
   styleKey: keyof SummaryLineStyleMap,
   fallbackColor: string,
 ): TextStyleProps {
-  const baseProps: TextStyleProps = {
-    ...(styles.base ?? {}),
-  };
+  const baseProps: TextStyleProps = { ...(styles.base ?? {}) };
   const style = styles[styleKey] ?? {};
   const merged: TextStyleProps = { ...baseProps, ...style };
   if (!merged.color) {
@@ -34,37 +35,17 @@ export function SummaryLine({ line, styles, fallbackColor }: SummaryLineProps): 
   switch (line.kind) {
     case 'error-arrow':
     case 'error-indent':
-      return (
-        <Text {...(buildTextProps(styles, 'error', 'red') as Record<string, unknown>)}>
-          {text}
-        </Text>
-      );
+      return <Text {...toTextProps(buildTextProps(styles, 'error', 'red'))}>{text}</Text>;
     case 'indent':
-      return (
-        <Text {...(buildTextProps(styles, 'indent', fallbackColor) as Record<string, unknown>)}>
-          {text}
-        </Text>
-      );
+      return <Text {...toTextProps(buildTextProps(styles, 'indent', fallbackColor))}>{text}</Text>;
     case 'exit-code': {
       const statusKey = line.status === 'success' ? 'success' : 'error';
       const statusColor = line.status === 'success' ? 'green' : 'red';
-      return (
-        <Text {...(buildTextProps(styles, statusKey, statusColor) as Record<string, unknown>)}>
-          {text}
-        </Text>
-      );
+      return <Text {...toTextProps(buildTextProps(styles, statusKey, statusColor))}>{text}</Text>;
     }
     case 'arrow':
-      return (
-        <Text {...(buildTextProps(styles, 'arrow', fallbackColor) as Record<string, unknown>)}>
-          {text}
-        </Text>
-      );
+      return <Text {...toTextProps(buildTextProps(styles, 'arrow', fallbackColor))}>{text}</Text>;
     default:
-      return (
-        <Text {...(buildTextProps(styles, 'default', fallbackColor) as Record<string, unknown>)}>
-          {text}
-        </Text>
-      );
+      return <Text {...toTextProps(buildTextProps(styles, 'default', fallbackColor))}>{text}</Text>;
   }
 }

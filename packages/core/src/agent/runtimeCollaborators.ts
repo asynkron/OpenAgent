@@ -14,10 +14,11 @@ import type {
   PromptCoordinatorFactoryConfig,
   PromptCoordinatorLike,
   RuntimeEmitter,
+  RuntimeEvent,
 } from './runtimeTypes.js';
 import type { PlanManagerOptions } from './planManager.js';
 import type { PlanManagerLike as ExecutorPlanManagerLike } from './passExecutor/planManagerAdapter.js';
-import type { EscStateController } from './escState.js';
+import type { EscPayload, EscStateController } from './escState.js';
 
 /**
  * Helper factories that keep `loop.ts` focused on control flow.
@@ -91,7 +92,7 @@ export const createPlanManagerBundle = ({
 export interface PromptCoordinatorBundleOptions {
   emitter: RuntimeEmitter;
   emit: RuntimeEmitter['emit'];
-  cancelFn?: (reason?: unknown) => void;
+  cancelFn?: (reason?: EscPayload) => void;
   createEscStateFn?: () => EscStateController;
   createPromptCoordinatorFn?: (config: PromptCoordinatorFactoryConfig) => PromptCoordinatorLike;
 }
@@ -140,7 +141,7 @@ export const createPromptCoordinatorBundle = ({
   }
 
   const promptCoordinatorConfig: PromptCoordinatorFactoryConfig = {
-    emitEvent: (event) => emit(event),
+    emitEvent: (event) => emit(event as RuntimeEvent),
     escState: {
       ...escController.state,
       trigger: escController.trigger ?? escController.state.trigger,
