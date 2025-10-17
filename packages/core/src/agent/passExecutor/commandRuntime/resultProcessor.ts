@@ -3,11 +3,12 @@ import type ObservationBuilder from '../../observationBuilder.js';
 import type { ExecuteAgentPassOptions } from '../types.js';
 import type { PlanRuntime } from '../planRuntime.js';
 import type { CommandExecutedResult, CommandContinueResult } from './types.js';
+import type { DebugEmitter } from '../debugEmitter.js';
 
 export interface ResultProcessorOptions {
   readonly observationBuilder: ObservationBuilder;
   readonly planRuntime: PlanRuntime;
-  readonly emitDebug: (payload: unknown) => void;
+  readonly emitDebug: DebugEmitter['emit'];
   readonly emitEvent: ExecuteAgentPassOptions['emitEvent'];
   readonly incrementCommandCountFn: NonNullable<ExecuteAgentPassOptions['incrementCommandCountFn']>;
 }

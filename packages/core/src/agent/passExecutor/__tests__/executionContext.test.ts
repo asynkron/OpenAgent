@@ -1,12 +1,16 @@
 /* eslint-env jest */
 import { jest } from '@jest/globals';
 import { createExecutionContext } from '../executionContext.js';
+import type { EmitEvent } from '../types.js';
+
+const createEmitEventMock = (): jest.MockedFunction<EmitEvent> =>
+  jest.fn<ReturnType<EmitEvent>, Parameters<EmitEvent>>();
 
 const createOptions = (overrides: Partial<Parameters<typeof createExecutionContext>[0]> = {}) => ({
   openai: {},
   model: 'gpt-5-codex',
   history: [],
-  emitEvent: jest.fn(),
+  emitEvent: createEmitEventMock(),
   runCommandFn: jest.fn(),
   applyFilterFn: jest.fn(),
   tailLinesFn: jest.fn(),
@@ -57,7 +61,7 @@ describe('createExecutionContext', () => {
     const recordRequestPayloadSizeFn = jest.fn(async () => {
       throw new Error('boom');
     });
-    const emitEvent = jest.fn();
+    const emitEvent = createEmitEventMock();
     const options = createOptions({ recordRequestPayloadSizeFn, emitEvent });
 
     const context = createExecutionContext(options);
