@@ -21,10 +21,7 @@ export const prepareTempOutputs = (): TempOutputs => {
   return { tempDir, stdoutPath, stderrPath, stdoutFd, stderrFd };
 };
 
-export const safeClose = (fd: unknown): void => {
-  if (typeof fd !== 'number') {
-    return;
-  }
+export const safeClose = (fd: number): void => {
   try {
     closeSync(fd);
   } catch {
