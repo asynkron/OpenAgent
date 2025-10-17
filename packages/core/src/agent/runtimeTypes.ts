@@ -4,6 +4,7 @@ import type {
   GuardRequestPayloadSizeFn,
   RecordRequestPayloadSizeFn,
 } from './passExecutor/types.js';
+import type { PlanAutoResponseTracker } from './passExecutor/planReminderController.js';
 import type { ExecuteAgentPassOptions } from './passExecutor.js';
 import type { createPlanManager, PlanManagerOptions } from './planManager.js';
 import type {
@@ -16,6 +17,8 @@ import type { EscState, EscStateController } from './escState.js';
 import type { AsyncQueue as AsyncQueueType } from '../utils/asyncQueue.js';
 import type { ChatMessageEntry } from './historyEntry.js';
 import type { AmnesiaManager as AmnesiaManagerType } from './amnesiaManager.js';
+
+export type { PlanAutoResponseTracker } from './passExecutor/planReminderController.js';
 
 export type UnknownRecord = Record<string, unknown>;
 
@@ -57,12 +60,6 @@ export interface PromptCoordinatorLike {
 
 export interface HistoryCompactorLike {
   compactIfNeeded?: HistoryCompactor['compactIfNeeded'];
-}
-
-export interface PlanAutoResponseTracker {
-  increment(): number;
-  reset(): void;
-  getCount(): number;
 }
 
 export type IdGeneratorFn = (context: { counter: number }) => string | number | null | undefined;
