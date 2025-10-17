@@ -2,6 +2,10 @@
 import { describe, expect, test, jest } from '@jest/globals';
 import { requestCommandApproval } from '../approvalGate.js';
 import type { PlanRuntime } from '../../planRuntime.js';
+import type { EmitEvent } from '../../types.js';
+
+const createEmitEventMock = (): jest.MockedFunction<EmitEvent> =>
+  jest.fn<ReturnType<EmitEvent>, Parameters<EmitEvent>>();
 
 const createPlanRuntimeMock = (): PlanRuntime =>
   ({
@@ -30,7 +34,7 @@ describe('requestCommandApproval', () => {
       {
         approvalManager: null,
         emitAutoApproveStatus: false,
-        emitEvent: jest.fn(),
+        emitEvent: createEmitEventMock(),
         planRuntime,
       },
       prepared,
@@ -55,7 +59,7 @@ describe('requestCommandApproval', () => {
       {
         approvalManager: approvalManager as never,
         emitAutoApproveStatus: false,
-        emitEvent: jest.fn(),
+        emitEvent: createEmitEventMock(),
         planRuntime,
       },
       prepared,

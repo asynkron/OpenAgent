@@ -21,6 +21,7 @@ import type { PlanManagerAdapter } from './planManagerAdapter.js';
 import type {
   ExecuteAgentPassOptions,
   NormalizedExecuteAgentPassOptions,
+  EmitEvent,
 } from './types.js';
 
 interface ExecutionContext {
@@ -32,7 +33,7 @@ interface ExecutionContext {
   finalizePass: (result: boolean) => Promise<boolean>;
 }
 
-const noop = (): void => {
+const noop: EmitEvent = () => {
   /* noop */
 };
 

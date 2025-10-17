@@ -2,6 +2,10 @@
 import { jest } from '@jest/globals';
 import { runPrePassSequence } from '../prePassSequence.js';
 import { createNormalizedOptions, createObservationBuilderStub } from '../__testUtils__/passExecutor.js';
+import type { EmitEvent } from '../types.js';
+
+const createEmitEventMock = (): jest.MockedFunction<EmitEvent> =>
+  jest.fn<ReturnType<EmitEvent>, Parameters<EmitEvent>>();
 
 describe('runPrePassSequence', () => {
   test('returns completed result when model response is available', async () => {
@@ -72,7 +76,7 @@ describe('runPrePassSequence', () => {
   });
 
   test('flags missing content when tool arguments are empty', async () => {
-    const emitEvent = jest.fn();
+    const emitEvent = createEmitEventMock();
     const requestModelCompletionFn = jest.fn(async () => ({
       status: 'success',
       completion: {
