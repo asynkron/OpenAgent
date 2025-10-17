@@ -16,7 +16,7 @@ import type {
   ChatMessageContent,
   ChatMessageEntry as ChatMessageContract,
   ChatMessagePayload,
-} from '../../../../contracts/index.js';
+} from '../contracts/index.js';
 
 const DEFAULT_EVENT_TYPE = 'chat-message';
 const MODEL_ROLES = ['system', 'user', 'assistant'] as const;

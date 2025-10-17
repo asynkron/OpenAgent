@@ -2,7 +2,7 @@
 import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
 import { ApprovalManager } from '../approvalManager.js';
 import type { ApprovalManagerOptions } from '../approvalManager.js';
-import type { CommandDraft } from '../../../../contracts/index.js';
+import type { CommandDraft } from '../../contracts/index.js';
 
 describe('ApprovalManager.shouldAutoApprove', () => {
   const baseDeps: ApprovalManagerOptions = {

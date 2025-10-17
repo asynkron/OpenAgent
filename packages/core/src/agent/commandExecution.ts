@@ -18,7 +18,7 @@ import {
 } from '../constants.js';
 import ExecuteCommand from './commands/ExecuteCommand.js';
 import type { CommandResult } from '../commands/run.js';
-import type { CommandDraft, CommandExecutionDetails } from '../../../../contracts/index.js';
+import type { CommandDraft, CommandExecutionDetails } from '../contracts/index.js';
 
 const DEFAULT_TIMEOUT_SEC = 60 as const;
 

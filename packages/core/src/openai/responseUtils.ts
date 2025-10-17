@@ -15,7 +15,7 @@ interface MessageCandidate {
   content?: OutputTextPart[];
 }
 
-interface ModelResponseLike {
+export interface ModelResponseLike {
   output?: Array<ToolCallCandidate | MessageCandidate | null | undefined>;
   output_text?: string;
 }

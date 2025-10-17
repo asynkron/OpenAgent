@@ -12,7 +12,7 @@
 - Avoid union types unless absolutely necessary.
 - Avoid generics unless absolutely necessary.
 - I want the types to be as explicit as possible to make it easy to understand the data structures used in the code.
-- I want a folder of contracts, one file per contract, that defines all types used in the project.
+- Keep the canonical contracts under `packages/core/src/contracts/`, one file per contract, defining the runtime types shared across packages.
 
 ## Clean up existing mess
 
@@ -20,4 +20,3 @@
 - Refactor the code to use explicit types defined in the contracts folder.
 - Ensure that all types are well-documented and easy to understand.
   
-

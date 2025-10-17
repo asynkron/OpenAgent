@@ -10,7 +10,7 @@
  * TypeScript directly.
  */
 
-import type { CommandDraft } from '../../../../contracts/index.js';
+import type { CommandDraft } from '../contracts/index.js';
 
 export type ApprovalDecision = 'auto' | 'approve_once' | 'approve_session' | 'reject';
 

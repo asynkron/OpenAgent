@@ -1,7 +1,7 @@
 import type { ResponsesClient } from '../openai/responses.js';
 import type { ContextUsageSummary } from '../utils/contextUsage.js';
 import type { PlanProgress } from '../utils/plan.js';
-import type { CommandDraft } from '../../../../contracts/index.js';
+import type { CommandDraft } from '../contracts/index.js';
 import type { HistoryCompactor, HistoryCompactorOptions } from './historyCompactor.js';
 import type {
   GuardRequestPayloadSizeFn,

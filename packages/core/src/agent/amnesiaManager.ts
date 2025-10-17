@@ -11,7 +11,7 @@
  */
 
 import { createChatMessageEntry, type ChatMessageEntry } from './historyEntry.js';
-import type { PlanObservationMetadata, PlanStep } from '../../../../contracts/index.js';
+import type { PlanObservationMetadata, PlanStep } from '../contracts/index.js';
 
 const JSON_INDENT = 2 as const;
 const DEFAULT_THRESHOLD = 10 as const;

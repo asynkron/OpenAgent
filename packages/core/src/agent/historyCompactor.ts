@@ -18,7 +18,7 @@ import { summarizeContextUsage, type ContextUsageSummary } from '../utils/contex
 import { extractResponseText } from '../openai/responseUtils.js';
 import { createResponse, type ResponsesClient } from '../openai/responses.js';
 import { getOpenAIRequestSettings } from '../openai/client.js';
-import type { ChatMessageContent, ChatMessageEntry } from '../../../../contracts/index.js';
+import type { ChatMessageContent, ChatMessageEntry } from '../contracts/index.js';
 
 const DEFAULT_USAGE_THRESHOLD = 0.5;
 const DEFAULT_SUMMARY_PREFIX = 'Compacted memory:';

@@ -7,7 +7,7 @@ import {
   isTerminalStatus,
 } from './planStatusUtils.js';
 import { commandsAreEqual } from './planComparisonUtils.js';
-import { PlanStatus } from '../../../../contracts/index.js';
+import { PlanStatus } from '../contracts/index.js';
 
 const normalizePlanIdentifier = (value: unknown): string => {
   if (typeof value !== 'string') {

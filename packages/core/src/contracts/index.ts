@@ -21,15 +21,21 @@ import type { JSONSchema7 } from '@ai-sdk/provider';
 import type { GenerateObjectResult, GenerateTextResult, ToolSet } from 'ai';
 import { z } from 'zod';
 
-import {
-  PlanStatus,
-  type CommandDefinition,
-  type Plan,
-  type PlanObservation,
-  type PlanObservationMetadata,
-  type PlanObservationPayload,
-  type PlanStep,
-} from '../../../../contracts/index.js';
+import { PlanStatus, TERMINAL_PLAN_STATUSES } from './planStatus.js';
+import type { CommandDefinition, CommandDraft, CommandExecutionDetails } from './command.js';
+import type {
+  Plan,
+  PlanObservation,
+  PlanObservationMetadata,
+  PlanObservationPayload,
+  PlanStep,
+} from './plan.js';
+import type {
+  ChatMessageContent,
+  ChatMessageContentPart,
+  ChatMessageEntry,
+  ChatMessagePayload,
+} from './history.js';
 import { DEFAULT_COMMAND_MAX_BYTES, DEFAULT_COMMAND_TAIL_LINES } from '../constants.js';
 
 const PlanObservationMetadataSchema: z.ZodType<PlanObservationMetadata | null | undefined> = z
@@ -71,6 +77,28 @@ export type ToolResponse = Plan;
 export type ToolObservation = PlanObservation;
 export type ToolObservationMetadata = PlanObservationMetadata;
 export type ToolObservationPayload = PlanObservationPayload;
+export type ToolCommandDraft = CommandDraft;
+export type ToolCommandExecutionDetails = CommandExecutionDetails;
+export type ToolChatMessageContent = ChatMessageContent;
+export type ToolChatMessageContentPart = ChatMessageContentPart;
+export type ToolChatMessagePayload = ChatMessagePayload;
+export type ToolChatMessageEntry = ChatMessageEntry;
+
+export { PlanStatus, TERMINAL_PLAN_STATUSES } from './planStatus.js';
+export type { CommandDraft, CommandDefinition, CommandExecutionDetails } from './command.js';
+export type {
+  Plan,
+  PlanObservation,
+  PlanObservationMetadata,
+  PlanObservationPayload,
+  PlanStep,
+} from './plan.js';
+export type {
+  ChatMessageContent,
+  ChatMessageContentPart,
+  ChatMessageEntry,
+  ChatMessagePayload,
+} from './history.js';
 
 // Zod schemas that mirror the interfaces above
 export const ToolCommandSchema = z

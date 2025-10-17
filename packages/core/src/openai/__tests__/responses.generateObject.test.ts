@@ -1,5 +1,5 @@
 import { describe, expect, jest, test } from '@jest/globals';
-import type { ToolResponse } from '../../contracts/index.js';
+import type { ToolResponse } from '../contracts/index.js';
 
 let streamObjectMock: jest.Mock;
 
@@ -22,7 +22,7 @@ jest.unstable_mockModule('ai', () => {
   };
 });
 
-import { ToolDefinition } from '../../contracts/index.js';
+import { ToolDefinition } from '../contracts/index.js';
 
 describe('createResponse uses generateObject with tool schema', () => {
   test('passes provider-agnostic schema wrapper to AI SDK', async () => {

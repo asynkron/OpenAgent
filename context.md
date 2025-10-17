@@ -7,7 +7,7 @@
 
 ## Key Subsystems
 
-- `contracts/` — workspace-level TypeScript contracts (plans, commands, observations) consumed by every package. See [`contracts/context.md`](contracts/context.md).
+- `packages/core/src/contracts/` — canonical TypeScript contracts (plans, commands, chat history) consumed by every package. See [`packages/core/src/contracts/context.md`](packages/core/src/contracts/context.md).
 - `packages/core/` — headless runtime, OpenAI client adapters, and shared utilities. See [`packages/core/context.md`](packages/core/context.md).
 - `packages/cli/` — Ink-based CLI that depends on the core runtime. See [`packages/cli/context.md`](packages/cli/context.md).
 - `tests/` — cross-package integration suites with mock OpenAI harnesses. See [`tests/context.md`](tests/context.md).

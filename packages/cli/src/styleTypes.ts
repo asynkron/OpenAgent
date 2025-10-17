@@ -52,9 +52,9 @@ export interface TextStyleMap<T extends string = string> {
 }
 
 export const toBoxProps = (style?: BoxStyleProps | null): BoxProps => {
-  const resolved: any = {};
+  const result: Record<string, unknown> = {};
   if (!style) {
-    return resolved;
+    return result as BoxProps;
   }
 
   const {
@@ -86,77 +86,76 @@ export const toBoxProps = (style?: BoxStyleProps | null): BoxProps => {
     borderRight,
   } = style;
 
-  if (flexDirection) resolved.flexDirection = flexDirection;
-  if (typeof marginTop === 'number') resolved.marginTop = marginTop;
-  if (typeof marginLeft === 'number') resolved.marginLeft = marginLeft;
-  if (typeof marginRight === 'number') resolved.marginRight = marginRight;
-  if (typeof marginBottom === 'number') resolved.marginBottom = marginBottom;
+  if (flexDirection) result.flexDirection = flexDirection;
+  if (typeof marginTop === 'number') result.marginTop = marginTop;
+  if (typeof marginLeft === 'number') result.marginLeft = marginLeft;
+  if (typeof marginRight === 'number') result.marginRight = marginRight;
+  if (typeof marginBottom === 'number') result.marginBottom = marginBottom;
   if (typeof marginX === 'number') {
-    resolved.marginLeft = marginX;
-    resolved.marginRight = marginX;
+    result.marginLeft = marginX;
+    result.marginRight = marginX;
   }
   if (typeof marginY === 'number') {
-    resolved.marginTop = marginY;
-    resolved.marginBottom = marginY;
+    result.marginTop = marginY;
+    result.marginBottom = marginY;
   }
   if (typeof margin === 'number') {
-    resolved.margin = margin;
+    result.margin = margin;
   }
   if (typeof padding === 'number') {
-    resolved.padding = padding;
+    result.padding = padding;
   }
   if (typeof paddingX === 'number') {
-    resolved.paddingLeft = paddingX;
-    resolved.paddingRight = paddingX;
+    result.paddingLeft = paddingX;
+    result.paddingRight = paddingX;
   }
   if (typeof paddingY === 'number') {
-    resolved.paddingTop = paddingY;
-    resolved.paddingBottom = paddingY;
+    result.paddingTop = paddingY;
+    result.paddingBottom = paddingY;
   }
-  if (typeof paddingBottom === 'number') resolved.paddingBottom = paddingBottom;
-  if (typeof paddingTop === 'number') resolved.paddingTop = paddingTop;
-  if (typeof paddingLeft === 'number') resolved.paddingLeft = paddingLeft;
-  if (typeof paddingRight === 'number') resolved.paddingRight = paddingRight;
-  if (backgroundColor) resolved.backgroundColor = backgroundColor as BoxProps['backgroundColor'];
-  if (alignSelf) resolved.alignSelf = alignSelf;
-  if (alignItems) resolved.alignItems = alignItems;
-  if (typeof flexGrow === 'number') resolved.flexGrow = flexGrow;
-  if (borderStyle) resolved.borderStyle = borderStyle as BoxProps['borderStyle'];
-  if (borderColor) resolved.borderColor = borderColor as BoxProps['borderColor'];
-  if (typeof borderTop === 'boolean') resolved.borderTop = borderTop;
-  if (typeof borderBottom === 'boolean') resolved.borderBottom = borderBottom;
-  if (typeof borderLeft === 'boolean') resolved.borderLeft = borderLeft;
-  if (typeof borderRight === 'boolean') resolved.borderRight = borderRight;
+  if (typeof paddingBottom === 'number') result.paddingBottom = paddingBottom;
+  if (typeof paddingTop === 'number') result.paddingTop = paddingTop;
+  if (typeof paddingLeft === 'number') result.paddingLeft = paddingLeft;
+  if (typeof paddingRight === 'number') result.paddingRight = paddingRight;
+  if (backgroundColor) result.backgroundColor = backgroundColor;
+  if (alignSelf) result.alignSelf = alignSelf;
+  if (alignItems) result.alignItems = alignItems;
+  if (typeof flexGrow === 'number') result.flexGrow = flexGrow;
+  if (borderStyle) result.borderStyle = borderStyle;
+  if (borderColor) result.borderColor = borderColor;
+  if (typeof borderTop === 'boolean') result.borderTop = borderTop;
+  if (typeof borderBottom === 'boolean') result.borderBottom = borderBottom;
+  if (typeof borderLeft === 'boolean') result.borderLeft = borderLeft;
+  if (typeof borderRight === 'boolean') result.borderRight = borderRight;
   if (typeof width === 'number') {
-    resolved.width = width;
+    result.width = width;
   }
 
-  return resolved as BoxProps;
+  return result as BoxProps;
 };
 
 export const toTextProps = (style?: TextStyleProps | null): TextProps => {
-  const resolved: any = {};
+  const result: Record<string, unknown> = {};
   if (!style) {
-    return resolved as TextProps;
+    return result as TextProps;
   }
 
   const { color, dimColor, bold, marginLeft, backgroundColor } = style;
   if (color) {
-    resolved.color = color as TextProps['color'];
+    result.color = color;
   }
   if (typeof dimColor === 'boolean') {
-    resolved.dimColor = dimColor;
+    result.dimColor = dimColor;
   }
   if (typeof bold === 'boolean') {
-    resolved.bold = bold;
+    result.bold = bold;
   }
   if (backgroundColor) {
-    resolved.backgroundColor = backgroundColor as TextProps['backgroundColor'];
+    (result as { backgroundColor?: string }).backgroundColor = backgroundColor;
   }
-  const extras: { marginLeft?: number } = {};
   if (typeof marginLeft === 'number') {
-    extras.marginLeft = marginLeft;
+    (result as { marginLeft?: number }).marginLeft = marginLeft;
   }
 
-  return { ...resolved, ...extras } as TextProps;
+  return result as TextProps;
 };
