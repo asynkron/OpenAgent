@@ -14,6 +14,8 @@
 - `run.js` ensures cancellation handlers are unregistered during all completion paths to avoid dangling callbacks.
 - `run.js` rewrites legacy `apply_patch` and `read` invocations to the bundled helpers under `packages/core/scripts/`, keeping the
   command surface stable while pointing to vetted implementations even when the working directory changes.
+- `tempFileManager.ts` handles numeric file descriptors directly and still guards against close failures, so resource cleanup
+  remains safe even if the OS rejects the `closeSync` call.
 
 ## Risks / Gaps
 
