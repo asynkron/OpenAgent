@@ -11,14 +11,9 @@ const normalizePlanStepStatus = (step: PlanStep | null | undefined): void => {
     return;
   }
 
-  const statusCandidate = (step as Record<string, unknown>).status;
-
-  if (typeof statusCandidate === 'string') {
-    const normalized = normalizePlanStatus(statusCandidate);
-    step.status = normalized ?? PENDING_STATUS;
-  } else {
-    step.status = PENDING_STATUS;
-  }
+  const statusCandidate = step.status;
+  const normalized = normalizePlanStatus(statusCandidate);
+  step.status = normalized ?? PENDING_STATUS;
 };
 
 const normalizePlanStatuses = (plan: PlanStep[] | null | undefined): void => {

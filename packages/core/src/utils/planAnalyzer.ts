@@ -1,12 +1,22 @@
 import type { PlanSnapshot, PlanSnapshotStep } from './planCloneUtils.js';
 import { isCompletedStatus, isTerminalStatus } from './planStatusUtils.js';
 
-const normalizePlanIdentifier = (value: unknown): string => {
-  if (typeof value !== 'string') {
+type IdentifierCandidate =
+  | PlanSnapshotStep['id']
+  | (PlanSnapshotStep['waitingForId'] extends Array<infer U> ? U : never)
+  | null
+  | undefined;
+
+function normalizePlanIdentifier(value: PlanSnapshotStep['id']): string;
+function normalizePlanIdentifier(value: IdentifierCandidate): string;
+function normalizePlanIdentifier(value: IdentifierCandidate): string {
+  if (value === null || value === undefined) {
     return '';
   }
-  return value.trim() || '';
-};
+
+  const normalized = String(value).trim();
+  return normalized || '';
+}
 
 export const buildPlanLookup = (plan: PlanSnapshot | null | undefined): Map<string, PlanSnapshotStep> => {
   const lookup = new Map<string, PlanSnapshotStep>();
@@ -15,12 +25,11 @@ export const buildPlanLookup = (plan: PlanSnapshot | null | undefined): Map<stri
     return lookup;
   }
 
-  plan.forEach((item, index) => {
-    if (!item || typeof item !== 'object') {
+  plan.forEach((planItem, index) => {
+    if (!planItem || typeof planItem !== 'object') {
       return;
     }
 
-    const planItem = item as PlanSnapshotStep;
     const id = normalizePlanIdentifier(planItem.id) || `index:${index}`;
     if (!lookup.has(id)) {
       lookup.set(id, planItem);
@@ -38,8 +47,7 @@ export const planStepIsBlocked = (
     return false;
   }
 
-  const planStep = step as PlanSnapshotStep;
-  const dependencies = Array.isArray(planStep.waitingForId) ? planStep.waitingForId : [];
+  const dependencies = Array.isArray(step.waitingForId) ? step.waitingForId : [];
   if (dependencies.length === 0) {
     return false;
   }
@@ -47,8 +55,8 @@ export const planStepIsBlocked = (
   const lookup =
     planOrLookup instanceof Map
       ? planOrLookup
-      : planOrLookup
-        ? buildPlanLookup(planOrLookup as PlanSnapshot)
+      : Array.isArray(planOrLookup)
+        ? buildPlanLookup(planOrLookup)
         : new Map<string, PlanSnapshotStep>();
 
   if (lookup.size === 0) {
@@ -56,7 +64,7 @@ export const planStepIsBlocked = (
   }
 
   for (const rawId of dependencies) {
-    const dependencyId = normalizePlanIdentifier(rawId);
+    const dependencyId = normalizePlanIdentifier(rawId as IdentifierCandidate);
     if (!dependencyId) {
       return true;
     }
@@ -80,7 +88,7 @@ export const planHasOpenSteps = (plan: PlanSnapshot | null | undefined): boolean
       return false;
     }
 
-    return !isTerminalStatus((item as PlanSnapshotStep).status);
+    return !isTerminalStatus(item.status);
   });
 };
 
@@ -105,7 +113,7 @@ const aggregateProgress = (items: PlanSnapshotStep[]): { completed: number; tota
     }
 
     total += 1;
-    if (isTerminalStatus((item as PlanSnapshotStep).status)) {
+    if (isTerminalStatus(item.status)) {
       completed += 1;
     }
   }

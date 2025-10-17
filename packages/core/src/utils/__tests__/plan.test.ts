@@ -3,18 +3,28 @@ import { describe, expect, test } from '@jest/globals';
 import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
 
 import { mergePlanTrees, planHasOpenSteps, planToMarkdown, computePlanProgress } from '../plan.js';
-import type { PlanEntry } from '../../agent/passExecutor/planTypes.js';
+import {
+  createPlanCommand,
+  createPlanSnapshotStep,
+  type PlanEntry,
+} from '../../agent/passExecutor/planTypes.js';
 
 describe('plan utilities', () => {
   test('mergePlanTrees updates matching step metadata while preserving runtime status', () => {
     const existingPlan: PlanEntry[] = [
-      { id: 'a', title: 'Do stuff', status: 'running', priority: 2 },
-      { id: 'b', title: 'Keep me', status: 'pending' },
+      createPlanSnapshotStep({ id: 'a', title: 'Do stuff', status: 'running', priority: 2 }),
+      createPlanSnapshotStep({ id: 'b', title: 'Keep me', status: 'pending' }),
     ];
 
     const incomingPlan: PlanEntry[] = [
-      { id: 'a', title: 'Do stuff', status: 'completed', waitingForId: [] },
-      { id: 'c', title: 'New step', status: 'running', waitingForId: ['a'], priority: 1 },
+      createPlanSnapshotStep({ id: 'a', title: 'Do stuff', status: 'completed', waitingForId: [] }),
+      createPlanSnapshotStep({
+        id: 'c',
+        title: 'New step',
+        status: 'running',
+        waitingForId: ['a'],
+        priority: 1,
+      }),
     ];
 
     const merged = mergePlanTrees(existingPlan, incomingPlan);
@@ -35,21 +45,21 @@ describe('plan utilities', () => {
 
   test('mergePlanTrees does not downgrade terminal statuses back to pending', () => {
     const existingPlan: PlanEntry[] = [
-      {
+      createPlanSnapshotStep({
         id: 'a',
         title: 'Finish work',
         status: 'completed',
-        command: { run: 'echo done', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
-      },
+        command: createPlanCommand({ run: 'echo done', max_bytes: DEFAULT_COMMAND_MAX_BYTES }),
+      }),
     ];
 
     const incomingPlan: PlanEntry[] = [
-      {
+      createPlanSnapshotStep({
         id: 'a',
         title: 'Finish work',
         status: 'pending',
-        command: { run: 'echo done', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
-      },
+        command: createPlanCommand({ run: 'echo done', max_bytes: DEFAULT_COMMAND_MAX_BYTES }),
+      }),
     ];
 
     const merged = mergePlanTrees(existingPlan, incomingPlan);
@@ -60,31 +70,31 @@ describe('plan utilities', () => {
   });
 
   test('mergePlanTrees refreshes command details and resets failed steps when command changes', () => {
-    const existingCommand = {
+    const existingCommand = createPlanCommand({
       run: 'npm test',
       shell: '/bin/bash',
       reason: 'Execute tests',
-    };
+    });
     const existingPlan: PlanEntry[] = [
-      {
+      createPlanSnapshotStep({
         id: 'task-1',
         title: 'Retry task',
         status: 'failed',
         command: existingCommand,
-      },
+      }),
     ];
 
     const incomingPlan: PlanEntry[] = [
-      {
+      createPlanSnapshotStep({
         id: 'task-1',
         title: 'Retry task',
         status: 'failed',
-        command: {
+        command: createPlanCommand({
           run: 'npm run lint',
           shell: '/bin/bash',
           reason: 'Lint before retrying tests',
-        },
-      },
+        }),
+      }),
     ];
 
     const merged = mergePlanTrees(existingPlan, incomingPlan);
@@ -97,33 +107,33 @@ describe('plan utilities', () => {
       shell: '/bin/bash',
       reason: 'Lint before retrying tests',
     });
-    expect(merged[0].command).not.toBe(incomingPlan[0].command);
+    expect(merged[0].command).not.toBe(incomingPlan[0]!.command);
   });
 
   test('mergePlanTrees keeps failed status when command stays the same', () => {
-    const commandPayload = {
+    const commandPayload = createPlanCommand({
       run: 'npm test',
       shell: '/bin/bash',
-    };
+    });
     const existingPlan: PlanEntry[] = [
-      {
+      createPlanSnapshotStep({
         id: 'task-2',
         title: 'Hold status',
         status: 'failed',
         command: commandPayload,
-      },
+      }),
     ];
 
     const incomingPlan: PlanEntry[] = [
-      {
+      createPlanSnapshotStep({
         id: 'task-2',
         title: 'Hold status',
         status: 'pending',
-        command: {
+        command: createPlanCommand({
           run: 'npm test',
           shell: '/bin/bash',
-        },
-      },
+        }),
+      }),
     ];
 
     const merged = mergePlanTrees(existingPlan, incomingPlan);
@@ -135,24 +145,24 @@ describe('plan utilities', () => {
 
   test('mergePlanTrees ignores command rewrites when incoming status is completed', () => {
     const existingPlan: PlanEntry[] = [
-      {
+      createPlanSnapshotStep({
         id: 'task-3',
         title: 'Keep running status',
         status: 'running',
         command: null,
-      },
+      }),
     ];
 
     const incomingPlan: PlanEntry[] = [
-      {
+      createPlanSnapshotStep({
         id: 'task-3',
         title: 'Keep running status',
         status: 'completed',
-        command: {
+        command: createPlanCommand({
           run: 'echo done',
           shell: '/bin/bash',
-        },
-      },
+        }),
+      }),
     ];
 
     const merged = mergePlanTrees(existingPlan, incomingPlan);
@@ -165,24 +175,24 @@ describe('plan utilities', () => {
 
   test('mergePlanTrees resets abandoned steps to pending when command changes', () => {
     const existingPlan: PlanEntry[] = [
-      {
+      createPlanSnapshotStep({
         id: 'task-4',
         title: 'Retry after cancellation',
         status: 'abandoned',
         command: null,
-      },
+      }),
     ];
 
     const incomingPlan: PlanEntry[] = [
-      {
+      createPlanSnapshotStep({
         id: 'task-4',
         title: 'Retry after cancellation',
         status: 'pending',
-        command: {
+        command: createPlanCommand({
           run: 'npm run retry',
           shell: '/bin/bash',
-        },
-      },
+        }),
+      }),
     ];
 
     const merged = mergePlanTrees(existingPlan, incomingPlan);
@@ -197,27 +207,36 @@ describe('plan utilities', () => {
   });
 
   test('mergePlanTrees forces new steps to pending status regardless of incoming status', () => {
-    const existingPlan: PlanEntry[] = [{ id: 'a', title: 'Existing', status: 'running' }];
+    const existingPlan: PlanEntry[] = [
+      createPlanSnapshotStep({ id: 'a', title: 'Existing', status: 'running' }),
+    ];
 
     const incomingPlan: PlanEntry[] = [
-      { id: 'a', title: 'Existing', status: 'completed' },
-      { id: 'b', title: 'Assistant says done', status: 'completed' },
+      createPlanSnapshotStep({ id: 'a', title: 'Existing', status: 'completed' }),
+      createPlanSnapshotStep({ id: 'b', title: 'Assistant says done', status: 'completed' }),
     ];
 
     const merged = mergePlanTrees(existingPlan, incomingPlan);
 
     expect(merged).toHaveLength(2);
     expect(merged[0].status).toBe('running');
-    expect(merged[1]).toEqual({ id: 'b', title: 'Assistant says done', status: 'pending' });
+    expect(merged[1]).toEqual({
+      id: 'b',
+      title: 'Assistant says done',
+      status: 'pending',
+      waitingForId: [],
+    });
   });
 
   test('mergePlanTrees removes steps marked as abandoned', () => {
     const existingPlan: PlanEntry[] = [
-      { id: 'a', title: 'Keep me', status: 'running' },
-      { id: 'b', title: 'Drop me', status: 'pending' },
+      createPlanSnapshotStep({ id: 'a', title: 'Keep me', status: 'running' }),
+      createPlanSnapshotStep({ id: 'b', title: 'Drop me', status: 'pending' }),
     ];
 
-    const incomingPlan: PlanEntry[] = [{ id: 'b', title: 'Drop me', status: 'abandoned' }];
+    const incomingPlan: PlanEntry[] = [
+      createPlanSnapshotStep({ id: 'b', title: 'Drop me', status: 'abandoned' }),
+    ];
 
     const merged = mergePlanTrees(existingPlan, incomingPlan);
 
@@ -226,7 +245,9 @@ describe('plan utilities', () => {
   });
 
   test('mergePlanTrees clears plan when incoming plan is empty', () => {
-    const existingPlan: PlanEntry[] = [{ id: 'a', title: 'Done work', status: 'completed' }];
+    const existingPlan: PlanEntry[] = [
+      createPlanSnapshotStep({ id: 'a', title: 'Done work', status: 'completed' }),
+    ];
 
     const merged = mergePlanTrees(existingPlan, []);
     expect(merged).toEqual([]);
@@ -234,8 +255,14 @@ describe('plan utilities', () => {
 
   test('planToMarkdown renders a flat outline with priority and dependencies', () => {
     const plan: PlanEntry[] = [
-      { id: 'a', title: 'Root task', status: 'running', priority: 3 },
-      { id: 'b', title: 'Follow-up', status: 'pending', waitingForId: ['a'], priority: 1 },
+      createPlanSnapshotStep({ id: 'a', title: 'Root task', status: 'running', priority: 3 }),
+      createPlanSnapshotStep({
+        id: 'b',
+        title: 'Follow-up',
+        status: 'pending',
+        waitingForId: ['a'],
+        priority: 1,
+      }),
     ];
 
     const markdown = planToMarkdown(plan);
@@ -247,8 +274,8 @@ describe('plan utilities', () => {
 
   test('planHasOpenSteps detects unfinished steps', () => {
     const plan: PlanEntry[] = [
-      { id: 'a', title: 'Parent', status: 'completed' },
-      { id: 'b', title: 'Child', status: 'running' },
+      createPlanSnapshotStep({ id: 'a', title: 'Parent', status: 'completed' }),
+      createPlanSnapshotStep({ id: 'b', title: 'Child', status: 'running' }),
     ];
 
     expect(planHasOpenSteps(plan)).toBe(true);
@@ -259,9 +286,9 @@ describe('plan utilities', () => {
 
   test('computePlanProgress returns completed vs total steps', () => {
     const plan: PlanEntry[] = [
-      { id: 'a', title: 'Task A', status: 'completed' },
-      { id: 'b', title: 'Task B', status: 'pending' },
-      { id: 'c', title: 'Task C', status: 'running' },
+      createPlanSnapshotStep({ id: 'a', title: 'Task A', status: 'completed' }),
+      createPlanSnapshotStep({ id: 'b', title: 'Task B', status: 'pending' }),
+      createPlanSnapshotStep({ id: 'c', title: 'Task C', status: 'running' }),
     ];
 
     const progress = computePlanProgress(plan);

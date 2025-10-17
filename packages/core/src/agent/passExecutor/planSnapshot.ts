@@ -18,12 +18,12 @@ export const buildPlanStepSnapshot = (step: PlanEntry): PlanHistorySnapshot => {
     }
   }
 
-  const statusCandidate = (step as Record<string, unknown>).status;
+  const statusCandidate = step.status;
   if (typeof statusCandidate === 'string' && statusCandidate.trim().length > 0) {
     snapshot.status = statusCandidate;
   }
 
-  const observationCandidate = (step as Record<string, unknown>).observation;
+  const observationCandidate = step.observation;
   if (observationCandidate && typeof observationCandidate === 'object') {
     const observationForLLM = (observationCandidate as ObservationRecord).observation_for_llm;
     if (observationForLLM && typeof observationForLLM === 'object') {

@@ -7,6 +7,7 @@ import {
   isTerminalStatus,
 } from './planStatusUtils.js';
 import { PENDING_STATUS, normalizePlanStatus } from './planStatusTypes.js';
+import { commandsAreEqual } from './planComparisonUtils.js';
 
 // Guard helper that makes sure plan snapshots never carry unexpected status
 // literals. Incoming plans can originate from assistant responses or custom
@@ -19,14 +20,8 @@ const normalizePlanSnapshotStepStatus = (
     return;
   }
 
-  const statusCandidate = (step as Record<string, unknown>).status;
-
-  if (typeof statusCandidate === 'string') {
-    const normalized = normalizePlanStatus(statusCandidate);
-    step.status = normalized ?? PENDING_STATUS;
-  } else {
-    step.status = PENDING_STATUS;
-  }
+  const normalized = normalizePlanStatus(step.status);
+  step.status = normalized ?? PENDING_STATUS;
 };
 
 const normalizePlanSnapshotStatuses = (plan: PlanSnapshot | null | undefined): void => {
@@ -36,16 +31,22 @@ const normalizePlanSnapshotStatuses = (plan: PlanSnapshot | null | undefined): v
 
   plan.forEach((step) => normalizePlanSnapshotStepStatus(step));
 };
-import { commandsAreEqual } from './planComparisonUtils.js';
+type IdentifierCandidate =
+  | PlanSnapshotStep['id']
+  | (PlanSnapshotStep['waitingForId'] extends Array<infer U> ? U : never)
+  | null
+  | undefined;
 
-const normalizePlanIdentifier = (value: unknown): string => {
-  if (typeof value !== 'string') {
+function normalizePlanIdentifier(value: PlanSnapshotStep['id']): string;
+function normalizePlanIdentifier(value: IdentifierCandidate): string;
+function normalizePlanIdentifier(value: IdentifierCandidate): string {
+  if (value === null || value === undefined) {
     return '';
   }
 
-  const trimmed = value.trim();
-  return trimmed || '';
-};
+  const normalized = String(value).trim();
+  return normalized || '';
+}
 
 const createPlanKey = (item: PlanSnapshotStep | null | undefined, fallbackIndex: number): string => {
   if (!item || typeof item !== 'object') {
@@ -86,7 +87,7 @@ const mergePlanItems = (
   existingItem.waitingForId = dependencies;
 
   const incomingCommand = incomingItem.command;
-  const incomingStatus = incomingItem?.status;
+  const incomingStatus = incomingItem.status;
   const allowCommandUpdate = !isCompletedStatus(incomingStatus);
 
   if (allowCommandUpdate && incomingCommand && typeof incomingCommand === 'object') {
@@ -106,7 +107,7 @@ const mergePlanItems = (
         (isAbandonedStatus(existingItem.status) && !incomingIsTerminal);
 
       if (shouldResetStatus) {
-        existingItem.status = 'pending';
+        existingItem.status = PENDING_STATUS;
       }
     }
   }
@@ -149,9 +150,9 @@ export const mergePlanTrees = (
     } else if (!isAbandonedStatus(item?.status)) {
       const cloned = deepCloneValue(item);
       if (cloned && typeof cloned === 'object') {
-        (cloned as PlanSnapshotStep).status = 'pending';
+        cloned.status = PENDING_STATUS;
       }
-      result.push(cloned);
+      result.push(cloned as PlanSnapshotStep);
     }
   });
 

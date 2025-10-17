@@ -1,10 +1,13 @@
 /* eslint-env jest */
 import { jest } from '@jest/globals';
 import { createExecutionContext } from '../executionContext.js';
+import ObservationBuilder, { type ObservationBuilderDeps } from '../../observationBuilder.js';
+
 import type { EmitEvent } from '../types.js';
 
 const createEmitEventMock = (): jest.MockedFunction<EmitEvent> =>
   jest.fn<ReturnType<EmitEvent>, Parameters<EmitEvent>>();
+
 
 const createOptions = (overrides: Partial<Parameters<typeof createExecutionContext>[0]> = {}) => ({
   openai: {},
@@ -27,7 +30,13 @@ const createOptions = (overrides: Partial<Parameters<typeof createExecutionConte
 
 describe('createExecutionContext', () => {
   test('materializes observation builder with provided factory', () => {
-    const createObservationBuilderFn = jest.fn(() => ({}) as unknown);
+    const createObservationBuilderFn = jest.fn(
+      (deps: ObservationBuilderDeps) =>
+        new ObservationBuilder({
+          ...deps,
+          now: () => new Date('2025-01-01T00:00:00Z'),
+        }),
+    );
     const options = createOptions({ createObservationBuilderFn });
 
     const context = createExecutionContext(options);
@@ -79,7 +88,7 @@ describe('createExecutionContext', () => {
     expect(() =>
       createExecutionContext({
         ...createOptions(),
-        passIndex: undefined as unknown as number,
+        passIndex: undefined,
       }),
     ).toThrow('executeAgentPass requires a numeric passIndex.');
   });

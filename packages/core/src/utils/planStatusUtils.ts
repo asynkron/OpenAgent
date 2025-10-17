@@ -3,26 +3,24 @@ import {
   COMPLETED_STATUS,
   FAILED_STATUS,
   TERMINAL_PLAN_STATUS_SET,
-  normalizePlanStatus,
   type PlanStatus,
 } from './planStatusTypes.js';
 
 export type { PlanStatus } from './planStatusTypes.js';
 
-export const isCompletedStatus = (status: unknown): boolean =>
-  normalizePlanStatus(status) === COMPLETED_STATUS;
+export const isCompletedStatus = (status: PlanStatus | null | undefined): status is typeof COMPLETED_STATUS =>
+  status === COMPLETED_STATUS;
 
-export const isFailedStatus = (status: unknown): boolean =>
-  normalizePlanStatus(status) === FAILED_STATUS;
+export const isFailedStatus = (status: PlanStatus | null | undefined): status is typeof FAILED_STATUS =>
+  status === FAILED_STATUS;
 
-export const isAbandonedStatus = (status: unknown): boolean =>
-  normalizePlanStatus(status) === ABANDONED_STATUS;
+export const isAbandonedStatus = (status: PlanStatus | null | undefined): status is typeof ABANDONED_STATUS =>
+  status === ABANDONED_STATUS;
 
-export const isTerminalStatus = (status: unknown): boolean => {
-  const normalized = normalizePlanStatus(status);
-  if (!normalized) {
+export const isTerminalStatus = (status: PlanStatus | null | undefined): boolean => {
+  if (!status) {
     return false;
   }
 
-  return TERMINAL_PLAN_STATUS_SET.has(normalized);
+  return TERMINAL_PLAN_STATUS_SET.has(status);
 };

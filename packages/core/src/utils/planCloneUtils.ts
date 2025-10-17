@@ -1,4 +1,4 @@
-import type { PlanCommand, PlanEntry } from '../agent/passExecutor/planTypes.js';
+import type { PlanCommand, PlanSnapshot } from '../agent/passExecutor/planTypes.js';
 import type { PlanStatus } from './planStatusTypes.js';
 
 const hasStructuredClone = typeof globalThis.structuredClone === 'function';
@@ -22,8 +22,7 @@ export const deepCloneValue = <T>(value: T): T => {
 
 export type PlanSnapshotStatus = PlanStatus;
 export type PlanSnapshotCommand = PlanCommand;
-export type PlanSnapshotStep = PlanEntry;
-export type PlanSnapshot = PlanSnapshotStep[];
+export type { PlanSnapshot, PlanSnapshotStep } from '../agent/passExecutor/planTypes.js';
 
 export const clonePlanTree = (plan: PlanSnapshot | null | undefined): PlanSnapshot => {
   if (!Array.isArray(plan)) {

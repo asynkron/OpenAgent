@@ -22,6 +22,6 @@ export const extractPlanStepIdentifier = (
     return id;
   }
 
-  const fallback = normalizePlanIdentifier((step as Record<string, unknown>).step);
+  const fallback = normalizePlanIdentifier(step.step);
   return fallback;
 };
