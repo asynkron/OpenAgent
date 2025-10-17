@@ -1,18 +1,18 @@
-// @ts-nocheck
 /* eslint-env jest */
 import { describe, expect, test } from '@jest/globals';
 import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
 
 import { mergePlanTrees, planHasOpenSteps, planToMarkdown, computePlanProgress } from '../plan.js';
+import type { PlanEntry } from '../../agent/passExecutor/planTypes.js';
 
 describe('plan utilities', () => {
   test('mergePlanTrees updates matching step metadata while preserving runtime status', () => {
-    const existingPlan = [
+    const existingPlan: PlanEntry[] = [
       { id: 'a', title: 'Do stuff', status: 'running', priority: 2 },
       { id: 'b', title: 'Keep me', status: 'pending' },
     ];
 
-    const incomingPlan = [
+    const incomingPlan: PlanEntry[] = [
       { id: 'a', title: 'Do stuff', status: 'completed', waitingForId: [] },
       { id: 'c', title: 'New step', status: 'running', waitingForId: ['a'], priority: 1 },
     ];
@@ -34,7 +34,7 @@ describe('plan utilities', () => {
   });
 
   test('mergePlanTrees does not downgrade terminal statuses back to pending', () => {
-    const existingPlan = [
+    const existingPlan: PlanEntry[] = [
       {
         id: 'a',
         title: 'Finish work',
@@ -43,7 +43,7 @@ describe('plan utilities', () => {
       },
     ];
 
-    const incomingPlan = [
+    const incomingPlan: PlanEntry[] = [
       {
         id: 'a',
         title: 'Finish work',
@@ -65,7 +65,7 @@ describe('plan utilities', () => {
       shell: '/bin/bash',
       reason: 'Execute tests',
     };
-    const existingPlan = [
+    const existingPlan: PlanEntry[] = [
       {
         id: 'task-1',
         title: 'Retry task',
@@ -74,7 +74,7 @@ describe('plan utilities', () => {
       },
     ];
 
-    const incomingPlan = [
+    const incomingPlan: PlanEntry[] = [
       {
         id: 'task-1',
         title: 'Retry task',
@@ -105,7 +105,7 @@ describe('plan utilities', () => {
       run: 'npm test',
       shell: '/bin/bash',
     };
-    const existingPlan = [
+    const existingPlan: PlanEntry[] = [
       {
         id: 'task-2',
         title: 'Hold status',
@@ -114,7 +114,7 @@ describe('plan utilities', () => {
       },
     ];
 
-    const incomingPlan = [
+    const incomingPlan: PlanEntry[] = [
       {
         id: 'task-2',
         title: 'Hold status',
@@ -134,7 +134,7 @@ describe('plan utilities', () => {
   });
 
   test('mergePlanTrees ignores command rewrites when incoming status is completed', () => {
-    const existingPlan = [
+    const existingPlan: PlanEntry[] = [
       {
         id: 'task-3',
         title: 'Keep running status',
@@ -143,7 +143,7 @@ describe('plan utilities', () => {
       },
     ];
 
-    const incomingPlan = [
+    const incomingPlan: PlanEntry[] = [
       {
         id: 'task-3',
         title: 'Keep running status',
@@ -164,7 +164,7 @@ describe('plan utilities', () => {
   });
 
   test('mergePlanTrees resets abandoned steps to pending when command changes', () => {
-    const existingPlan = [
+    const existingPlan: PlanEntry[] = [
       {
         id: 'task-4',
         title: 'Retry after cancellation',
@@ -173,7 +173,7 @@ describe('plan utilities', () => {
       },
     ];
 
-    const incomingPlan = [
+    const incomingPlan: PlanEntry[] = [
       {
         id: 'task-4',
         title: 'Retry after cancellation',
@@ -197,9 +197,9 @@ describe('plan utilities', () => {
   });
 
   test('mergePlanTrees forces new steps to pending status regardless of incoming status', () => {
-    const existingPlan = [{ id: 'a', title: 'Existing', status: 'running' }];
+    const existingPlan: PlanEntry[] = [{ id: 'a', title: 'Existing', status: 'running' }];
 
-    const incomingPlan = [
+    const incomingPlan: PlanEntry[] = [
       { id: 'a', title: 'Existing', status: 'completed' },
       { id: 'b', title: 'Assistant says done', status: 'completed' },
     ];
@@ -212,12 +212,12 @@ describe('plan utilities', () => {
   });
 
   test('mergePlanTrees removes steps marked as abandoned', () => {
-    const existingPlan = [
+    const existingPlan: PlanEntry[] = [
       { id: 'a', title: 'Keep me', status: 'running' },
       { id: 'b', title: 'Drop me', status: 'pending' },
     ];
 
-    const incomingPlan = [{ id: 'b', title: 'Drop me', status: 'abandoned' }];
+    const incomingPlan: PlanEntry[] = [{ id: 'b', title: 'Drop me', status: 'abandoned' }];
 
     const merged = mergePlanTrees(existingPlan, incomingPlan);
 
@@ -226,14 +226,14 @@ describe('plan utilities', () => {
   });
 
   test('mergePlanTrees clears plan when incoming plan is empty', () => {
-    const existingPlan = [{ id: 'a', title: 'Done work', status: 'completed' }];
+    const existingPlan: PlanEntry[] = [{ id: 'a', title: 'Done work', status: 'completed' }];
 
     const merged = mergePlanTrees(existingPlan, []);
     expect(merged).toEqual([]);
   });
 
   test('planToMarkdown renders a flat outline with priority and dependencies', () => {
-    const plan = [
+    const plan: PlanEntry[] = [
       { id: 'a', title: 'Root task', status: 'in_progress', priority: 3 },
       { id: 'b', title: 'Follow-up', status: 'pending', waitingForId: ['a'], priority: 1 },
     ];
@@ -246,7 +246,7 @@ describe('plan utilities', () => {
   });
 
   test('planHasOpenSteps detects unfinished steps', () => {
-    const plan = [
+    const plan: PlanEntry[] = [
       { id: 'a', title: 'Parent', status: 'completed' },
       { id: 'b', title: 'Child', status: 'running' },
     ];
@@ -258,7 +258,7 @@ describe('plan utilities', () => {
   });
 
   test('computePlanProgress returns completed vs total steps', () => {
-    const plan = [
+    const plan: PlanEntry[] = [
       { id: 'a', title: 'Task A', status: 'completed' },
       { id: 'b', title: 'Task B', status: 'pending' },
       { id: 'c', title: 'Task C', status: 'done' },

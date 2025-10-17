@@ -2,6 +2,7 @@
 import { describe, expect, test, jest } from '@jest/globals';
 import { handleNoExecutableMessage, handleCommandRejection } from '../idleHandlers.js';
 import { createPlanStateMachine } from '../stateMachine/index.js';
+import type { PlanEntry } from '../../planTypes.js';
 
 const createPlanManagerMock = () => ({
   resolveActivePlan: jest.fn(),
@@ -54,7 +55,7 @@ describe('handleNoExecutableMessage', () => {
 describe('handleCommandRejection', () => {
   test('records observation and resets reminder', () => {
     const stateMachine = createPlanStateMachine();
-    const step = { id: 'c1', status: 'pending', command: { run: 'echo hi' } };
+    const step: PlanEntry = { id: 'c1', status: 'pending', command: { run: 'echo hi' } };
     stateMachine.replaceActivePlan([step]);
 
     const result = handleCommandRejection({

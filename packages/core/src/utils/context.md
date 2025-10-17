@@ -12,7 +12,7 @@
 - `fetch.ts` — fetch-like wrapper that prefers the global implementation and falls back to Node's `http`/`https` modules. Recent refactors split timeout handling, header normalization, and Node streaming into focused helpers so the code is easier to reason about during failure analysis.
 - `jsonAssetValidator.ts` — validates JSON files against provided schemas; leveraged by scripts/tests.
 - `output.ts` — formatting helpers for CLI output and logs, now typed to guarantee string outputs. The `combineStdStreams` helper tolerates missing exit codes so observation builders can share the same implementation across typed and untyped callers.
-- `plan.ts` — plan tree clone/merge/progress utilities used by agent runtime & UI. The helpers now share a `PlanSnapshot` type alias derived from the tool schema so cloning, merging, formatting, and progress math operate on the same strongly typed step shape.
+- `plan.ts` — plan tree clone/merge/progress utilities used by agent runtime & UI. The helpers now share a `PlanSnapshot` type alias derived from the tool schema so cloning, merging, formatting, and progress math operate on the same strongly typed step shape. `planCloneUtils.ts` now sources its step definition from `passExecutor/planTypes.ts`, ensuring runtime code and utilities stay aligned when the plan entry schema evolves.
   - Incoming items with `status: 'abandoned'` now remove the matching plan branch during merge.
   - Steps waiting on dependencies now remain blocked if any dependency failed instead of treating failure as completion.
   - Merging no longer downgrades locally completed/failed steps when the assistant resends them as pending, preventing command replays.

@@ -1,4 +1,4 @@
-import type { PlanStep } from './planExecution.js';
+import type { PlanEntry } from './planTypes.js';
 import type { ObservationRecord } from '../historyMessageBuilder.js';
 import { extractPlanStepIdentifier } from './planStepIdentifier.js';
 
@@ -6,7 +6,7 @@ export type PlanHistorySnapshot = Record<string, unknown>;
 
 const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
-export const buildPlanStepSnapshot = (step: PlanStep): PlanHistorySnapshot => {
+export const buildPlanStepSnapshot = (step: PlanEntry): PlanHistorySnapshot => {
   const snapshot: PlanHistorySnapshot = {};
 
   if (Object.prototype.hasOwnProperty.call(step, 'id')) {
@@ -46,7 +46,7 @@ export const buildPlanStepSnapshot = (step: PlanStep): PlanHistorySnapshot => {
 };
 
 export const summarizePlanForHistory = (
-  plan: PlanStep[] | null | undefined,
+  plan: PlanEntry[] | null | undefined,
 ): PlanHistorySnapshot[] => {
   if (!Array.isArray(plan) || plan.length === 0) {
     return [];
