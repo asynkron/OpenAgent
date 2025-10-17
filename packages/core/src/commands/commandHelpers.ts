@@ -1,19 +1,15 @@
-export const appendLine = (output: string, line: unknown): string => {
+export const appendLine = (output: string, line: string): string => {
   if (!line) {
     return output;
   }
-  const normalized = String(line);
-  if (!normalized) {
-    return output;
-  }
   const needsNewline = output && !output.endsWith('\n');
-  return `${output || ''}${needsNewline ? '\n' : ''}${normalized}`;
+  return `${output || ''}${needsNewline ? '\n' : ''}${line}`;
 };
 
 export const createDetailMessage = (
   kind: 'timeout' | 'canceled' | null,
   timeoutSec: number | null | undefined,
-  commandLabel: string | null,
+  commandLabel: string,
 ): string | null => {
   if (!kind) {
     return null;
@@ -29,20 +25,18 @@ export const createDetailMessage = (
   return null;
 };
 
-export const getCommandLabel = (
-  providedLabel: unknown,
-  trimmedCommand: string,
-): string => {
-  return providedLabel ? String(providedLabel).trim() : trimmedCommand;
+export const getCommandLabel = (providedLabel: string, trimmedCommand: string): string => {
+  const normalized = providedLabel.trim();
+  return normalized ? normalized : trimmedCommand;
 };
 
 export const getOperationDescription = (
-  providedDescription: unknown,
+  providedDescription: string,
   commandLabel: string,
 ): string => {
-  return providedDescription && String(providedDescription).trim()
-    ? String(providedDescription).trim()
-    : commandLabel
-      ? `shell: ${commandLabel}`
-      : 'shell command';
+  const normalized = providedDescription.trim();
+  if (normalized) {
+    return normalized;
+  }
+  return commandLabel ? `shell: ${commandLabel}` : 'shell command';
 };
