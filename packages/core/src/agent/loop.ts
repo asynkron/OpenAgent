@@ -52,8 +52,7 @@ export function createAgentRuntime({
   getClient = getOpenAIClient,
   model = MODEL,
   runCommandFn = async (command, cwd, timeout, shell) => {
-    const result = await runCommand(command, cwd, timeout, shell);
-    return result as unknown as Record<string, unknown>;
+    return runCommand(command, cwd, timeout, shell);
   },
   applyFilterFn = applyFilter,
   tailLinesFn = tailLines,

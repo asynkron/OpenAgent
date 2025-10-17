@@ -1,6 +1,6 @@
 import { clonePlanForExecution, type PlanStep } from '../../planExecution.js';
 import { FAILED_STATUS, RUNNING_STATUS } from '../../planStepStatus.js';
-import type { CommandResult } from '../../../observationBuilder.js';
+import type { CommandResult } from '../../../../commands/run.js';
 import type { CommandObservationResult, PlanState } from './types.js';
 
 export interface MutationContext {
@@ -71,8 +71,8 @@ export const createPlanMutations = ({
       }
 
       const alternateExitCode = (() => {
-        const candidate = (commandResult as Record<string, unknown>)?.exitCode;
-        return typeof candidate === 'number' ? candidate : null;
+        const legacy = commandResult as unknown as { exitCode?: unknown };
+        return typeof legacy?.exitCode === 'number' ? legacy.exitCode : null;
       })();
 
       const exitCode =

@@ -1,7 +1,7 @@
 import type { PlanStep } from './planExecution.js';
 import type { ExecuteAgentPassOptions } from './types.js';
 import type { ChatMessageEntry } from '../historyEntry.js';
-import type { CommandResult } from '../observationBuilder.js';
+import type { CommandResult } from '../../commands/run.js';
 import type { ObservationRecord } from '../historyMessageBuilder.js';
 import {
   createPlanStateMachine,
