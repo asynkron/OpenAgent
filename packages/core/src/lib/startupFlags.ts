@@ -1,37 +1,50 @@
-// @ts-nocheck
-const startupFlags = {
+export interface StartupFlags {
+  forceAutoApprove: boolean;
+  noHuman: boolean;
+  planMerge: boolean;
+  debug: boolean;
+}
+
+const startupFlags: StartupFlags = {
   forceAutoApprove: false,
   noHuman: false,
   planMerge: false,
   debug: false,
 };
 
-export function getStartupFlags() {
+export function getStartupFlags(): StartupFlags {
   return { ...startupFlags };
 }
 
-export function getAutoApproveFlag() {
+export function getAutoApproveFlag(): boolean {
   return startupFlags.forceAutoApprove;
 }
 
-export function getNoHumanFlag() {
+export function getNoHumanFlag(): boolean {
   return startupFlags.noHuman;
 }
 
-export function getPlanMergeFlag() {
+export function getPlanMergeFlag(): boolean {
   return startupFlags.planMerge;
 }
 
-export function getDebugFlag() {
+export function getDebugFlag(): boolean {
   return startupFlags.debug;
 }
 
-export function setNoHumanFlag(value) {
+export function setNoHumanFlag(value: unknown): boolean {
   startupFlags.noHuman = Boolean(value);
   return startupFlags.noHuman;
 }
 
-export function setStartupFlags(nextFlags = {}) {
+export interface StartupFlagOverrides {
+  forceAutoApprove?: unknown;
+  noHuman?: unknown;
+  planMerge?: unknown;
+  debug?: unknown;
+}
+
+export function setStartupFlags(nextFlags: StartupFlagOverrides = {}): StartupFlags {
   if (!nextFlags || typeof nextFlags !== 'object') {
     return getStartupFlags();
   }
@@ -55,8 +68,8 @@ export function setStartupFlags(nextFlags = {}) {
   return getStartupFlags();
 }
 
-export function parseStartupFlagsFromArgv(argv = process.argv) {
-  const positional = Array.isArray(argv) ? argv.slice(2) : [];
+export function parseStartupFlagsFromArgv(argv: readonly unknown[] = process.argv): StartupFlags {
+  const positional = Array.isArray(argv) ? argv.slice(2).map((value) => String(value)) : [];
   let forceAutoApprove = false;
   let noHuman = false;
   let planMerge = false;
@@ -64,7 +77,7 @@ export function parseStartupFlagsFromArgv(argv = process.argv) {
 
   for (const arg of positional) {
     if (!arg) continue;
-    const normalized = String(arg).trim().toLowerCase();
+    const normalized = arg.trim().toLowerCase();
     if (
       normalized === 'auto' ||
       normalized === '--auto' ||
@@ -93,7 +106,7 @@ export function parseStartupFlagsFromArgv(argv = process.argv) {
   return { forceAutoApprove, noHuman, planMerge, debug };
 }
 
-export function applyStartupFlagsFromArgv(argv = process.argv) {
+export function applyStartupFlagsFromArgv(argv: readonly unknown[] = process.argv): StartupFlags {
   const parsed = parseStartupFlagsFromArgv(argv);
   return setStartupFlags(parsed);
 }
@@ -108,32 +121,34 @@ export const startupFlagAccessors = {
   getDebugFlag,
 };
 
+type AccessorValue = boolean;
+
 Object.defineProperties(startupFlagAccessors, {
   STARTUP_FORCE_AUTO_APPROVE: {
     get: getAutoApproveFlag,
-    set(value) {
-      setStartupFlags({ forceAutoApprove: Boolean(value) });
+    set(value: AccessorValue) {
+      setStartupFlags({ forceAutoApprove: value });
     },
     enumerable: true,
   },
   STARTUP_NO_HUMAN: {
     get: getNoHumanFlag,
-    set(value) {
-      setStartupFlags({ noHuman: Boolean(value) });
+    set(value: AccessorValue) {
+      setStartupFlags({ noHuman: value });
     },
     enumerable: true,
   },
   STARTUP_PLAN_MERGE: {
     get: getPlanMergeFlag,
-    set(value) {
-      setStartupFlags({ planMerge: Boolean(value) });
+    set(value: AccessorValue) {
+      setStartupFlags({ planMerge: value });
     },
     enumerable: true,
   },
   STARTUP_DEBUG: {
     get: getDebugFlag,
-    set(value) {
-      setStartupFlags({ debug: Boolean(value) });
+    set(value: AccessorValue) {
+      setStartupFlags({ debug: value });
     },
     enumerable: true,
   },

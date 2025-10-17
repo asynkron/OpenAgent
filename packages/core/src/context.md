@@ -17,8 +17,10 @@
   - Includes `contracts.ts` barrel that re-exports request/response DTOs and the OpenAgent tool schema for single-path imports.
   - Canonical DTOs live under `contracts/index.ts` with consistent names (ModelRequest/ModelResponse, OpenAgentToolResponse, etc.). Prefer importing from `src/contracts`.
   - `responses.ts` now calls the AI SDK `streamObject` helper and exposes optional callbacks for partial structured responses, enabling downstream consumers to stream debug previews while awaiting the final object.
-- `config/` — system prompt discovery/building.
-- `lib/` — curated export surface (startup flags, runtime factory) consumed by package entry.
+- `config/` — system prompt discovery/building. The system prompt builder now ships with typed helpers for directory discovery and AGENTS.md aggregation instead of relying on `@ts-nocheck` escapes.
+- `lib/` — curated export surface (startup flags, runtime factory) consumed by package entry. Startup flag helpers are now fully
+ typed and expose ergonomic accessors for CLI consumers without leaking mutable state.
+- `prompts/` — Prompt manager scaffold plus exports for downstream packages. The manager now uses explicit interfaces for PromptIO interactions so tests and future implementations can compile without suppressing type checks.
 - `utils/` — shared helpers (async queues, cancellation, text formatting, plan math, JSON validation, HTTP fetch wrapper).
 - The entire tree now ships `.ts` sources that compile into `dist/src/**` before publishing.
 

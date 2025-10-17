@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Conversation history helpers shared across the agent runtime.
  *
@@ -135,6 +134,8 @@ export function mapHistoryToModelMessages(history: unknown): ModelChatMessage[] 
     return [];
   }
 
+  const allowedRoles = new Set<ModelChatMessage['role']>(['system', 'user', 'assistant', 'tool']);
+
   return history
     .map((entry) => {
       if (!entry || typeof entry !== 'object') {
@@ -148,29 +149,54 @@ export function mapHistoryToModelMessages(history: unknown): ModelChatMessage[] 
           ? (payloadValue as ChatMessagePayload)
           : null;
 
-      let role: unknown;
-      if (payload && typeof payload.role === 'string') {
-        role = payload.role;
-      } else if (typeof record.role === 'string') {
-        role = record.role;
-      } else {
-        role = undefined;
-      }
+      const candidateRole =
+        typeof payload?.role === 'string'
+          ? payload.role
+          : typeof record.role === 'string'
+            ? record.role
+            : null;
 
-      if (!role) {
+      if (!candidateRole || !allowedRoles.has(candidateRole as ModelChatMessage['role'])) {
         return null;
       }
 
-      let content: unknown;
+      let contentValue: unknown;
       if (payload && Object.prototype.hasOwnProperty.call(payload, 'content')) {
-        content = payload.content;
+        contentValue = payload.content;
       } else if (typeof record.content !== 'undefined') {
-        content = record.content;
+        contentValue = record.content;
       } else {
-        content = '';
+        contentValue = '';
       }
 
-      return { role, content } satisfies ModelChatMessage;
+      const normalizedContent = (() => {
+        if (typeof contentValue === 'string') {
+          return contentValue;
+        }
+
+        if (Array.isArray(contentValue)) {
+          return contentValue as ModelChatMessage['content'];
+        }
+
+        if (contentValue && typeof contentValue === 'object') {
+          try {
+            return JSON.stringify(contentValue, null, 2);
+          } catch (_error) {
+            return String(contentValue);
+          }
+        }
+
+        if (contentValue == null) {
+          return '';
+        }
+
+        return String(contentValue);
+      })();
+
+      return {
+        role: candidateRole as ModelChatMessage['role'],
+        content: normalizedContent,
+      } as ModelChatMessage;
     })
     .filter((message): message is ModelChatMessage => Boolean(message));
 }

@@ -1,5 +1,6 @@
-// @ts-nocheck
 /* eslint-env jest */
+import { describe, expect, test } from '@jest/globals';
+
 import { summarizePlanForHistory } from '../passExecutor/planRuntime.js';
 
 describe('summarizePlanForHistory', () => {

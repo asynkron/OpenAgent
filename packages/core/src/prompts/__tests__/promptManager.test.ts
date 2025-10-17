@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, expect, test } from '@jest/globals';
 import { PromptManager } from '../manager.js';
 

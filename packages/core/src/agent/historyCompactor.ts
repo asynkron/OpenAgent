@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * History compaction helper that summarizes old conversation entries when usage spikes.
  *
@@ -14,6 +13,7 @@
 import { summarizeContextUsage } from '../utils/contextUsage.js';
 import { extractResponseText } from '../openai/responseUtils.js';
 import { createResponse } from '../openai/responses.js';
+import type { ResponsesClient } from '../contracts/index.js';
 import { getOpenAIRequestSettings } from '../openai/client.js';
 import { createChatMessageEntry, mapHistoryToModelMessages } from './historyEntry.js';
 import type { ChatMessageEntry } from './historyEntry.js';
@@ -30,7 +30,7 @@ export interface ChatHistoryEntry extends JsonLike {
 }
 
 export interface HistoryCompactorOptions {
-  openai?: OpenAIClient | null;
+  openai?: ResponsesClient | null;
   model?: string | null;
   usageThreshold?: number;
   logger?: Logger;
@@ -38,10 +38,6 @@ export interface HistoryCompactorOptions {
 
 export interface CompactIfNeededInput {
   history?: ChatHistoryEntry[] | null;
-}
-
-export interface OpenAIClient {
-  responses?: ((model: string | null | undefined) => unknown) | null;
 }
 
 export type Logger = {
@@ -101,7 +97,7 @@ const buildSummarizationInput = (entries: ChatHistoryEntry[]): ChatMessageEntry[
 };
 
 export class HistoryCompactor {
-  private readonly openai?: OpenAIClient | null;
+  private readonly openai?: ResponsesClient;
 
   private readonly model?: string | null;
 
@@ -127,9 +123,7 @@ export class HistoryCompactor {
       return false;
     }
 
-    const hasResponsesApi = Boolean(this.openai && typeof this.openai.responses === 'function');
-
-    if (!hasResponsesApi) {
+    if (!this.openai || typeof this.model !== 'string' || !this.model.trim()) {
       return false;
     }
 
@@ -207,9 +201,13 @@ export class HistoryCompactor {
   async generateSummary(entries: ChatHistoryEntry[]): Promise<string> {
     const input = buildSummarizationInput(entries);
     const { maxRetries } = getOpenAIRequestSettings();
+    if (!this.openai || typeof this.model !== 'string' || !this.model.trim()) {
+      throw new Error('HistoryCompactor requires a configured OpenAI client and model.');
+    }
+
     const response = await createResponse({
       openai: this.openai,
-      model: this.model ?? undefined,
+      model: this.model,
       input: mapHistoryToModelMessages(input),
       tools: undefined,
       options:

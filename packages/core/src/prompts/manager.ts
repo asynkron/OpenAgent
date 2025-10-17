@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * PromptManager scaffolding created as part of the single-responsibility refactor.
  *
@@ -8,21 +7,55 @@
  * - Coordinate user prompt requests via injected PromptIO implementation.
  */
 
+export interface PromptIORequest {
+  scope: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface PromptIO {
+  request: (options: PromptIORequest) => Promise<string> | string;
+}
+
+export interface PromptManagerOptions {
+  promptIO?: PromptIO | null;
+  fsReader?: unknown;
+  manifestValidator?: unknown;
+  logger?: {
+    info?: (...args: unknown[]) => void;
+    warn?: (...args: unknown[]) => void;
+    error?: (...args: unknown[]) => void;
+    debug?: (...args: unknown[]) => void;
+  } | null;
+  cacheTTL?: number;
+}
+
 export class PromptManager {
+  private readonly promptIO?: PromptIO | null;
+
+  private readonly fsReader?: unknown;
+
+  private readonly manifestValidator?: unknown;
+
+  private readonly logger?: PromptManagerOptions['logger'];
+
+  private readonly cacheTTL: number;
+
+  private assetCache: unknown;
+
+  private lastLoad: number;
+
   // TODO(single-resp): implement asset discovery, prompt context creation, and cache invalidation logic.
-  /**
-   * @param {object} options
-   * @param {object} options.promptIO
-   * @param {object} options.fsReader
-   * @param {object} [options.manifestValidator]
-   * @param {object} [options.logger]
-   * @param {number} [options.cacheTTL]
-   */
-  constructor({ promptIO, fsReader, manifestValidator = null, logger = null, cacheTTL = 0 } = {}) {
-    this.promptIO = promptIO;
-    this.fsReader = fsReader;
-    this.manifestValidator = manifestValidator;
-    this.logger = logger;
+  constructor({
+    promptIO = null,
+    fsReader = null,
+    manifestValidator = null,
+    logger = null,
+    cacheTTL = 0,
+  }: PromptManagerOptions = {}) {
+    this.promptIO = promptIO ?? null;
+    this.fsReader = fsReader ?? null;
+    this.manifestValidator = manifestValidator ?? null;
+    this.logger = logger ?? null;
     this.cacheTTL = cacheTTL;
 
     this.assetCache = null;
@@ -31,42 +64,36 @@ export class PromptManager {
 
   /**
    * Load system prompts from disk and cache them.
-   * @param {string} rootDir
-   * @returns {Promise<object>}
+   * Currently unimplemented.
    */
-  async loadSystemPrompts(rootDir) {
-    void rootDir;
+  async loadSystemPrompts(_rootDir: string): Promise<never> {
     throw new Error('PromptManager.loadSystemPrompts is not implemented yet.');
   }
 
   /**
    * Build a prompt context for the agent runtime.
-   * @param {object} options
-   * @returns {object}
+   * Currently unimplemented.
    */
-  createPromptContext(options = {}) {
-    void options;
+  createPromptContext(_options: Record<string, unknown> = {}): never {
     throw new Error('PromptManager.createPromptContext is not implemented yet.');
   }
 
   /**
    * Request user input through the PromptIO channel.
-   * @param {string} scope
-   * @param {object} metadata
-   * @returns {Promise<string>}
    */
-  async requestUserInput(scope, metadata = {}) {
+  async requestUserInput(scope: string, metadata: Record<string, unknown> = {}): Promise<string> {
     if (!this.promptIO || typeof this.promptIO.request !== 'function') {
       throw new Error('PromptManager requires a promptIO.request implementation.');
     }
 
-    return this.promptIO.request({ scope, metadata });
+    const result = await this.promptIO.request({ scope, metadata });
+    return typeof result === 'string' ? result : String(result);
   }
 
   /**
    * Clear internal caches (to be called when prompt assets change).
    */
-  clearCaches() {
+  clearCaches(): void {
     this.assetCache = null;
     this.lastLoad = 0;
   }
