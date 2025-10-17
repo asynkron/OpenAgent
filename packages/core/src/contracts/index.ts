@@ -58,6 +58,20 @@ const PROVIDER_COMMAND_DESCRIPTION =
   'Next tool invocation to execute for this plan step. This command should complete the task if successful.';
 const RUNTIME_COMMAND_DESCRIPTION = 'Command to execute for this plan step.';
 
+const OBSERVATION_PROPERTY_DEFINITIONS: Record<string, JSONSchema7> = {
+  observation_for_llm: {
+    type: ['object', 'null'],
+    additionalProperties: true,
+    description:
+      'Payload the agent shared with the model. May include command output, plan summaries, or validation errors.',
+  },
+  observation_metadata: {
+    type: ['object', 'null'],
+    additionalProperties: true,
+    description: 'Metadata describing how/when the observation was produced (timestamps, runtime metrics, etc.).',
+  },
+};
+
 const COMMAND_PROPERTY_DEFINITIONS: Record<string, JSONSchema7> = {
   reason: {
     type: 'string',
@@ -150,7 +164,12 @@ function createPlanItemProperties(flavor: 'provider' | 'runtime'): Record<string
       commandDescription,
       flavor === 'provider' ? STRICT_COMMAND_REQUIRED_FIELDS : RELAXED_COMMAND_REQUIRED_FIELDS,
     ),
-    observation: { type: 'object', additionalProperties: true },
+    observation: {
+      type: 'object',
+      additionalProperties: false,
+      description: 'Snapshot of the latest command or plan observation produced for this step.',
+      properties: OBSERVATION_PROPERTY_DEFINITIONS,
+    },
   };
 
   if (includeAge) {
@@ -206,6 +225,13 @@ export const ToolCommandSchema = z
   })
   .strict();
 
+const ToolObservationSchema = z
+  .object({
+    observation_for_llm: z.record(z.string(), z.unknown()).nullable().optional(),
+    observation_metadata: z.record(z.string(), z.unknown()).nullable().optional(),
+  })
+  .strict();
+
 export const ToolPlanStepSchema = z
   .object({
     id: z.string(),
@@ -213,7 +239,7 @@ export const ToolPlanStepSchema = z
     status: z.enum(['pending', 'completed', 'failed', 'abandoned']),
     waitingForId: z.array(z.string()).default([]),
     command: ToolCommandSchema,
-    observation: z.record(z.string(), z.unknown()).optional(),
+    observation: ToolObservationSchema.optional(),
   })
   .strict();
 
