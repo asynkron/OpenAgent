@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { jest } from '@jest/globals';
 import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
-import type { CreateResponseResult } from '../../openai/responses.js';
+import type { CreateResponseResult } from '../../contracts/index.js';
 
 // Reusable helpers that keep the main pass executor spec readable while
 // preserving the original mock wiring for each dependency.

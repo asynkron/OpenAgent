@@ -1,4 +1,4 @@
-import type { ResponsesClient } from '../../openai/responses.js';
+import type { ResponsesClient } from '../../contracts/index.js';
 import type { ObservationBuilderDeps } from '../observationBuilder.js';
 import type ObservationBuilder from '../observationBuilder.js';
 import type { EscState } from '../escState.js';

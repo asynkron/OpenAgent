@@ -9,7 +9,7 @@
 
 - `agent/` — orchestration loop, command execution strategies, approval flow, and plan management. See [`agent/context.md`](agent/context.md). `modelRequest.ts` now relays partial structured response snapshots via debug events so UIs can render in-progress payloads.
 - `bindings/` — adapters for alternative front-ends (currently the WebSocket binding).
-- `contracts/` — canonical DTO module exporting tool DTOs, model request/response types, completion wrapper types, and observation/history shapes for single-path imports. The OpenAgent tool schema now defaults `command.tail_lines` to 200 lines, requires `command.max_bytes` with a 16 KiB default cap (roughly 200 lines), and propagates those limits through the runtime JSON schema. JSON schema definitions now explicitly satisfy the `JSONSchema7` contract so provider utilities accept the generated validators without type assertions.
+- `contracts/` — canonical DTO module exporting tool DTOs, model request/response types, completion wrapper types, and observation/history shapes for single-path imports. A shared helper now builds both the provider-facing and runtime JSON Schema variants (preserving the `command.tail_lines`/`command.max_bytes` defaults) and the OpenAI response envelope/streaming types are exported directly from here so adapters reuse the same DTOs instead of redefining them.
 - `constants.ts` — shared runtime defaults (command byte/line caps, etc.) consumed by schemas, parsers, and tests to keep limit tuning in one place.
 - `commands/` — shell command executors and helpers.
 - `services/` — command approval allowlist/session tracking plus command statistics collection.

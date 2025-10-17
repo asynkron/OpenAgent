@@ -1,5 +1,4 @@
-import type { ToolCall } from '../contracts/index.js';
-import type { CreateResponseResult } from './responses.js';
+import type { CreateResponseResult, ToolCall } from '../contracts/index.js';
 
 const OPEN_AGENT_TOOL_NAME = 'open-agent';
 
