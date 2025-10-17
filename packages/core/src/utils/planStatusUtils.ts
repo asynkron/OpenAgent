@@ -1,35 +1,28 @@
-export type PlanStatus = 'pending' | 'running' | 'completed' | 'failed' | 'abandoned';
+import {
+  ABANDONED_STATUS,
+  COMPLETED_STATUS,
+  FAILED_STATUS,
+  TERMINAL_PLAN_STATUS_SET,
+  normalizePlanStatus,
+  type PlanStatus,
+} from './planStatusTypes.js';
 
-export const isCompletedStatus = (status: unknown): boolean => {
-  if (typeof status !== 'string') {
-    return false;
-  }
+export type { PlanStatus } from './planStatusTypes.js';
 
-  const normalized = status.trim().toLowerCase();
-  return normalized === 'completed';
-};
+export const isCompletedStatus = (status: unknown): boolean =>
+  normalizePlanStatus(status) === COMPLETED_STATUS;
 
-export const isFailedStatus = (status: unknown): boolean => {
-  if (typeof status !== 'string') {
-    return false;
-  }
+export const isFailedStatus = (status: unknown): boolean =>
+  normalizePlanStatus(status) === FAILED_STATUS;
 
-  return status.trim().toLowerCase() === 'failed';
-};
-
-export const isAbandonedStatus = (status: unknown): boolean => {
-  if (typeof status !== 'string') {
-    return false;
-  }
-
-  return status.trim().toLowerCase() === 'abandoned';
-};
+export const isAbandonedStatus = (status: unknown): boolean =>
+  normalizePlanStatus(status) === ABANDONED_STATUS;
 
 export const isTerminalStatus = (status: unknown): boolean => {
-  if (typeof status !== 'string') {
+  const normalized = normalizePlanStatus(status);
+  if (!normalized) {
     return false;
   }
 
-  const normalized = status.trim().toLowerCase();
-  return normalized === 'failed' || isCompletedStatus(normalized);
+  return TERMINAL_PLAN_STATUS_SET.has(normalized);
 };

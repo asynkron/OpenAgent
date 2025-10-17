@@ -1,4 +1,6 @@
-export type PlanStatus = 'pending' | 'running' | 'completed' | 'failed' | 'abandoned' | string;
+import { TERMINAL_PLAN_STATUS_SET, normalizePlanStatus, type PlanStatus } from '../../utils/planStatusTypes.js';
+
+export type { PlanStatus } from '../../utils/planStatusTypes.js';
 
 export interface PlanCommand {
   run?: string;
@@ -8,7 +10,7 @@ export interface PlanCommand {
 
 export interface PlanStep {
   id?: string | number;
-  status?: PlanStatus;
+  status?: PlanStatus | string;
   command?: PlanCommand | null;
   priority?: number | string;
   [key: string]: unknown;
@@ -18,8 +20,6 @@ export interface ExecutablePlanStep {
   step: PlanStep;
   command: PlanCommand;
 }
-
-const TERMINAL_PLAN_STATUSES = new Set<PlanStatus>(['completed', 'failed', 'abandoned']);
 
 const normalizeIdentifier = (value: unknown): string | null => {
   if (typeof value === 'string' || typeof value === 'number') {
@@ -78,12 +78,12 @@ export const collectExecutablePlanSteps = (
       return;
     }
 
-    const status = typeof item.status === 'string' ? item.status.trim().toLowerCase() : '';
+    const status = normalizePlanStatus(item.status);
     const waitingFor = normalizeWaitingForIds(item);
 
     if (
       waitingFor.length === 0 &&
-      !TERMINAL_PLAN_STATUSES.has(status) &&
+      (!status || !TERMINAL_PLAN_STATUS_SET.has(status)) &&
       hasCommandPayload(item.command)
     ) {
       executable.push({ step: item, command: item.command! });

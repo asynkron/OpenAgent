@@ -23,6 +23,7 @@
   - Deep-clone helper ensures persisted plans round-trip without clearing locally managed status/observation fields.
   - Merge keys normalize `id` values case-insensitively so assistant resends with different casing still hit the same step.
   - Progress helpers only treat canonical terminal statuses (`completed`, `failed`) as finished; tests assert unrecognized values like `done` remain pending.
+- `planStatusTypes.ts` — centralizes canonical plan statuses, terminal status lookups, and normalization helpers so executor utilities and plan formatters share the same literal set.
 - `text.ts` (emits `text.js` for runtime consumption) — string helpers (filters, tailing, shell splitting).
 
 Recent migrations tightened the TypeScript coverage for `asyncQueue`, `contextUsage`, `jsonAssetValidator`, `cancellation`, `fetch`,
