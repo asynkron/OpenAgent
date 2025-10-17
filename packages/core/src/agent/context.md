@@ -68,3 +68,4 @@
 - Plan runtime now also tracks identifiers for steps that have been pruned so duplicate entries from later assistant responses are ignored while the rest of the plan continues executing.
 - When the assistant sends an explicit empty plan (`[]`), the runtime clears the completed-step registry so identifiers can be reused after a full reset.
 - Plan executor helpers share a centralized `planStatusTypes.ts` module for canonical status literals and normalization, eliminating duplicate union types across executor and utility layers.
+- History helpers now require an explicit OpenAI responses client/model when compacting and normalize history entries into provider-friendly messages, eliminating the remaining `@ts-nocheck` escape hatches.

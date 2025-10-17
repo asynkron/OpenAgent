@@ -1,19 +1,22 @@
-// @ts-nocheck
 /* eslint-env jest */
+import { describe, expect, test } from '@jest/globals';
+
 import { DEFAULT_COMMAND_MAX_BYTES, DEFAULT_COMMAND_TAIL_LINES } from '../../constants.js';
 import { ObservationBuilder } from '../observationBuilder.js';
+import type { ObservationBuilderDeps } from '../observationBuilder.js';
 
 describe('ObservationBuilder', () => {
-  const deps = {
-    combineStdStreams: (stdout, stderr, exitCode) => {
+  const deps: ObservationBuilderDeps = {
+    combineStdStreams: (stdout: string, stderr: string, exitCode: number | null | undefined) => {
       if (exitCode === 0 && stderr) {
         return { stdout: `${stdout ? `${stdout}\n` : ''}${stderr}`, stderr: '' };
       }
       return { stdout, stderr };
     },
-    applyFilter: (text) => (text ? text.toUpperCase() : text),
-    tailLines: (text, lines) => (text ? text.split('\n').slice(-lines).join('\n') : text),
-    buildPreview: (text) => (text ? text.slice(0, 5) : ''),
+    applyFilter: (text: string, _regex: string) => (text ? text.toUpperCase() : text),
+    tailLines: (text: string, lines: number) =>
+      text ? text.split('\n').slice(-lines).join('\n') : text,
+    buildPreview: (text: string) => (text ? text.slice(0, 5) : ''),
     now: () => new Date('2025-10-06T01:00:00.000Z'),
   };
 

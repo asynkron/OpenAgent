@@ -1,12 +1,11 @@
-// @ts-nocheck
 /* eslint-env jest */
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 
 const ORIGINAL_ENV = { ...process.env };
 
-let mockGenerateText;
-let mockStreamObject;
-let mockGetOpenAIRequestSettings;
+let mockGenerateText: jest.Mock;
+let mockStreamObject: jest.Mock;
+let mockGetOpenAIRequestSettings: jest.Mock;
 
 beforeEach(() => {
   jest.resetModules();

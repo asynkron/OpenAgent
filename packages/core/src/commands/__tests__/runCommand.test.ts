@@ -1,9 +1,8 @@
-// @ts-nocheck
 /* eslint-env jest */
+import { afterEach, describe, expect, jest, test } from '@jest/globals';
 import { EventEmitter } from 'node:events';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { jest } from '@jest/globals';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -1,22 +1,23 @@
-// @ts-nocheck
 /* eslint-env jest */
-import { jest } from '@jest/globals';
+import { afterEach, describe, expect, jest, test } from '@jest/globals';
 import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import { createAgentRuntime } from '../loop.js';
+import type { RuntimeEvent } from '../runtimeTypes.js';
 
 let responseCounter = 0;
 
-function sanitizePayload(payload) {
+function sanitizePayload(payload: unknown): unknown {
   if (!payload || typeof payload !== 'object') {
     return payload;
   }
 
-  const sanitized = {};
-  for (const [key, value] of Object.entries(payload)) {
+  const entries = Object.entries(payload as Record<string, unknown>);
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, value] of entries) {
     if (value === null || value === undefined) {
       continue;
     }
@@ -26,7 +27,16 @@ function sanitizePayload(payload) {
   return sanitized;
 }
 
-function buildResponsePayload(payload) {
+type ResponsePayload = {
+  output: Array<{
+    type: 'function_call';
+    name: string;
+    call_id: string;
+    arguments: string;
+  }>;
+};
+
+function buildResponsePayload(payload: Record<string, unknown>): Promise<ResponsePayload> {
   responseCounter += 1;
   const normalized = sanitizePayload(payload);
   return Promise.resolve({
@@ -41,7 +51,7 @@ function buildResponsePayload(payload) {
   });
 }
 
-async function withIsolatedCwd(fn) {
+async function withIsolatedCwd<T>(fn: () => Promise<T>): Promise<T> {
   const tempDir = await mkdtemp(join(tmpdir(), 'openagent-plan-'));
   const cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue(tempDir);
 
@@ -53,12 +63,18 @@ async function withIsolatedCwd(fn) {
   }
 }
 
-function createRuntimeWithQueue(queue, overrides = {}) {
+type RuntimeOptions = Parameters<typeof createAgentRuntime>[0];
+
+function createRuntimeWithQueue(
+  queue: Array<Promise<ResponsePayload>>,
+  overrides: Partial<RuntimeOptions> = {},
+) {
   const requestModelCompletionFn = jest.fn(async () => {
-    if (queue.length === 0) {
+    const next = queue.shift();
+    if (!next) {
       throw new Error('Response queue exhausted');
     }
-    return { status: 'success', completion: await queue.shift() };
+    return { status: 'success' as const, completion: await next };
   });
 
   const defaults = {
@@ -84,13 +100,21 @@ function createRuntimeWithQueue(queue, overrides = {}) {
     passExecutorDeps: {
       requestModelCompletionFn,
     },
-  };
+  } satisfies Partial<RuntimeOptions>;
 
-  const runtime = createAgentRuntime({ ...defaults, ...overrides });
+  const runtime = createAgentRuntime({
+    ...defaults,
+    ...overrides,
+    passExecutorDeps: {
+      ...defaults.passExecutorDeps,
+      ...(overrides.passExecutorDeps ?? {}),
+      requestModelCompletionFn,
+    },
+  } as RuntimeOptions);
 
-  async function runWithInputs(answers = ['Initial prompt', 'exit']) {
+  async function runWithInputs(answers: string[] = ['Initial prompt', 'exit']) {
     const pendingAnswers = [...answers];
-    const events = [];
+    const events: RuntimeEvent[] = [];
 
     const outputProcessor = (async () => {
       for await (const event of runtime.outputs) {

@@ -1,5 +1,6 @@
-// @ts-nocheck
 /* eslint-env jest */
+import { afterEach, describe, expect, test } from '@jest/globals';
+
 import {
   getStartupFlags,
   setStartupFlags,

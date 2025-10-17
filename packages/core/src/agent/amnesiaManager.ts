@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Conversation history pruning helpers.
  *

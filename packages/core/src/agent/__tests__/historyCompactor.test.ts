@@ -1,9 +1,10 @@
-// @ts-nocheck
 /* eslint-env jest */
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 
-let mockCreateResponse;
-let mockGetOpenAIRequestSettings;
+import type { ChatMessageEntry } from '../historyEntry.js';
+
+let mockCreateResponse: jest.Mock;
+let mockGetOpenAIRequestSettings: jest.Mock;
 
 const loadHistoryHelpers = async () => {
   const [{ createChatMessageEntry }] = await Promise.all([import('../historyEntry.js')]);
@@ -13,7 +14,7 @@ const loadHistoryHelpers = async () => {
   };
 };
 
-async function buildBaseHistory() {
+async function buildBaseHistory(): Promise<ChatMessageEntry[]> {
   const { createChatMessageEntry } = await loadHistoryHelpers();
   return [
     createChatMessageEntry({

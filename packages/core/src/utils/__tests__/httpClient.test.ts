@@ -1,6 +1,5 @@
-// @ts-nocheck
 /* eslint-env jest */
-import { jest } from '@jest/globals';
+import { afterEach, describe, expect, jest, test } from '@jest/globals';
 import { EventEmitter } from 'node:events';
 
 import { HttpClient, DEFAULT_TIMEOUT_MS } from '../fetch.js';
