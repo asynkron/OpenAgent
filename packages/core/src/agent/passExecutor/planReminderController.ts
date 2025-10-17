@@ -1,7 +1,12 @@
 export interface PlanAutoResponseTracker {
   increment: () => number;
   reset: () => void;
-  getCount?: () => number;
+  /**
+   * Optional getter so hosts that only care about increment/reset can still
+   * plug in a tracker. When omitted we synthesize the count from increment
+   * calls to preserve reminder semantics.
+   */
+  getCount?: () => number | null | undefined;
 }
 
 export interface PlanReminderController {
@@ -18,18 +23,45 @@ export const PLAN_REMINDER_AUTO_RESPONSE_LIMIT = 3;
 export const createPlanReminderController = (
   tracker: PlanAutoResponseTracker | null | undefined,
 ): PlanReminderController => {
-  if (tracker) {
-    if (typeof tracker.increment === 'function' && typeof tracker.reset === 'function') {
-      return {
-        // Call methods on the tracker to preserve `this` binding for stateful implementations.
-        recordAttempt: () => tracker.increment(),
-        reset: () => tracker.reset(),
-        getCount: () => (typeof tracker.getCount === 'function' ? (tracker.getCount() ?? 0) : 0),
-      };
-    }
+  let fallbackCount = 0;
+
+  if (tracker && typeof tracker.increment === 'function' && typeof tracker.reset === 'function') {
+    return {
+      // Call methods on the tracker to preserve `this` binding for stateful implementations.
+      recordAttempt: () => {
+        const nextCount = tracker.increment();
+        if (typeof tracker.getCount === 'function') {
+          fallbackCount =
+            typeof nextCount === 'number' && Number.isFinite(nextCount)
+              ? nextCount
+              : fallbackCount + 1;
+          return fallbackCount;
+        }
+
+        fallbackCount =
+          typeof nextCount === 'number' && Number.isFinite(nextCount)
+            ? nextCount
+            : fallbackCount + 1;
+        return fallbackCount;
+      },
+      reset: () => {
+        tracker.reset();
+        fallbackCount = 0;
+      },
+      getCount: () => {
+        if (typeof tracker.getCount === 'function') {
+          const count = tracker.getCount();
+          if (typeof count === 'number' && Number.isFinite(count)) {
+            fallbackCount = count;
+            return count;
+          }
+          return fallbackCount;
+        }
+        return fallbackCount;
+      },
+    };
   }
 
-  let fallbackCount = 0;
   return {
     recordAttempt: () => {
       fallbackCount += 1;
