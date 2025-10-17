@@ -3,8 +3,12 @@
  * compatibility console renderers.
  */
 
-export type Command = {
-  run?: string | null;
+import type { PlanCommand } from '@asynkron/openagent-core/src/agent/passExecutor/planExecution.js';
+import type { CommandRunOutcome } from '@asynkron/openagent-core/src/agent/passExecutor/types.js';
+import type { ObservationRenderPayload } from '@asynkron/openagent-core/src/agent/observationBuilder.js';
+import type { CommandResult as RuntimeCommandResult } from '@asynkron/openagent-core/src/commands/run.js';
+
+export type Command = PlanCommand & {
   edit?: {
     path?: string;
     encoding?: string;
@@ -20,23 +24,21 @@ export type Command = {
   description?: string | null;
 };
 
-export type CommandExecution = {
+type CommandExecutionDetails = CommandRunOutcome['executionDetails'];
+
+export type CommandExecution = CommandExecutionDetails & {
   type?: string | null;
   spec?: Record<string, unknown> | null;
   command?: Command | null;
   description?: string | null;
 };
 
-export type CommandPreview = {
-  stdoutPreview?: string | null;
-  stderrPreview?: string | null;
-  execution?: CommandExecution | null;
-};
+type CanonicalPreview = ObservationRenderPayload;
+type CanonicalCommandResult = RuntimeCommandResult;
 
-export type CommandResult = {
-  exit_code?: number | null;
-  killed?: boolean;
-};
+export type CommandPreview = Partial<CanonicalPreview>;
+
+export type CommandResult = Partial<CanonicalCommandResult>;
 
 export type SummaryLine =
   | { kind: 'arrow'; text: string }
@@ -55,7 +57,7 @@ export type CommandRenderData = {
 type SummaryContext = {
   command: Command;
   result: CommandResult | null | undefined;
-  preview: CommandPreview;
+  preview: CommandPreview | null | undefined;
   execution: CommandExecution;
   summaryLines: SummaryLine[];
 };
@@ -185,7 +187,7 @@ function appendStdErr(summaryLines: SummaryLine[], stderrPreview: string | null 
 }
 
 function summarizeEditOrReplace({ preview, summaryLines }: SummaryContext): void {
-  const stdoutLines = normalizePreviewLines(preview.stdoutPreview ?? undefined);
+  const stdoutLines = normalizePreviewLines(preview?.stdoutPreview ?? undefined);
   if (stdoutLines.length === 0) {
     return;
   }
@@ -196,7 +198,7 @@ function summarizeEditOrReplace({ preview, summaryLines }: SummaryContext): void
 }
 
 function summarizeExecute({ preview, summaryLines }: SummaryContext): void {
-  const stdoutLines = normalizePreviewLines(preview.stdoutPreview ?? undefined);
+  const stdoutLines = normalizePreviewLines(preview?.stdoutPreview ?? undefined);
   if (stdoutLines.length === 0) {
     return;
   }
@@ -216,8 +218,8 @@ function summarizeExecute({ preview, summaryLines }: SummaryContext): void {
 export function buildCommandRenderData(
   command: Command | null | undefined,
   result: CommandResult | null | undefined,
-  preview: CommandPreview = {},
-  execution: CommandExecution | null | undefined = {},
+  preview: CommandPreview | null | undefined = undefined,
+  execution: CommandExecution | null | undefined = undefined,
 ): CommandRenderData | null {
   if (!command || typeof command !== 'object') {
     return null;
@@ -225,10 +227,8 @@ export function buildCommandRenderData(
 
   const normalizedExecution: CommandExecution =
     execution && typeof execution === 'object'
-      ? execution
-      : preview.execution && typeof preview.execution === 'object'
-        ? preview.execution
-        : {};
+      ? { ...(execution as CommandExecution) }
+      : ({} as CommandExecution);
   const type = inferCommandType(command, normalizedExecution).toUpperCase();
   const detail = buildHeadingDetail(type, normalizedExecution, command);
   const description = extractCommandDescription(command, normalizedExecution);
@@ -248,11 +248,11 @@ export function buildCommandRenderData(
     summarizeExecute(summaryContext);
   }
 
-  if (summaryLines.length === 0 && result?.exit_code === 0 && !preview.stderrPreview) {
+  if (summaryLines.length === 0 && result?.exit_code === 0 && !preview?.stderrPreview) {
     summaryLines.push({ kind: 'arrow', text: 'Command completed successfully.' });
   }
 
-  if (preview.stderrPreview) {
+  if (preview?.stderrPreview) {
     appendStdErr(summaryLines, preview.stderrPreview);
   }
 

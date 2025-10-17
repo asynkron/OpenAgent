@@ -115,3 +115,23 @@ declare module '@asynkron/openagent-core' {
   const coreModule: OpenAgentCoreModule;
   export default coreModule;
 }
+
+declare module '@asynkron/openagent-core/src/agent/passExecutor/planExecution.js' {
+  export type { PlanCommand, PlanStep } from '../packages/core/src/agent/passExecutor/planExecution.js';
+}
+
+declare module '@asynkron/openagent-core/src/agent/passExecutor/types.js' {
+  export type { CommandRunOutcome } from '../packages/core/src/agent/passExecutor/types.js';
+}
+
+declare module '@asynkron/openagent-core/src/agent/observationBuilder.js' {
+  export type { ObservationRenderPayload } from '../packages/core/src/agent/observationBuilder.js';
+}
+
+declare module '@asynkron/openagent-core/src/commands/run.js' {
+  export type { CommandResult } from '../packages/core/src/commands/run.js';
+}
+
+declare module '@asynkron/openagent-core/src/utils/plan.js' {
+  export type { PlanProgress } from '../packages/core/src/utils/plan.js';
+}

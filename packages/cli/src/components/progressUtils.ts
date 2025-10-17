@@ -2,11 +2,9 @@
  * Plan progress helpers shared between Ink components and legacy console output.
  */
 
-export type PlanProgress = {
-  totalSteps?: number | null;
-  completedSteps?: number | null;
-  ratio?: number | null;
-};
+import type { PlanProgress as CorePlanProgress } from '@asynkron/openagent-core/src/utils/plan.js';
+
+export type PlanProgress = CorePlanProgress;
 
 export type ProgressState = {
   total: number;

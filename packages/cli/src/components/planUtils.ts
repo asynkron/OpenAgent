@@ -3,23 +3,17 @@
  * the Ink components and the legacy console helpers.
  */
 
+import type {
+  PlanCommand,
+  PlanStep,
+} from '@asynkron/openagent-core/src/agent/passExecutor/planExecution.js';
+
+export type { PlanCommand, PlanStep };
+
 const MAX_COMMAND_PREVIEW_LENGTH = 80;
 const TERMINAL_STATUSES = new Set(['completed', 'done', 'failed']);
 
 export type PlanNodeColor = 'yellow' | 'green' | 'red' | 'gray';
-
-export type PlanCommand = {
-  run?: string | null;
-};
-
-export type PlanStep = {
-  id?: string | null;
-  title?: string | null;
-  status?: string | null;
-  priority?: number | string | null;
-  command?: PlanCommand | null;
-  waitingForId?: Array<string | null | undefined>;
-};
 
 type DecoratedPlanEntry = {
   item: PlanStep;
@@ -143,7 +137,15 @@ function dependenciesFor(step: PlanStep | null | undefined): string[] {
     return [];
   }
 
-  return step.waitingForId.map((value) => normalizeId(value)).filter((value) => value.length > 0);
+  const normalized: string[] = [];
+  for (const candidate of step.waitingForId) {
+    const dependencyId = normalizeId(candidate);
+    if (dependencyId.length > 0) {
+      normalized.push(dependencyId);
+    }
+  }
+
+  return normalized;
 }
 
 function isStepBlocked(step: PlanStep, lookup: Map<string, PlanStep>): boolean {

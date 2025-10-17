@@ -29,7 +29,7 @@ import {
   type SummaryLine,
 } from './components/commandUtils.js';
 
-type CommandRenderOutput = CommandPreview & {
+type CommandRenderOutput = Partial<CommandPreview> & {
   execution?: CommandExecution | null;
   [key: string]: unknown;
 };
@@ -198,7 +198,9 @@ export function renderCommand(
   }
 
   const execution: CommandExecution =
-    output?.execution && typeof output.execution === 'object' ? output.execution : {};
+    output?.execution && typeof output.execution === 'object'
+      ? { ...(output.execution as CommandExecution) }
+      : ({} as CommandExecution);
   const data: CommandRenderData | null = buildCommandRenderData(command, result, output, execution);
   if (!data) {
     return;
