@@ -6,7 +6,7 @@
 
 ## Key Files
 
-- `run.js` — spawns shell commands with timeout/cancellation support, captures stdout/stderr to temp files, and exposes `runCommand` plus helper wrappers (uses `.openagent/temp`) while assuming upstream normalization has produced a string command and rejecting any other shape.
+- `run.js` — spawns shell commands with timeout/cancellation support, captures stdout/stderr to temp files, exposes the canonical `CommandResult` interface (alongside its partial variant), and provides `runCommand` plus helper wrappers (uses `.openagent/temp`) while assuming upstream normalization has produced a string command and rejecting any other shape.
 
 ## Positive Signals
 

@@ -33,6 +33,8 @@ export interface CommandResult {
   runtime_ms: number;
 }
 
+export type PartialCommandResult = Partial<CommandResult>;
+
 export async function runCommand(
   cmd: unknown,
   cwd: string | undefined,

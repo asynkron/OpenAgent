@@ -1,6 +1,6 @@
 import type { ExecutableCandidate } from '../planRuntime.js';
 import type { CommandRunOutcome } from '../types.js';
-import type { CommandResult } from '../../observationBuilder.js';
+import type { CommandResult } from '../../../commands/run.js';
 
 interface CommandContext {
   readonly command: ExecutableCandidate['command'];

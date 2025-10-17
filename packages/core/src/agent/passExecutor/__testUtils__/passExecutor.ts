@@ -1,6 +1,7 @@
 /* eslint-env jest */
 import { jest } from '@jest/globals';
 import type ObservationBuilder from '../../observationBuilder.js';
+import type { CommandResult } from '../../../commands/run.js';
 import type { NormalizedExecuteAgentPassOptions } from '../types.js';
 
 const createMock = <T extends (...args: any[]) => any>(
@@ -20,7 +21,13 @@ export const createNormalizedOptions = (
   history: [],
   emitEvent: createMock<NormalizedExecuteAgentPassOptions['emitEvent']>(),
   onDebug: null,
-  runCommandFn: createMock<NormalizedExecuteAgentPassOptions['runCommandFn']>(async () => ({} as Record<string, unknown>)),
+  runCommandFn: createMock<NormalizedExecuteAgentPassOptions['runCommandFn']>(async () => ({
+    stdout: '',
+    stderr: '',
+    exit_code: 0,
+    killed: false,
+    runtime_ms: 0,
+  } satisfies CommandResult)),
   applyFilterFn: createMock<NormalizedExecuteAgentPassOptions['applyFilterFn']>((text) => text),
   tailLinesFn: createMock<NormalizedExecuteAgentPassOptions['tailLinesFn']>((text) => text),
   getNoHumanFlag: () => false,

@@ -13,6 +13,7 @@
  * TypeScript directly.
  */
 import ExecuteCommand from './commands/ExecuteCommand.js';
+import type { CommandResult } from '../commands/run.js';
 
 const DEFAULT_TIMEOUT_SEC = 60 as const;
 
@@ -32,11 +33,11 @@ export interface AgentCommandContext {
     cwd: string,
     timeout: number,
     shell?: string,
-  ) => Promise<Record<string, unknown>>;
+  ) => Promise<CommandResult>;
 }
 
 export interface CommandExecutionResult {
-  result: Record<string, unknown>;
+  result: CommandResult;
   executionDetails: Record<string, unknown>;
 }
 

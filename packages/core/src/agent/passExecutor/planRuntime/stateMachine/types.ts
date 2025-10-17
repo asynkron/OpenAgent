@@ -1,5 +1,5 @@
 import type { PlanStep } from '../../planExecution.js';
-import type { CommandResult } from '../../../observationBuilder.js';
+import type { CommandResult } from '../../../../commands/run.js';
 import type { ExecutableCandidate } from '../../planExecutableSelector.js';
 
 export interface PlanState {

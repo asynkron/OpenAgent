@@ -2,7 +2,6 @@ import type { AgentCommandContext } from '../../commandExecution.js';
 import type { ExecuteAgentPassOptions } from '../types.js';
 import type { PlanRuntime } from '../planRuntime.js';
 import type { CommandRunOutcome } from '../types.js';
-import type { CommandResult } from '../../observationBuilder.js';
 import type { ExecutableCandidate } from '../planRuntime.js';
 import {
   type ApprovedCommand,
@@ -85,7 +84,7 @@ export const runApprovedCommand = async (
   options.planRuntime.applyEffects([snapshotEffect]);
 
   const outcome = await executeCommandSafely(options, approved.command);
-  const result = outcome.result as CommandResult;
+  const { result } = outcome;
 
   return {
     ...approved,

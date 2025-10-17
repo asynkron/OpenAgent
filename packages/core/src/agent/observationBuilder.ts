@@ -13,6 +13,7 @@
  * TypeScript directly.
  */
 import { DEFAULT_COMMAND_MAX_BYTES, DEFAULT_COMMAND_TAIL_LINES } from '../constants.js';
+import type { PartialCommandResult } from '../commands/run.js';
 import type {
   CommandOutputObservationForLLM,
   ObservationMetadata,
@@ -37,15 +38,7 @@ export interface ObservationPayload extends ObservationRecord {
 
 export interface BuildObservationOptions {
   command?: AssistantCommand | null;
-  result: CommandResult;
-}
-
-export interface CommandResult {
-  stdout?: string;
-  stderr?: string;
-  exit_code?: number;
-  runtime_ms?: number;
-  killed?: boolean;
+  result: PartialCommandResult;
 }
 
 export interface CancellationObservationOptions {
