@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* eslint-env jest */
 import { buildPlanLookup, planHasOpenSteps, planStepIsBlocked } from '../plan.js';
 

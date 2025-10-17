@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Conversation history helpers shared across the agent runtime.
  *
@@ -7,45 +6,59 @@
  * - Project the normalized history into the AI SDK message shape expected by
  *   the configured language model provider.
  *
- * Consumers:
- * - History compaction, pass execution, and model request builders.
- *
  * Note: The runtime still imports the compiled `historyEntry.js`; run `tsc` to
  * regenerate it after editing this source until the build pipeline emits from
  * TypeScript directly.
  */
 
 import type { ModelMessage } from 'ai';
+import type {
+  ChatMessageContent,
+  ChatMessageEntry as ChatMessageContract,
+  ChatMessagePayload,
+} from '../../../../contracts/index.js';
 
-const DEFAULT_EVENT_TYPE = 'chat-message' as const;
+const DEFAULT_EVENT_TYPE = 'chat-message';
+const MODEL_ROLES = ['system', 'user', 'assistant'] as const;
+type ModelRole = (typeof MODEL_ROLES)[number];
 
-export type JsonLikeObject = Record<string, unknown>;
-
-export type ChatMessagePayload = JsonLikeObject & {
-  role?: string;
-  content?: unknown;
-};
-
-export interface ChatMessageEntryInput extends JsonLikeObject {
-  eventType?: string | null;
-  payload?: ChatMessagePayload | null;
-  role?: string;
-  content?: unknown;
-}
-
-export interface ChatMessageEntry extends JsonLikeObject {
-  eventType: string;
-  payload: ChatMessagePayload;
-  role?: string;
-  content?: unknown;
-}
-
+export type ChatMessageEntry = ChatMessageContract;
 export type ModelChatMessage = ModelMessage;
 
-const buildPayload = ({ role, content }: ChatMessagePayload): ChatMessagePayload => {
+export interface ChatMessageEntryInput {
+  eventType?: string;
+  payload?: ChatMessagePayload;
+  role?: string;
+  content?: ChatMessageContent;
+  pass?: number;
+  summary?: string;
+  details?: string;
+  id?: string;
+  name?: string;
+}
+
+const buildPayload = (
+  role: string | undefined,
+  content: ChatMessageContent | undefined,
+  providedPayload?: ChatMessagePayload,
+): ChatMessagePayload => {
   const payload: ChatMessagePayload = {};
 
-  if (typeof role !== 'undefined') {
+  if (providedPayload) {
+    if (typeof providedPayload.role === 'string') {
+      payload.role = providedPayload.role;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(providedPayload, 'content')) {
+      payload.content = providedPayload.content;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(providedPayload, 'observation')) {
+      payload.observation = providedPayload.observation ?? null;
+    }
+  }
+
+  if (typeof role === 'string') {
     payload.role = role;
   }
 
@@ -56,52 +69,53 @@ const buildPayload = ({ role, content }: ChatMessagePayload): ChatMessagePayload
   return payload;
 };
 
-export function createChatMessageEntry(entry: ChatMessageEntryInput = {}): ChatMessageEntry {
-  if (!entry || typeof entry !== 'object') {
-    throw new TypeError('Chat history entry must be an object.');
+const isModelRole = (value: string | undefined): value is ModelRole => {
+  if (typeof value !== 'string') {
+    return false;
   }
 
-  const {
-    eventType,
-    payload: providedPayload,
-    role: rootRole,
-    content: rootContent,
-    ...rest
-  } = entry;
-  const normalizedEventType =
-    typeof eventType === 'string' && eventType.trim() ? eventType : DEFAULT_EVENT_TYPE;
+  return MODEL_ROLES.includes(value.trim().toLowerCase() as ModelRole);
+};
 
-  const payloadFromEntry =
-    providedPayload && typeof providedPayload === 'object'
-      ? (providedPayload as ChatMessagePayload)
-      : undefined;
+const resolveRole = (
+  rootRole: string | undefined,
+  payloadRole: string | undefined,
+): ModelRole | undefined => {
+  if (isModelRole(rootRole)) {
+    return rootRole;
+  }
 
-  const role =
-    (typeof rootRole === 'string' ? rootRole : undefined) ??
-    (payloadFromEntry && typeof payloadFromEntry.role === 'string'
-      ? payloadFromEntry.role
-      : undefined);
+  if (isModelRole(payloadRole)) {
+    return payloadRole;
+  }
 
-  const hasContent = Object.prototype.hasOwnProperty.call(entry, 'content');
-  const content = hasContent
-    ? rootContent
-    : payloadFromEntry && Object.prototype.hasOwnProperty.call(payloadFromEntry, 'content')
-      ? payloadFromEntry.content
-      : undefined;
+  return undefined;
+};
 
-  const message: ChatMessageEntry = {
-    eventType: normalizedEventType,
-    ...rest,
-    payload: buildPayload({ role, content }),
-  };
+const resolveInitialContent = (
+  hasRootContent: boolean,
+  rootContent: ChatMessageContent | undefined,
+  payload: ChatMessagePayload,
+): ChatMessageContent | undefined => {
+  if (hasRootContent) {
+    return rootContent;
+  }
 
+  if (Object.prototype.hasOwnProperty.call(payload, 'content')) {
+    return payload.content;
+  }
+
+  return undefined;
+};
+
+const definePropertyAccessors = (message: ChatMessageEntry): void => {
   Object.defineProperty(message, 'role', {
     enumerable: false,
     configurable: true,
     get() {
       return typeof message.payload.role === 'string' ? message.payload.role : undefined;
     },
-    set(value) {
+    set(value: string | undefined) {
       if (typeof value === 'string') {
         message.payload.role = value;
       } else {
@@ -118,7 +132,7 @@ export function createChatMessageEntry(entry: ChatMessageEntryInput = {}): ChatM
         ? message.payload.content
         : undefined;
     },
-    set(value) {
+    set(value: ChatMessageContent | undefined) {
       if (typeof value === 'undefined') {
         delete message.payload.content;
       } else {
@@ -126,54 +140,154 @@ export function createChatMessageEntry(entry: ChatMessageEntryInput = {}): ChatM
       }
     },
   });
+};
 
+export const createChatMessageEntry = (
+  entry: ChatMessageEntryInput = {},
+): ChatMessageEntry => {
+  const {
+    eventType,
+    payload: providedPayload,
+    role: rootRole,
+    content: rootContent,
+    pass,
+    summary,
+    details,
+    id,
+    name,
+  } = entry;
+
+  const normalizedEventType =
+    typeof eventType === 'string' && eventType.trim() ? eventType : DEFAULT_EVENT_TYPE;
+
+  const payload = buildPayload(
+    typeof rootRole === 'string' ? rootRole : undefined,
+    rootContent,
+    providedPayload,
+  );
+
+  const hasRootContent = Object.prototype.hasOwnProperty.call(entry, 'content');
+  const resolvedRole = resolveRole(rootRole, payload.role);
+  const resolvedContent = resolveInitialContent(hasRootContent, rootContent, payload);
+
+  const message: ChatMessageEntry = {
+    eventType: normalizedEventType,
+    payload,
+  };
+
+  if (typeof pass === 'number' && Number.isFinite(pass)) {
+    message.pass = pass;
+  }
+
+  if (typeof summary === 'string') {
+    message.summary = summary;
+  }
+
+  if (typeof details === 'string') {
+    message.details = details;
+  }
+
+  if (typeof id === 'string') {
+    message.id = id;
+  }
+
+  if (typeof name === 'string') {
+    message.name = name;
+  }
+
+  if (typeof resolvedRole === 'string') {
+    message.payload.role = resolvedRole;
+  }
+
+  if (typeof resolvedContent !== 'undefined') {
+    message.payload.content = resolvedContent;
+  }
+
+  definePropertyAccessors(message);
   return message;
-}
+};
 
-export function mapHistoryToModelMessages(history: unknown): ModelChatMessage[] {
+const normalizeContentForModel = (content: ChatMessageContent | undefined): string => {
+  if (typeof content === 'string') {
+    return content;
+  }
+
+  if (Array.isArray(content)) {
+    const combined = content
+      .map((item) => {
+        if (item.type === 'text') {
+          if (typeof item.text === 'string' && item.text.trim()) {
+            return item.text;
+          }
+
+          if (typeof item.value === 'string' && item.value.trim()) {
+            return item.value;
+          }
+        }
+
+        return '';
+      })
+      .filter((chunk) => chunk.length > 0)
+      .join('\n');
+
+    if (combined.trim()) {
+      return combined;
+    }
+  }
+
+  return '';
+};
+
+export const mapHistoryToModelMessages = (
+  history: readonly ChatMessageEntry[] | null | undefined,
+): ModelChatMessage[] => {
   if (!Array.isArray(history)) {
     return [];
   }
 
-  return history
-    .map((entry) => {
-      if (!entry || typeof entry !== 'object') {
-        return null;
-      }
+  const messages: ModelChatMessage[] = [];
 
-      const record = entry as JsonLikeObject;
-      const payloadValue = record.payload;
-      const payload =
-        payloadValue && typeof payloadValue === 'object'
-          ? (payloadValue as ChatMessagePayload)
-          : null;
+  for (const entry of history) {
+    if (!entry) {
+      continue;
+    }
 
-      let role: unknown;
-      if (payload && typeof payload.role === 'string') {
-        role = payload.role;
-      } else if (typeof record.role === 'string') {
-        role = record.role;
-      } else {
-        role = undefined;
-      }
+    const payload = entry.payload ?? {};
+    const role = resolveRole(entry.role, payload.role);
 
-      if (!role) {
-        return null;
-      }
+    if (!role) {
+      continue;
+    }
 
-      let content: unknown;
-      if (payload && Object.prototype.hasOwnProperty.call(payload, 'content')) {
-        content = payload.content;
-      } else if (typeof record.content !== 'undefined') {
-        content = record.content;
-      } else {
-        content = '';
-      }
+    const contentValue =
+      typeof entry.content !== 'undefined'
+        ? entry.content
+        : Object.prototype.hasOwnProperty.call(payload, 'content')
+          ? payload.content
+          : undefined;
 
-      return { role, content } satisfies ModelChatMessage;
-    })
-    .filter((message): message is ModelChatMessage => Boolean(message));
-}
+    const normalizedContent = normalizeContentForModel(contentValue);
+
+    if (role === 'system') {
+      const message: ModelMessage = { role: 'system', content: normalizedContent };
+      messages.push(message);
+      continue;
+    }
+
+    if (role === 'user') {
+      const message: ModelMessage = { role: 'user', content: normalizedContent };
+      messages.push(message);
+      continue;
+    }
+
+    if (role === 'assistant') {
+      const message: ModelMessage = { role: 'assistant', content: normalizedContent };
+      messages.push(message);
+    }
+  }
+
+  return messages;
+};
 
 export default {
   createChatMessageEntry,

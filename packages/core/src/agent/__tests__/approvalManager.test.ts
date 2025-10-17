@@ -1,16 +1,17 @@
-// @ts-nocheck
 /* eslint-env jest */
 import { DEFAULT_COMMAND_MAX_BYTES } from '../../constants.js';
 import { ApprovalManager } from '../approvalManager.js';
+import type { ApprovalManagerOptions } from '../approvalManager.js';
+import type { CommandDraft } from '../../../../contracts/index.js';
 
 describe('ApprovalManager.shouldAutoApprove', () => {
-  const baseDeps = {
+  const baseDeps: ApprovalManagerOptions = {
     isPreapprovedCommand: () => false,
     isSessionApproved: () => false,
     approveForSession: () => {},
     getAutoApproveFlag: () => false,
     askHuman: async () => '',
-    preapprovedCfg: {},
+    preapprovedCfg: { allowlist: [] },
   };
 
   test('returns allowlist source when command is pre-approved', () => {
@@ -18,7 +19,8 @@ describe('ApprovalManager.shouldAutoApprove', () => {
       ...baseDeps,
       isPreapprovedCommand: () => true,
     });
-    expect(manager.shouldAutoApprove({ run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES })).toEqual({
+    const command: CommandDraft = { run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES };
+    expect(manager.shouldAutoApprove(command)).toEqual({
       approved: true,
       source: 'allowlist',
     });
@@ -29,7 +31,8 @@ describe('ApprovalManager.shouldAutoApprove', () => {
       ...baseDeps,
       isSessionApproved: () => true,
     });
-    expect(manager.shouldAutoApprove({ run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES })).toEqual({
+    const command: CommandDraft = { run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES };
+    expect(manager.shouldAutoApprove(command)).toEqual({
       approved: true,
       source: 'session',
     });
@@ -40,7 +43,8 @@ describe('ApprovalManager.shouldAutoApprove', () => {
       ...baseDeps,
       getAutoApproveFlag: () => true,
     });
-    expect(manager.shouldAutoApprove({ run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES })).toEqual({
+    const command: CommandDraft = { run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES };
+    expect(manager.shouldAutoApprove(command)).toEqual({
       approved: true,
       source: 'flag',
     });
@@ -48,7 +52,8 @@ describe('ApprovalManager.shouldAutoApprove', () => {
 
   test('returns not approved when nothing matches', () => {
     const manager = new ApprovalManager(baseDeps);
-    expect(manager.shouldAutoApprove({ run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES })).toEqual({
+    const command: CommandDraft = { run: 'ls', max_bytes: DEFAULT_COMMAND_MAX_BYTES };
+    expect(manager.shouldAutoApprove(command)).toEqual({
       approved: false,
       source: null,
     });
@@ -61,9 +66,13 @@ describe('ApprovalManager.shouldAutoApprove', () => {
 });
 
 describe('ApprovalManager.requestHumanDecision', () => {
-  const makeManager = ({ responses }) => {
-    const logs = { info: [], warn: [], success: [] };
-    let approvedCommand = null;
+  const makeManager = ({ responses }: { responses: string[] }) => {
+    const logs: { info: string[]; warn: string[]; success: string[] } = {
+      info: [],
+      warn: [],
+      success: [],
+    };
+    let approvedCommand: CommandDraft | null = null;
     const manager = new ApprovalManager({
       isPreapprovedCommand: () => false,
       isSessionApproved: () => false,
@@ -75,7 +84,7 @@ describe('ApprovalManager.requestHumanDecision', () => {
         if (!responses.length) throw new Error('No more responses queued');
         return responses.shift();
       },
-      preapprovedCfg: {},
+      preapprovedCfg: { allowlist: [] },
       logInfo: (msg) => logs.info.push(msg),
       logWarn: (msg) => logs.warn.push(msg),
       logSuccess: (msg) => logs.success.push(msg),

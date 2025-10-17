@@ -125,7 +125,21 @@ export class PromptCoordinator {
     );
 
     if (hasEscWaiters && escState) {
-      escState.trigger?.(payload ?? { reason: 'ui-cancel' });
+      let normalizedPayload: string | { reason: string } | null = null;
+      if (typeof payload === 'string') {
+        normalizedPayload = payload;
+      } else if (payload && typeof payload === 'object') {
+        const candidate = payload as { reason?: unknown };
+        if (typeof candidate.reason === 'string') {
+          normalizedPayload = { reason: candidate.reason };
+        } else {
+          normalizedPayload = { reason: 'ui-cancel' };
+        }
+      } else {
+        normalizedPayload = { reason: 'ui-cancel' };
+      }
+
+      escState.trigger?.(normalizedPayload);
     }
 
     this.emitEvent({ type: 'status', level: 'warn', message: 'Cancellation requested by UI.' });

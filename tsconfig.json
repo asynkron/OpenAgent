@@ -18,6 +18,7 @@
     "packages/**/*.ts",
     "packages/**/*.tsx",
     "packages/**/*.d.ts",
+    "contracts/**/*.ts",
     "types/**/*.d.ts",
     "tests/**/*.ts",
     "tests/**/*.tsx",

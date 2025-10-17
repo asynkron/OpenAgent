@@ -1,7 +1,13 @@
 import type { PlanSnapshot, PlanSnapshotStep } from './planCloneUtils.js';
 import { deepCloneValue } from './planCloneUtils.js';
-import { isAbandonedStatus, isCompletedStatus, isFailedStatus, isTerminalStatus } from './planStatusUtils.js';
+import {
+  isAbandonedStatus,
+  isCompletedStatus,
+  isFailedStatus,
+  isTerminalStatus,
+} from './planStatusUtils.js';
 import { commandsAreEqual } from './planComparisonUtils.js';
+import { PlanStatus } from '../../../../contracts/index.js';
 
 const normalizePlanIdentifier = (value: unknown): string => {
   if (typeof value !== 'string') {
@@ -71,7 +77,7 @@ const mergePlanItems = (
         (isAbandonedStatus(existingItem.status) && !incomingIsTerminal);
 
       if (shouldResetStatus) {
-        existingItem.status = 'pending';
+        existingItem.status = PlanStatus.Pending;
       }
     }
   }
@@ -111,7 +117,7 @@ export const mergePlanTrees = (
     } else if (!isAbandonedStatus(item?.status)) {
       const cloned = deepCloneValue(item);
       if (cloned && typeof cloned === 'object') {
-        (cloned as PlanSnapshotStep).status = 'pending';
+        (cloned as PlanSnapshotStep).status = PlanStatus.Pending;
       }
       result.push(cloned);
     }

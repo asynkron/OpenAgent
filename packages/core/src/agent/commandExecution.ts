@@ -12,17 +12,17 @@
  * to regenerate it after editing this source until the build pipeline emits from
  * TypeScript directly.
  */
+import {
+  DEFAULT_COMMAND_MAX_BYTES,
+  DEFAULT_COMMAND_TAIL_LINES,
+} from '../constants.js';
 import ExecuteCommand from './commands/ExecuteCommand.js';
 import type { CommandResult } from '../commands/run.js';
+import type { CommandDraft, CommandExecutionDetails } from '../../../../contracts/index.js';
 
 const DEFAULT_TIMEOUT_SEC = 60 as const;
 
-export interface AgentCommand extends Record<string, unknown> {
-  run?: string;
-  shell?: string;
-  cwd?: string;
-  timeout_sec?: number;
-}
+export type AgentCommand = CommandDraft;
 
 export interface AgentCommandContext {
   command: AgentCommand;
@@ -38,7 +38,7 @@ export interface AgentCommandContext {
 
 export interface CommandExecutionResult {
   result: CommandResult;
-  executionDetails: Record<string, unknown>;
+  executionDetails: CommandExecutionDetails;
 }
 
 export interface CommandHandler {
@@ -55,16 +55,40 @@ export interface ExecuteAgentCommandOptions {
   runCommandFn: AgentCommandContext['runCommandFn'];
 }
 
-function normalizeCommand(command: AgentCommand | null | undefined): AgentCommand {
-  const normalizedCommand: AgentCommand = command || {};
-  const rawRun =
-    typeof normalizedCommand.run === 'string' && normalizedCommand.run.trim()
-      ? normalizedCommand.run.trim()
-      : '';
+const normalizeCommand = (command: AgentCommand | null | undefined): AgentCommand => {
+  if (!command || typeof command !== 'object') {
+    return {
+      reason: '',
+      shell: '',
+      run: '',
+      cwd: '.',
+      timeout_sec: DEFAULT_TIMEOUT_SEC,
+      filter_regex: '',
+      tail_lines: DEFAULT_COMMAND_TAIL_LINES,
+      max_bytes: DEFAULT_COMMAND_MAX_BYTES,
+    };
+  }
 
-  normalizedCommand.run = rawRun;
-  return normalizedCommand;
-}
+  return {
+    reason: typeof command.reason === 'string' ? command.reason : '',
+    shell: typeof command.shell === 'string' ? command.shell : '',
+    run: typeof command.run === 'string' ? command.run.trim() : '',
+    cwd: typeof command.cwd === 'string' && command.cwd.trim() ? command.cwd : '.',
+    timeout_sec:
+      typeof command.timeout_sec === 'number' && Number.isFinite(command.timeout_sec)
+        ? command.timeout_sec
+        : DEFAULT_TIMEOUT_SEC,
+    filter_regex: typeof command.filter_regex === 'string' ? command.filter_regex : '',
+    tail_lines:
+      typeof command.tail_lines === 'number' && Number.isFinite(command.tail_lines)
+        ? command.tail_lines
+        : DEFAULT_COMMAND_TAIL_LINES,
+    max_bytes:
+      typeof command.max_bytes === 'number' && Number.isFinite(command.max_bytes)
+        ? command.max_bytes
+        : DEFAULT_COMMAND_MAX_BYTES,
+  };
+};
 
 function createCommandContext(
   normalizedCommand: AgentCommand,

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Cancellation helpers triggered by UI ESC events.
  *
@@ -10,14 +9,17 @@
  * to regenerate it after editing this source until the build pipeline emits from
  * TypeScript directly.
  */
-export type EscPayload = unknown;
+
+export type EscPayload = string | { reason: string };
+
+export type EscWaiter = (payload: EscPayload | null) => void;
 
 export type EscTrigger = (payload?: EscPayload | null) => void;
 
 export interface EscState {
   triggered: boolean;
   payload: EscPayload | null;
-  waiters: Set<(payload: EscPayload | null) => void>;
+  waiters: Set<EscWaiter>;
   trigger?: EscTrigger;
 }
 
@@ -31,29 +33,38 @@ export interface EscStateController {
   detach: () => void;
 }
 
+export interface EscWaiterResult {
+  promise: Promise<EscPayload | null> | null;
+  cleanup: () => void;
+}
+
 export function createEscState({ onTrigger }: CreateEscStateOptions = {}): EscStateController {
   const state: EscState = {
     triggered: false,
     payload: null,
-    waiters: new Set(),
+    waiters: new Set<EscWaiter>(),
   };
 
   const trigger: EscTrigger = (payload = null) => {
     state.triggered = true;
     state.payload = payload ?? null;
+
     if (state.waiters.size > 0) {
-      for (const resolve of Array.from(state.waiters)) {
+      const waiters = Array.from(state.waiters);
+      state.waiters.clear();
+
+      for (const resolve of waiters) {
         try {
           resolve(payload ?? null);
         } catch {
           // Ignore waiter resolution errors.
         }
       }
-      state.waiters.clear();
     }
   };
 
   let unsubscribe: (() => void) | null = null;
+
   if (typeof onTrigger === 'function') {
     try {
       const maybeCleanup = onTrigger(trigger);
@@ -68,21 +79,18 @@ export function createEscState({ onTrigger }: CreateEscStateOptions = {}): EscSt
       try {
         unsubscribe();
       } catch {
-        // Ignore cleanup errors.
+        // Ignore cleanup errors during detach.
       }
     }
   };
 
+  state.trigger = trigger;
+
   return { state, trigger, detach };
 }
 
-export interface EscWaiterResult {
-  promise: Promise<EscPayload | null> | null;
-  cleanup: () => void;
-}
-
 export function createEscWaiter(escState: EscState | null | undefined): EscWaiterResult {
-  if (!escState || typeof escState !== 'object') {
+  if (!escState) {
     return { promise: null, cleanup: () => {} };
   }
 
@@ -93,28 +101,26 @@ export function createEscWaiter(escState: EscState | null | undefined): EscWaite
     };
   }
 
-  if (!escState.waiters || typeof escState.waiters.add !== 'function') {
-    return { promise: null, cleanup: () => {} };
-  }
-
-  let resolver!: (payload: EscPayload | null) => void;
+  let resolver: EscWaiter | null = null;
   const promise = new Promise<EscPayload | null>((resolve) => {
     resolver = (payload) => resolve(payload ?? null);
   });
 
+  if (!resolver) {
+    return { promise: null, cleanup: () => {} };
+  }
+
   escState.waiters.add(resolver);
 
   const cleanup = () => {
-    if (escState.waiters && typeof escState.waiters.delete === 'function') {
-      escState.waiters.delete(resolver);
-    }
+    escState.waiters.delete(resolver as EscWaiter);
   };
 
   return { promise, cleanup };
 }
 
 export function resetEscState(escState: EscState | null | undefined): void {
-  if (!escState || typeof escState !== 'object') {
+  if (!escState) {
     return;
   }
 

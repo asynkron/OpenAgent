@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Command approval coordinator.
  *
@@ -6,14 +5,12 @@
  * - Decide whether a command can run without human input based on allowlists and session approvals.
  * - When required, interactively prompt the human and normalize the resulting decision.
  *
- * Consumers:
- * - Agent pass executor prior to dispatching shell/run commands.
- *
  * Note: The runtime still imports the compiled `approvalManager.js`; run `tsc`
  * to regenerate it after editing this source until the build pipeline emits from
  * TypeScript directly.
  */
-export type JsonLikeObject = Record<string, unknown>;
+
+import type { CommandDraft } from '../../../../contracts/index.js';
 
 export type ApprovalDecision = 'auto' | 'approve_once' | 'approve_session' | 'reject';
 
@@ -29,17 +26,21 @@ export interface AutoApprovalResult {
   source: AutoApprovalSource;
 }
 
+export interface ApprovalConfig {
+  allowlist?: string[];
+}
+
 export interface ApprovalManagerOptions {
-  isPreapprovedCommand?: (command: JsonLikeObject, cfg: JsonLikeObject) => boolean;
-  isSessionApproved?: (command: JsonLikeObject) => boolean;
-  approveForSession?: (command: JsonLikeObject) => void;
+  isPreapprovedCommand?: (command: CommandDraft, config: ApprovalConfig) => boolean;
+  isSessionApproved?: (command: CommandDraft) => boolean;
+  approveForSession?: (command: CommandDraft) => void;
   getAutoApproveFlag?: () => boolean;
   askHuman?: (prompt: string) => Promise<string | undefined>;
-  preapprovedCfg?: JsonLikeObject;
+  preapprovedCfg?: ApprovalConfig;
   logInfo?: (message: string) => void;
   logWarn?: (message: string) => void;
   logSuccess?: (message: string) => void;
-  buildPromptFn?: (command: JsonLikeObject, cfg: JsonLikeObject) => string;
+  buildPromptFn?: (command: CommandDraft, config: ApprovalConfig) => string;
   parseDecisionFn?: (raw: string) => 'approve_once' | 'approve_session' | 'reject' | null;
 }
 
@@ -49,7 +50,7 @@ export class ApprovalManager {
   private readonly approveForSession?: ApprovalManagerOptions['approveForSession'];
   private readonly getAutoApproveFlag?: ApprovalManagerOptions['getAutoApproveFlag'];
   private readonly askHuman?: ApprovalManagerOptions['askHuman'];
-  private readonly preapprovedCfg?: JsonLikeObject;
+  private readonly preapprovedCfg: ApprovalConfig;
   private readonly logInfo: (message: string) => void;
   private readonly logWarn: (message: string) => void;
   private readonly logSuccess: (message: string) => void;
@@ -88,12 +89,12 @@ export class ApprovalManager {
     this.parseDecisionFn = typeof parseDecisionFn === 'function' ? parseDecisionFn : undefined;
   }
 
-  shouldAutoApprove(command: JsonLikeObject | null | undefined): AutoApprovalResult {
-    if (!command || typeof command !== 'object') {
+  shouldAutoApprove(command: CommandDraft | null | undefined): AutoApprovalResult {
+    if (!command) {
       return { approved: false, source: null };
     }
 
-    if (this.isPreapprovedCommand?.(command, this.preapprovedCfg ?? {})) {
+    if (this.isPreapprovedCommand?.(command, this.preapprovedCfg)) {
       return { approved: true, source: 'allowlist' };
     }
 
@@ -108,9 +109,9 @@ export class ApprovalManager {
     return { approved: false, source: null };
   }
 
-  async requestHumanDecision({ command }: { command: JsonLikeObject }): Promise<ApprovalOutcome> {
+  async requestHumanDecision({ command }: { command: CommandDraft }): Promise<ApprovalOutcome> {
     const prompt =
-      this.buildPromptFn?.(command, this.preapprovedCfg ?? {}) ||
+      this.buildPromptFn?.(command, this.preapprovedCfg) ??
       [
         'Approve running this command?',
         '  1) Yes (run once)',
@@ -120,8 +121,8 @@ export class ApprovalManager {
       ].join('\n');
 
     while (true) {
-      const raw = (await this.askHuman?.(prompt)) ?? '';
-      const input = String(raw).trim().toLowerCase();
+      const rawResponse = (await this.askHuman?.(prompt)) ?? '';
+      const input = String(rawResponse).trim().toLowerCase();
 
       if (this.parseDecisionFn) {
         const interpreted = this.parseDecisionFn(input);
@@ -144,11 +145,13 @@ export class ApprovalManager {
         this.logSuccess('Approved (run once).');
         return { decision: 'approve_once' };
       }
+
       if (input === '2') {
         this.recordSessionApproval(command);
         this.logSuccess('Approved and added to session approvals.');
         return { decision: 'approve_session' };
       }
+
       if (input === '3' || input === 'n' || input === 'no') {
         this.logWarn('Command execution canceled by human (requested alternative).');
         return { decision: 'reject', reason: 'human_declined' };
@@ -158,7 +161,7 @@ export class ApprovalManager {
     }
   }
 
-  recordSessionApproval(command: JsonLikeObject): void {
+  recordSessionApproval(command: CommandDraft): void {
     this.approveForSession?.(command);
   }
 }

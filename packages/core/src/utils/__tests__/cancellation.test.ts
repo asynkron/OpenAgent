@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* eslint-env jest */
 import { jest } from '@jest/globals';
 

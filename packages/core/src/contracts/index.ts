@@ -21,33 +21,56 @@ import type { JSONSchema7 } from '@ai-sdk/provider';
 import type { GenerateObjectResult, GenerateTextResult, ToolSet } from 'ai';
 import { z } from 'zod';
 
+import {
+  PlanStatus,
+  type CommandDefinition,
+  type Plan,
+  type PlanObservation,
+  type PlanObservationMetadata,
+  type PlanObservationPayload,
+  type PlanStep,
+} from '../../../../contracts/index.js';
 import { DEFAULT_COMMAND_MAX_BYTES, DEFAULT_COMMAND_TAIL_LINES } from '../constants.js';
 
-// Explicit TS interfaces for clarity/scanability
-export interface ToolCommand {
-  reason: string;
-  shell: string;
-  run: string;
-  cwd: string;
-  timeout_sec: number;
-  filter_regex: string;
-  tail_lines: number;
-  max_bytes: number;
-}
+const PlanObservationMetadataSchema: z.ZodType<PlanObservationMetadata | null | undefined> = z
+  .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()]))
+  .nullable()
+  .optional();
 
-export interface ToolPlanStep {
-  id: string;
-  title: string;
-  status: 'pending' | 'completed' | 'failed' | 'abandoned';
-  waitingForId?: string[];
-  command: ToolCommand;
-  observation?: Record<string, unknown>;
-}
+const PlanObservationPayloadSchema: z.ZodType<PlanObservationPayload> = z.lazy(() =>
+  z
+    .object({
+      plan: z.array(ToolPlanStepSchema).optional(),
+      stdout: z.string().optional(),
+      stderr: z.string().optional(),
+      truncated: z.boolean().optional(),
+      exit_code: z.number().optional(),
+      json_parse_error: z.boolean().optional(),
+      schema_validation_error: z.boolean().optional(),
+      response_validation_error: z.boolean().optional(),
+      canceled_by_human: z.boolean().optional(),
+      operation_canceled: z.boolean().optional(),
+      summary: z.string().optional(),
+      details: z.string().optional(),
+    })
+    .strict(),
+);
 
-export interface ToolResponse {
-  message: string;
-  plan: ToolPlanStep[];
-}
+const PlanObservationSchema: z.ZodType<PlanObservation> = z.lazy(() =>
+  z
+    .object({
+      observation_for_llm: PlanObservationPayloadSchema.nullable().optional(),
+      observation_metadata: PlanObservationMetadataSchema,
+    })
+    .strict(),
+);
+
+export type ToolCommand = CommandDefinition;
+export type ToolPlanStep = PlanStep;
+export type ToolResponse = Plan;
+export type ToolObservation = PlanObservation;
+export type ToolObservationMetadata = PlanObservationMetadata;
+export type ToolObservationPayload = PlanObservationPayload;
 
 // Zod schemas that mirror the interfaces above
 export const ToolCommandSchema = z
@@ -63,14 +86,14 @@ export const ToolCommandSchema = z
   })
   .strict();
 
-export const ToolPlanStepSchema = z
+export const ToolPlanStepSchema: z.ZodType<ToolPlanStep> = z
   .object({
     id: z.string(),
     title: z.string(),
-    status: z.enum(['pending', 'completed', 'failed', 'abandoned']),
+    status: z.nativeEnum(PlanStatus),
     waitingForId: z.array(z.string()).default([]),
     command: ToolCommandSchema,
-    observation: z.record(z.string(), z.unknown()).optional(),
+    observation: PlanObservationSchema.optional(),
   })
   .strict();
 

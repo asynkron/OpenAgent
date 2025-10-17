@@ -1,86 +1,94 @@
-// @ts-nocheck
 /**
- * History compaction helper that summarizes old conversation entries when usage spikes.
+ * History compaction helper that summarizes older conversation entries when the
+ * token usage approaches the model limit.
  *
  * Responsibilities:
- * - Estimate token usage for the active history and decide when compaction is needed.
- * - Invoke the OpenAI Responses API to summarize older entries into a long-term memory note.
+ * - Estimate context usage for the active history.
+ * - Summarize older entries via the OpenAI Responses API when the usage ratio
+ *   exceeds a configurable threshold.
  * - Replace the compacted slice of history with a synthetic summary entry.
  *
- * Note: The runtime still imports the compiled `historyCompactor.js`; run `tsc` to
- * regenerate it after editing this source until the build pipeline emits from
+ * Note: The runtime still imports the compiled `historyCompactor.js`; run `tsc`
+ * to regenerate it after editing this source until the build pipeline emits from
  * TypeScript directly.
  */
-import { summarizeContextUsage } from '../utils/contextUsage.js';
-import { extractResponseText } from '../openai/responseUtils.js';
-import { createResponse } from '../openai/responses.js';
-import { getOpenAIRequestSettings } from '../openai/client.js';
+
 import { createChatMessageEntry, mapHistoryToModelMessages } from './historyEntry.js';
-import type { ChatMessageEntry } from './historyEntry.js';
+import { summarizeContextUsage, type ContextUsageSummary } from '../utils/contextUsage.js';
+import { extractResponseText } from '../openai/responseUtils.js';
+import { createResponse, type ResponsesClient } from '../openai/responses.js';
+import { getOpenAIRequestSettings } from '../openai/client.js';
+import type { ChatMessageContent, ChatMessageEntry } from '../../../../contracts/index.js';
 
 const DEFAULT_USAGE_THRESHOLD = 0.5;
 const DEFAULT_SUMMARY_PREFIX = 'Compacted memory:';
 
-export type JsonLike = Record<string, unknown>;
+export interface HistoryCompactorLogger {
+  log?(message: string, meta?: HistoryCompactorLogMeta): void;
+  warn?(message: string, meta?: HistoryCompactorLogMeta): void;
+}
 
-export interface ChatHistoryEntry extends JsonLike {
-  role?: string | null;
-  content?: unknown;
-  pass?: number;
+export interface HistoryCompactorLogMeta {
+  entriesCompacted?: number;
+  originalHistoryLength?: number;
+  resultingHistoryLength?: number;
+  error?: string;
 }
 
 export interface HistoryCompactorOptions {
-  openai?: OpenAIClient | null;
+  openai?: ResponsesClient | null;
   model?: string | null;
   usageThreshold?: number;
-  logger?: Logger;
+  logger?: HistoryCompactorLogger | null;
 }
 
 export interface CompactIfNeededInput {
-  history?: ChatHistoryEntry[] | null;
+  history?: ChatMessageEntry[] | null;
 }
 
-export interface OpenAIClient {
-  responses?: ((model: string | null | undefined) => unknown) | null;
-}
-
-export type Logger = {
-  [key: string]: ((...args: unknown[]) => void) | undefined;
-};
-
-const stringifyContent = (content: unknown): string => {
+const stringifyContent = (content: ChatMessageContent | undefined): string => {
   if (typeof content === 'string') {
     return content;
   }
 
   if (Array.isArray(content)) {
     return content
-      .map((item) => stringifyContent(item))
+      .map((item) => {
+        if (item.type === 'text' && typeof item.text === 'string') {
+          return item.text;
+        }
+
+        if (item.type === 'text' && typeof item.value === 'string') {
+          return item.value;
+        }
+
+        return '';
+      })
       .filter((chunk) => chunk.length > 0)
       .join('\n');
   }
 
-  if (content && typeof content === 'object') {
-    try {
-      return JSON.stringify(content, null, 2);
-    } catch (_error) {
-      return '';
-    }
-  }
-
-  if (content === null || content === undefined) {
-    return '';
-  }
-
-  return String(content);
+  return '';
 };
 
-const buildSummarizationInput = (entries: ChatHistoryEntry[]): ChatMessageEntry[] => {
+const normalizeContent = (entry: ChatMessageEntry): string => {
+  const payloadContent =
+    Object.prototype.hasOwnProperty.call(entry.payload, 'content') && entry.payload.content
+      ? entry.payload.content
+      : undefined;
+
+  const chosenContent =
+    typeof entry.content !== 'undefined' ? entry.content : (payloadContent as ChatMessageContent);
+
+  return stringifyContent(chosenContent);
+};
+
+const buildSummarizationInput = (entries: ChatMessageEntry[]): ChatMessageEntry[] => {
   const formattedEntries = entries
     .map((entry, index) => {
-      const role = typeof entry?.role === 'string' ? entry.role : 'unknown';
-      const content = stringifyContent(entry?.content);
-      const passLabel = typeof entry?.pass === 'number' ? `pass ${entry.pass}` : 'unknown pass';
+      const role = typeof entry.role === 'string' ? entry.role : 'unknown';
+      const content = normalizeContent(entry);
+      const passLabel = Number.isFinite(entry.pass) ? `pass ${entry.pass}` : 'unknown pass';
       return `Entry ${index + 1} (${role}, ${passLabel}):\n${content}`;
     })
     .join('\n\n');
@@ -101,25 +109,19 @@ const buildSummarizationInput = (entries: ChatHistoryEntry[]): ChatMessageEntry[
 };
 
 export class HistoryCompactor {
-  private readonly openai?: OpenAIClient | null;
+  private readonly openai?: ResponsesClient | null;
 
   private readonly model?: string | null;
 
   private readonly usageThreshold: number;
 
-  private readonly logger: Logger;
+  private readonly logger: HistoryCompactorLogger | null;
 
-  constructor({
-    openai,
-    model,
-    usageThreshold = DEFAULT_USAGE_THRESHOLD,
-    logger,
-  }: HistoryCompactorOptions = {}) {
+  constructor({ openai, model, usageThreshold = DEFAULT_USAGE_THRESHOLD, logger }: HistoryCompactorOptions = {}) {
     this.openai = openai ?? undefined;
     this.model = model ?? undefined;
     this.usageThreshold = usageThreshold;
-    const defaultLogger = console as unknown as Logger;
-    this.logger = logger ?? defaultLogger;
+    this.logger = logger ?? { log: console.log.bind(console), warn: console.warn.bind(console) };
   }
 
   async compactIfNeeded({ history }: CompactIfNeededInput): Promise<boolean> {
@@ -127,24 +129,17 @@ export class HistoryCompactor {
       return false;
     }
 
-    const hasResponsesApi = Boolean(this.openai && typeof this.openai.responses === 'function');
-
-    if (!hasResponsesApi) {
+    if (!this.hasResponsesClient()) {
       return false;
     }
 
-    const usage = summarizeContextUsage({ history, model: this.model ?? undefined });
-    if (
-      !usage ||
-      typeof usage.used !== 'number' ||
-      typeof usage.total !== 'number' ||
-      usage.total <= 0
-    ) {
+    const usage = this.summarizeUsage(history);
+    if (!usage || usage.total === null || usage.total <= 0) {
       return false;
     }
 
     const usageRatio = usage.used / usage.total;
-    if (!(usageRatio > this.usageThreshold)) {
+    if (usageRatio <= this.usageThreshold) {
       return false;
     }
 
@@ -160,15 +155,20 @@ export class HistoryCompactor {
       firstContentIndex + entriesToCompactCount,
     );
 
-    let summary: string;
-    try {
-      summary = await this.generateSummary(entriesToCompact);
-    } catch (error) {
-      this._log('warn', '[history-compactor] Failed to summarize history entries.', error);
+    const modelName = typeof this.model === 'string' && this.model.trim() ? this.model : null;
+    if (!modelName) {
       return false;
     }
 
-    if (!summary) {
+    const responsesClient = this.resolveResponsesClient();
+
+    let summary: string;
+    try {
+      summary = await this.generateSummary(entriesToCompact, responsesClient, modelName);
+    } catch (error) {
+      this.warn('[history-compactor] Failed to summarize history entries.', {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return false;
     }
 
@@ -177,10 +177,10 @@ export class HistoryCompactor {
       return false;
     }
 
-    this._log('log', `[history-compactor] Compacted summary:\n${summarizedText}`);
+    this.log(`[history-compactor] Compacted summary:\n${summarizedText}`);
 
     const compactedPass = entriesToCompact.reduce<number>((max, entry) => {
-      if (typeof entry?.pass === 'number' && entry.pass > max) {
+      if (typeof entry.pass === 'number' && entry.pass > max) {
         return entry.pass;
       }
       return max;
@@ -195,7 +195,7 @@ export class HistoryCompactor {
 
     const originalHistoryLength = history.length;
     history.splice(firstContentIndex, entriesToCompactCount, compactedEntry);
-    this._log('log', '[history-compactor] Compacted history entries.', {
+    this.log('[history-compactor] Compacted history entries.', {
       entriesCompacted: entriesToCompactCount,
       originalHistoryLength,
       resultingHistoryLength: history.length,
@@ -204,40 +204,75 @@ export class HistoryCompactor {
     return true;
   }
 
-  async generateSummary(entries: ChatHistoryEntry[]): Promise<string> {
+  async generateSummary(
+    entries: ChatMessageEntry[],
+    openai: ResponsesClient,
+    model: string,
+  ): Promise<string> {
     const input = buildSummarizationInput(entries);
     const { maxRetries } = getOpenAIRequestSettings();
+
     const response = await createResponse({
-      openai: this.openai,
-      model: this.model ?? undefined,
+      openai,
+      model,
       input: mapHistoryToModelMessages(input),
       tools: undefined,
-      options:
-        typeof maxRetries === 'number'
-          ? {
-              maxRetries,
-            }
-          : undefined,
+      options: typeof maxRetries === 'number' ? { maxRetries } : undefined,
       reasoningEffort: undefined,
     });
 
-    const summary = extractResponseText(response);
-    return summary.trim();
+    return extractResponseText(response).trim();
   }
 
-  private _log(method: 'log' | 'warn', message: string, meta?: unknown): void {
-    const fn =
-      this.logger && typeof this.logger[method] === 'function' ? this.logger[method] : null;
-    if (!fn) {
-      return;
+  private hasResponsesClient(): boolean {
+    if (!this.openai) {
+      return false;
     }
 
-    if (meta === undefined) {
-      fn(message);
-      return;
+    if (typeof (this.openai as ResponsesClient).responses === 'function') {
+      return true;
     }
 
-    fn(message, meta);
+    return typeof this.openai === 'function';
+  }
+
+  private resolveResponsesClient(): ResponsesClient {
+    if (!this.openai) {
+      throw new Error('Responses client is not configured.');
+    }
+
+    return this.openai;
+  }
+
+  private summarizeUsage(history: ChatMessageEntry[]): ContextUsageSummary | null {
+    try {
+      return summarizeContextUsage({ history, model: this.model ?? undefined });
+    } catch (error) {
+      this.warn('[history-compactor] Failed to evaluate context usage.', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
+  }
+
+  private log(message: string, meta?: HistoryCompactorLogMeta): void {
+    if (this.logger?.log) {
+      if (meta) {
+        this.logger.log(message, meta);
+      } else {
+        this.logger.log(message);
+      }
+    }
+  }
+
+  private warn(message: string, meta?: HistoryCompactorLogMeta): void {
+    if (this.logger?.warn) {
+      if (meta) {
+        this.logger.warn(message, meta);
+      } else {
+        this.logger.warn(message);
+      }
+    }
   }
 }
 

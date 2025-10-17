@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Default command runner that shells out when no other handler matches.
  *
@@ -18,7 +17,9 @@ export default class ExecuteCommand {
 
   async execute(context: AgentCommandContext): Promise<CommandExecutionResult> {
     const { command, cwd, timeout, runCommandFn } = context;
-    const result = await runCommandFn(command.run ?? '', cwd, timeout, command.shell);
+    const run = typeof command.run === 'string' ? command.run : '';
+    const shell = typeof command.shell === 'string' && command.shell ? command.shell : undefined;
+    const result = await runCommandFn(run, cwd, timeout, shell);
 
     return {
       result,

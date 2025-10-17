@@ -30,7 +30,7 @@ async function dumpHistorySnapshot({
   historyDumpDirectory,
   emitter,
 }: {
-  historyEntries?: HistorySnapshot | unknown[];
+  historyEntries?: HistorySnapshot | [];
   passIndex?: number | null;
   historyDumpDirectory: string;
   emitter: RuntimeEmitter;
@@ -45,8 +45,8 @@ async function dumpHistorySnapshot({
 }
 
 const estimateRequestPayloadSize = (
-  historySnapshot: unknown,
-  modelName: unknown,
+  historySnapshot: HistorySnapshot | null | undefined,
+  modelName: string | null | undefined,
   emitter: RuntimeEmitter,
 ): number | null => {
   try {
@@ -104,7 +104,7 @@ export function createPayloadGuard({
 
         try {
           await dumpHistorySnapshot({
-            historyEntries: Array.isArray(options?.history) ? options.history : [],
+            historyEntries: options?.history ?? [],
             passIndex: options?.passIndex,
             historyDumpDirectory: historyDumpRoot,
             emitter,
