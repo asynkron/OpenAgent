@@ -9,20 +9,10 @@ import {
   type PlanStepStatus,
 } from '../../utils/planStatusTypes.js';
 
+export { isCompletedStatus, isTerminalStatus } from '../../utils/planStatusUtils.js';
+
 export { COMPLETED_STATUS, FAILED_STATUS, PENDING_STATUS, RUNNING_STATUS };
 export type { PlanStepStatus };
-
-export const isCompletedStatus = (status: unknown): boolean =>
-  normalizePlanStatus(status) === COMPLETED_STATUS;
-
-export const isTerminalStatus = (status: unknown): boolean => {
-  const normalized = normalizePlanStatus(status);
-  if (!normalized) {
-    return false;
-  }
-
-  return TERMINAL_PLAN_STATUS_SET.has(normalized);
-};
 
 export const hasPendingWork = (step: PlanStep | null | undefined): boolean => {
   if (!step || typeof step !== 'object') {
