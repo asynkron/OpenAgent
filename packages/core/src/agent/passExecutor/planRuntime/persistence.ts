@@ -1,6 +1,49 @@
 import { clonePlanForExecution, type PlanStep } from '../planExecution.js';
 import type { PlanManagerAdapter } from '../planManagerAdapter.js';
 import { globalRegistry } from '../planStepRegistry.js';
+import { PENDING_STATUS, normalizePlanStatus } from '../../../utils/planStatusTypes.js';
+
+// Normalizes arbitrary status payloads into the constrained PlanStatus union so
+// downstream state-machine logic never sees unexpected strings from assistant
+// responses or persisted snapshots.
+const normalizePlanStepStatus = (step: PlanStep | null | undefined): void => {
+  if (!step || typeof step !== 'object') {
+    return;
+  }
+
+  const statusCandidate = (step as Record<string, unknown>).status;
+
+  if (typeof statusCandidate === 'string') {
+    const normalized = normalizePlanStatus(statusCandidate);
+    step.status = normalized ?? PENDING_STATUS;
+  } else {
+    step.status = PENDING_STATUS;
+  }
+};
+
+const normalizePlanStatuses = (plan: PlanStep[] | null | undefined): void => {
+  if (!Array.isArray(plan)) {
+    return;
+  }
+
+  plan.forEach((step) => normalizePlanStepStatus(step));
+};
+
+const cloneNormalizedPlan = (plan: PlanStep[] | null | undefined): PlanStep[] => {
+  const cloned = clonePlanForExecution(plan);
+  normalizePlanStatuses(cloned);
+  return cloned;
+};
+
+const cloneNormalizedPlanOrNull = (
+  plan: PlanStep[] | null | undefined,
+): PlanStep[] | null => {
+  if (!Array.isArray(plan)) {
+    return null;
+  }
+
+  return cloneNormalizedPlan(plan);
+};
 
 export interface RuntimeStatusEvent {
   type: 'status';
@@ -15,7 +58,7 @@ export interface PreparedIncomingPlan {
 }
 
 export const prepareIncomingPlan = (incomingPlan: PlanStep[] | null): PreparedIncomingPlan => {
-  const normalized = Array.isArray(incomingPlan) ? clonePlanForExecution(incomingPlan) : null;
+  const normalized = cloneNormalizedPlanOrNull(incomingPlan);
 
   if (Array.isArray(normalized) && normalized.length === 0) {
     globalRegistry.clear();
@@ -24,7 +67,7 @@ export const prepareIncomingPlan = (incomingPlan: PlanStep[] | null): PreparedIn
 
   const sanitized = globalRegistry.filterCompletedSteps(normalized);
   return {
-    sanitizedPlan: Array.isArray(sanitized) ? clonePlanForExecution(sanitized) : null,
+    sanitizedPlan: Array.isArray(sanitized) ? cloneNormalizedPlan(sanitized) : null,
     shouldResetRegistry: false,
   } satisfies PreparedIncomingPlan;
 };
@@ -46,7 +89,7 @@ export const resolveActivePlan = async (
     const resolved = await planManager.resolveActivePlan(normalizedIncoming);
     const sanitized = globalRegistry.filterCompletedSteps(resolved);
     return {
-      plan: Array.isArray(sanitized) ? clonePlanForExecution(sanitized) : null,
+      plan: Array.isArray(sanitized) ? cloneNormalizedPlan(sanitized) : null,
       warning: null,
     } satisfies ResolvePlanResult;
   } catch (error) {
@@ -80,7 +123,7 @@ export const resetPersistedPlan = async (
   try {
     const cleared = await planManager.resetPlanSnapshot();
     return {
-      plan: Array.isArray(cleared) ? clonePlanForExecution(cleared) : [],
+      plan: Array.isArray(cleared) ? cloneNormalizedPlan(cleared) : [],
       warning: null,
     } satisfies ResetPlanResult;
   } catch (error) {

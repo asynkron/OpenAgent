@@ -1,6 +1,41 @@
 import type { PlanSnapshot, PlanSnapshotStep } from './planCloneUtils.js';
 import { deepCloneValue } from './planCloneUtils.js';
-import { isAbandonedStatus, isCompletedStatus, isFailedStatus, isTerminalStatus } from './planStatusUtils.js';
+import {
+  isAbandonedStatus,
+  isCompletedStatus,
+  isFailedStatus,
+  isTerminalStatus,
+} from './planStatusUtils.js';
+import { PENDING_STATUS, normalizePlanStatus } from './planStatusTypes.js';
+
+// Guard helper that makes sure plan snapshots never carry unexpected status
+// literals. Incoming plans can originate from assistant responses or custom
+// persistence layers, so we coerce any unknown values back to the canonical
+// PlanStatus union before merging.
+const normalizePlanSnapshotStepStatus = (
+  step: PlanSnapshotStep | null | undefined,
+): void => {
+  if (!step || typeof step !== 'object') {
+    return;
+  }
+
+  const statusCandidate = (step as Record<string, unknown>).status;
+
+  if (typeof statusCandidate === 'string') {
+    const normalized = normalizePlanStatus(statusCandidate);
+    step.status = normalized ?? PENDING_STATUS;
+  } else {
+    step.status = PENDING_STATUS;
+  }
+};
+
+const normalizePlanSnapshotStatuses = (plan: PlanSnapshot | null | undefined): void => {
+  if (!Array.isArray(plan)) {
+    return;
+  }
+
+  plan.forEach((step) => normalizePlanSnapshotStepStatus(step));
+};
 import { commandsAreEqual } from './planComparisonUtils.js';
 
 const normalizePlanIdentifier = (value: unknown): string => {
@@ -85,6 +120,9 @@ export const mergePlanTrees = (
 ): PlanSnapshot => {
   const existing: PlanSnapshot = Array.isArray(existingPlan) ? existingPlan : [];
   const incoming: PlanSnapshot = Array.isArray(incomingPlan) ? incomingPlan : [];
+
+  normalizePlanSnapshotStatuses(existing);
+  normalizePlanSnapshotStatuses(incoming);
 
   if (incoming.length === 0) {
     return [];

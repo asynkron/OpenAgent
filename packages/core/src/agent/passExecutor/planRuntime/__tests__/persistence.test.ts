@@ -53,12 +53,14 @@ describe('planRuntime persistence helpers', () => {
   test('resetPersistedPlan clears state on success and failure', async () => {
     const planManager = {
       async resetPlanSnapshot(): Promise<PlanEntry[]> {
-        return [{ id: 'fresh', command: { run: 'echo refreshed' } }];
+        return [{ id: 'fresh', status: 'pending', command: { run: 'echo refreshed' } }];
       },
     };
 
     const success = await resetPersistedPlan(planManager);
-    expect(success.plan).toEqual([{ id: 'fresh', command: { run: 'echo refreshed' } }]);
+    expect(success.plan).toEqual([
+      { id: 'fresh', status: 'pending', command: { run: 'echo refreshed' } },
+    ]);
     expect(success.warning).toBeNull();
 
     const failingManager = {

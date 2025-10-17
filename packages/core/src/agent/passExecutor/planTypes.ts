@@ -11,7 +11,7 @@ export type PlanCommand = Partial<ToolCommand> & {
 export interface PlanEntry
   extends Partial<Omit<ToolPlanStep, 'id' | 'status' | 'waitingForId' | 'command'>> {
   id?: ToolPlanIdentifier | number;
-  status?: PlanStatus | string;
+  status: PlanStatus;
   waitingForId?: (ToolPlanDependency | number | string | null | undefined)[];
   command?: PlanCommand | null;
   priority?: number | string;
