@@ -234,14 +234,14 @@ describe('plan utilities', () => {
 
   test('planToMarkdown renders a flat outline with priority and dependencies', () => {
     const plan: PlanEntry[] = [
-      { id: 'a', title: 'Root task', status: 'in_progress', priority: 3 },
+      { id: 'a', title: 'Root task', status: 'running', priority: 3 },
       { id: 'b', title: 'Follow-up', status: 'pending', waitingForId: ['a'], priority: 1 },
     ];
 
     const markdown = planToMarkdown(plan);
 
     expect(markdown.startsWith('# Active Plan\n\n')).toBe(true);
-    expect(markdown).toContain('Step 1 - Root task [in_progress] (priority 3)');
+    expect(markdown).toContain('Step 1 - Root task [running] (priority 3)');
     expect(markdown).toContain('Step 2 - Follow-up [pending] (priority 1, waiting for a)');
   });
 
@@ -261,7 +261,7 @@ describe('plan utilities', () => {
     const plan: PlanEntry[] = [
       { id: 'a', title: 'Task A', status: 'completed' },
       { id: 'b', title: 'Task B', status: 'pending' },
-      { id: 'c', title: 'Task C', status: 'done' },
+      { id: 'c', title: 'Task C', status: 'running' },
     ];
 
     const progress = computePlanProgress(plan);
