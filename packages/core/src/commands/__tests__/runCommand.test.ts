@@ -63,7 +63,7 @@ describe('runCommand', () => {
   test('throws when invoked without a normalized string command', async () => {
     const { runCommand } = await import('../run.js');
 
-    await expect(runCommand({ bad: true }, '.', 1)).rejects.toThrow('normalized command string');
+    await expect(runCommand({ bad: true } as any)).rejects.toThrow('normalized command string');
   });
 
   test('kills child process when cancellation is triggered', async () => {
@@ -88,7 +88,7 @@ describe('runCommand', () => {
 
     spawnMock.mockReturnValue(child);
 
-    const promise = runCommand('sleep 1', '.', 10);
+    const promise = runCommand('sleep 1', { cwd: '.', timeoutSec: 10 });
 
     const handle = getLastHandle();
     expect(registerMock).toHaveBeenCalledTimes(1);
@@ -105,6 +105,46 @@ describe('runCommand', () => {
     expect(result.killed).toBe(true);
     expect(result.stderr).toContain('Command was canceled.');
     expect(handle.unregister).toHaveBeenCalled();
+  });
+
+  test('uses command reason when provided via CommandRequest payload', async () => {
+    const spawnMock = jest.fn();
+
+    jest.unstable_mockModule('node:child_process', () => ({
+      spawn: spawnMock,
+    }));
+
+    const { registerMock, getLastHandle } = setupCancellationMocks();
+
+    const { runCommand } = await import('../run.js');
+
+    const child = new EventEmitter();
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    child.stdout.setEncoding = jest.fn();
+    child.stderr.setEncoding = jest.fn();
+    child.kill = jest.fn(() => {
+      child.emit('close', null);
+    });
+
+    spawnMock.mockReturnValue(child);
+
+    const promise = runCommand({
+      reason: 'Install dependencies',
+      run: 'npm install',
+      shell: 'bash',
+      cwd: '/repo',
+      limits: { timeoutSec: 5, filterRegex: '', tailLines: 100, maxBytes: 1024 },
+    });
+
+    const handle = getLastHandle();
+    expect(registerMock).toHaveBeenCalledTimes(1);
+    expect(registerMock.mock.calls[0][0]).toMatchObject({ description: 'Install dependencies' });
+
+    handle.cancelFn?.('stop');
+    await promise;
+
+    expect(child.kill).toHaveBeenCalledWith('SIGTERM');
   });
 
   test('writes provided stdin without closing when closeStdin is false', async () => {
@@ -131,7 +171,9 @@ describe('runCommand', () => {
 
     spawnMock.mockReturnValue(child);
 
-    const promise = runCommand('cat', '.', 5, {
+    const promise = runCommand('cat', {
+      cwd: '.',
+      timeoutSec: 5,
       stdin: 'hello world',
       closeStdin: false,
       commandLabel: 'cat',
@@ -169,7 +211,7 @@ describe('runCommand', () => {
 
     spawnMock.mockReturnValue(child);
 
-    const promise = runCommand('sleep 1', '.', 1);
+    const promise = runCommand('sleep 1', { cwd: '.', timeoutSec: 1 });
 
     jest.advanceTimersByTime(1000);
 
@@ -201,7 +243,7 @@ describe('runCommand', () => {
 
     spawnMock.mockReturnValue(child);
 
-    const promise = runCommand("apply_patch <<'PATCH'\nfoo\nPATCH", '.', 5);
+    const promise = runCommand("apply_patch <<'PATCH'\nfoo\nPATCH", { cwd: '.', timeoutSec: 5 });
 
     child.emit('close', 0);
     await promise;
@@ -237,7 +279,7 @@ describe('runCommand', () => {
 
     spawnMock.mockReturnValue(child);
 
-    const promise = runCommand('read --spec-base64 QUJD', '.', 5);
+    const promise = runCommand('read --spec-base64 QUJD', { cwd: '.', timeoutSec: 5 });
 
     child.emit('close', 0);
     await promise;

@@ -6,7 +6,7 @@
 
 ## Key Files
 
-- `run.js` — spawns shell commands with timeout/cancellation support, captures stdout/stderr to temp files, exposes the canonical `CommandResult` interface (alongside its partial variant), and provides `runCommand` plus helper wrappers (uses `.openagent/temp`) while assuming upstream normalization has produced a string command and rejecting any other shape.
+- `run.js` — spawns shell commands with timeout/cancellation support, captures stdout/stderr to temp files, exposes the canonical `CommandResult` interface (alongside its partial variant), and provides `runCommand` plus helper wrappers (uses `.openagent/temp`). The runner now accepts the shared `CommandRequest` DTO (from `src/contracts`) or a raw string alongside typed `RunCommandOptions`, allowing cancellation hooks and status messages to incorporate plan metadata without relying on `unknown` casts.
 - `commandHelpers.ts` — normalizes optional labels/descriptions for logging, expects string inputs from callers, and appends new command output lines while preserving existing formatting.
 
 ## Positive Signals

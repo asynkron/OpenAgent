@@ -6,8 +6,8 @@
 
 ## Key Files
 
-- `commandApprovalService.js` — manages pre-approved command allowlist loading, session-level approvals, and helper functions (`isPreapprovedCommand`, `sessionApprovalService`).
-- `commandStatsService.js` — accumulates command execution metrics (counts, durations) and exposes reset helpers.
+- `commandApprovalService.js` — manages pre-approved command allowlist loading, session-level approvals, and helper functions (`isPreapprovedCommand`, `sessionApprovalService`). The service now consumes the shared `CommandRequest` DTO instead of `unknown`, so approvals and signatures are derived from normalized command payloads.
+- `commandStatsService.js` — accumulates command execution metrics (counts, durations) and exposes reset helpers. Persistence now stores strictly numeric counters and accepts `CommandRequest` objects (deriving keys from the request) in addition to raw strings.
 
 ## Positive Signals
 

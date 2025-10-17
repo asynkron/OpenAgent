@@ -7,6 +7,9 @@ import { SYSTEM_PROMPT } from '../config/systemPrompt.js';
 import { getOpenAIClient, MODEL } from '../openai/client.js';
 import type { ResponsesClient } from '../contracts/index.js';
 import { runCommand } from '../commands/run.js';
+import type { CommandRequest } from '../contracts/index.js';
+import type { RunOptions } from '../commands/run.js';
+import type { CommandConfig } from '../services/commandApprovalService.js';
 import {
   isPreapprovedCommand,
   isSessionApproved,
@@ -51,8 +54,11 @@ export function createAgentRuntime({
   systemPromptAugmentation = '',
   getClient = getOpenAIClient,
   model = MODEL,
-  runCommandFn = async (command, cwd, timeout, shell) => {
-    return runCommand(command, cwd, timeout, shell);
+  runCommandFn = async (
+    command: CommandRequest | string,
+    options?: RunOptions | string | boolean,
+  ) => {
+    return runCommand(command, options);
   },
   applyFilterFn = applyFilter,
   tailLinesFn = tailLines,
@@ -196,13 +202,38 @@ export function createAgentRuntime({
     throw err;
   }
 
+  const adaptedIsPreapproved =
+    typeof isPreapprovedCommandFn === 'function'
+      ? (command: Record<string, unknown>, cfg: Record<string, unknown>) =>
+          Boolean(
+            isPreapprovedCommandFn(
+              (command as unknown) as CommandRequest | null | undefined,
+              ((cfg as unknown) as CommandConfig) ?? undefined,
+            ),
+          )
+      : undefined;
+
+  const adaptedIsSessionApproved =
+    typeof isSessionApprovedFn === 'function'
+      ? (command: Record<string, unknown>) =>
+          Boolean(
+            isSessionApprovedFn((command as unknown) as CommandRequest | null | undefined),
+          )
+      : undefined;
+
+  const adaptedApproveForSession =
+    typeof approveForSessionFn === 'function'
+      ? (command: Record<string, unknown>) =>
+          approveForSessionFn((command as unknown) as CommandRequest | null | undefined)
+      : undefined;
+
   const approvalManagerConfig: ApprovalManagerFactoryConfig = {
-    isPreapprovedCommand: isPreapprovedCommandFn,
-    isSessionApproved: isSessionApprovedFn,
-    approveForSession: approveForSessionFn,
+    isPreapprovedCommand: adaptedIsPreapproved,
+    isSessionApproved: adaptedIsSessionApproved,
+    approveForSession: adaptedApproveForSession,
     getAutoApproveFlag,
     askHuman: async (prompt) => promptCoordinator.request(prompt, { scope: 'approval' }),
-    preapprovedCfg: preapprovedCfg as Record<string, unknown> | undefined,
+    preapprovedCfg: preapprovedCfg as unknown as Record<string, unknown> | undefined,
     logWarn: (message) => emit({ type: 'status', level: 'warn', message }),
     logSuccess: (message) => emit({ type: 'status', level: 'info', message }),
   };

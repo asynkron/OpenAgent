@@ -1,4 +1,6 @@
 import type { ResponsesClient } from '../contracts/index.js';
+import type { CommandRequest } from '../contracts/index.js';
+import type { CommandConfig } from '../services/commandApprovalService.js';
 import type { HistoryCompactor, HistoryCompactorOptions } from './historyCompactor.js';
 import type {
   GuardRequestPayloadSizeFn,
@@ -115,10 +117,15 @@ export interface AgentRuntimeOptions {
   runCommandFn?: ExecuteAgentPassOptions['runCommandFn'];
   applyFilterFn?: ExecuteAgentPassOptions['applyFilterFn'];
   tailLinesFn?: ExecuteAgentPassOptions['tailLinesFn'];
-  isPreapprovedCommandFn?: (command: unknown, cfg?: unknown) => boolean;
-  isSessionApprovedFn?: (command: unknown) => boolean;
-  approveForSessionFn?: (command: unknown) => void | Promise<void>;
-  preapprovedCfg?: unknown;
+  isPreapprovedCommandFn?: (
+    command: CommandRequest | null | undefined,
+    cfg?: CommandConfig,
+  ) => boolean;
+  isSessionApprovedFn?: (command: CommandRequest | null | undefined) => boolean;
+  approveForSessionFn?: (
+    command: CommandRequest | null | undefined,
+  ) => void | Promise<void>;
+  preapprovedCfg?: CommandConfig;
   getAutoApproveFlag?: () => boolean;
   getNoHumanFlag?: () => boolean;
   getPlanMergeFlag?: () => boolean;

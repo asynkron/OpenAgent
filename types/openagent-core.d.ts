@@ -22,6 +22,21 @@ declare module '@asynkron/openagent-core' {
 
   export type PromptCoordinatorEvent = PromptRequestEvent | PromptCoordinatorStatusEvent;
 
+  export interface CommandRequestLimits {
+    timeoutSec: number | null;
+    filterRegex: string;
+    tailLines: number;
+    maxBytes: number;
+  }
+
+  export interface CommandRequest {
+    reason: string;
+    shell?: string;
+    run: string;
+    cwd: string;
+    limits: CommandRequestLimits;
+  }
+
   export type CommandResult = {
     stdout: string;
     stderr: string;
@@ -30,12 +45,24 @@ declare module '@asynkron/openagent-core' {
     runtime_ms: number;
   };
 
+  export interface RunCommandOptions {
+    cwd?: string;
+    timeoutSec?: number | null;
+    shell?: string | boolean;
+    stdin?: string;
+    closeStdin?: boolean;
+    commandLabel?: string;
+    description?: string;
+  }
+
   export type RunCommand = (
-    command: string | readonly string[],
-    cwd: string,
-    timeoutSec: number,
-    shellOrOptions?: unknown,
+    command: string | CommandRequest,
+    options?: RunCommandOptions | string | boolean,
   ) => Promise<CommandResult>;
+
+  export interface CommandConfig {
+    allowlist: Array<{ name: string; subcommands?: string[] }>;
+  }
 
   export type AgentRuntimeConfig = {
     systemPrompt?: string;
@@ -43,10 +70,15 @@ declare module '@asynkron/openagent-core' {
     runCommandFn?: RunCommand;
     applyFilterFn?: (text: string, regex?: RegExp | string | null) => string;
     tailLinesFn?: (text: string, lines?: number | null) => string;
-    isPreapprovedCommandFn?: (command: unknown, cfg?: unknown) => boolean;
-    isSessionApprovedFn?: (command: unknown) => boolean;
-    approveForSessionFn?: (command: unknown) => void | Promise<void>;
-    preapprovedCfg?: unknown;
+    isPreapprovedCommandFn?: (
+      command: CommandRequest | null | undefined,
+      cfg?: CommandConfig,
+    ) => boolean;
+    isSessionApprovedFn?: (command: CommandRequest | null | undefined) => boolean;
+    approveForSessionFn?: (
+      command: CommandRequest | null | undefined,
+    ) => void | Promise<void>;
+    preapprovedCfg?: CommandConfig;
     getAutoApproveFlag?: () => boolean;
     getNoHumanFlag?: () => boolean;
     getPlanMergeFlag?: () => boolean;
@@ -70,14 +102,12 @@ declare module '@asynkron/openagent-core' {
   export function createAgentRuntime(config?: AgentRuntimeConfig): AgentRuntime;
 
   export function runCommand(
-    command: string | readonly string[],
-    cwd: string,
-    timeoutSec: number,
-    shellOrOptions?: unknown,
+    command: string | CommandRequest,
+    options?: RunCommandOptions | string | boolean,
   ): Promise<CommandResult>;
 
   export function incrementCommandCount(
-    commandKey: string,
+    command: string | CommandRequest,
     logPath?: string | null,
   ): Promise<boolean>;
 
@@ -85,13 +115,18 @@ declare module '@asynkron/openagent-core' {
 
   export function tailLines(text: string, lines?: number | null): string;
 
-  export function isPreapprovedCommand(command: unknown, cfg?: unknown): boolean;
+  export function isPreapprovedCommand(
+    command: CommandRequest | null | undefined,
+    cfg?: CommandConfig,
+  ): boolean;
 
-  export function isSessionApproved(command: unknown): boolean;
+  export function isSessionApproved(command: CommandRequest | null | undefined): boolean;
 
-  export function approveForSession(command: unknown): void | Promise<void>;
+  export function approveForSession(
+    command: CommandRequest | null | undefined,
+  ): void | Promise<void>;
 
-  export const PREAPPROVED_CFG: unknown;
+  export const PREAPPROVED_CFG: CommandConfig;
 
   export function getAutoApproveFlag(): boolean;
 

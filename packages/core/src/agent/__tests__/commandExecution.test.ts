@@ -15,7 +15,13 @@ describe('executeAgentCommand', () => {
 
     const { result, executionDetails } = await executeAgentCommand({ command, ...deps });
 
-    expect(deps.runCommandFn).toHaveBeenCalledWith('node index.js', '/project', 120, undefined);
+    expect(deps.runCommandFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        run: 'node index.js',
+        cwd: '/project',
+        limits: expect.objectContaining({ timeoutSec: 120 }),
+      }),
+    );
     expect(result.stdout).toBe('run');
     expect(executionDetails).toEqual({ type: 'EXECUTE', command });
   });
@@ -26,6 +32,12 @@ describe('executeAgentCommand', () => {
 
     await executeAgentCommand({ command, ...deps });
 
-    expect(deps.runCommandFn).toHaveBeenCalledWith('ls', '.', 60, undefined);
+    expect(deps.runCommandFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        run: 'ls',
+        cwd: '.',
+        limits: expect.objectContaining({ timeoutSec: 60 }),
+      }),
+    );
   });
 });

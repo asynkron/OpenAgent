@@ -91,7 +91,16 @@ export async function runCommandAndTrack(
   cwd: string = '.',
   timeoutSec: number = 60,
 ): Promise<CommandResult> {
-  const result = await coreRunCommand(run, cwd, timeoutSec);
+  let normalizedRun: string;
+  if (Array.isArray(run)) {
+    normalizedRun = run
+      .map((part) => (typeof part === 'string' ? part.trim() : String(part).trim()))
+      .filter((part) => part)
+      .join(' ');
+  } else {
+    normalizedRun = run as string;
+  }
+  const result = await coreRunCommand(normalizedRun, { cwd, timeoutSec });
   const key = determineCommandKey(run);
   await recordCommandStat(key);
   return result;
