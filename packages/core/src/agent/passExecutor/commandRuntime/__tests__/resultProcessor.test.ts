@@ -2,6 +2,14 @@
 import { describe, expect, test, jest } from '@jest/globals';
 import { processCommandExecution } from '../resultProcessor.js';
 import type { PlanRuntime } from '../../planRuntime.js';
+import type { EmitEvent } from '../../types.js';
+import type { DebugEmitter } from '../../debugEmitter.js';
+
+const createEmitEventMock = (): jest.MockedFunction<EmitEvent> =>
+  jest.fn<ReturnType<EmitEvent>, Parameters<EmitEvent>>();
+
+const createEmitDebugMock = (): jest.MockedFunction<DebugEmitter['emit']> =>
+  jest.fn<ReturnType<DebugEmitter['emit']>, Parameters<DebugEmitter['emit']>>();
 
 const createPlanRuntimeMock = () => ({
   applyCommandObservation: jest.fn(),
@@ -13,8 +21,8 @@ describe('processCommandExecution', () => {
   test('records stats, emits event, and snapshots plan', async () => {
     const planRuntime = createPlanRuntimeMock();
     const incrementCommandCountFn = jest.fn();
-    const emitEvent = jest.fn();
-    const emitDebug = jest.fn();
+    const emitEvent = createEmitEventMock();
+    const emitDebug = createEmitDebugMock();
 
     const observationBuilder = {
       build: jest.fn().mockReturnValue({

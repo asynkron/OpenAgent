@@ -26,6 +26,7 @@ import { createObservationHistoryEntry, type ObservationRecord } from './history
 import { buildOpenAgentRequestPayload } from './modelRequestPayload.js';
 import type { ObservationBuilder } from './observationBuilder.js';
 import type { ChatMessageEntry } from './historyEntry.js';
+import type { EmitEvent } from './passExecutor/types.js';
 
 interface CancellationRegistrationOptions {
   description: string;
@@ -52,8 +53,6 @@ const isAbortLikeError = (error: unknown): boolean => {
   const message = getErrorStringProperty(error, 'message');
   return /abort|cancell?ed|timeout/i.test(message);
 };
-
-type EmitEvent = (event: Record<string, unknown>) => void;
 
 const STREAM_DEBUG_ACTION_FIELD = '__openagentStreamAction';
 const STREAM_DEBUG_VALUE_FIELD = '__openagentStreamValue';
