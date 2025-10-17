@@ -228,6 +228,21 @@ export type ToolCommand = z.infer<typeof ToolCommandSchema>;
 export type ToolPlanStep = z.infer<typeof ToolPlanStepSchema>;
 export type ToolResponse = z.infer<typeof ToolResponseSchema>;
 
+export interface CommandRequestLimits {
+  timeoutSec: number | null;
+  filterRegex: string;
+  tailLines: number;
+  maxBytes: number;
+}
+
+export interface CommandRequest {
+  reason: string;
+  shell?: string;
+  run: string;
+  cwd: string;
+  limits: CommandRequestLimits;
+}
+
 // JSON Schema (AJV + provider wrapper) and named tool definition
 export const ToolResponseJsonSchema = createToolResponseJsonSchema('provider');
 

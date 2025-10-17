@@ -280,7 +280,7 @@ describe('runCommandAndTrack', () => {
 
     await mod.runCommandAndTrack('ls -la', '.', 1);
 
-    expect(runCommandMock).toHaveBeenCalledWith('ls -la', '.', 1);
+    expect(runCommandMock).toHaveBeenCalledWith('ls -la', { cwd: '.', timeoutSec: 1 });
     expect(commandStatsMock).toHaveBeenCalledWith('ls');
   });
 });

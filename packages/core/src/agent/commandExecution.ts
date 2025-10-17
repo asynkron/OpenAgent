@@ -13,7 +13,9 @@
  * TypeScript directly.
  */
 import ExecuteCommand from './commands/ExecuteCommand.js';
-import type { CommandResult } from '../commands/run.js';
+import { DEFAULT_COMMAND_MAX_BYTES, DEFAULT_COMMAND_TAIL_LINES } from '../constants.js';
+import type { CommandResult, RunOptions } from '../commands/run.js';
+import type { CommandRequest } from '../contracts/index.js';
 
 const DEFAULT_TIMEOUT_SEC = 60 as const;
 
@@ -21,19 +23,17 @@ export interface AgentCommand extends Record<string, unknown> {
   run?: string;
   shell?: string;
   cwd?: string;
-  timeout_sec?: number;
+  timeout_sec?: number | null;
+  filter_regex?: string;
+  tail_lines?: number;
+  max_bytes?: number;
+  reason?: string;
 }
 
 export interface AgentCommandContext {
   command: AgentCommand;
-  cwd: string;
-  timeout: number;
-  runCommandFn: (
-    command: string,
-    cwd: string,
-    timeout: number,
-    shell?: string,
-  ) => Promise<CommandResult>;
+  request: CommandRequest;
+  runCommandFn: (command: CommandRequest, options?: RunOptions) => Promise<CommandResult>;
 }
 
 export interface CommandExecutionResult {
@@ -66,20 +66,66 @@ function normalizeCommand(command: AgentCommand | null | undefined): AgentComman
   return normalizedCommand;
 }
 
+const sanitizeNumber = (value: unknown, fallback: number): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  const coerced = typeof value === 'string' ? Number.parseInt(value, 10) : Number(value);
+  if (Number.isFinite(coerced)) {
+    return coerced;
+  }
+  return fallback;
+};
+
+const sanitizeTimeout = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (value === 0) {
+    return 0;
+  }
+  return undefined;
+};
+
+const buildCommandRequest = (
+  command: AgentCommand,
+  cwd: string,
+  timeout: number,
+): CommandRequest => {
+  const reason = typeof command.reason === 'string' ? command.reason.trim() : '';
+  const shell = typeof command.shell === 'string' ? command.shell.trim() : '';
+  const filterRegex = typeof command.filter_regex === 'string' ? command.filter_regex : '';
+  const tailLines = sanitizeNumber(command.tail_lines, DEFAULT_COMMAND_TAIL_LINES);
+  const maxBytes = sanitizeNumber(command.max_bytes, DEFAULT_COMMAND_MAX_BYTES);
+  const timeoutOverride = sanitizeTimeout(command.timeout_sec);
+
+  return {
+    reason,
+    shell: shell || undefined,
+    run: command.run || '',
+    cwd,
+    limits: {
+      timeoutSec: timeoutOverride ?? timeout,
+      filterRegex,
+      tailLines,
+      maxBytes,
+    },
+  } satisfies CommandRequest;
+};
+
 function createCommandContext(
   normalizedCommand: AgentCommand,
   runCommandFn: AgentCommandContext['runCommandFn'],
 ): AgentCommandContext {
-  const cwd = normalizedCommand.cwd || '.';
-  const timeout =
-    typeof normalizedCommand.timeout_sec === 'number'
-      ? normalizedCommand.timeout_sec
-      : DEFAULT_TIMEOUT_SEC;
+  const cwdCandidate = typeof normalizedCommand.cwd === 'string' ? normalizedCommand.cwd.trim() : '';
+  const cwd = cwdCandidate || '.';
+  const timeoutCandidate = sanitizeTimeout(normalizedCommand.timeout_sec);
+  const timeout = timeoutCandidate ?? DEFAULT_TIMEOUT_SEC;
+  const request = buildCommandRequest(normalizedCommand, cwd, timeout);
 
   return {
     command: normalizedCommand,
-    cwd,
-    timeout,
+    request,
     runCommandFn,
   };
 }
