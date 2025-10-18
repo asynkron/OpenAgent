@@ -18,6 +18,58 @@ import type {
 const INVALID_REQUEST_MESSAGE =
   'Command inspector requires a positive integer. Showing the latest command instead.';
 
+const PLAN_COMMAND_EVENT_ID_PREFIX = 'plan-step:';
+
+const normalizeIdentifier = (value: unknown): string | null => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  return null;
+};
+
+const buildPlanStepEventId = (planStep: { id?: unknown } | null | undefined): string | null => {
+  if (!planStep || typeof planStep !== 'object') {
+    return null;
+  }
+
+  const normalized = normalizeIdentifier((planStep as { id?: unknown }).id);
+  if (!normalized) {
+    return null;
+  }
+
+  return `${PLAN_COMMAND_EVENT_ID_PREFIX}${normalized}`;
+};
+
+const buildRuntimeEventId = (eventId: unknown): string | null => {
+  if (typeof eventId !== 'string') {
+    return null;
+  }
+
+  const trimmed = eventId.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const resolveCommandEventId = (
+  event: CommandResultRuntimeEvent,
+  planStep: PlanStep | null,
+): string => {
+  const planStepIdentifier = buildPlanStepEventId(planStep);
+  if (planStepIdentifier) {
+    return planStepIdentifier;
+  }
+
+  const fallbackIdentifier = buildRuntimeEventId((event as { __id?: unknown }).__id);
+  if (!fallbackIdentifier) {
+    throw new TypeError('Command runtime event expected string "__id".');
+  }
+
+  return fallbackIdentifier;
+};
+
 export type CommandInspectorResolution = {
   count: number;
   infoMessage: string;
@@ -27,20 +79,11 @@ export type CommandInspectorResolution = {
 export function createCommandResultPayload(
   event: CommandResultRuntimeEvent,
 ): TimelinePayload<'command-result'> {
-  const rawEventId = typeof event.__id === 'string' ? event.__id : null;
-  const eventId = (() => {
-    if (!rawEventId) {
-      return null;
-    }
-    const trimmed = rawEventId.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  })();
-  if (!eventId) {
-    throw new TypeError('Command runtime event expected string "__id".');
-  }
-
   const { command, result, preview, execution, observation, planStep, planSnapshot } =
     event.payload;
+
+  const clonedPlanStep = clonePlanStep(planStep);
+  const eventId = resolveCommandEventId(event, clonedPlanStep);
 
   const timelinePayload: TimelineCommandPayload = {
     eventId,
@@ -49,10 +92,38 @@ export function createCommandResultPayload(
     preview: cloneCommandPreview(preview),
     execution: cloneCommandExecution(execution),
     observation: extractObservationSummary(observation ?? planSnapshot?.summary ?? null),
-    planStep: clonePlanStep(planStep),
+    planStep: clonedPlanStep,
   };
 
   return timelinePayload;
+}
+
+export function createPlanCommandPayload(
+  planStep: PlanStep | null,
+): TimelinePayload<'command-result'> | null {
+  if (!planStep || typeof planStep !== 'object') {
+    return null;
+  }
+
+  const eventId = buildPlanStepEventId(planStep);
+  if (!eventId) {
+    return null;
+  }
+
+  const commandPayload = cloneCommandPayload(planStep.command ?? null);
+  if (!commandPayload) {
+    return null;
+  }
+
+  return {
+    eventId,
+    command: commandPayload,
+    result: null,
+    preview: null,
+    execution: null,
+    observation: null,
+    planStep: cloneValue(planStep) as PlanStep,
+  } satisfies TimelinePayload<'command-result'>;
 }
 
 export function resolveCommandInspectorRequest(
