@@ -4,9 +4,10 @@ import type ObservationBuilder from '../../observationBuilder.js';
 import type { CommandResult } from '../../../commands/run.js';
 import type { NormalizedExecuteAgentPassOptions } from '../types.js';
 
-type AnyFunction = (...args: unknown[]) => unknown;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type GenericFn = (...args: any[]) => unknown;
 
-const createMock = <T extends AnyFunction>(impl?: (...args: Parameters<T>) => ReturnType<T>): T => {
+const createMock = <T extends GenericFn>(impl?: (...args: Parameters<T>) => ReturnType<T>): T => {
   const fallback = (..._args: Parameters<T>): ReturnType<T> => undefined as ReturnType<T>;
   return jest.fn(impl ?? fallback) as unknown as T;
 };

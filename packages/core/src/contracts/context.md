@@ -11,7 +11,8 @@
 - `planStatus.ts` — enumerates allowed plan statuses via the `PlanStatus` enum.
 - `plan.ts` — models plan steps, plans, and observation payloads.
 - `history.ts` — provides chat history payload contracts (entries, payload parts) used when projecting runtime history into model messages.
-- `index.ts` — re-exports the individual contracts for convenient imports.
+- `commandSchema.ts`, `planSchemas.ts`, `planJsonSchema.ts`, `modelResponseTypes.ts`, and `modelRequestBridge.ts` — implementation modules that host Zod schemas, JSON Schema exports, response DTO helpers, and lazy runtime bridges used by the barrel.
+- `index.ts` — re-exports the canonical contracts plus the helper schemas/bridges in a single import surface.
 
 ## Maintenance Notes
 
@@ -20,3 +21,4 @@
 - When introducing new plan metadata fields, document them in `plan.ts` so validation schemas stay accurate.
 - Legacy `Tool*` alias exports have been removed; import the canonical contract names (e.g., `PlanResponse`, `PlanStep`, `CommandDefinition`) directly from this module.
 - The model request builder is exported solely as `buildOpenAgentRequestPayload`; consumers should import it by that name instead of relying on renamed shims.
+- Schema implementations now live beside the contracts (see the files above); import them via `contracts/index.ts` rather than reaching into the implementation modules directly so the barrel can evolve without breaking consumers.
