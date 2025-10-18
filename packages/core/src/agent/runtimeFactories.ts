@@ -72,7 +72,7 @@ export const defaultPlanAutoResponseTracker = (): PlanAutoResponseTracker => {
 export const planManagerFactoryFallback = (
   config: PlanManagerFactoryConfig,
 ): ReturnType<typeof createPlanManager> =>
-  createPlanManager({ emit: config.emit, emitStatus: config.emitStatus });
+  createPlanManager(config);
 
 export const promptCoordinatorFactoryFallback = (config: PromptCoordinatorFactoryConfig) =>
   new PromptCoordinator(config);
