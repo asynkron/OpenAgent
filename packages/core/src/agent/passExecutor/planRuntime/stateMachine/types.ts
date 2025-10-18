@@ -1,5 +1,6 @@
 import type { PlanStep } from '../../planExecution.js';
 import type { CommandResult } from '../../../../commands/run.js';
+import type { ObservationRecord } from '../../../historyMessageBuilder.js';
 import type { ExecutableCandidate } from '../../planExecutableSelector.js';
 
 export interface PlanState {
@@ -19,7 +20,7 @@ export interface PlanStateMachine {
   setInitialIncomingPlan(plan: PlanStep[] | null): void;
   replaceActivePlan(plan: PlanStep[]): void;
   clearActivePlan(): void;
-  attachObservation(planStep: PlanStep | null, observation: Record<string, unknown>): boolean;
+  attachObservation(planStep: PlanStep | null, observation: ObservationRecord): boolean;
   normalizeDependencies(): boolean;
   pruneCompletedSteps(): { mutated: boolean; removedStepIds: string[] };
   removeDependencyReferences(stepId: string): boolean;
@@ -27,7 +28,7 @@ export interface PlanStateMachine {
   markCommandRunning(planStep: PlanStep | null): boolean;
   applyCommandObservation(input: {
     planStep: PlanStep | null;
-    observation: Record<string, unknown>;
+    observation: ObservationRecord;
     commandResult: CommandResult;
   }): CommandObservationResult;
   selectNextExecutable(): ExecutableCandidate | null;

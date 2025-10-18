@@ -9,7 +9,12 @@ import {
   type ToolSet,
 } from 'ai';
 import type { FlexibleSchema } from '@ai-sdk/provider-utils';
-import { ToolDefinition, type PlanResponse } from '../contracts/index.js';
+import {
+  ToolDefinition,
+  type PlanObservation,
+  type PlanResponse,
+  type PlanStep,
+} from '../contracts/index.js';
 import { getOpenAIRequestSettings } from './client.js';
 
 type ReasoningEffort = 'low' | 'medium' | 'high';
@@ -42,17 +47,139 @@ export interface ResponseCallOptions {
 type ResponseCallSettings = Partial<Pick<CallSettings, 'abortSignal' | 'maxRetries'>>;
 type ProviderOptions = Parameters<typeof generateText>[0]['providerOptions'];
 
-// Minimal deep-partial helper so stream callbacks surface the partially
-// populated tool payload while matching the AI SDK's array semantics.
-type DeepPartial<T> = T extends (...arguments_: any[]) => unknown
-  ? T
-  : T extends Array<infer U>
-    ? Array<DeepPartial<U> | undefined>
-    : T extends object
-      ? { [K in keyof T]?: DeepPartial<T[K]> }
-      : T;
+type CommandDraftStreamPartial = {
+  reason?: string;
+  shell?: string;
+  run?: string;
+  cwd?: string;
+  timeout_sec?: number;
+  filter_regex?: string;
+  tail_lines?: number;
+  max_bytes?: number;
+};
 
-export type PlanResponseStreamPartial = DeepPartial<PlanResponse>;
+type PlanStepStreamPartial = {
+  id?: PlanStep['id'];
+  title?: PlanStep['title'];
+  status?: PlanStep['status'];
+  waitingForId?: PlanStep['waitingForId'];
+  command?: CommandDraftStreamPartial | null;
+  observation?: PlanObservation | null;
+  priority?: number | null;
+};
+
+export type PlanResponseStreamPartial = {
+  message?: PlanResponse['message'];
+  plan?: PlanStepStreamPartial[];
+};
+
+const isStringArray = (value: unknown): string[] | null => {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  const entries: string[] = [];
+  for (const item of value) {
+    if (typeof item !== 'string') {
+      return null;
+    }
+    entries.push(item);
+  }
+  return entries;
+};
+
+const normalizeCommandPartial = (value: unknown): CommandDraftStreamPartial | null => {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const command: CommandDraftStreamPartial = {};
+
+  if (typeof record.reason === 'string') command.reason = record.reason;
+  if (typeof record.shell === 'string') command.shell = record.shell;
+  if (typeof record.run === 'string') command.run = record.run;
+  if (typeof record.cwd === 'string') command.cwd = record.cwd;
+  if (typeof record.timeout_sec === 'number' && Number.isFinite(record.timeout_sec)) {
+    command.timeout_sec = record.timeout_sec;
+  }
+  if (typeof record.filter_regex === 'string') command.filter_regex = record.filter_regex;
+  if (typeof record.tail_lines === 'number' && Number.isFinite(record.tail_lines)) {
+    command.tail_lines = record.tail_lines;
+  }
+  if (typeof record.max_bytes === 'number' && Number.isFinite(record.max_bytes)) {
+    command.max_bytes = record.max_bytes;
+  }
+
+  return Object.keys(command).length > 0 ? command : {};
+};
+
+const normalizePlanStepPartial = (value: unknown): PlanStepStreamPartial | null => {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const step: PlanStepStreamPartial = {};
+
+  if (typeof record.id === 'string') step.id = record.id;
+  if (typeof record.title === 'string') step.title = record.title;
+  if (typeof record.status === 'string') step.status = record.status as PlanStep['status'];
+
+  const waitingIds = isStringArray(record.waitingForId);
+  if (waitingIds) {
+    step.waitingForId = waitingIds;
+  }
+
+  if ('command' in record) {
+    if (record.command === null) {
+      step.command = null;
+    } else {
+      const command = normalizeCommandPartial(record.command);
+      if (command) {
+        step.command = command;
+      }
+    }
+  }
+
+  if ('observation' in record) {
+    const observation = record.observation;
+    if (observation === null || typeof observation === 'object') {
+      step.observation = observation as PlanObservation | null;
+    }
+  }
+
+  if (typeof record.priority === 'number' && Number.isFinite(record.priority)) {
+    step.priority = record.priority;
+  }
+
+  return Object.keys(step).length > 0 ? step : {};
+};
+
+const normalizePlanResponsePartial = (value: unknown): PlanResponseStreamPartial => {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+
+  const record = value as Record<string, unknown>;
+  const response: PlanResponseStreamPartial = {};
+
+  if (typeof record.message === 'string') {
+    response.message = record.message;
+  }
+
+  if (Array.isArray(record.plan)) {
+    const steps: PlanStepStreamPartial[] = [];
+    for (const entry of record.plan) {
+      const normalized = normalizePlanStepPartial(entry);
+      if (normalized) {
+        steps.push(normalized);
+      }
+    }
+    response.plan = steps;
+  }
+
+  return response;
+};
 
 // Normalize optional runtime knobs into the shape expected by the AI SDK helpers.
 function buildCallSettings(options: ResponseCallOptions | undefined): ResponseCallSettings {
@@ -244,7 +371,7 @@ async function createStructuredResult(
           try {
             for await (const partial of streamResult.partialObjectStream) {
               try {
-                onPartial(partial);
+                onPartial(normalizePlanResponsePartial(partial));
               } catch (_error) {
                 // Swallow downstream handler failures to keep streaming resilient.
               }

@@ -1,18 +1,24 @@
-import { TERMINAL_PLAN_STATUS_SET, normalizePlanStatus, type PlanStatus } from '../../utils/planStatusTypes.js';
+import {
+  TERMINAL_PLAN_STATUS_SET,
+  normalizePlanStatus,
+  type PlanStatus,
+} from '../../utils/planStatusTypes.js';
+import type { CommandDraft, PlanObservation } from '../../contracts/index.js';
+import type { ObservationRecord } from '../historyMessageBuilder.js';
 
-export type { PlanStatus } from '../../utils/planStatusTypes.js';
-
-export interface PlanCommand {
-  run?: string;
-  shell?: string;
+export interface PlanCommand extends CommandDraft {
   [key: string]: unknown;
 }
 
 export interface PlanStep {
   id?: string | number;
-  status?: PlanStatus | string;
+  title?: string;
+  status?: PlanStatus;
+  waitingForId?: Array<string | number | null | undefined>;
   command?: PlanCommand | null;
+  observation?: (PlanObservation | ObservationRecord) | null;
   priority?: number | string;
+  step?: string | number | null;
   [key: string]: unknown;
 }
 
@@ -21,7 +27,7 @@ export interface ExecutablePlanStep {
   command: PlanCommand;
 }
 
-const normalizeIdentifier = (value: unknown): string | null => {
+const normalizeIdentifier = (value: string | number | null | undefined): string | null => {
   if (typeof value === 'string' || typeof value === 'number') {
     const normalized = String(value).trim();
     return normalized ? normalized : null;
@@ -57,7 +63,7 @@ export const hasCommandPayload = (command: unknown): command is PlanCommand => {
     return false;
   }
 
-  const normalized = command as PlanCommand;
+  const normalized = command as Partial<PlanCommand>;
   const run = typeof normalized.run === 'string' ? normalized.run.trim() : '';
   const shell = typeof normalized.shell === 'string' ? normalized.shell.trim() : '';
 
@@ -98,7 +104,7 @@ export const getPriorityScore = (step: PlanStep | null | undefined): number => {
     return Number.POSITIVE_INFINITY;
   }
 
-  const numericPriority = Number((step as PlanStep).priority);
+  const numericPriority = Number(step.priority);
   if (Number.isFinite(numericPriority)) {
     return numericPriority;
   }

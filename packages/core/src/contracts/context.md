@@ -19,3 +19,4 @@
 - Keep property names aligned with the JSON protocol (snake_case for command payloads).
 - When introducing new plan metadata fields, document them in `plan.ts` so validation schemas stay accurate.
 - Legacy `Tool*` alias exports have been removed; import the canonical contract names (e.g., `PlanResponse`, `PlanStep`, `CommandDefinition`) directly from this module.
+- The model request builder is exported solely as `buildOpenAgentRequestPayload`; consumers should import it by that name instead of relying on renamed shims.

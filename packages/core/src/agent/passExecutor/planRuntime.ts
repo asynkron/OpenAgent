@@ -91,7 +91,7 @@ export class PlanRuntime {
     commandResult,
   }: {
     planStep: PlanStep | null;
-    observation: Record<string, unknown>;
+    observation: ObservationRecord;
     commandResult: CommandResult;
   }): void {
     this.stateMachine.applyCommandObservation({ planStep, observation, commandResult });

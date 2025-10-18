@@ -1,12 +1,12 @@
-import type { PlanStep } from './planExecution.js';
+import { clonePlanForExecution, type PlanStep } from './planExecution.js';
+
+type PlanResult = PlanStep[] | null | undefined | Promise<PlanStep[] | null | undefined>;
 
 export interface PlanManagerLike {
   isMergingEnabled?: () => boolean | Promise<boolean>;
-  update?: (
-    plan: PlanStep[] | null | undefined,
-  ) => PlanStep[] | null | undefined | Promise<PlanStep[] | null | undefined>;
-  get?: () => PlanStep[] | null | undefined | Promise<PlanStep[] | null | undefined>;
-  reset?: () => PlanStep[] | null | undefined | Promise<PlanStep[] | null | undefined>;
+  update?: (plan: PlanStep[] | null | undefined) => PlanResult;
+  get?: () => PlanResult;
+  reset?: () => PlanResult;
   sync?: (plan: PlanStep[] | null | undefined) => void | Promise<void>;
 }
 
@@ -16,8 +16,27 @@ export interface PlanManagerAdapter {
   syncPlanSnapshot: (plan: PlanStep[]) => Promise<void>;
 }
 
-const toPlanArray = (value: unknown): PlanStep[] | null =>
-  Array.isArray(value) ? (value as PlanStep[]) : null;
+const sanitizePlanArray = (value: unknown): PlanStep[] | null => {
+  if (!value) {
+    return null;
+  }
+
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const plan: PlanStep[] = [];
+  for (const item of value) {
+    if (item && typeof item === 'object') {
+      plan.push(item as PlanStep);
+    }
+  }
+
+  return plan.length > 0 ? clonePlanForExecution(plan) : [];
+};
+
+type PlanSupplier = () => PlanResult;
+type PlanUpdater = (plan: PlanStep[] | null | undefined) => PlanResult;
 
 export const createPlanManagerAdapter = (
   manager: PlanManagerLike | null | undefined,
@@ -33,25 +52,28 @@ export const createPlanManagerAdapter = (
   const resetFn = typeof manager.reset === 'function' ? manager.reset.bind(manager) : null;
   const syncFn = typeof manager.sync === 'function' ? manager.sync.bind(manager) : null;
 
-  const ensurePlan = async (candidate: (() => unknown) | null): Promise<PlanStep[] | null> => {
+  const ensurePlan = async (candidate: PlanSupplier | null): Promise<PlanStep[] | null> => {
     if (!candidate) {
       return null;
     }
 
     const value = await candidate();
-    return toPlanArray(value);
+    const sanitized = sanitizePlanArray(value);
+    return sanitized;
   };
 
   const ensurePlanWithArg = async (
-    candidate: ((plan: PlanStep[] | null | undefined) => unknown) | null,
+    candidate: PlanUpdater | null,
     plan: PlanStep[] | null,
   ): Promise<PlanStep[] | null> => {
     if (!candidate) {
       return plan;
     }
 
-    const value = await candidate(plan);
-    return toPlanArray(value) ?? plan;
+    const planForConsumer = plan ? clonePlanForExecution(plan) : null;
+    const value = await candidate(planForConsumer ?? undefined);
+    const sanitized = sanitizePlanArray(value);
+    return sanitized ?? plan;
   };
 
   const isMergingEnabled = async (): Promise<boolean> => {
@@ -65,10 +87,12 @@ export const createPlanManagerAdapter = (
 
   return {
     resolveActivePlan: async (incomingPlan) => {
-      if (incomingPlan) {
+      const basePlan = incomingPlan ? clonePlanForExecution(incomingPlan) : null;
+
+      if (basePlan) {
         // Let hosts merge/update the incoming plan even when the payload is empty. This keeps
         // the adapter aligned with the historic JS behavior where `update()` always fired.
-        return ensurePlanWithArg(updateFn, incomingPlan);
+        return ensurePlanWithArg(updateFn, basePlan);
       }
 
       if (await isMergingEnabled()) {
@@ -83,7 +107,7 @@ export const createPlanManagerAdapter = (
         return;
       }
 
-      await syncFn(plan);
+      await syncFn(clonePlanForExecution(plan));
     },
   };
 };

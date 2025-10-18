@@ -254,8 +254,7 @@ export class ObservationBuilder {
   private resolveTailLines(
     command: AssistantCommand | null | undefined,
   ): { limit: number; source: 'default' | 'explicit' } | null {
-    const candidate =
-      command && typeof command === 'object' ? (command as any).tail_lines : undefined;
+    const candidate = command?.tail_lines;
 
     if (typeof candidate === 'number' && Number.isFinite(candidate)) {
       if (candidate <= 0) {
@@ -269,8 +268,7 @@ export class ObservationBuilder {
   }
 
   private resolveMaxBytes(command: AssistantCommand | null | undefined): { limit: number } {
-    const candidate =
-      command && typeof command === 'object' ? (command as any).max_bytes : undefined;
+    const candidate = command?.max_bytes;
 
     if (typeof candidate === 'number' && Number.isFinite(candidate) && candidate > 0) {
       return { limit: Math.floor(candidate) };

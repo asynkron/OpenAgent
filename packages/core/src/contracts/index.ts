@@ -293,7 +293,6 @@ export const RuntimePlanResponseJsonSchema = {
 // ----------------------------------
 // Requests (runtime -> AI SDK client)
 // ----------------------------------
-export { buildOpenAgentRequestPayload as buildModelRequest } from '../agent/modelRequestPayload.js';
 export type {
   OpenAgentRequestPayload as ModelRequest,
   BuildOpenAgentRequestPayloadOptions as ModelRequestBuildOptions,
@@ -348,7 +347,7 @@ export async function requestModelCompletion(
   options: import('../agent/modelRequest.js').RequestModelCompletionOptions,
 ) {
   const mod = await import('../agent/modelRequest.js');
-  return mod.requestModelCompletion(options as any);
+  return mod.requestModelCompletion(options);
 }
 
 // -------------------------------

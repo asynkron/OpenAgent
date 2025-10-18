@@ -2,6 +2,7 @@ import { clonePlanForExecution, type PlanStep } from '../../planExecution.js';
 import { FAILED_STATUS, RUNNING_STATUS } from '../../planStepStatus.js';
 import type { CommandResult } from '../../../../commands/run.js';
 import type { CommandObservationResult, PlanState } from './types.js';
+import type { ObservationRecord } from '../../../historyMessageBuilder.js';
 
 export interface MutationContext {
   readonly state: PlanState;
@@ -13,11 +14,11 @@ export interface MutationHelpers {
   setInitialIncomingPlan(plan: PlanStep[] | null): void;
   replaceActivePlan(plan: PlanStep[]): void;
   clearActivePlan(): void;
-  attachObservation(planStep: PlanStep | null, observation: Record<string, unknown>): boolean;
+  attachObservation(planStep: PlanStep | null, observation: ObservationRecord): boolean;
   markCommandRunning(planStep: PlanStep | null): boolean;
   applyCommandObservation(input: {
     planStep: PlanStep | null;
-    observation: Record<string, unknown>;
+    observation: ObservationRecord;
     commandResult: CommandResult;
   }): CommandObservationResult;
 }
@@ -70,13 +71,14 @@ export const createPlanMutations = ({
         mutated = true;
       }
 
-      const alternateExitCode = (() => {
-        const legacy = commandResult as unknown as { exitCode?: unknown };
-        return typeof legacy?.exitCode === 'number' ? legacy.exitCode : null;
-      })();
-
+      const legacyExitCode =
+        (commandResult as { exitCode?: number }).exitCode ?? null;
       const exitCode =
-        typeof commandResult?.exit_code === 'number' ? commandResult.exit_code : alternateExitCode;
+        typeof commandResult?.exit_code === 'number'
+          ? commandResult.exit_code
+          : typeof legacyExitCode === 'number'
+            ? legacyExitCode
+            : null;
 
       if (exitCode === 0 && planStep) {
         completePlanStep(planStep);
@@ -90,8 +92,8 @@ export const createPlanMutations = ({
         return { type: 'failed', mutated: true } satisfies CommandObservationResult;
       }
 
-      if (commandResult?.killed && planStep?.command) {
-        delete planStep.command;
+      if (commandResult?.killed && planStep) {
+        planStep.command = null;
         markMutated();
         mutated = true;
       }

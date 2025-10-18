@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import type { ChildProcess } from 'node:child_process';
+import type { ChildProcess, SpawnOptions } from 'node:child_process';
 
 import { register as registerCancellation } from '../utils/cancellation.js';
 import { substituteBuiltinCommand } from './commandSubstitution.js';
@@ -103,11 +103,7 @@ export async function runCommand(
     const effectiveCloseStdin = closeStdin !== undefined ? Boolean(closeStdin) : stdin === undefined;
     const shouldPipeStdin = stdin !== undefined || effectiveCloseStdin === false;
 
-    const spawnOptions: {
-      cwd: string | undefined;
-      shell: string | boolean;
-      stdio: ('pipe' | 'ignore' | number)[];
-    } = {
+    const spawnOptions: SpawnOptions = {
       cwd,
       shell: shell !== undefined ? shell : true,
       stdio: [shouldPipeStdin ? 'pipe' : 'ignore', stdoutFd, stderrFd],
@@ -231,7 +227,7 @@ export async function runCommand(
     });
 
     try {
-      child = spawn(trimmedCommand, spawnOptions as any);
+      child = spawn(trimmedCommand, spawnOptions);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       finalize(
