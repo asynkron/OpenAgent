@@ -24,7 +24,7 @@ Top refactor targets:
 - Ink components now compile under strict TS, but two surfaces still depend on `@ts-nocheck`, and the event router shoulders most runtime branching.  Many hooks continue to clone or guard payloads manually instead of leaning on the richer core contracts.
 
 Top refactor targets:
-- [ ] `packages/cli/src/components/AskHuman.tsx` – Still `@ts-nocheck`; newline handling, slash-menu orchestration, and lock state need typed helpers to re-enable strict mode.
+- [x] `packages/cli/src/components/AskHuman.tsx` – Still `@ts-nocheck`; newline handling, slash-menu orchestration, and lock state need typed helpers to re-enable strict mode.
 - [ ] `packages/cli/src/components/InkTextArea.tsx` – Key event parsing, row transforms, and caret management share a single file; splitting input parsing vs. rendering would simplify test coverage.
 - [ ] `packages/cli/src/components/CliApp.tsx` – Now strongly typed, but it still handles every runtime event branch directly; extracting event routers (status, command, debug) into dedicated hooks would shrink the component.
 - [x] `packages/cli/src/components/cliApp/runtimeUtils.ts` – Utility grab bag mixing cloning, integer parsing, and status normalization; deserves a separation between runtime data helpers and CLI-only coercions.
