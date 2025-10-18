@@ -16,6 +16,7 @@ import Plan from './Plan.js';
 import DebugPanel from './DebugPanel.js';
 import Timeline from './cliApp/Timeline.js';
 import { useSlashCommandRouter } from './cliApp/slashCommands.js';
+import { useRuntimeEventRouter } from './cliApp/useRuntimeEventRouter.js';
 import {
   type AgentRuntimeLike,
   type AssistantMessageRuntimeEvent,
@@ -273,6 +274,10 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
     setContextUsage(event.usage ? (cloneValue(event.usage) as ContextUsage) : null);
   }, []);
 
+  const handleThinkingEvent = useCallback((event: ThinkingRuntimeEvent): void => {
+    setThinking(event.state === 'start');
+  }, []);
+
   const handleErrorEvent = useCallback(
     (event: ErrorRuntimeEvent): void => {
       const baseMessage =
@@ -306,69 +311,27 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
     [flushPendingAssistantMessage],
   );
 
-  const handleEvent = useCallback(
-    (event: RuntimeEvent) => {
-      if (!event || typeof event !== 'object') {
-        return;
-      }
-
-      switch (event.type) {
-        case 'banner':
-          handleBannerEvent(event as BannerRuntimeEvent);
-          break;
-        case 'status':
-          handleStatusEvent(event as StatusRuntimeEvent);
-          break;
-        case 'pass':
-          handlePassEvent(event as PassRuntimeEvent);
-          break;
-        case 'thinking': {
-          const thinkingEvent = event as ThinkingRuntimeEvent;
-          setThinking(thinkingEvent.state === 'start');
-          break;
-        }
-        case 'assistant-message':
-          handleAssistantMessage(event as AssistantMessageRuntimeEvent);
-          break;
-        case 'plan':
-          handlePlanEvent(event as PlanRuntimeEvent);
-          break;
-        case 'plan-progress':
-          handlePlanProgressEvent(event as PlanProgressRuntimeEvent);
-          break;
-        case 'context-usage':
-          handleContextUsageEvent(event as ContextUsageRuntimeEvent);
-          break;
-        case 'command-result':
-          handleCommandEvent(event as CommandResultRuntimeEvent);
-          break;
-        case 'error':
-          handleErrorEvent(event as ErrorRuntimeEvent);
-          break;
-        case 'request-input':
-          handleRequestInputEvent(event as RequestInputRuntimeEvent);
-          break;
-        case 'debug':
-          handleDebugEvent(event as DebugRuntimeEvent);
-          break;
-        default:
-          break;
-      }
+  const handleRuntimeStatusEvent = useCallback(
+    (event: StatusRuntimeEvent): void => {
+      handleStatusEvent(event);
     },
-    [
-      handleBannerEvent,
-      handleStatusEvent,
-      handlePassEvent,
-      handleAssistantMessage,
-      handlePlanEvent,
-      handlePlanProgressEvent,
-      handleContextUsageEvent,
-      handleCommandEvent,
-      handleErrorEvent,
-      handleRequestInputEvent,
-      handleDebugEvent,
-    ],
+    [handleStatusEvent],
   );
+
+  const handleEvent = useRuntimeEventRouter({
+    onAssistantMessage: handleAssistantMessage,
+    onBanner: handleBannerEvent,
+    onCommandResult: handleCommandEvent,
+    onContextUsage: handleContextUsageEvent,
+    onDebug: handleDebugEvent,
+    onError: handleErrorEvent,
+    onPass: handlePassEvent,
+    onPlan: handlePlanEvent,
+    onPlanProgress: handlePlanProgressEvent,
+    onRequestInput: handleRequestInputEvent,
+    onStatus: handleRuntimeStatusEvent,
+    onThinking: handleThinkingEvent,
+  });
 
   useEffect(() => {
     const activeRuntime = runtimeRef.current;
