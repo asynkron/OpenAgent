@@ -40,9 +40,7 @@ const estimateRequestPayloadSize = (
     emitter.logWithFallback(
       'warn',
       '[failsafe] Unable to estimate OpenAI payload size before request.',
-      {
-        error: error instanceof Error ? error.message : String(error),
-      },
+      error instanceof Error ? error.message : String(error),
     );
     return null;
   }

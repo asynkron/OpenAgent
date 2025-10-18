@@ -134,8 +134,10 @@ function cloneCommandResult(value: unknown): CommandResult | null {
   const source = value as { exit_code?: unknown; killed?: unknown };
   const result: CommandResult = {};
 
-  if (typeof source.exit_code === 'number' || source.exit_code === null) {
-    result.exit_code = source.exit_code ?? null;
+  if (typeof source.exit_code === 'number') {
+    result.exit_code = source.exit_code;
+  } else if (source.exit_code === null) {
+    result.exit_code = null;
   }
   if (typeof source.killed === 'boolean') {
     result.killed = source.killed;

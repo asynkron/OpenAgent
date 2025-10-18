@@ -20,6 +20,17 @@ export function formatDebugPayload(payload: unknown): string {
     return payload;
   }
   try {
+    if (payload && typeof payload === 'object') {
+      const stage = (payload as { stage?: unknown }).stage;
+      const message = (payload as { message?: unknown }).message;
+      if (stage === 'assistant-response-validation-error') {
+        const summary =
+          typeof message === 'string' && message.trim().length > 0
+            ? message.trim()
+            : 'Assistant response failed protocol validation.';
+        return `Auto-response triggered: ${summary}\n${JSON.stringify(payload, null, 2)}`;
+      }
+    }
     return JSON.stringify(payload, null, 2);
   } catch (_error) {
     return String(payload);

@@ -77,8 +77,7 @@ export function createRuntimeEmitter({
       throw new TypeError('Agent emit expected event to be an object.');
     }
 
-    const clonedEvent = cloneEvent(event);
-    clonedEvent.__id = nextId();
+    const clonedEvent = { ...cloneEvent(event), __id: nextId() } as RuntimeEvent;
     outputsQueue.push(clonedEvent);
 
     if (!Array.isArray(eventObservers)) {

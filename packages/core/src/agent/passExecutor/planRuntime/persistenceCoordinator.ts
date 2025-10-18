@@ -8,8 +8,8 @@ import {
   type PreparedIncomingPlan,
   type ResolvePlanResult,
   type ResetPlanResult,
-  type StatusRuntimeEvent,
 } from './persistence.js';
+import type { StatusRuntimeEvent } from '../../runtimeEvents.js';
 
 /**
  * Coordinates persistence hooks so the plan runtime can focus on state-machine updates.

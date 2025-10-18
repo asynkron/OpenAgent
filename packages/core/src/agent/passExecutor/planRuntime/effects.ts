@@ -6,7 +6,7 @@ import { clonePlanTree } from '../../../utils/planCloneUtils.js';
 import type { RuntimeReminderController } from './reminderController.js';
 import { createPlanObservationHistoryEntry } from './observationRecorder.js';
 import type { StatusRuntimeEvent } from '../../runtimeEvents.js';
-import type { PlanSnapshot } from '../../utils/plan.js';
+import type { PlanSnapshot } from '../../../utils/plan.js';
 
 export type RuntimeEvent = Parameters<NonNullable<ExecuteAgentPassOptions['emitEvent']>>[0];
 
@@ -89,12 +89,18 @@ export const applyPlanRuntimeEffects = (
         if (!context.emitEvent) {
           break;
         }
-        context.emitEvent({
-          type: 'plan',
-          payload: {
-            plan: clonePlanTree(effect.plan as unknown as PlanSnapshot),
-          },
-        });
+        {
+          const planSnapshot = clonePlanTree(effect.plan as unknown as PlanSnapshot);
+          const evt: unknown = {
+            type: 'plan',
+            payload: {
+              plan: planSnapshot,
+            },
+            // Legacy top-level mirror for tests and lightweight UIs
+            plan: planSnapshot,
+          };
+          context.emitEvent(evt as Parameters<NonNullable<typeof context.emitEvent>>[0]);
+        }
         break;
       case 'history-entry':
         context.history.push(effect.entry);

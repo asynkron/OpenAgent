@@ -86,14 +86,18 @@ export const createExecutionContext = (options: ExecuteAgentPassOptions): Execut
         passIndex: normalized.passIndex,
       });
     } catch (error) {
+      const details = error instanceof Error ? error.message : String(error);
       normalized.emitEvent({
         type: 'status',
         payload: {
           level: 'warn',
           message: '[failsafe] Unable to record request payload baseline after pass.',
-          details: error instanceof Error ? error.message : String(error),
+          details,
         },
-      });
+        level: 'warn',
+        message: '[failsafe] Unable to record request payload baseline after pass.',
+        details,
+      } as unknown as Parameters<NonNullable<typeof normalized.emitEvent>>[0]);
     }
   };
 

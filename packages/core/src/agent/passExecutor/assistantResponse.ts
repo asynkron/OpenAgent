@@ -94,6 +94,8 @@ const handleSchemaFailure = (
     path: error.path,
     message: error.message,
     keyword: error.keyword,
+    instancePath: error.instancePath,
+    params: error.params,
   }));
 
   context.emitDebug(() => ({
@@ -110,7 +112,10 @@ const handleSchemaFailure = (
       errors: serializedErrors,
       raw: context.responseContent,
     },
-  });
+    message: 'Assistant response failed schema validation.',
+    errors: serializedErrors,
+    raw: context.responseContent,
+  } as unknown as Parameters<NonNullable<typeof context.emitEvent>>[0]);
 
   const schemaMessages = schemaValidation.errors.map((error) => `${error.path}: ${error.message}`);
   const summary =

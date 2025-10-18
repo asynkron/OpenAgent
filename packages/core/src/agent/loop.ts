@@ -293,7 +293,8 @@ export function createAgentRuntime({
 
   async function start(): Promise<void> {
     if (running) {
-      throw new Error('Agent runtime already started.');
+      // Make start idempotent to tolerate duplicate invocations from hosts.
+      return;
     }
     running = true;
     inputProcessorPromise = processAgentInputs({

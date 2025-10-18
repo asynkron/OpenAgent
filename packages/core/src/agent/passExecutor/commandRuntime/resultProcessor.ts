@@ -5,7 +5,7 @@ import type { ExecuteAgentPassOptions } from '../types.js';
 import type { PlanRuntime } from '../planRuntime.js';
 import type { CommandExecutedResult, CommandContinueResult } from './types.js';
 import type { RuntimeDebugPayload } from '../../runtimeTypes.js';
-import type { PlanSnapshotStep } from '../../utils/plan.js';
+import type { PlanSnapshotStep } from '../../../utils/plan.js';
 import type { CommandDraft } from '../../../contracts/index.js';
 import type { CommandResult } from '../../../commands/run.js';
 import type { PlanHistorySnapshot } from '../planSnapshot.js';
@@ -161,7 +161,14 @@ export const processCommandExecution = async (
       planStep: sanitizedPlanStep,
       planSnapshot: sanitizedPlanSnapshot,
     },
-  });
+    command: sanitizedCommand,
+    result: sanitizedResult,
+    preview: sanitizedPreview,
+    execution: sanitizedExecution,
+    observation: sanitizedObservation,
+    planStep: sanitizedPlanStep,
+    planSnapshot: sanitizedPlanSnapshot,
+  } as unknown as Parameters<NonNullable<typeof options.emitEvent>>[0]);
 
   const snapshotEffect = options.planRuntime.emitPlanSnapshot();
   options.planRuntime.applyEffects([snapshotEffect]);

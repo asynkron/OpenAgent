@@ -32,7 +32,10 @@ const executeCommandSafely = async (
         message: 'Command execution threw an exception.',
         details: normalizedError.stack || normalizedError.message || null,
       },
-    });
+      level: 'error',
+      message: 'Command execution threw an exception.',
+      details: normalizedError.stack || normalizedError.message || null,
+    } as unknown as Parameters<NonNullable<typeof options.emitEvent>>[0]);
 
     return {
       result: {

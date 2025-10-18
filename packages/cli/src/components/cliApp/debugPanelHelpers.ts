@@ -18,6 +18,16 @@ export function parseManagedDebugPayload(
     return null;
   }
 
+  // Legacy streaming fields used by integration tests
+  const legacyAction = (payload as { __openagentStreamAction?: unknown }).__openagentStreamAction;
+  const legacyValue = (payload as { __openagentStreamValue?: unknown }).__openagentStreamValue;
+  if (legacyAction === 'remove') {
+    return { action: 'remove' } satisfies ManagedDebugInstruction;
+  }
+  if (legacyAction === 'replace') {
+    return { action: 'replace', value: legacyValue } satisfies ManagedDebugInstruction;
+  }
+
   if ('stage' in payload && payload.stage === 'structured-stream') {
     if (payload.action === 'remove') {
       return { action: 'remove' } satisfies ManagedDebugInstruction;

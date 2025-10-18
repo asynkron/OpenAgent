@@ -234,7 +234,11 @@ export function useCommandMenu({
     const nextCaretIndex = before.length + replacement.length;
 
     updateValue(nextValue, nextCaretIndex);
-    onSlashCommandSelect?.(buildSlashCommandEvent(activeCommand, item, replacement, nextValue));
+    const caretIndexBefore = caretIndex;
+    const valueBefore = value;
+    onSlashCommandSelect?.(
+      buildSlashCommandEvent(activeCommand, item, replacement, nextValue, caretIndexBefore, valueBefore),
+    );
 
     setCommandHighlightIndex(0);
     return true;
@@ -246,6 +250,7 @@ export function useCommandMenu({
     onSlashCommandSelect,
     updateValue,
     value,
+    caretIndex,
   ]);
 
   const handleNavigation = useCallback(

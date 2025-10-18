@@ -17,7 +17,7 @@ const ensureSchemaErrors = (value: unknown): value is ReadonlyArray<Record<strin
 
 const isDebugRuntimeEventPayload = (candidate: unknown): candidate is DebugRuntimeEventPayload => {
   if (!isObject(candidate)) {
-    return null;
+    return false;
   }
 
   const stage = candidate.stage;

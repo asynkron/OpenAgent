@@ -37,14 +37,18 @@ const guardRequestPayloadSize = async ({
   try {
     await guardRequestPayloadSizeFn({ history, model, passIndex });
   } catch (error) {
+    const details = error instanceof Error ? error.message : String(error);
     emitEvent({
       type: 'status',
       payload: {
         level: 'warn',
         message: '[failsafe] Unable to evaluate request payload size before history compaction.',
-        details: error instanceof Error ? error.message : String(error),
+        details,
       },
-    });
+      level: 'warn',
+      message: '[failsafe] Unable to evaluate request payload size before history compaction.',
+      details,
+    } as unknown as Parameters<typeof emitEvent>[0]);
   }
 };
 
@@ -64,14 +68,18 @@ const compactHistoryIfNeeded = async ({
   try {
     await historyCompactor.compactIfNeeded({ history });
   } catch (error) {
+    const details = error instanceof Error ? error.message : String(error);
     emitEvent({
       type: 'status',
       payload: {
         level: 'warn',
         message: '[history-compactor] Unexpected error during history compaction.',
-        details: error instanceof Error ? error.message : String(error),
+        details,
       },
-    });
+      level: 'warn',
+      message: '[history-compactor] Unexpected error during history compaction.',
+      details,
+    } as unknown as Parameters<typeof emitEvent>[0]);
   }
 };
 
@@ -94,7 +102,8 @@ const emitContextUsageSummary = ({
         payload: {
           usage,
         },
-      });
+        usage,
+      } as unknown as Parameters<typeof emitEvent>[0]);
     }
   } catch (error) {
     emitEvent({
@@ -175,7 +184,11 @@ const requestAssistantCompletion = async ({
         raw: null,
         attempts: null,
       },
-    });
+      message: 'OpenAI response did not include text output.',
+      details: null,
+      raw: null,
+      attempts: null,
+    } as unknown as Parameters<typeof emitEvent>[0]);
     return { status: 'missing-content' };
   }
 

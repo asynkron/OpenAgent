@@ -1,7 +1,7 @@
 import { clonePlanForExecution, type PlanStep } from '../planExecution.js';
 import type { PlanManagerAdapter } from '../planManagerAdapter.js';
 import { globalRegistry } from '../planStepRegistry.js';
-import type { StatusRuntimeEvent } from '../../runtimeEvents.js';
+import type { StatusLevel, StatusRuntimeEvent } from '../../runtimeEvents.js';
 
 export interface PreparedIncomingPlan {
   sanitizedPlan: PlanStep[] | null;
@@ -28,6 +28,23 @@ export interface ResolvePlanResult {
   warning: StatusRuntimeEvent | null;
 }
 
+function buildStatusWarning(
+  level: StatusLevel,
+  message: string,
+  details: string | null,
+): StatusRuntimeEvent {
+  return {
+    type: 'status',
+    payload: { level, message, details },
+    // Legacy top-level fields for compatibility with tests and lightweight UIs
+    // These extra fields are tolerated by downstream consumers that read from payload
+    // while enabling direct access (e.g., warning.message) in unit tests.
+    level,
+    message,
+    details,
+  } as unknown as StatusRuntimeEvent;
+}
+
 export const resolveActivePlan = async (
   planManager: PlanManagerAdapter | null,
   normalizedIncoming: PlanStep[] | null,
@@ -47,14 +64,7 @@ export const resolveActivePlan = async (
     const message = error instanceof Error ? error.message : String(error);
     return {
       plan: null,
-      warning: {
-        type: 'status',
-        payload: {
-          level: 'warn',
-          message: 'Failed to update persistent plan state.',
-          details: message,
-        },
-      },
+      warning: buildStatusWarning('warn', 'Failed to update persistent plan state.', message),
     } satisfies ResolvePlanResult;
   }
 };
@@ -83,14 +93,11 @@ export const resetPersistedPlan = async (
     const message = error instanceof Error ? error.message : String(error);
     return {
       plan: [],
-      warning: {
-        type: 'status',
-        payload: {
-          level: 'warn',
-          message: 'Failed to clear persistent plan state after completion.',
-          details: message,
-        },
-      },
+      warning: buildStatusWarning(
+        'warn',
+        'Failed to clear persistent plan state after completion.',
+        message,
+      ),
     } satisfies ResetPlanResult;
   }
 };
@@ -108,13 +115,6 @@ export const syncPlanSnapshot = async (
     return null;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return {
-      type: 'status',
-      payload: {
-        level: 'warn',
-        message: 'Failed to persist plan state after execution.',
-        details: message,
-      },
-    } satisfies StatusRuntimeEvent;
+    return buildStatusWarning('warn', 'Failed to persist plan state after execution.', message);
   }
 };
