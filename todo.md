@@ -11,7 +11,7 @@ Before tackling any item below:
 Top refactor targets:
 - [x] `packages/core/src/agent/passExecutor.ts` – Remains ~750 LOC after recent splits; orchestration, validation, and side-effects are interwoven and still register the highest FTA score (82). Needs deeper decomposition per reasoning phase plus thinner discriminated unions for assistant responses.
 - [x] `packages/core/src/agent/loop.ts` – The main runtime loop still hosts cancel logic, observer wiring, and history queue plumbing; extracting lifecycle hooks into collaborators will make the control-flow approachable.
-- [ ] `packages/core/src/agent/passExecutor/planRuntime.ts` – Manages plan snapshots, observation writes, and execution state in one file. Splitting the plan state-machine from persistence hooks will reduce the current nesting depth.
+- [x] `packages/core/src/agent/passExecutor/planRuntime.ts` – Manages plan snapshots, observation writes, and execution state in one file. Splitting the plan state-machine from persistence hooks will reduce the current nesting depth.
 - [x] `packages/core/src/openai/responses.ts` – Streams/generator plumbing, schema coercion, and provider option setup all live together; the new partial typings help, but the normalizer still deserves a dedicated module per payload branch.
 - [x] `packages/core/src/agent/runtimePayloadGuard.ts` – The payload growth guard mixes metrics reporting and history dumping; carving out the logging and threshold calculations would simplify the guard loop.
 - [x] `packages/core/src/agent/promptCoordinator.ts` – Cancellation flow now uses guarded optional chaining with stricter metadata normalization to reduce branching while keeping the prompt queue linear.
