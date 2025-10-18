@@ -1,35 +1,47 @@
 import type { PlanStep } from './planExecution.js';
 import type {
-  CommandOutputObservationForLLM,
-  CommandRejectedObservationForLLM,
-  JsonParseErrorObservationForLLM,
   ObservationMetadata,
+  ObservationParseAttempt,
   ObservationRecord,
-  OperationCanceledObservationForLLM,
-  PlanObservationForLLM,
-  ResponseValidationErrorObservationForLLM,
-  SchemaValidationErrorObservationForLLM,
+  PlanSummary,
 } from '../historyMessageBuilder.js';
 import type { PlanObservation } from '../../contracts/index.js';
 import { extractPlanStepIdentifier } from './planStepIdentifier.js';
 
-type ObservationSnapshotFields = Partial<
-  CommandOutputObservationForLLM &
-    JsonParseErrorObservationForLLM &
-    SchemaValidationErrorObservationForLLM &
-    ResponseValidationErrorObservationForLLM &
-    CommandRejectedObservationForLLM &
-    OperationCanceledObservationForLLM &
-    PlanObservationForLLM
->;
-
-export interface PlanHistorySnapshot extends ObservationSnapshotFields, Record<string, unknown> {
+export interface PlanHistorySnapshot {
   id?: string;
   status: string;
+  stdout?: string;
+  stderr?: string;
+  truncated?: boolean;
+  truncation_notice?: string;
+  exit_code?: number;
+  json_parse_error?: true;
+  schema_validation_error?: true;
+  response_validation_error?: true;
+  canceled_by_human?: true;
+  operation_canceled?: true;
+  summary?: string;
+  message?: string;
+  reason?: string;
+  details?: string[];
+  attempts?: ObservationParseAttempt[];
+  response_snippet?: string;
+  plan?: PlanSummary;
   metadata?: ObservationMetadata;
 }
 
 const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+
+const toPlanSummaryEntry = (snapshot: PlanHistorySnapshot): Record<string, unknown> => {
+  const plain: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(snapshot)) {
+    if (value !== undefined) {
+      plain[key] = value;
+    }
+  }
+  return plain;
+};
 
 const normalizeStepId = (step: PlanStep): string | undefined => {
   if (typeof step.id === 'string' && step.id.trim()) {
@@ -70,7 +82,7 @@ const populateObservationFields = (
         snapshot.message = payload.message;
       }
       if ('attempts' in payload && Array.isArray(payload.attempts)) {
-        snapshot.attempts = cloneJson(payload.attempts);
+        snapshot.attempts = cloneJson(payload.attempts as ObservationParseAttempt[]);
       }
       if ('response_snippet' in payload && typeof payload.response_snippet === 'string') {
         snapshot.response_snippet = payload.response_snippet;
@@ -82,7 +94,7 @@ const populateObservationFields = (
         snapshot.message = payload.message;
       }
       if ('details' in payload && Array.isArray(payload.details)) {
-        snapshot.details = cloneJson(payload.details);
+        snapshot.details = cloneJson(payload.details as string[]);
       }
       if ('response_snippet' in payload && typeof payload.response_snippet === 'string') {
         snapshot.response_snippet = payload.response_snippet;
@@ -94,7 +106,7 @@ const populateObservationFields = (
         snapshot.message = payload.message;
       }
       if ('details' in payload && Array.isArray(payload.details)) {
-        snapshot.details = cloneJson(payload.details);
+        snapshot.details = cloneJson(payload.details as string[]);
       }
       if ('response_snippet' in payload && typeof payload.response_snippet === 'string') {
         snapshot.response_snippet = payload.response_snippet;
@@ -116,17 +128,10 @@ const populateObservationFields = (
       }
     }
     if ('plan' in payload && Array.isArray(payload.plan)) {
-      snapshot.plan = payload.plan.map((entry) => cloneJson(entry as Record<string, unknown>));
+      snapshot.plan = cloneJson(payload.plan as PlanSummary);
     }
     if ('summary' in payload && typeof payload.summary === 'string') {
       snapshot.summary = payload.summary;
-    }
-    if (
-      'details' in payload &&
-      Array.isArray(payload.details) &&
-      payload.details.every((detail) => typeof detail === 'string')
-    ) {
-      snapshot.details = cloneJson(payload.details);
     }
   }
 
@@ -162,3 +167,6 @@ export const summarizePlanForHistory = (
 
   return plan.map((step) => buildPlanStepSnapshot(step));
 };
+
+export const summarizePlanForObservation = (plan: PlanStep[] | null | undefined): PlanSummary =>
+  summarizePlanForHistory(plan).map(toPlanSummaryEntry);

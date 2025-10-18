@@ -6,14 +6,14 @@ import {
 } from '../../historyMessageBuilder.js';
 import type { ChatMessageEntry } from '../../historyEntry.js';
 import type { PlanStep } from '../planExecution.js';
-import { summarizePlanForHistory } from '../planSnapshot.js';
+import { summarizePlanForObservation } from '../planSnapshot.js';
 
 export const buildPlanObservation = (
   activePlan: PlanStep[],
   timestamp: Date = new Date(),
 ): ObservationRecord => {
   const planObservation: PlanObservationForLLM = {
-    plan: summarizePlanForHistory(activePlan),
+    plan: summarizePlanForObservation(activePlan),
   };
 
   return {

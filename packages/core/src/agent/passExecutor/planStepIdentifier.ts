@@ -2,18 +2,21 @@ import type { PlanStep } from './planExecution.js';
 
 export type StepIdentifier = string;
 
-export const normalizePlanIdentifier = (value: unknown): StepIdentifier | null => {
-  if (typeof value === 'string' || typeof value === 'number') {
-    const normalized = String(value).trim();
-    return normalized || null;
+export const normalizePlanIdentifier = (
+  value: string | number | null | undefined,
+): StepIdentifier | null => {
+  if (typeof value !== 'string' && typeof value !== 'number') {
+    return null;
   }
-  return null;
+
+  const normalized = String(value).trim();
+  return normalized ? normalized : null;
 };
 
 export const extractPlanStepIdentifier = (
   step: PlanStep | null | undefined,
 ): StepIdentifier | null => {
-  if (!step || typeof step !== 'object') {
+  if (!step) {
     return null;
   }
 
@@ -22,6 +25,5 @@ export const extractPlanStepIdentifier = (
     return id;
   }
 
-  const fallback = normalizePlanIdentifier(step.step);
-  return fallback;
+  return normalizePlanIdentifier(step.step ?? null);
 };
