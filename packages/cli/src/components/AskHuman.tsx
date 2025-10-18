@@ -1,80 +1,50 @@
-// @ts-nocheck
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import ContextUsage from './ContextUsage.js';
 import InkTextArea from './InkTextArea.js';
-import theme from '../theme.js';
+import theme, { type Theme } from '../theme.js';
+import {
+  toBoxProps,
+  toTextProps,
+  type BoxStyleProps,
+  type TextStyleProps,
+} from '../styleTypes.js';
+import type { ContextUsage as ContextUsageValue } from '../status.js';
+import { HUMAN_SLASH_COMMANDS } from './askHumanCommands.js';
 
-// Predefined slash-menu shortcuts surfaced in the AskHuman input.
-export const HUMAN_SLASH_COMMANDS = [
-  {
-    id: 'model',
-    label: 'model',
-    description: 'Switch the active language model (e.g. /model gpt-4o)',
-    keywords: ['llm', 'switch', 'gpt', 'model'],
-    insertValue: '/model ',
-  },
-  {
-    id: 'model-gpt-4o',
-    label: 'model gpt-4o',
-    description: 'Switch to the flagship GPT-4o model',
-    keywords: ['gpt-4o', 'llm', 'model'],
-    insertValue: '/model gpt-4o',
-  },
-  {
-    id: 'model-gpt-4o-mini',
-    label: 'model gpt-4o-mini',
-    description: 'Use the faster GPT-4o mini variant',
-    keywords: ['gpt-4o-mini', 'model', 'fast'],
-    insertValue: '/model gpt-4o-mini',
-  },
-  {
-    id: 'reasoning-medium',
-    label: 'reasoning medium',
-    description: 'Request medium reasoning effort from the model',
-    keywords: ['reasoning', 'effort', 'medium'],
-    insertValue: '/reasoning medium',
-  },
-  {
-    id: 'reasoning-high',
-    label: 'reasoning high',
-    description: 'Request high reasoning effort for tougher problems',
-    keywords: ['reasoning', 'effort', 'high'],
-    insertValue: '/reasoning high',
-  },
-  {
-    id: 'help',
-    label: 'help',
-    description: 'Ask for available commands and usage hints',
-    keywords: ['docs', 'support', 'commands'],
-    insertValue: '/help',
-  },
-  {
-    id: 'history',
-    label: 'history',
-    description: 'Export the current session history to a JSON file',
-    keywords: ['history', 'export', 'log'],
-    insertValue: '/history ',
-  },
-  {
-    id: 'command-inspector',
-    label: 'command',
-    description: 'Inspect recent command payloads (e.g. /command 3)',
-    keywords: ['command', 'debug', 'payload'],
-    insertValue: '/command ',
-  },
-];
+export { HUMAN_SLASH_COMMANDS } from './askHumanCommands.js';
 
-const { human } = theme;
-const { colors: humanColors, props: humanProps } = human;
-const askHumanProps = humanProps?.askHuman ?? {};
+type SubmitHandler = (submission: string) => void | Promise<void>;
+
+type AskHumanProps = {
+  onSubmit?: SubmitHandler;
+  thinking?: boolean;
+  contextUsage?: ContextUsageValue | null;
+  passCounter?: number;
+};
+
+type AskHumanThemeConfig = Theme['human']['props']['askHuman'];
+
+const humanTheme: Theme['human'] | undefined = theme?.human;
+type HumanColors = Theme['human']['colors'];
+type HumanPropsConfig = Theme['human']['props'];
+type TextAreaStyleProps = Omit<BoxStyleProps, 'width'> & { width?: number };
+
+const humanColors: Partial<HumanColors> = humanTheme?.colors ?? {};
+const humanProps: Partial<HumanPropsConfig> = humanTheme?.props ?? {};
+const askHumanTheme: Partial<AskHumanThemeConfig> = humanProps.askHuman ?? {};
 
 /**
  * Collects free-form user input while keeping the prompt visible inside the Ink
  * layout.
  */
-function AskHuman({ onSubmit, thinking = false, contextUsage = null, passCounter = 0 }) {
+function AskHuman({
+  onSubmit,
+  thinking = false,
+  contextUsage = null,
+  passCounter = 0,
+}: AskHumanProps): ReactElement {
   const [value, setValue] = useState('');
   const [locked, setLocked] = useState(false);
   const mountedRef = useRef(true);
@@ -89,7 +59,7 @@ function AskHuman({ onSubmit, thinking = false, contextUsage = null, passCounter
   const interactive = !locked && !thinking;
 
   const handleSubmit = useCallback(
-    (rawValue) => {
+    (rawValue: string) => {
       if (!interactive) {
         return;
       }
@@ -97,37 +67,36 @@ function AskHuman({ onSubmit, thinking = false, contextUsage = null, passCounter
       const submission = rawValue.trim();
       setLocked(true);
 
-      Promise.resolve()
-        .then(() => onSubmit?.(submission))
-        .finally(() => {
-          if (!mountedRef.current) {
-            return;
-          }
-          setValue('');
-          setLocked(false);
-        });
+      Promise.resolve(onSubmit?.(submission)).finally(() => {
+        if (!mountedRef.current) {
+          return;
+        }
+        setValue('');
+        setLocked(false);
+      });
     },
     [interactive, onSubmit],
   );
 
-  const spinnerProps = {
+  const spinnerStyle: TextStyleProps = {
     marginLeft: 1,
-    ...(askHumanProps.spinnerText ?? {}),
+    ...(askHumanTheme.spinnerText ?? {}),
   };
-  const spinnerColor = spinnerProps.color ?? humanColors.fg;
+  spinnerStyle.color = spinnerStyle.color ?? humanColors.fg;
+  const spinnerProps = toTextProps(spinnerStyle);
 
-  const textAreaProps = {
+  const textAreaStyle: TextAreaStyleProps = {
     marginLeft: 1,
-    ...(askHumanProps.textArea ?? {}),
+    ...(askHumanTheme.textArea ?? {}),
   };
 
   const inputDisplay = thinking ? (
-    <Text {...spinnerProps} color={spinnerColor}>
+    <Text {...spinnerProps}>
       <Spinner type="dots" key="spinner-icon" /> Thinking…
     </Text>
   ) : (
     <InkTextArea
-      {...textAreaProps}
+      {...textAreaStyle}
       value={value}
       onChange={setValue}
       onSubmit={handleSubmit}
@@ -145,45 +114,48 @@ function AskHuman({ onSubmit, thinking = false, contextUsage = null, passCounter
     ? `${passPrefix}Waiting for the AI to finish thinking…`
     : `${passPrefix}Press Enter to submit • Shift+Enter for newline • Esc to cancel`;
 
-  const footerHintProps = {
+  const footerHintStyle: TextStyleProps = {
     dimColor: true,
-    ...(askHumanProps.footerHint ?? {}),
+    ...(askHumanTheme.footerHint ?? {}),
   };
-  const footerHintColor = footerHintProps.color ?? humanColors.fg;
-  const footerHintDimColor = footerHintProps.dimColor ?? true;
+  footerHintStyle.color = footerHintStyle.color ?? humanColors.fg;
+  footerHintStyle.dimColor = footerHintStyle.dimColor ?? true;
+  const footerHintProps = toTextProps(footerHintStyle);
 
-  const containerProps = {
+  const containerStyle: BoxStyleProps = {
     flexDirection: 'column',
     marginTop: 1,
     paddingX: 1,
     paddingY: 0,
     backgroundColor: humanColors.bg,
-    ...(askHumanProps.container ?? {}),
+    ...(askHumanTheme.container ?? {}),
   };
 
-  if (!containerProps.backgroundColor) {
-    containerProps.backgroundColor = humanColors.bg;
-  }
+  containerStyle.backgroundColor = containerStyle.backgroundColor ?? humanColors.bg;
 
-  const inputRowProps = {
+  const inputRowStyle: BoxStyleProps = {
     flexDirection: 'row',
     paddingX: 1,
     paddingY: 1,
-    ...(askHumanProps.inputRow ?? {}),
+    ...(askHumanTheme.inputRow ?? {}),
   };
 
-  const footerProps = {
+  const footerStyle: BoxStyleProps = {
     flexDirection: 'column',
     paddingX: 1,
     paddingBottom: 1,
-    ...(askHumanProps.footer ?? {}),
+    ...(askHumanTheme.footer ?? {}),
   };
+
+  const containerProps = toBoxProps(containerStyle);
+  const inputRowProps = toBoxProps(inputRowStyle);
+  const footerProps = toBoxProps(footerStyle);
 
   return (
     <Box {...containerProps}>
       <Box {...inputRowProps}>{inputDisplay}</Box>
       <Box {...footerProps}>
-        <Text {...footerHintProps} dimColor={footerHintDimColor} color={footerHintColor}>
+        <Text {...footerHintProps}>
           {hintMessage}
         </Text>
         {contextUsage ? <ContextUsage usage={contextUsage} /> : null}
