@@ -1,11 +1,12 @@
 /* eslint-env jest */
-import { beforeEach, describe, expect, test } from '@jest/globals';
+import { beforeEach, describe, expect, test, jest } from '@jest/globals';
 import {
   prepareIncomingPlan,
   resolveActivePlan,
   resetPersistedPlan,
   syncPlanSnapshot,
 } from '../persistence.js';
+import { createPlanPersistenceCoordinator } from '../persistenceCoordinator.js';
 import { globalRegistry } from '../../planStepRegistry.js';
 
 describe('planRuntime persistence helpers', () => {
@@ -86,5 +87,29 @@ describe('planRuntime persistence helpers', () => {
 
     const warning = await syncPlanSnapshot(failingManager, []);
     expect(warning?.message).toContain('Failed to persist plan state');
+  });
+
+  test('persistence coordinator proxies plan manager hooks', async () => {
+    const planManager = {
+      resolveActivePlan: jest.fn().mockResolvedValue([{ id: 'n1', command: { run: 'pwd' } }]),
+      resetPlanSnapshot: jest.fn().mockResolvedValue([{ id: 'n2', command: { run: 'ls' } }]),
+      syncPlanSnapshot: jest.fn().mockResolvedValue(undefined),
+    };
+
+    const coordinator = createPlanPersistenceCoordinator(planManager);
+
+    expect(coordinator.prepareIncomingPlan(null)).toEqual({
+      sanitizedPlan: null,
+      shouldResetRegistry: false,
+    });
+
+    await coordinator.resolveActivePlan(null);
+    expect(planManager.resolveActivePlan).toHaveBeenCalledTimes(1);
+
+    await coordinator.resetPlanSnapshot();
+    expect(planManager.resetPlanSnapshot).toHaveBeenCalledTimes(1);
+
+    await coordinator.persistPlanSnapshot([]);
+    expect(planManager.syncPlanSnapshot).toHaveBeenCalledTimes(1);
   });
 });

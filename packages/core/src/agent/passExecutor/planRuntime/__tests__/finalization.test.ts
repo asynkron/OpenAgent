@@ -2,6 +2,7 @@
 import { describe, expect, test, jest } from '@jest/globals';
 import { finalizePlanRuntime } from '../finalization.js';
 import { createPlanStateMachine } from '../stateMachine/index.js';
+import { createPlanPersistenceCoordinator } from '../persistenceCoordinator.js';
 
 const createPlanManagerMock = () => ({
   resolveActivePlan: jest.fn(),
@@ -15,8 +16,10 @@ describe('finalizePlanRuntime', () => {
     stateMachine.replaceActivePlan([{ id: 'root', status: 'running', command: { run: 'ls' } }]);
     const planManager = createPlanManagerMock();
 
+    const persistence = createPlanPersistenceCoordinator(planManager);
+
     const result = await finalizePlanRuntime({
-      planManager,
+      persistence,
       stateMachine,
       passIndex: 2,
     });
@@ -34,8 +37,10 @@ describe('finalizePlanRuntime', () => {
 
   test('returns noop when plan state unchanged', async () => {
     const stateMachine = createPlanStateMachine();
+    const persistence = createPlanPersistenceCoordinator(createPlanManagerMock());
+
     const result = await finalizePlanRuntime({
-      planManager: createPlanManagerMock(),
+      persistence,
       stateMachine,
       passIndex: 0,
     });

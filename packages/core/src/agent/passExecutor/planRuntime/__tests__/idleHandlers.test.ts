@@ -2,6 +2,7 @@
 import { describe, expect, test, jest } from '@jest/globals';
 import { handleNoExecutableMessage, handleCommandRejection } from '../idleHandlers.js';
 import { createPlanStateMachine } from '../stateMachine/index.js';
+import { createPlanPersistenceCoordinator } from '../persistenceCoordinator.js';
 
 const createPlanManagerMock = () => ({
   resolveActivePlan: jest.fn(),
@@ -15,7 +16,7 @@ describe('handleNoExecutableMessage', () => {
 
     const result = await handleNoExecutableMessage({
       parsedMessage: "Sorry, I can't help with that.",
-      planManager: null,
+      persistence: createPlanPersistenceCoordinator(null),
       stateMachine,
       passIndex: 1,
     });
@@ -32,10 +33,11 @@ describe('handleNoExecutableMessage', () => {
   test('clears plan when no executable work remains', async () => {
     const stateMachine = createPlanStateMachine();
     const planManager = createPlanManagerMock();
+    const persistence = createPlanPersistenceCoordinator(planManager);
 
     const result = await handleNoExecutableMessage({
       parsedMessage: 'Done',
-      planManager,
+      persistence,
       stateMachine,
       passIndex: 2,
     });
