@@ -43,7 +43,6 @@ import {
 } from './cliApp/types.js';
 import { coerceRuntime, cloneValue, normalizeStatus } from './cliApp/runtimeUtils.js';
 import { useCommandLog } from './cliApp/useCommandLog.js';
-import { useDebugPanel } from './cliApp/useDebugPanel.js';
 import { useHistoryCommand } from './cliApp/useHistoryCommand.js';
 import { useTimeline } from './cliApp/useTimeline.js';
 import type { PlanStep } from './planUtils.js';
@@ -52,7 +51,6 @@ import type { PlanProgress } from './progressUtils.js';
 import type { ContextUsage } from '../status.js';
 
 const MAX_TIMELINE_ENTRIES = 20;
-const MAX_DEBUG_ENTRIES = 20;
 const MAX_COMMAND_LOG_ENTRIES = 50;
 
 const MemoPlan = memo(Plan);
@@ -96,11 +94,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
     [appendEntry],
   );
 
-  const { debugEvents, handleDebugEvent } = useDebugPanel({
-    limit: MAX_DEBUG_ENTRIES,
-    appendStatus,
-  });
-  const handleDebugEventWithSummary = useCallback(
+  const handleDebugEvent = useCallback(
     (event: DebugRuntimeEvent): void => {
       try {
         const payload = (event as unknown as { payload?: unknown }).payload as
@@ -122,9 +116,8 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
       } catch {
         // ignore summary failures; fall back to default handling
       }
-      handleDebugEvent(event);
     },
-    [appendStatus, handleDebugEvent],
+    [appendStatus],
   );
 
   const { commandPanelEvents, commandPanelKey, handleCommandEvent, handleCommandInspectorCommand } =
@@ -388,7 +381,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
     onBanner: handleBannerEvent,
     onCommandResult: handleCommandEvent,
     onContextUsage: handleContextUsageEvent,
-    onDebug: handleDebugEventWithSummary,
+    onDebug: handleDebugEvent,
     onError: handleErrorEvent,
     onPass: handlePassEvent,
     onPlan: handlePlanEvent,
@@ -484,7 +477,6 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
   return (
     <Box flexDirection="column">
       <Timeline entries={entries} key={`timeline-${timelineKey}`} />
-      {debugEvents.length > 0 ? <MemoDebugPanel events={debugEvents} heading="Debug" /> : null}
       {commandPanelEvents.length > 0 ? (
         <MemoDebugPanel
           events={commandPanelEvents}
