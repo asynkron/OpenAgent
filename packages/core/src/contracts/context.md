@@ -22,3 +22,11 @@
 - Legacy `Tool*` alias exports have been removed; import the canonical contract names (e.g., `PlanResponse`, `PlanStep`, `CommandDefinition`) directly from this module.
 - The model request builder is exported solely as `buildOpenAgentRequestPayload`; consumers should import it by that name instead of relying on renamed shims.
 - Schema implementations now live beside the contracts (see the files above); import them via `contracts/index.ts` rather than reaching into the implementation modules directly so the barrel can evolve without breaking consumers.
+
+### API Frozen Surface
+
+- The following are API FROZEN and must not change without a coordinated, versioned migration:
+  - `PlanResponseJsonSchema`, `RuntimePlanResponseJsonSchema`, and `ToolDefinition` (planJsonSchema.ts)
+  - `PlanResponse` and `PlanStep` (plan.ts)
+  - `OpenAgentRequestPayload` and `BuildOpenAgentRequestPayloadOptions` (agent/modelRequestPayload.ts via barrel)
+  - `SupportedTool`/`StructuredToolDefinition` integration shape used by the AI SDK (openai/responses/toolSelection.ts)

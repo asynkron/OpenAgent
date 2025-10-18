@@ -16,6 +16,13 @@
 - `services/commandStatsService.ts` now runs under TypeScript checking, ensuring the command usage tracker writes safely to disk across platforms.
 - Shared runtime contracts live in [`../../contracts`](../../contracts/context.md); core modules import plan/command types from there to avoid duplicating interfaces.
 
+### API Frozen Surface
+
+- The AI tool schema and request envelope are frozen across the core package:
+  - `src/contracts/planJsonSchema.ts`: `ToolDefinition`, `PlanResponseJsonSchema`
+  - `src/agent/modelRequestPayload.ts`: `OpenAgentRequestPayload`, `BuildOpenAgentRequestPayloadOptions`, `buildOpenAgentRequestPayload()`
+  - `src/openai/responses/toolSelection.ts`: `StructuredToolDefinition`, `SupportedTool`
+
 ## Related Context
 
 - CLI workspace consuming these exports: [`../cli/context.md`](../cli/context.md).

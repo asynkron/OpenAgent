@@ -4,6 +4,11 @@ import type { JSONSchema7 } from '@ai-sdk/provider';
 import { DEFAULT_COMMAND_MAX_BYTES, DEFAULT_COMMAND_TAIL_LINES } from '../constants.js';
 import type { PlanResponse } from './plan.js';
 
+/**
+ * API FROZEN: DO NOT CHANGE
+ * Stable JSON Schema that defines the OpenAgent tool response contract consumed by the AI SDK.
+ * Coordinate any modifications via a versioned migration and major release.
+ */
 export const PlanResponseJsonSchema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
   type: 'object',
@@ -123,6 +128,11 @@ export const PlanResponseJsonSchema = {
   },
 } satisfies JSONSchema7;
 
+/**
+ * API FROZEN: DO NOT CHANGE
+ * Canonical tool definition wired into AI SDK requests. This schema is the single
+ * source of truth for structured responses from the model.
+ */
 export const ToolDefinition = Object.freeze({
   name: 'open-agent',
   description:
@@ -130,6 +140,11 @@ export const ToolDefinition = Object.freeze({
   schema: asJsonSchema<PlanResponse>(() => PlanResponseJsonSchema),
 });
 
+/**
+ * API FROZEN: DO NOT CHANGE
+ * Runtime variant used by the executor when validating assistant plan payloads.
+ * Kept in lockstep with PlanResponseJsonSchema; evolve only via coordinated changes.
+ */
 export const RuntimePlanResponseJsonSchema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
   type: 'object',

@@ -15,6 +15,10 @@ import type { AiCallOptions } from '../contracts/index.js';
 import { ToolDefinition } from '../contracts/index.js';
 import { mapHistoryToModelMessages, type ChatMessageEntry } from './historyEntry.js';
 
+/**
+ * API FROZEN: DO NOT CHANGE
+ * Request envelope sent to the AI SDK.
+ */
 export interface OpenAgentRequestPayload {
   /** Model identifier resolved from the runtime configuration. */
   model: string;
@@ -30,12 +34,22 @@ export interface OpenAgentRequestPayload {
   options?: AiCallOptions;
 }
 
+/**
+ * API FROZEN: DO NOT CHANGE
+ * Options for constructing the frozen OpenAgentRequestPayload.
+ */
 export interface BuildOpenAgentRequestPayloadOptions {
   model: string;
   history: ChatMessageEntry[];
   options?: AiCallOptions;
 }
 
+/**
+ * API FROZEN: DO NOT CHANGE
+ * Stable builder and DTO for model request payloads. This defines the exact
+ * contract used when calling the AI SDK (model, messages, and the OpenAgent tool).
+ * Coordinate any changes via a versioned migration and major release.
+ */
 export function buildOpenAgentRequestPayload({
   model,
   history,

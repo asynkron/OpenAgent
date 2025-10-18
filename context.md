@@ -54,6 +54,14 @@
 - The workspace now consumes the published Vercel AI SDK packages directly so their bundled type definitions flow through `node_modules` without maintaining local stubs.
 - FTA remediation plan for `packages/core/src/agent/__tests__/passExecutor.test.ts` is captured in `graph.md` as a DAG of one-command tasks (helpers extraction + scenario splitting) to lower the per-file score.
 
+### API Frozen Surface
+
+- The following contracts are API FROZEN and must not change without a versioned migration:
+  - `packages/core/src/contracts/planJsonSchema.ts`: `ToolDefinition`, `PlanResponseJsonSchema`, `RuntimePlanResponseJsonSchema`
+  - `packages/core/src/contracts/plan.ts`: `PlanResponse`, `PlanStep`
+  - `packages/core/src/agent/modelRequestPayload.ts`: `OpenAgentRequestPayload`, `BuildOpenAgentRequestPayloadOptions`, `buildOpenAgentRequestPayload()`
+  - `packages/core/src/openai/responses/toolSelection.ts`: `StructuredToolDefinition`, `SupportedTool`
+
 ## Related Context
 
 - Tooling & ops: [`scripts/context.md`](scripts/context.md) and [`.github/context.md`](.github/context.md).

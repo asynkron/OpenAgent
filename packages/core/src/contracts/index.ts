@@ -64,8 +64,16 @@ export {
   PlanResponseSchema,
   PlanStepSchema,
 };
+/**
+ * API FROZEN: DO NOT CHANGE
+ * Canonical tool and JSON Schemas used by the AI SDK.
+ */
 export { PlanResponseJsonSchema, RuntimePlanResponseJsonSchema, ToolDefinition };
 
+/**
+ * API FROZEN: DO NOT CHANGE
+ * Stable request/response surface used to call the AI SDK.
+ */
 export type {
   OpenAgentRequestPayload as ModelRequest,
   BuildOpenAgentRequestPayloadOptions as ModelRequestBuildOptions,

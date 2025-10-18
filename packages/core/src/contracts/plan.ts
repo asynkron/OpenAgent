@@ -21,6 +21,10 @@ export interface PlanObservationMetadata {
  * All properties are optional so that callers can populate only the relevant
  * fields without type assertions.
  */
+/**
+ * API FROZEN: DO NOT CHANGE
+ * Observation payload forwarded to the model via history messages.
+ */
 export interface PlanObservationPayload {
   plan?: PlanStep[] | null;
   stdout?: string | null;
@@ -46,6 +50,10 @@ export interface PlanObservation {
  */
 export interface PlanStepCommand extends CommandDraft {}
 
+/**
+ * API FROZEN: DO NOT CHANGE
+ * Shape of each step in the assistant plan as returned by the model.
+ */
 export interface PlanStep {
   id: string;
   title: string;
@@ -58,6 +66,10 @@ export interface PlanStep {
 
 /**
  * High-level plan returned by the assistant.
+ *
+ * API FROZEN: DO NOT CHANGE
+ * This interface is part of the stable tool contract (see PlanResponseJsonSchema
+ * and ToolDefinition). Any changes must be coordinated and versioned.
  */
 export interface PlanResponse {
   message: string;
