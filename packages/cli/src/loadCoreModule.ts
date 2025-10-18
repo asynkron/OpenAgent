@@ -1,14 +1,15 @@
+import {
+  ensureCoreModule,
+  importCoreWithFallback,
+  resolveFallbackTarget,
+  resolveImporter,
+  type CoreModule,
+  type CoreModuleContract,
+  type Importer,
+} from './loadCoreModuleHelpers.js';
+
 const CORE_PACKAGE_ID = '@asynkron/openagent-core';
 const LOCAL_CORE_ENTRY_URL = new URL('../../core/index.js', import.meta.url);
-
-type CoreModule = typeof import('@asynkron/openagent-core');
-
-type CoreModuleContract = CoreModule & {
-  createAgentRuntime: NonNullable<CoreModule['createAgentRuntime']>;
-  applyStartupFlagsFromArgv: NonNullable<CoreModule['applyStartupFlagsFromArgv']>;
-};
-
-type Importer = (specifier: string) => Promise<CoreModule>;
 
 type LoadCoreModuleOptions = {
   importer?: Importer;
@@ -36,49 +37,19 @@ export async function loadCoreModule({
     return cachedModule;
   }
 
-  const importModule = typeof importer === 'function' ? importer : defaultImporter;
-  const fallbackTarget = resolveFallbackTarget(fallbackSpecifier);
-
-  try {
-    cachedModule = ensureCoreModule(await importModule(CORE_PACKAGE_ID));
-  } catch (error: unknown) {
-    if (isModuleNotFoundError(error)) {
-      cachedModule = ensureCoreModule(await importModule(fallbackTarget));
-    } else {
-      throw error;
-    }
-  }
-
-  if (!cachedModule) {
-    throw new Error(`Failed to load ${CORE_PACKAGE_ID}`);
-  }
-
-  return cachedModule;
-}
-
-function resolveFallbackTarget(fallbackSpecifier?: string | URL): string {
-  if (!fallbackSpecifier) {
-    return LOCAL_CORE_ENTRY_URL.href;
-  }
-
-  return typeof fallbackSpecifier === 'string' ? fallbackSpecifier : fallbackSpecifier.href;
-}
-
-type ModuleNotFoundError = Error & { code?: string };
-
-function isModuleNotFoundError(error: unknown): error is ModuleNotFoundError {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  const code = (error as ModuleNotFoundError).code;
-  const message = typeof error.message === 'string' ? error.message : '';
-
-  return (
-    code === 'ERR_MODULE_NOT_FOUND' ||
-    code === 'MODULE_NOT_FOUND' ||
-    /Cannot find (module|package)/iu.test(message)
+  const importModule = resolveImporter(importer, defaultImporter);
+  const fallbackTarget = resolveFallbackTarget(
+    fallbackSpecifier,
+    LOCAL_CORE_ENTRY_URL.href,
   );
+  const importedModule = await importCoreWithFallback(
+    importModule,
+    CORE_PACKAGE_ID,
+    fallbackTarget,
+  );
+
+  cachedModule = ensureCoreModule(importedModule, CORE_PACKAGE_ID);
+  return cachedModule;
 }
 
 /**
@@ -86,18 +57,4 @@ function isModuleNotFoundError(error: unknown): error is ModuleNotFoundError {
  */
 export function __clearCoreModuleCacheForTesting(): void {
   cachedModule = undefined;
-}
-
-function ensureCoreModule(module: CoreModule): CoreModuleContract {
-  if (
-    !module ||
-    typeof module.createAgentRuntime !== 'function' ||
-    typeof module.applyStartupFlagsFromArgv !== 'function'
-  ) {
-    throw new TypeError(
-      `Module loaded from ${CORE_PACKAGE_ID} is missing required exports for the CLI runtime.`,
-    );
-  }
-
-  return module as CoreModuleContract;
 }

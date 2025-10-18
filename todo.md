@@ -25,14 +25,14 @@ Top refactor targets:
 
 Top refactor targets:
 - [x] `packages/cli/src/components/AskHuman.tsx` – Still `@ts-nocheck`; newline handling, slash-menu orchestration, and lock state need typed helpers to re-enable strict mode.
-- [ ] `packages/cli/src/components/InkTextArea.tsx` – Key event parsing, row transforms, and caret management share a single file; splitting input parsing vs. rendering would simplify test coverage.
+- [x] `packages/cli/src/components/InkTextArea.tsx` – Key event parsing, row transforms, and caret management share a single file; splitting input parsing vs. rendering would simplify test coverage.
 - [x] `packages/cli/src/components/CliApp.tsx` – Now strongly typed, but it still handles every runtime event branch directly; extracting event routers (status, command, debug) into dedicated hooks would shrink the component.
 - [x] `packages/cli/src/components/cliApp/runtimeUtils.ts` – Utility grab bag mixing cloning, integer parsing, and status normalization; deserves a separation between runtime data helpers and CLI-only coercions.
 - [x] `packages/cli/src/components/cliApp/useCommandLog.ts` – Handles timeline updates, log trimming, and slash command messaging; consider peeling the log store into a pure reducer to make the hook smaller.
 - [x] `packages/cli/src/components/cliApp/useTimeline.ts` – Batches event inserts, bounded lists, and key management; factoring timeline math into a utility module would improve clarity.
 - [x] `packages/cli/src/components/cliApp/useDebugPanel.ts` – Handles payload cloning, summarization, and max-size trimming. Splitting formatting helpers from the hook will lighten repeated cloning.
 - [x] `packages/cli/src/runtime.ts` – Still mixes dependency normalization, Ink mounting, and command stats; extracting the dependency bundle into its own factory would ease extending runtime options.
-- [ ] `packages/cli/src/loadCoreModule.ts` – Guard logic for dynamic imports intermingles with retry/fallback messaging; separating validation from logging would improve readability.
+- [x] `packages/cli/src/loadCoreModule.ts` – Guard logic for dynamic imports intermingles with retry/fallback messaging; separating validation from logging would improve readability.
 - [x] `packages/cli/src/components/commandUtils.ts` – Normalizes commands, builds summaries, and formats previews; moving edit/replace detail builders into distinct modules would lower cross-coupling with themed components.
 
 ## packages/web/frontend
