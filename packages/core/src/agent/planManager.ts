@@ -14,6 +14,12 @@ import {
   type PlanProgress,
 } from '../utils/plan.js';
 import type { StatusRuntimeEvent } from './runtimeTypes.js';
+import { createPlanManagerStatusMessenger } from './planManagerStatus.js';
+import {
+  applyPlanUpdate,
+  sanitizePlanSnapshot,
+  shouldPersistPlan,
+} from './planManagerState.js';
 
 export interface PlanManagerEvents {
   type: 'plan-progress';
@@ -71,6 +77,16 @@ export function createPlanManager({
   let lastProgressSignature: string | null = null;
   const mergeFlagResolver = typeof getPlanMergeFlag === 'function' ? getPlanMergeFlag : () => true;
   const persistenceAdapter = persistence ?? noopPersistence;
+  const statusMessenger = createPlanManagerStatusMessenger(emitStatus);
+
+  const clearActivePlan = () => {
+    activePlan = [];
+  };
+
+  const resetPlanWithWarning = (message: string, details?: string) => {
+    clearActivePlan();
+    statusMessenger.warn(message, details);
+  };
 
   const emitPlanProgressEvent = (plan: PlanSnapshot) => {
     const progress = computeProgress(plan);
@@ -92,7 +108,7 @@ export function createPlanManager({
   };
 
   const persistPlanSnapshot = async () => {
-    if (activePlan.length === 0) {
+    if (!shouldPersistPlan(activePlan)) {
       await persistenceAdapter.clear();
       return;
     }
@@ -103,70 +119,16 @@ export function createPlanManager({
   const loadPlanSnapshot = async () => {
     try {
       const loaded = await persistenceAdapter.load();
-      if (Array.isArray(loaded)) {
-        activePlan = clonePlan(loaded as PlanSnapshot);
-        return;
-      }
-
-      emitStatus({
-        type: 'status',
-        level: 'warn',
-        message: 'Plan persistence adapter returned an invalid snapshot. Resetting plan.',
-      });
-      activePlan = [];
+      activePlan = sanitizePlanSnapshot(
+        loaded,
+        clonePlan,
+        statusMessenger,
+        'Plan persistence adapter returned an invalid snapshot. Resetting plan.',
+      );
     } catch (error) {
-      emitStatus({
-        type: 'status',
-        level: 'warn',
-        message: 'Failed to load plan snapshot. Resetting plan.',
-        details: error instanceof Error ? error.message : String(error),
-      });
-      activePlan = [];
+      const details = error instanceof Error ? error.message : String(error);
+      resetPlanWithWarning('Failed to load plan snapshot. Resetting plan.', details);
     }
-  };
-
-  const sanitizeIncomingPlan = (plan: unknown): PlanSnapshot => {
-    if (!Array.isArray(plan)) {
-      emitStatus({
-        type: 'status',
-        level: 'warn',
-        message: 'Plan manager received an invalid plan snapshot. Ignoring payload.',
-      });
-      return [];
-    }
-
-    return clonePlan(plan as PlanSnapshot);
-  };
-
-  const applyUpdate = (incomingPlan: PlanSnapshot, mergeEnabled: boolean) => {
-    if (incomingPlan.length === 0) {
-      if (!mergeEnabled) {
-        if (activePlan.length > 0) {
-          emitStatus({
-            type: 'status',
-            level: 'info',
-            message: 'Cleared active plan after receiving an empty plan while merging is disabled.',
-          });
-        }
-        activePlan = [];
-      }
-      return;
-    }
-
-    if (mergeEnabled && activePlan.length > 0) {
-      activePlan = mergePlanTrees(activePlan, incomingPlan);
-      return;
-    }
-
-    if (activePlan.length > 0) {
-      emitStatus({
-        type: 'status',
-        level: 'info',
-        message: 'Replacing active plan with assistant update because plan merging is disabled.',
-      });
-    }
-
-    activePlan = incomingPlan;
   };
 
   return {
@@ -175,8 +137,14 @@ export function createPlanManager({
     },
     async update(nextPlan: PlanSnapshot | null | undefined): Promise<PlanSnapshot> {
       const mergeEnabled = mergeFlagResolver();
-      const sanitizedPlan = sanitizeIncomingPlan(nextPlan);
-      applyUpdate(sanitizedPlan, mergeEnabled);
+      const sanitizedPlan = sanitizePlanSnapshot(nextPlan, clonePlan, statusMessenger);
+      activePlan = applyPlanUpdate({
+        activePlan,
+        incomingPlan: sanitizedPlan,
+        mergeEnabled,
+        messenger: statusMessenger,
+        mergePlans: mergePlanTrees,
+      });
 
       emitPlanProgressEvent(activePlan);
       await persistPlanSnapshot();
@@ -184,12 +152,9 @@ export function createPlanManager({
     },
     async sync(nextPlan: PlanSnapshot | null | undefined): Promise<PlanSnapshot> {
       if (!Array.isArray(nextPlan)) {
-        emitStatus({
-          type: 'status',
-          level: 'warn',
-          message: 'Plan manager received an invalid plan snapshot during sync. Resetting plan.',
-        });
-        activePlan = [];
+        resetPlanWithWarning(
+          'Plan manager received an invalid plan snapshot during sync. Resetting plan.',
+        );
       } else {
         activePlan = clonePlan(nextPlan as PlanSnapshot);
       }
@@ -209,7 +174,7 @@ export function createPlanManager({
         emitPlanProgressEvent(activePlan);
         return clonePlan(activePlan);
       }
-      activePlan = [];
+      clearActivePlan();
       emitPlanProgressEvent(activePlan);
       await persistPlanSnapshot();
       return clonePlan(activePlan);
