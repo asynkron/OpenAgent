@@ -16,7 +16,7 @@ Top refactor targets:
 - [x] `packages/core/src/agent/runtimePayloadGuard.ts` – The payload growth guard mixes metrics reporting and history dumping; carving out the logging and threshold calculations would simplify the guard loop.
 - [ ] `packages/core/src/agent/promptCoordinator.ts` – Prompt queue orchestration still leans on optional chaining and loose payload types; refactoring toward an explicit state machine would remove ad-hoc checks.
 - [x] `packages/core/src/agent/planManager.ts` – The merge/reset logic combines file I/O, in-memory caches, and plan diffing; splitting adapter concerns from the domain model would shrink the cognitive load.
-- [ ] `packages/core/src/agent/historyCompactor.ts` – Blends context window estimation, history slicing, and logging; worth extracting the token estimation and compaction strategies into targeted helpers.
+- [x] `packages/core/src/agent/historyCompactor.ts` – Blends context window estimation, history slicing, and logging; worth extracting the token estimation and compaction strategies into targeted helpers.
 - [ ] `packages/core/src/commands/run.ts` – Shell execution wraps temp files, cancellation, and result normalization; introducing a dedicated child-process adapter plus typed stderr augmenters would tame the branching.
 - [ ] `packages/core/src/services/commandApprovalService.ts` – Approval policy resolution still couples async session storage with prompt formatting; isolating the persistence layer and command signature helpers would pay down technical debt.
 
