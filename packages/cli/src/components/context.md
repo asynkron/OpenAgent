@@ -18,7 +18,7 @@
 - `CliApp.tsx` — still orchestrates the Ink tree, but reusable utilities (history persistence, debug summarisation, bounded list helpers) now live alongside it under `cliApp/` so event handlers stay lean.
 - `cliApp/Timeline.tsx` memoises the timeline presentation and centralises the assistant/human/command/banner renderers so `CliApp.tsx` can render via a single component prop.
 - `cliApp/slashCommands.ts` owns slash-command parsing plus the memoised router hook shared by the Ink app and AskHuman input. A pure router factory keeps the React hook thin and now has direct unit coverage.
-- `cliApp/runtimeUtils.ts` centralises runtime payload helpers (cloning, status normalisation, integer parsing) so `CliApp.tsx` can import them without inlining implementations; regression tests for these utilities live beside the module.
+- `cliApp/runtimeUtils.ts` re-exports the focused helpers under `cliApp/runtimeUtils/` so `CliApp.tsx` can import cloning, status normalisation, and integer parsing utilities without touching their implementations. The clone helper prefers the native structured clone and falls back to JSON cloning only when required; regression tests for these utilities live beside the module.
 
 - `CliApp.tsx` retains the active input request after local slash commands are handled so that the next human prompt continues to flow to the runtime/OpenAI instead of being intercepted as another slash command.
 - `CliApp.tsx` now parses slash commands via a memoized handler map, keeping the routing logic compact while letting individual commands reuse shared helpers for validation and status reporting.
