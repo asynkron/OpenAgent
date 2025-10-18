@@ -1,23 +1,27 @@
-interface ToolCallCandidate {
+type ToolCallArguments = string | Record<string, unknown> | Array<unknown> | null | undefined;
+
+interface RawToolCall {
   type?: string;
   name?: string;
-  arguments?: unknown;
-  call_id?: unknown;
+  arguments?: ToolCallArguments;
+  call_id?: string | null | undefined;
 }
 
-interface OutputTextPart {
+interface RawMessagePart {
   type?: string;
-  text?: string;
+  text?: string | null | undefined;
 }
 
-interface MessageCandidate {
+interface RawMessage {
   type?: string;
-  content?: OutputTextPart[];
+  content?: Array<RawMessagePart | null | undefined> | null | undefined;
 }
+
+type RawResponseOutput = RawToolCall | RawMessage | null | undefined;
 
 export interface ModelResponseLike {
-  output?: Array<ToolCallCandidate | MessageCandidate | null | undefined>;
-  output_text?: string;
+  output?: RawResponseOutput[];
+  output_text?: string | null | undefined;
 }
 
 export interface OpenAgentToolCall {
@@ -28,7 +32,7 @@ export interface OpenAgentToolCall {
 
 const OPEN_AGENT_TOOL_NAME = 'open-agent';
 
-const normalizeArguments = (args: unknown): string => {
+const normalizeArguments = (args: ToolCallArguments): string => {
   if (typeof args === 'string') {
     return args.trim();
   }
@@ -44,16 +48,25 @@ const normalizeArguments = (args: unknown): string => {
   return '';
 };
 
-const isToolCallCandidate = (item: unknown): item is ToolCallCandidate => {
+const isToolCall = (item: RawResponseOutput): item is RawToolCall => {
   if (!item || typeof item !== 'object') {
     return false;
   }
 
-  const candidate = item as ToolCallCandidate;
+  const candidate = item as RawToolCall;
   return candidate.type === 'function_call' && candidate.name === OPEN_AGENT_TOOL_NAME;
 };
 
-const toOpenAgentToolCall = (candidate: ToolCallCandidate): OpenAgentToolCall => ({
+const isMessage = (item: RawResponseOutput): item is RawMessage => {
+  if (!item || typeof item !== 'object') {
+    return false;
+  }
+
+  const candidate = item as RawMessage;
+  return candidate.type === 'message' && Array.isArray(candidate.content);
+};
+
+const toOpenAgentToolCall = (candidate: RawToolCall): OpenAgentToolCall => ({
   name: OPEN_AGENT_TOOL_NAME,
   call_id: typeof candidate.call_id === 'string' ? candidate.call_id : null,
   arguments: normalizeArguments(candidate.arguments),
@@ -68,7 +81,7 @@ export const extractOpenAgentToolCall = (
 
   const outputs = Array.isArray(response.output) ? response.output : [];
   for (const item of outputs) {
-    if (isToolCallCandidate(item)) {
+    if (isToolCall(item)) {
       return toOpenAgentToolCall(item);
     }
   }
@@ -79,16 +92,11 @@ export const extractOpenAgentToolCall = (
 const extractFromOutputMessages = (response: ModelResponseLike): string => {
   const outputs = Array.isArray(response.output) ? response.output : [];
   for (const item of outputs) {
-    if (!item || typeof item !== 'object') {
+    if (!isMessage(item) || !Array.isArray(item.content)) {
       continue;
     }
 
-    const messageCandidate = item as MessageCandidate;
-    if (messageCandidate.type !== 'message' || !Array.isArray(messageCandidate.content)) {
-      continue;
-    }
-
-    for (const part of messageCandidate.content) {
+    for (const part of item.content) {
       if (part && part.type === 'output_text' && typeof part.text === 'string') {
         const normalized = part.text.trim();
         if (normalized) {
