@@ -1,18 +1,11 @@
 import { type ReactElement } from 'react';
-import { Box, Text } from 'ink';
-import Spinner from 'ink-spinner';
-import ContextUsage from './ContextUsage.js';
-import InkTextArea from './InkTextArea.js';
-import {
-  defaultAskHumanViewProps,
-  type AskHumanViewProps,
-} from './askHumanViewProps.js';
 import {
   useAskHumanInput,
   type SubmitHandler,
 } from './useAskHumanInput.js';
 import type { ContextUsage as ContextUsageValue } from '../status.js';
-import { HUMAN_SLASH_COMMANDS } from './askHumanCommands.js';
+import { formatAskHumanHint } from './askHumanHint.js';
+import AskHumanLayout from './AskHumanLayout.js';
 
 export { HUMAN_SLASH_COMMANDS } from './askHumanCommands.js';
 
@@ -21,27 +14,6 @@ type AskHumanProps = {
   thinking?: boolean;
   contextUsage?: ContextUsageValue | null;
   passCounter?: number;
-};
-
-const askHumanViewProps: AskHumanViewProps = defaultAskHumanViewProps;
-
-const normalizePassCounter = (passCounter: number): number => {
-  if (!Number.isFinite(passCounter)) {
-    return 0;
-  }
-  const normalizedValue = Math.floor(passCounter);
-  return normalizedValue > 0 ? normalizedValue : 0;
-};
-
-const formatHintMessage = (thinking: boolean, passCounter: number): string => {
-  const normalizedPassCounter = normalizePassCounter(passCounter);
-  const passPrefix = normalizedPassCounter > 0 ? `Pass #${normalizedPassCounter} • ` : '';
-
-  if (thinking) {
-    return `${passPrefix}Waiting for the AI to finish thinking…`;
-  }
-
-  return `${passPrefix}Press Enter to submit • Shift+Enter for newline • Esc to cancel`;
 };
 
 /**
@@ -59,32 +31,19 @@ function AskHuman({
     disabled: thinking,
   });
 
-  const hintMessage = formatHintMessage(thinking, passCounter);
+  const hintMessage = formatAskHumanHint(thinking, passCounter);
 
-  const inputDisplay = thinking ? (
-    <Text {...askHumanViewProps.spinnerTextProps}>
-      <Spinner type="dots" key="spinner-icon" /> Thinking…
-    </Text>
-  ) : (
-    <InkTextArea
-      {...askHumanViewProps.textAreaStyle}
+  return (
+    <AskHumanLayout
       value={value}
       onChange={updateValue}
       onSubmit={submit}
-      slashMenuItems={HUMAN_SLASH_COMMANDS}
-      isActive={interactive}
-      isDisabled={isLocked}
+      isInteractive={interactive}
+      isLocked={isLocked}
+      thinking={thinking}
+      hintMessage={hintMessage}
+      contextUsage={contextUsage}
     />
-  );
-
-  return (
-    <Box {...askHumanViewProps.containerProps}>
-      <Box {...askHumanViewProps.inputRowProps}>{inputDisplay}</Box>
-      <Box {...askHumanViewProps.footerProps}>
-        <Text {...askHumanViewProps.footerHintProps}>{hintMessage}</Text>
-        {contextUsage ? <ContextUsage usage={contextUsage} /> : null}
-      </Box>
-    </Box>
   );
 }
 
