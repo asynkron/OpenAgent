@@ -1,7 +1,8 @@
 import type { PlanStep } from '../planExecution.js';
 import type { PlanPersistenceCoordinator } from './persistenceCoordinator.js';
 import type { PlanStateMachine } from './stateMachine/index.js';
-import { createPlanSnapshotEffect, type InitializeResult, toEmitEffects } from './effects.js';
+import { createPlanSnapshotEffect, type InitializeResult } from './effects.js';
+import { resolvePlanWithPersistence } from './persistenceEffects.js';
 
 export interface PlanInitializationContext {
   readonly incomingPlan: PlanStep[] | null;
@@ -24,14 +25,13 @@ export const initializePlanRuntime = async ({
     : ([] as PlanStep[]);
   stateMachine.replaceActivePlan(basePlan);
 
-  const { plan: resolvedPlan, warning } = await persistence.resolveActivePlan(
-    prepared.sanitizedPlan,
+  effects.push(
+    ...(await resolvePlanWithPersistence({
+      persistence,
+      stateMachine,
+      normalizedPlan: prepared.sanitizedPlan,
+    })),
   );
-  effects.push(...toEmitEffects(warning));
-
-  if (Array.isArray(resolvedPlan)) {
-    stateMachine.replaceActivePlan(resolvedPlan);
-  }
 
   stateMachine.normalizeDependencies();
   stateMachine.pruneCompletedSteps();
