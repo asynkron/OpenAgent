@@ -1,44 +1,15 @@
 import { useCallback, useRef, useState } from 'react';
 
 import type { DebugEntry, DebugRuntimeEvent, TimelinePayload } from './types.js';
+import {
+  parseManagedDebugPayload,
+  removeEntryById,
+  replaceEntryById,
+  resolveEntryIdentifier,
+  shouldRemoveEntry,
+  shouldReplaceEntry,
+} from './debugPanelHelpers.js';
 import { appendWithLimit, formatDebugPayload, summarizeAutoResponseDebug } from './logging.js';
-
-const STREAM_ACTION_FIELD = '__openagentStreamAction';
-const STREAM_VALUE_FIELD = '__openagentStreamValue';
-
-type ManagedDebugAction = 'replace' | 'remove';
-
-interface ManagedDebugInstruction {
-  action: ManagedDebugAction;
-  value?: unknown;
-}
-
-function parseManagedDebugPayload(payload: unknown): ManagedDebugInstruction | null {
-  if (!payload || typeof payload !== 'object') {
-    return null;
-  }
-
-  type ManagedPayload = {
-    [STREAM_ACTION_FIELD]?: unknown;
-    [STREAM_VALUE_FIELD]?: unknown;
-  };
-
-  const record = payload as ManagedPayload;
-  const action = record[STREAM_ACTION_FIELD];
-
-  if (action === 'remove') {
-    return { action: 'remove' };
-  }
-
-  if (action === 'replace' || action === 'update') {
-    return {
-      action: 'replace',
-      value: record[STREAM_VALUE_FIELD],
-    };
-  }
-
-  return null;
-}
 
 export interface UseDebugPanelOptions {
   limit: number;
@@ -55,37 +26,28 @@ export function useDebugPanel({ limit, appendStatus }: UseDebugPanelOptions): {
   const debugEventIdRef = useRef(0);
   const [debugEvents, setDebugEvents] = useState<DebugEntry[]>([]);
 
-  const createDebugEntry = useCallback((event: DebugRuntimeEvent): DebugEntry | null => {
-    const formatted = formatDebugPayload(event.payload);
-    if (!formatted) {
-      return null;
-    }
+  const createDebugEntry = useCallback(
+    (event: DebugRuntimeEvent): DebugEntry | null => {
+      const formatted = formatDebugPayload(event.payload);
+      if (!formatted) {
+        return null;
+      }
 
-    const entryId =
-      typeof event.id === 'string' || typeof event.id === 'number'
-        ? (event.id as string | number)
-        : debugEventIdRef.current + 1;
+      const entryId = resolveEntryIdentifier(event.id, debugEventIdRef);
 
-    if (typeof entryId === 'number') {
-      debugEventIdRef.current = entryId;
-    } else {
-      debugEventIdRef.current += 1;
-    }
-
-    return { id: entryId, content: formatted } satisfies DebugEntry;
-  }, []);
+      return { id: entryId, content: formatted } satisfies DebugEntry;
+    },
+    [],
+  );
 
   const handleDebugEvent = useCallback(
     (event: DebugRuntimeEvent) => {
       const managed = parseManagedDebugPayload(event.payload);
-      setDebugEvents((prev) => {
-        const eventId = event.id;
+      const eventId = event.id;
 
-        if (
-          managed?.action === 'remove' &&
-          (typeof eventId === 'string' || typeof eventId === 'number')
-        ) {
-          return prev.filter((existing) => existing.id !== eventId);
+      setDebugEvents((prev) => {
+        if (shouldRemoveEntry(managed, eventId)) {
+          return removeEntryById(prev, eventId);
         }
 
         const payloadForEntry = managed ? managed.value : event.payload;
@@ -94,20 +56,10 @@ export function useDebugPanel({ limit, appendStatus }: UseDebugPanelOptions): {
           return prev;
         }
 
-        if (
-          managed?.action === 'replace' &&
-          (typeof eventId === 'string' || typeof eventId === 'number')
-        ) {
-          let replaced = false;
-          const next = prev.map((existing) => {
-            if (existing.id === entry.id) {
-              replaced = true;
-              return entry;
-            }
-            return existing;
-          });
+        if (shouldReplaceEntry(managed, eventId)) {
+          const replaced = replaceEntryById(prev, entry);
           if (replaced) {
-            return next;
+            return replaced;
           }
         }
 
