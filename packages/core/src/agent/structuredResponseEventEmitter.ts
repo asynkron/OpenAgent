@@ -265,6 +265,8 @@ export class StructuredResponseEventEmitter {
 
   private lastMessageSignature: string | null = null;
 
+  private hasEmittedMessage = false;
+
   constructor(options: StructuredResponseEventEmitterOptions) {
     this.emitEvent = options.emitEvent ?? null;
   }
@@ -274,11 +276,10 @@ export class StructuredResponseEventEmitter {
       return emptySummary;
     }
 
-    let messageEmitted = false;
     let planEmitted = false;
 
     if (typeof partial.message === 'string') {
-      messageEmitted = this.applyMessageUpdate(partial.message);
+      this.applyMessageUpdate(partial.message);
     }
 
     if ('plan' in partial) {
@@ -295,18 +296,18 @@ export class StructuredResponseEventEmitter {
     }
 
     return {
-      messageEmitted,
+      messageEmitted: this.hasEmittedMessage,
       planEmitted,
     };
   }
 
   handleFinalResponse(response: PlanResponse): StructuredResponseEmissionSummary {
-    const messageEmitted = this.applyMessageUpdate(response.message);
+    this.applyMessageUpdate(response.message);
     const planChanged = this.replacePlanSnapshot(response.plan.map((step) => buildSnapshotFromPlanStep(step)));
     const planEmitted = planChanged ? this.emitPlanIfChanged() : false;
 
     return {
-      messageEmitted,
+      messageEmitted: this.hasEmittedMessage,
       planEmitted,
     };
   }
@@ -321,8 +322,14 @@ export class StructuredResponseEventEmitter {
       return false;
     }
 
-    emitAssistantMessageEvent(this.emitEvent, trimmed);
     this.lastMessageSignature = trimmed;
+
+    if (!this.emitEvent) {
+      return false;
+    }
+
+    emitAssistantMessageEvent(this.emitEvent, trimmed);
+    this.hasEmittedMessage = true;
     return true;
   }
 
