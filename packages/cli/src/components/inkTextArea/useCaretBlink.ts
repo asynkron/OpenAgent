@@ -33,4 +33,3 @@ export function useCaretBlink(interactive: boolean) {
   return showCaret;
 }
 
-export default useCaretBlink;

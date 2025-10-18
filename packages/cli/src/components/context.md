@@ -56,6 +56,8 @@
   surface clean while preserving the flexible merge behaviour required by theme overrides.
 - `CliApp.tsx` keeps lint noise down by only importing the history snapshot helper that remains in use; the unused
   resolver import has been trimmed.
+- Shared helpers such as `commandUtils.ts`, `planUtils.ts`, `progressUtils.ts`, and the Ink text area hooks now expose
+  only named exports so tree-shaking and dead-code analyzers no longer report unused default facades.
 - InkTextArea regression tests live in focused suites (`InkTextArea.input.test.ts`, `InkTextArea.slash-menu.test.ts`,
   `InkTextArea.transform.test.ts`) with shared helpers under `test-utils/` so caret/command behaviours can evolve
   independently without editing a monolithic spec.
