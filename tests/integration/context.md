@@ -7,6 +7,7 @@
 ## Key Files
 
 - `agentLoop.integration.test.ts` — validates the interactive loop emits expected events, respects plan persistence, and handles approvals.
+- `openaiRealCall.integration.test.ts` — optional smoke test that exercises a live OpenAI completion when both `OPENAI_API_KEY` and `OPENAGENT_LIVE_OPENAI=1` are present; otherwise the suite stays skipped so sandboxed runs do not hit the Vercel AI SDK.
 - `__fixtures__/openai-nested-shell-response-text.json` — captured OpenAI response payload (including the outer metadata) used to reproduce newline-heavy command payloads inside tests; now normalized to the current schema with explicit `id` labels, full shell/run command objects, and the required `max_bytes` default (aligned with `packages/core/src/constants.ts`) so schema validation passes during integration runs.
 - `__fixtures__/openaiNestedShellResponse.ts` — helper that loads the captured payload and extracts the nested `responseText` string for the suites.
 - `agentCancellation.integration.test.ts` — covers ESC handling and cancellation propagation across queued commands, ensuring canceled steps drop their pending command so acknowledgements don't replay the previous instruction while still allowing the assistant to retry with fresh payloads.

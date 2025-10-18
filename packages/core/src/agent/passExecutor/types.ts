@@ -10,7 +10,11 @@ import type { ChatMessageEntry } from '../historyEntry.js';
 import type { requestModelCompletion as RequestModelCompletion } from '../modelRequest.js';
 import type { executeAgentCommand as ExecuteAgentCommand } from '../commandExecution.js';
 import type { parseAssistantResponse as ParseAssistantResponse } from '../responseParser.js';
-import type { DebugRuntimeEventPayload, RuntimeEvent } from '../runtimeTypes.js';
+import type {
+  DebugRuntimeEventPayload,
+  EmitRuntimeEventOptions,
+  RuntimeEvent,
+} from '../runtimeTypes.js';
 import type {
   validateAssistantResponseSchema as ValidateAssistantResponseSchema,
   validateAssistantResponse as ValidateAssistantResponse,
@@ -22,7 +26,7 @@ import type { incrementCommandCount as IncrementCommandCount } from '../../servi
 import type { PlanManagerLike } from './planManagerAdapter.js';
 import type { PlanAutoResponseTracker } from './planReminderController.js';
 
-export type EmitEvent = (event: RuntimeEvent) => void;
+export type EmitEvent = (event: RuntimeEvent, options?: EmitRuntimeEventOptions) => void;
 
 export interface GuardRequestPayloadSizeInput {
   history: PlanHistory;

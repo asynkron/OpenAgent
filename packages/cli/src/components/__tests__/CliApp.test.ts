@@ -123,7 +123,7 @@ describe('CliApp slash command handling', () => {
 });
 
 describe('CliApp assistant message handling', () => {
-  test('renders non-string assistant messages once input is requested again', async () => {
+  test('renders non-string assistant messages immediately', async () => {
     const runtime = createRuntimeHarness();
     const { lastFrame, unmount } = render(React.createElement(CliApp, { runtime }));
 
@@ -132,9 +132,6 @@ describe('CliApp assistant message handling', () => {
         type: 'assistant-message',
         message: ['Structured response preserved.'],
       });
-      await flush();
-
-      runtime.emit({ type: 'request-input', prompt: '▷', metadata: { scope: 'user-input' } });
       await flush();
 
       expect(lastFrame()).toContain('Structured response preserved.');

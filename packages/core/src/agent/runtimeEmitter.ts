@@ -2,6 +2,7 @@ import type {
   AgentRuntimeOptions,
   AsyncQueueLike,
   DebugRuntimeEvent,
+  EmitRuntimeEventOptions,
   IdGeneratorFn,
   RuntimeDebugPayload,
   RuntimeEmitter,
@@ -72,12 +73,20 @@ export function createRuntimeEmitter({
     return `${idPrefix}${counter++}`;
   };
 
-  const emit = (event: RuntimeEvent): void => {
+  const emit = (event: RuntimeEvent, options?: EmitRuntimeEventOptions): void => {
     if (!event || typeof event !== 'object') {
       throw new TypeError('Agent emit expected event to be an object.');
     }
 
-    const clonedEvent = { ...cloneEvent(event), __id: nextId() } as RuntimeEvent;
+    const clonedEvent = cloneEvent(event) as RuntimeEvent;
+    const providedId =
+      options && typeof options.id === 'string' && options.id.length > 0 ? options.id : null;
+    const existingId = (() => {
+      const candidate = (clonedEvent as { __id?: unknown }).__id;
+      return typeof candidate === 'string' && candidate.length > 0 ? candidate : null;
+    })();
+    const resolvedId = providedId ?? existingId ?? nextId();
+    (clonedEvent as { __id: string }).__id = resolvedId;
     outputsQueue.push(clonedEvent);
 
     if (!Array.isArray(eventObservers)) {

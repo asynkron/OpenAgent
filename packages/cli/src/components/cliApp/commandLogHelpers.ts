@@ -27,10 +27,23 @@ export type CommandInspectorResolution = {
 export function createCommandResultPayload(
   event: CommandResultRuntimeEvent,
 ): TimelinePayload<'command-result'> {
+  const rawEventId = typeof event.__id === 'string' ? event.__id : null;
+  const eventId = (() => {
+    if (!rawEventId) {
+      return null;
+    }
+    const trimmed = rawEventId.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  })();
+  if (!eventId) {
+    throw new TypeError('Command runtime event expected string "__id".');
+  }
+
   const { command, result, preview, execution, observation, planStep, planSnapshot } =
     event.payload;
 
   const timelinePayload: TimelineCommandPayload = {
+    eventId,
     command: cloneCommandPayload(command),
     result: cloneCommandResult(result),
     preview: cloneCommandPreview(preview),

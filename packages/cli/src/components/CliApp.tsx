@@ -86,17 +86,8 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
   const [exitState, setExitState] = useState<ExitState | null>(null);
   const [passCounter, setPassCounter] = useState(0);
 
-  const { entries, timelineKey, appendEntry } = useTimeline(MAX_TIMELINE_ENTRIES);
-  const pendingAssistantMessageRef = useRef<TimelinePayload<'assistant-message'> | null>(null);
-
-  const flushPendingAssistantMessage = useCallback((): void => {
-    const pending = pendingAssistantMessageRef.current;
-    if (!pending) {
-      return;
-    }
-    appendEntry('assistant-message', pending);
-    pendingAssistantMessageRef.current = null;
-  }, [appendEntry]);
+  const { entries, timelineKey, appendEntry, upsertAssistantEntry, upsertCommandEntry } =
+    useTimeline(MAX_TIMELINE_ENTRIES);
 
   const appendStatus = useCallback(
     (status: TimelinePayload<'status'>): void => {
@@ -139,7 +130,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
   const { commandPanelEvents, commandPanelKey, handleCommandEvent, handleCommandInspectorCommand } =
     useCommandLog({
       limit: MAX_COMMAND_LOG_ENTRIES,
-      appendCommandResult: appendEntry,
+      upsertCommandResult: upsertCommandEntry,
       appendStatus,
     });
 
@@ -154,9 +145,12 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
 
   const handleAssistantMessage = useCallback(
     (event: AssistantMessageRuntimeEvent): void => {
-      flushPendingAssistantMessage();
-      const eventId = event.__id;
-      if (typeof eventId !== 'string') {
+      const eventIdValue = event.__id;
+      if (typeof eventIdValue !== 'string') {
+        throw new TypeError('Assistant runtime event expected string "__id".');
+      }
+      const normalizedId = eventIdValue.trim();
+      if (!normalizedId) {
         throw new TypeError('Assistant runtime event expected string "__id".');
       }
       const rawSource =
@@ -166,9 +160,9 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
       const rawMessage = Array.isArray(rawSource)
         ? rawSource.map((v) => String(v)).join('\n')
         : String(rawSource);
-      pendingAssistantMessageRef.current = { message: rawMessage, eventId };
+      upsertAssistantEntry({ message: rawMessage, eventId: normalizedId });
     },
-    [flushPendingAssistantMessage],
+    [upsertAssistantEntry],
   );
 
   const handleStatusEvent = useCallback(
@@ -360,7 +354,6 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
 
   const handleRequestInputEvent = useCallback(
     (event: RequestInputRuntimeEvent): void => {
-      flushPendingAssistantMessage();
       const topLevelPrompt = (event as unknown as { prompt?: unknown }).prompt;
       const payloadPrompt = (event.payload as unknown as { prompt?: unknown })?.prompt;
       const chosenPrompt =
@@ -380,7 +373,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
           : (cloneValue(metadataSource) as InputRequestState['metadata']);
       setInputRequest({ prompt: promptValue, metadata });
     },
-    [flushPendingAssistantMessage],
+    [],
   );
 
   const handleRuntimeStatusEvent = useCallback(
@@ -467,8 +460,6 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
       return;
     }
 
-    flushPendingAssistantMessage();
-
     if (exitState.status === 'error') {
       onRuntimeError?.(exitState.error);
     } else {
@@ -476,7 +467,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
     }
 
     exit();
-  }, [exit, exitState, flushPendingAssistantMessage, onRuntimeComplete, onRuntimeError]);
+  }, [exit, exitState, onRuntimeComplete, onRuntimeError]);
 
   useInput((input, key) => {
     if (key.escape) {

@@ -1,15 +1,14 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 
 import type {
-  AppendTimelineEntry,
   CommandInspectorState,
   CommandLogEntry,
   CommandPanelEvent,
   CommandResultRuntimeEvent,
   SlashCommandHandler,
   TimelinePayload,
+  UpsertCommandTimelineEntry,
 } from './types.js';
-import { appendWithLimit } from './logging.js';
 import { cloneValue } from './runtimeUtils.js';
 import {
   createCommandPanelEvents,
@@ -20,14 +19,14 @@ import type { Command as CommandPayload } from '../commandUtils.js';
 
 export interface UseCommandLogOptions {
   limit: number;
-  appendCommandResult: AppendTimelineEntry;
+  upsertCommandResult: UpsertCommandTimelineEntry;
   appendStatus: (status: TimelinePayload<'status'>) => void;
 }
 
 /**
  * Manages the recent command payload log and related slash command without bloating CliApp.
  */
-export function useCommandLog({ limit, appendCommandResult, appendStatus }: UseCommandLogOptions): {
+export function useCommandLog({ limit, upsertCommandResult, appendStatus }: UseCommandLogOptions): {
   commandPanelEvents: CommandPanelEvent[];
   commandPanelKey: number | null;
   handleCommandEvent: (event: CommandResultRuntimeEvent) => void;
@@ -36,6 +35,7 @@ export function useCommandLog({ limit, appendCommandResult, appendStatus }: UseC
   const commandLogIdRef = useRef(0);
   const [commandLog, setCommandLog] = useState<CommandLogEntry[]>([]);
   const [commandInspector, setCommandInspector] = useState<CommandInspectorState | null>(null);
+  const commandEventIdMapRef = useRef<Map<string, number>>(new Map());
 
   const createCommandLogEntry = useCallback(
     (commandPayload: CommandPayload): CommandLogEntry => {
@@ -53,19 +53,47 @@ export function useCommandLog({ limit, appendCommandResult, appendStatus }: UseC
   const handleCommandEvent = useCallback(
     (event: CommandResultRuntimeEvent) => {
       const timelinePayload = createCommandResultPayload(event);
-      appendCommandResult('command-result', timelinePayload);
+      upsertCommandResult(timelinePayload);
 
       const commandPayload = timelinePayload.command as CommandPayload | null | undefined;
       if (!commandPayload) {
         return;
       }
 
+      const eventId = timelinePayload.eventId;
+
       setCommandLog((prev) => {
+        const existingId = commandEventIdMapRef.current.get(eventId);
+        if (existingId) {
+          return prev.map((entry) =>
+            entry.id === existingId
+              ? { ...entry, command: cloneValue(commandPayload), receivedAt: Date.now() }
+              : entry,
+          );
+        }
+
         const entry = createCommandLogEntry(commandPayload);
-        return appendWithLimit(prev, entry, limit).next;
+        commandEventIdMapRef.current.set(eventId, entry.id);
+
+        const appended = [...prev, entry];
+        if (!limit || appended.length <= limit) {
+          return appended;
+        }
+
+        const trimmedCount = appended.length - limit;
+        const trimmedEntries = appended.slice(0, trimmedCount);
+        const nextEntries = appended.slice(trimmedCount);
+        trimmedEntries.forEach((trimmed) => {
+          for (const [key, value] of commandEventIdMapRef.current.entries()) {
+            if (value === trimmed.id) {
+              commandEventIdMapRef.current.delete(key);
+            }
+          }
+        });
+        return nextEntries;
       });
     },
-    [appendCommandResult, createCommandLogEntry, limit],
+    [createCommandLogEntry, limit, upsertCommandResult],
   );
 
   const executeCommandInspectorCommand = useCallback(

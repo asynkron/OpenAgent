@@ -1,12 +1,13 @@
 import { describe, expect, jest, test } from '@jest/globals';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const LIVE_OPENAI_ENABLED = process.env.OPENAGENT_LIVE_OPENAI === '1';
 
 const TEST_MODEL = process.env.OPENAI_TEST_MODEL ?? 'gpt-4o-mini';
 
-if (!OPENAI_API_KEY) {
+if (!OPENAI_API_KEY || !LIVE_OPENAI_ENABLED) {
   describe.skip('OpenAI real call integration', () => {
-    test('requires OPENAI_API_KEY', () => {
+    test('requires OPENAI_API_KEY and OPENAGENT_LIVE_OPENAI=1', () => {
       expect(true).toBe(true);
     });
   });
