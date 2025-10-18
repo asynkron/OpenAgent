@@ -13,7 +13,7 @@ Top refactor targets:
 - [x] `packages/core/src/agent/loop.ts` – The main runtime loop still hosts cancel logic, observer wiring, and history queue plumbing; extracting lifecycle hooks into collaborators will make the control-flow approachable.
 - [ ] `packages/core/src/agent/passExecutor/planRuntime.ts` – Manages plan snapshots, observation writes, and execution state in one file. Splitting the plan state-machine from persistence hooks will reduce the current nesting depth.
 - [x] `packages/core/src/openai/responses.ts` – Streams/generator plumbing, schema coercion, and provider option setup all live together; the new partial typings help, but the normalizer still deserves a dedicated module per payload branch.
-- [ ] `packages/core/src/agent/runtimePayloadGuard.ts` – The payload growth guard mixes metrics reporting and history dumping; carving out the logging and threshold calculations would simplify the guard loop.
+- [x] `packages/core/src/agent/runtimePayloadGuard.ts` – The payload growth guard mixes metrics reporting and history dumping; carving out the logging and threshold calculations would simplify the guard loop.
 - [ ] `packages/core/src/agent/promptCoordinator.ts` – Prompt queue orchestration still leans on optional chaining and loose payload types; refactoring toward an explicit state machine would remove ad-hoc checks.
 - [ ] `packages/core/src/agent/planManager.ts` – The merge/reset logic combines file I/O, in-memory caches, and plan diffing; splitting adapter concerns from the domain model would shrink the cognitive load.
 - [ ] `packages/core/src/agent/historyCompactor.ts` – Blends context window estimation, history slicing, and logging; worth extracting the token estimation and compaction strategies into targeted helpers.

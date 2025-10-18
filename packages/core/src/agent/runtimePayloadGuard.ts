@@ -1,9 +1,12 @@
-import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { mapHistoryToModelMessages } from './historyEntry.js';
 import { requestModelCompletion as defaultRequestModelCompletion } from './modelRequest.js';
 import { MAX_REQUEST_GROWTH_FACTOR } from './runtimeSharedConstants.js';
+import {
+  ensurePayloadGrowthWithinBounds,
+  isFinitePayloadSize,
+} from './runtimePayloadFailsafe.js';
 import type {
   GuardableRequestModelCompletion,
   GuardedRequestModelCompletion,
@@ -23,26 +26,6 @@ interface PayloadGuardConfig {
 }
 
 const DEFAULT_HISTORY_DIR = join(process.cwd(), '.openagent', 'failsafe-history');
-
-async function dumpHistorySnapshot({
-  historyEntries = [],
-  passIndex,
-  historyDumpDirectory,
-  emitter,
-}: {
-  historyEntries?: HistorySnapshot | [];
-  passIndex?: number | null;
-  historyDumpDirectory: string;
-  emitter: RuntimeEmitter;
-}): Promise<string> {
-  await mkdir(historyDumpDirectory, { recursive: true });
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const prefix = Number.isFinite(passIndex) ? `pass-${passIndex}-` : 'pass-unknown-';
-  const filePath = join(historyDumpDirectory, `${prefix}${timestamp}.json`);
-  await writeFile(filePath, JSON.stringify(historyEntries, null, 2), 'utf8');
-  emitter.logWithFallback('error', `[failsafe] Dumped history snapshot to ${filePath}.`);
-  return filePath;
-}
 
 const estimateRequestPayloadSize = (
   historySnapshot: HistorySnapshot | null | undefined,
@@ -80,8 +63,8 @@ export function createPayloadGuard({
   let lastTransmittedPayloadSize: number | null = null;
 
   const recordPayloadSize = (payloadSize: number | null): void => {
-    if (Number.isFinite(payloadSize)) {
-      lastTransmittedPayloadSize = payloadSize as number;
+    if (isFinitePayloadSize(payloadSize)) {
+      lastTransmittedPayloadSize = payloadSize;
     }
   };
 
@@ -89,38 +72,18 @@ export function createPayloadGuard({
     options: GuardRequestPayloadSizeInput | GuardRequestOptions,
   ): Promise<number | null> => {
     const payloadSize = estimateRequestPayloadSize(options?.history, options?.model, emitter);
-    if (Number.isFinite(lastTransmittedPayloadSize) && Number.isFinite(payloadSize)) {
-      const previous = lastTransmittedPayloadSize as number;
-      const current = payloadSize as number;
-      const growthFactor = previous > 0 ? current / previous : Number.POSITIVE_INFINITY;
 
-      if (growthFactor >= MAX_REQUEST_GROWTH_FACTOR && current - previous > 1024) {
-        emitter.logWithFallback(
-          'error',
-          `[failsafe] OpenAI request ballooned from ${previous}B to ${current}B on pass ${
-            options?.passIndex ?? 'unknown'
-          }.`,
-        );
+    await ensurePayloadGrowthWithinBounds({
+      baseline: lastTransmittedPayloadSize,
+      candidate: payloadSize,
+      history: options?.history,
+      passIndex: options?.passIndex ?? null,
+      emitter,
+      historyDumpDirectory: historyDumpRoot,
+      growthFactorLimit: MAX_REQUEST_GROWTH_FACTOR,
+    });
 
-        try {
-          await dumpHistorySnapshot({
-            historyEntries: options?.history ?? [],
-            passIndex: options?.passIndex,
-            historyDumpDirectory: historyDumpRoot,
-            emitter,
-          });
-        } catch (dumpError) {
-          emitter.logWithFallback('error', '[failsafe] Failed to persist history snapshot.', {
-            error: dumpError instanceof Error ? dumpError.message : String(dumpError),
-          });
-        }
-
-        emitter.logWithFallback('error', '[failsafe] Exiting to prevent excessive API charges.');
-        process.exit(1);
-      }
-    }
-
-    return Number.isFinite(payloadSize) ? (payloadSize as number) : null;
+    return isFinitePayloadSize(payloadSize) ? payloadSize : null;
   };
 
   const buildGuardedRequestModelCompletion = (
