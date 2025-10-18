@@ -2,6 +2,7 @@ import type {
   AgentRuntimeLike,
   CliAppProps,
   StatusRuntimeEvent,
+  StatusLikePayload,
   TimelineStatusPayload,
 } from './types.js';
 
@@ -56,7 +57,7 @@ export function parsePositiveInteger(value: unknown, defaultValue = 1): number {
 export function normalizeStatus(
   event:
     | StatusRuntimeEvent
-    | { message?: string; level?: string; details?: unknown }
+    | StatusLikePayload
     | null
     | undefined,
 ): TimelineStatusPayload | null {

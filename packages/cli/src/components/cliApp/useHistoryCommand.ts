@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 
+import type { ChatMessageEntry } from '@asynkron/openagent-core';
 import type { AgentRuntimeLike, SlashCommandHandler, TimelinePayload } from './types.js';
 import { writeHistorySnapshot } from './history.js';
 
@@ -25,9 +26,10 @@ export function useHistoryCommand({ getRuntime, appendStatus }: UseHistoryComman
         return;
       }
 
-      let history: unknown;
+      let historyEntries: readonly ChatMessageEntry[] = [];
       try {
-        history = runtime.getHistorySnapshot();
+        const snapshot = runtime.getHistorySnapshot();
+        historyEntries = Array.isArray(snapshot) ? snapshot : [];
       } catch (error) {
         appendStatus({
           level: 'error',
@@ -39,7 +41,7 @@ export function useHistoryCommand({ getRuntime, appendStatus }: UseHistoryComman
 
       try {
         const targetPath = await writeHistorySnapshot({
-          history: Array.isArray(history) ? history : [],
+          history: [...historyEntries],
           filePath: pathInput,
         });
         appendStatus({ level: 'info', message: `Saved history to ${targetPath}.` });

@@ -3,13 +3,9 @@
  */
 
 import chalk from 'chalk';
+import type { ContextUsageSummary } from '@asynkron/openagent-core';
 
-export type ContextUsage = {
-  total: number;
-  used?: number | null;
-  remaining?: number | null;
-  percentRemaining?: number | null;
-};
+export type ContextUsage = ContextUsageSummary;
 
 type RenderOptions = {
   logger?: (line: string) => void;

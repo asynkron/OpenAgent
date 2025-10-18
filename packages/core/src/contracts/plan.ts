@@ -22,18 +22,18 @@ export interface PlanObservationMetadata {
  * fields without type assertions.
  */
 export interface PlanObservationPayload {
-  plan?: PlanStep[];
-  stdout?: string;
-  stderr?: string;
-  truncated?: boolean;
-  exit_code?: number;
-  json_parse_error?: boolean;
-  schema_validation_error?: boolean;
-  response_validation_error?: boolean;
-  canceled_by_human?: boolean;
-  operation_canceled?: boolean;
-  summary?: string;
-  details?: string;
+  plan?: PlanStep[] | null;
+  stdout?: string | null;
+  stderr?: string | null;
+  truncated?: boolean | null;
+  exit_code?: number | null;
+  json_parse_error?: boolean | null;
+  schema_validation_error?: boolean | null;
+  response_validation_error?: boolean | null;
+  canceled_by_human?: boolean | null;
+  operation_canceled?: boolean | null;
+  summary?: string | null;
+  details?: string | null;
 }
 
 export interface PlanObservation {

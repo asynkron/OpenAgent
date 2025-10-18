@@ -20,91 +20,45 @@ import type { EscPayload, EscState, EscStateController } from './escState.js';
 import type { AsyncQueue as AsyncQueueType } from '../utils/asyncQueue.js';
 import type { ChatMessageEntry } from './historyEntry.js';
 import type { AmnesiaManager as AmnesiaManagerType } from './amnesiaManager.js';
+import type {
+  AssistantMessageRuntimeEvent,
+  BannerRuntimeEvent,
+  CommandResultRuntimeEvent,
+  ContextUsageRuntimeEvent,
+  DebugRuntimeEvent,
+  ErrorRuntimeEvent,
+  PassRuntimeEvent,
+  PlanProgressRuntimeEvent,
+  PlanRuntimeEvent,
+  RequestInputRuntimeEvent,
+  RuntimeEvent,
+  RuntimeEventBase,
+  RuntimeEventObserver,
+  RuntimeProperty,
+  StatusRuntimeEvent,
+  ThinkingRuntimeEvent,
+  UnknownRuntimeEvent,
+} from './runtimeEvents.js';
 
-export type RuntimeProperty =
-  | string
-  | number
-  | boolean
-  | null
-  | RuntimeProperty[]
-  | { [key: string]: RuntimeProperty }
-  | object;
-
-export interface RuntimeEventBase {
-  type: string;
-  __id?: string;
-}
-
-export interface StatusRuntimeEvent extends RuntimeEventBase {
-  type: 'status';
-  level: 'info' | 'warn' | 'error' | 'debug';
-  message: string;
-  details?: RuntimeProperty;
-}
-
-export interface PlanProgressRuntimeEvent extends RuntimeEventBase {
-  type: 'plan-progress';
-  progress: PlanProgress;
-}
-
-export interface DebugRuntimeEvent extends RuntimeEventBase {
-  type: 'debug';
-  payload: RuntimeProperty;
-}
-
-export interface BannerRuntimeEvent extends RuntimeEventBase {
-  type: 'banner';
-  title: string;
-}
-
-export interface ThinkingRuntimeEvent extends RuntimeEventBase {
-  type: 'thinking';
-  state: 'start' | 'stop';
-}
-
-export interface PassRuntimeEvent extends RuntimeEventBase {
-  type: 'pass';
-  pass: number;
-}
-
-export interface AssistantMessageRuntimeEvent extends RuntimeEventBase {
-  type: 'assistant-message';
-  message: string;
-}
-
-export interface ContextUsageRuntimeEvent extends RuntimeEventBase {
-  type: 'context-usage';
-  usage: ContextUsageSummary;
-}
-
-export interface ErrorRuntimeEvent extends RuntimeEventBase {
-  type: 'error';
-  message: string;
-  details?: string;
-  raw?: RuntimeProperty;
-  attempts?: RuntimeProperty;
-}
-
-export type PromptRequestRuntimeEvent = PromptRequestEvent & RuntimeEventBase;
-
-export interface GenericRuntimeEvent extends RuntimeEventBase {
-  [key: string]: RuntimeProperty | undefined;
-}
-
-export type RuntimeEvent =
-  | StatusRuntimeEvent
-  | PlanProgressRuntimeEvent
-  | DebugRuntimeEvent
-  | BannerRuntimeEvent
-  | ThinkingRuntimeEvent
-  | PassRuntimeEvent
-  | AssistantMessageRuntimeEvent
-  | ContextUsageRuntimeEvent
-  | ErrorRuntimeEvent
-  | PromptRequestRuntimeEvent
-  | GenericRuntimeEvent;
-
-export type RuntimeEventObserver = (event: RuntimeEvent) => void;
+export type {
+  AssistantMessageRuntimeEvent,
+  BannerRuntimeEvent,
+  CommandResultRuntimeEvent,
+  ContextUsageRuntimeEvent,
+  DebugRuntimeEvent,
+  ErrorRuntimeEvent,
+  PassRuntimeEvent,
+  PlanProgressRuntimeEvent,
+  PlanRuntimeEvent,
+  RequestInputRuntimeEvent,
+  RuntimeEvent,
+  RuntimeEventBase,
+  RuntimeEventObserver,
+  RuntimeProperty,
+  StatusRuntimeEvent,
+  ThinkingRuntimeEvent,
+  UnknownRuntimeEvent,
+} from './runtimeEvents.js';
 
 export type GuardRequestOptions = Parameters<
   NonNullable<ExecuteAgentPassOptions['requestModelCompletionFn']>

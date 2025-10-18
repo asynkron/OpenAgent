@@ -1,112 +1,74 @@
 import type { PlanStep } from '../planUtils.js';
 import type { PlanProgress } from '../progressUtils.js';
-import type { ContextUsage } from '../../status.js';
 import type {
   Command as CommandPayload,
   CommandExecution,
   CommandPreview,
   CommandResult,
 } from '../commandUtils.js';
-import type { PromptRequestMetadata } from '@asynkron/openagent-core';
+import type {
+  AssistantMessageRuntimeEvent,
+  BannerRuntimeEvent,
+  ChatMessageEntry,
+  CommandResultRuntimeEvent,
+  ContextUsageRuntimeEvent,
+  DebugRuntimeEvent,
+  ErrorRuntimeEvent,
+  PassRuntimeEvent,
+  PlanProgressRuntimeEvent,
+  PlanRuntimeEvent,
+  PromptRequestMetadata,
+  RequestInputRuntimeEvent,
+  RuntimeEvent,
+  RuntimeEventBase,
+  RuntimeProperty,
+  StatusRuntimeEvent,
+  ThinkingRuntimeEvent,
+  UnknownRuntimeEvent,
+} from '@asynkron/openagent-core';
 
-type RuntimeEventBase<Type extends string, Payload extends object = object> = Payload & {
-  type: Type;
-  __id?: string;
+export type {
+  AssistantMessageRuntimeEvent,
+  BannerRuntimeEvent,
+  CommandResultRuntimeEvent,
+  ContextUsageRuntimeEvent,
+  DebugRuntimeEvent,
+  ErrorRuntimeEvent,
+  PassRuntimeEvent,
+  PlanProgressRuntimeEvent,
+  PlanRuntimeEvent,
+  RequestInputRuntimeEvent,
+  RuntimeEvent,
+  RuntimeEventBase,
+  RuntimeProperty,
+  StatusRuntimeEvent,
+  ThinkingRuntimeEvent,
+  UnknownRuntimeEvent,
 };
 
-export type BannerRuntimeEvent = RuntimeEventBase<
-  'banner',
-  { title?: string | null; subtitle?: string | null }
->;
+type CancellationPayload = string | { reason: string } | null;
 
-export type StatusRuntimeEvent = RuntimeEventBase<
-  'status',
-  { level?: string; message?: string; details?: unknown }
->;
+export type RuntimeErrorPayload = Error | RuntimeProperty;
 
-export type PassRuntimeEvent = RuntimeEventBase<
-  'pass',
-  { pass?: number; index?: number; value?: number }
->;
-
-export type ThinkingRuntimeEvent = RuntimeEventBase<'thinking', { state?: string }>;
-
-export type AssistantMessageRuntimeEvent = RuntimeEventBase<
-  'assistant-message',
-  { message?: string }
->;
-
-export type PlanRuntimeEvent = RuntimeEventBase<'plan', { plan?: PlanStep[] | null }>;
-
-export type PlanProgressRuntimeEvent = RuntimeEventBase<
-  'plan-progress',
-  { progress?: PlanProgress | null }
->;
-
-export type ContextUsageRuntimeEvent = RuntimeEventBase<
-  'context-usage',
-  { usage?: ContextUsage | null }
->;
-
-export type CommandResultRuntimeEvent = RuntimeEventBase<
-  'command-result',
-  {
-    command?: unknown;
-    result?: unknown;
-    preview?: unknown;
-    execution?: unknown;
-    planStep?: unknown;
-  }
->;
-
-export type ErrorRuntimeEvent = RuntimeEventBase<
-  'error',
-  {
-    message?: string;
-    details?: unknown;
-    raw?: unknown;
-  }
->;
-
-export type RequestInputRuntimeEvent = RuntimeEventBase<
-  'request-input',
-  { prompt?: string; metadata?: PromptRequestMetadata | null }
->;
-
-export type DebugRuntimeEvent = RuntimeEventBase<
-  'debug',
-  { payload?: unknown; id?: string | number }
->;
-
-export type UnknownRuntimeEvent = RuntimeEventBase<string>;
-
-export type RuntimeEvent =
-  | BannerRuntimeEvent
-  | StatusRuntimeEvent
-  | PassRuntimeEvent
-  | ThinkingRuntimeEvent
-  | AssistantMessageRuntimeEvent
-  | PlanRuntimeEvent
-  | PlanProgressRuntimeEvent
-  | ContextUsageRuntimeEvent
-  | CommandResultRuntimeEvent
-  | ErrorRuntimeEvent
-  | RequestInputRuntimeEvent
-  | DebugRuntimeEvent
-  | UnknownRuntimeEvent;
+export type StatusLikePayload = {
+  type?: 'status';
+  level?: string;
+  message?: string;
+  details?: RuntimeProperty;
+};
 
 export interface AgentRuntimeLike {
   start(): Promise<void>;
   submitPrompt?(value: string): void;
-  cancel?(payload?: unknown): void;
-  getHistorySnapshot?(): unknown;
+  cancel?(payload?: CancellationPayload): void;
+  getHistorySnapshot?(): readonly ChatMessageEntry[];
   readonly outputs: AsyncIterable<RuntimeEvent>;
 }
 
 export type CliAppProps = {
   runtime: AgentRuntimeLike | null;
   onRuntimeComplete?: () => void;
-  onRuntimeError?: (error: unknown) => void;
+  onRuntimeError?: (error: RuntimeErrorPayload) => void;
 };
 
 export type TimelineBannerPayload = {
@@ -115,7 +77,7 @@ export type TimelineBannerPayload = {
 };
 
 export type TimelineAssistantPayload = {
-  message: unknown;
+  message: RuntimeProperty;
   eventId: string;
 };
 
@@ -124,11 +86,11 @@ export type TimelineHumanPayload = {
 };
 
 export type TimelineCommandPayload = {
-  command: CommandPayload | null | undefined;
-  result: CommandResult | null | undefined;
-  preview: CommandPreview | null | undefined;
-  execution: CommandExecution | null | undefined;
-  planStep: PlanStep | null | undefined;
+  command: CommandPayload | null;
+  result: CommandResult | null;
+  preview: CommandPreview | null;
+  execution: CommandExecution | null;
+  planStep: PlanStep | null;
 };
 
 export type TimelineStatusPayload = {
@@ -164,7 +126,7 @@ export type DebugEntry = {
 
 export type CommandLogEntry = {
   id: number;
-  command: unknown;
+  command: CommandPayload;
   receivedAt: number;
 };
 
@@ -177,7 +139,7 @@ export type ExitState =
   | { status: 'success' }
   | {
       status: 'error';
-      error: unknown;
+      error: RuntimeErrorPayload;
     };
 
 export type InputRequestState = {

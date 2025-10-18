@@ -19,17 +19,26 @@ import { useSlashCommandRouter } from './cliApp/slashCommands.js';
 import {
   type AgentRuntimeLike,
   type AssistantMessageRuntimeEvent,
+  type BannerRuntimeEvent,
   type CliAppProps,
   type CommandResultRuntimeEvent,
   type DebugRuntimeEvent,
+  type ErrorRuntimeEvent,
   type ExitState,
   type InputRequestState,
+  type PassRuntimeEvent,
   type PlanProgressState,
+  type PlanProgressRuntimeEvent,
+  type PlanRuntimeEvent,
   type RequestInputRuntimeEvent,
   type RuntimeEvent,
+  type RuntimeErrorPayload,
+  type RuntimeProperty,
   type SlashCommandHandler,
   type TimelinePayload,
   type StatusRuntimeEvent,
+  type ContextUsageRuntimeEvent,
+  type StatusLikePayload,
   type ThinkingRuntimeEvent,
 } from './cliApp/types.js';
 import { coerceRuntime, cloneValue, normalizeStatus } from './cliApp/runtimeUtils.js';
@@ -47,6 +56,24 @@ const MAX_COMMAND_LOG_ENTRIES = 50;
 
 const MemoPlan = memo(Plan);
 const MemoDebugPanel = memo(DebugPanel);
+
+const UNKNOWN_ERROR_MESSAGE = 'Unknown runtime error';
+
+function toRuntimeErrorPayload(value: unknown): RuntimeErrorPayload {
+  if (value instanceof Error) {
+    return value;
+  }
+  if (value === undefined || value === null) {
+    return UNKNOWN_ERROR_MESSAGE;
+  }
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return value;
+  }
+  if (Array.isArray(value) || (typeof value === 'object' && value !== null)) {
+    return cloneValue(value) as RuntimeProperty;
+  }
+  return String(value);
+}
 
 function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): ReactElement {
   const runtimeRef = useRef<AgentRuntimeLike | null>(coerceRuntime(runtime));
@@ -109,19 +136,19 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
         throw new TypeError('Assistant runtime event expected string "__id".');
       }
       const rawMessage = event.message;
-      const message =
+      const message: RuntimeProperty =
         rawMessage === undefined || rawMessage === null
           ? ''
           : typeof rawMessage === 'string'
             ? rawMessage
-            : cloneValue(rawMessage);
+            : (cloneValue(rawMessage) as RuntimeProperty);
       pendingAssistantMessageRef.current = { message, eventId };
     },
     [flushPendingAssistantMessage],
   );
 
   const handleStatusEvent = useCallback(
-    (event: StatusRuntimeEvent | { message?: string; level?: string; details?: unknown }): void => {
+    (event: StatusRuntimeEvent | StatusLikePayload): void => {
       const status = normalizeStatus(event);
       if (!status) {
         return;
@@ -185,7 +212,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
           type: 'status',
           level: 'error',
           message: 'Slash command processing failed.',
-          details: error,
+          details: error instanceof Error ? error.message : String(error),
         });
       }
 
@@ -199,7 +226,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
             type: 'status',
             level: 'error',
             message: 'Failed to submit input.',
-            details: error,
+            details: error instanceof Error ? error.message : String(error),
           });
         }
 
@@ -212,57 +239,54 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
   );
 
   const handleBannerEvent = useCallback(
-    (event: RuntimeEvent): void => {
-      const bannerEvent = event as any;
-      appendEntry('banner', {
-        title: typeof bannerEvent.title === 'string' ? bannerEvent.title : null,
-        subtitle: typeof bannerEvent.subtitle === 'string' ? bannerEvent.subtitle : null,
-      });
+    (event: BannerRuntimeEvent): void => {
+      const title = typeof event.title === 'string' ? event.title : null;
+      const subtitle = typeof event.subtitle === 'string' ? event.subtitle : null;
+      appendEntry('banner', { title, subtitle });
     },
     [appendEntry],
   );
 
-  const handlePassEvent = useCallback((event: RuntimeEvent): void => {
-    const passEvent = event as any;
-    const numericPass = Number.isFinite(passEvent.pass)
-      ? Number(passEvent.pass)
-      : Number.isFinite(passEvent.index)
-        ? Number(passEvent.index)
-        : Number.isFinite(passEvent.value)
-          ? Number(passEvent.value)
+  const handlePassEvent = useCallback((event: PassRuntimeEvent): void => {
+    const numericPass = Number.isFinite(event.pass)
+      ? Number(event.pass)
+      : Number.isFinite(event.index)
+        ? Number(event.index)
+        : Number.isFinite(event.value)
+          ? Number(event.value)
           : null;
     setPassCounter(numericPass && numericPass > 0 ? Math.floor(numericPass) : 0);
   }, []);
 
-  const handlePlanEvent = useCallback((event: RuntimeEvent): void => {
-    const planEvent = event as any;
-    setPlan(Array.isArray(planEvent.plan) ? cloneValue(planEvent.plan) : []);
+  const handlePlanEvent = useCallback((event: PlanRuntimeEvent): void => {
+    setPlan(Array.isArray(event.plan) ? cloneValue(event.plan) : []);
   }, []);
 
-  const handlePlanProgressEvent = useCallback((event: RuntimeEvent): void => {
-    const progressEvent = event as any;
+  const handlePlanProgressEvent = useCallback((event: PlanProgressRuntimeEvent): void => {
     setPlanProgress({
       seen: true,
-      value: progressEvent.progress ? (cloneValue(progressEvent.progress) as PlanProgress) : null,
+      value: event.progress ? (cloneValue(event.progress) as PlanProgress) : null,
     });
   }, []);
 
-  const handleContextUsageEvent = useCallback((event: RuntimeEvent): void => {
-    const usageEvent = event as any;
-    setContextUsage(usageEvent.usage ? (cloneValue(usageEvent.usage) as ContextUsage) : null);
+  const handleContextUsageEvent = useCallback((event: ContextUsageRuntimeEvent): void => {
+    setContextUsage(event.usage ? (cloneValue(event.usage) as ContextUsage) : null);
   }, []);
 
   const handleErrorEvent = useCallback(
-    (event: RuntimeEvent): void => {
-      const errorEvent = event as any;
+    (event: ErrorRuntimeEvent): void => {
+      const baseMessage =
+        typeof event.message === 'string' && event.message.trim().length > 0
+          ? event.message
+          : 'Agent error encountered.';
+      const detailSource = event.details ?? event.raw ?? null;
+      const details =
+        detailSource === null || detailSource === undefined ? undefined : cloneValue(detailSource);
       handleStatusEvent({
         type: 'status',
         level: 'error',
-        message:
-          typeof errorEvent.message === 'string' && errorEvent.message.trim().length > 0
-            ? errorEvent.message
-            : 'Agent error encountered.',
-        details: errorEvent.details ?? errorEvent.raw,
+        message: baseMessage,
+        details,
       });
     },
     [handleStatusEvent],
@@ -290,13 +314,13 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
 
       switch (event.type) {
         case 'banner':
-          handleBannerEvent(event);
+          handleBannerEvent(event as BannerRuntimeEvent);
           break;
         case 'status':
           handleStatusEvent(event as StatusRuntimeEvent);
           break;
         case 'pass':
-          handlePassEvent(event);
+          handlePassEvent(event as PassRuntimeEvent);
           break;
         case 'thinking': {
           const thinkingEvent = event as ThinkingRuntimeEvent;
@@ -307,19 +331,19 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
           handleAssistantMessage(event as AssistantMessageRuntimeEvent);
           break;
         case 'plan':
-          handlePlanEvent(event);
+          handlePlanEvent(event as PlanRuntimeEvent);
           break;
         case 'plan-progress':
-          handlePlanProgressEvent(event);
+          handlePlanProgressEvent(event as PlanProgressRuntimeEvent);
           break;
         case 'context-usage':
-          handleContextUsageEvent(event);
+          handleContextUsageEvent(event as ContextUsageRuntimeEvent);
           break;
         case 'command-result':
           handleCommandEvent(event as CommandResultRuntimeEvent);
           break;
         case 'error':
-          handleErrorEvent(event);
+          handleErrorEvent(event as ErrorRuntimeEvent);
           break;
         case 'request-input':
           handleRequestInputEvent(event as RequestInputRuntimeEvent);
@@ -361,7 +385,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
           if (canceled) {
             break;
           }
-          handleEvent(event as RuntimeEvent);
+          handleEvent(event);
         }
         await startPromise;
         if (!canceled) {
@@ -369,14 +393,14 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
         }
       } catch (error) {
         if (!canceled) {
-          safeSetExitState({ status: 'error', error });
+          safeSetExitState({ status: 'error', error: toRuntimeErrorPayload(error) });
         }
       }
     })();
 
     startPromise.catch((error) => {
       if (!canceled) {
-        safeSetExitState({ status: 'error', error });
+        safeSetExitState({ status: 'error', error: toRuntimeErrorPayload(error) });
       }
     });
 
@@ -432,7 +456,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
       <AskHuman
         onSubmit={inputRequest ? handleSubmitPrompt : undefined}
         thinking={thinking}
-        contextUsage={contextUsage as any}
+        contextUsage={contextUsage}
         passCounter={passCounter}
         key="ask-human"
       />

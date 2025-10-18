@@ -22,6 +22,7 @@
 
 - `CliApp.tsx` retains the active input request after local slash commands are handled so that the next human prompt continues to flow to the runtime/OpenAI instead of being intercepted as another slash command.
 - `CliApp.tsx` now parses slash commands via a memoized handler map, keeping the routing logic compact while letting individual commands reuse shared helpers for validation and status reporting.
+- `cliApp/types.ts` no longer maintains ad-hoc runtime event shapes; it imports the canonical contracts from `@asynkron/openagent-core`, re-exports the handful of events the rest of the components rely on, and centralises derived payload types (timeline entries, slash-command helpers, runtime error payloads) so the Ink components all lean on the same surface.
 
 ## Positive Signals
 

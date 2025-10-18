@@ -18,18 +18,18 @@ const PlanObservationMetadataSchema: z.ZodType<PlanObservationMetadata | null | 
 const PlanObservationPayloadSchema: z.ZodType<PlanObservationPayload> = z.lazy(() =>
   z
     .object({
-      plan: z.array(z.lazy(() => PlanStepSchema)).optional(),
-      stdout: z.string().optional(),
-      stderr: z.string().optional(),
-      truncated: z.boolean().optional(),
-      exit_code: z.number().optional(),
-      json_parse_error: z.boolean().optional(),
-      schema_validation_error: z.boolean().optional(),
-      response_validation_error: z.boolean().optional(),
-      canceled_by_human: z.boolean().optional(),
-      operation_canceled: z.boolean().optional(),
-      summary: z.string().optional(),
-      details: z.string().optional(),
+      plan: z.array(z.lazy(() => PlanStepSchema)).nullable().optional(),
+      stdout: z.string().nullable().optional(),
+      stderr: z.string().nullable().optional(),
+      truncated: z.boolean().nullable().optional(),
+      exit_code: z.number().nullable().optional(),
+      json_parse_error: z.boolean().nullable().optional(),
+      schema_validation_error: z.boolean().nullable().optional(),
+      response_validation_error: z.boolean().nullable().optional(),
+      canceled_by_human: z.boolean().nullable().optional(),
+      operation_canceled: z.boolean().nullable().optional(),
+      summary: z.string().nullable().optional(),
+      details: z.string().nullable().optional(),
     })
     .strict(),
 );
@@ -50,7 +50,7 @@ export const PlanStepSchema: z.ZodType<PlanStep> = z
     status: z.nativeEnum(PlanStatus),
     waitingForId: z.array(z.string()).default([]),
     command: CommandSchema,
-    observation: PlanObservationSchema.optional(),
+    observation: PlanObservationSchema.nullable().optional(),
   })
   .strict();
 

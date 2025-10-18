@@ -14,6 +14,7 @@
 
 - Central export file documents responsibilities, making it easy for library consumers to pick specific APIs.
 - Startup flags have unit tests ensuring parsing and state transitions behave deterministically.
+- Type-only re-exports now forward the canonical runtime event contracts and history entries, letting downstream packages consume `@asynkron/openagent-core` without mirroring type definitions locally.
 
 ## Risks / Gaps
 

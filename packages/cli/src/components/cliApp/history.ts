@@ -1,8 +1,10 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
+import type { ChatMessageEntry } from '@asynkron/openagent-core';
+
 export interface HistorySnapshotOptions {
-  history: unknown[];
+  history: readonly ChatMessageEntry[];
   filePath?: string | null;
 }
 
@@ -36,7 +38,8 @@ export async function writeHistorySnapshot({
 
   let serialized: string;
   try {
-    serialized = JSON.stringify(history ?? [], null, 2);
+    const normalizedHistory = Array.isArray(history) ? [...history] : [];
+    serialized = JSON.stringify(normalizedHistory, null, 2);
   } catch (error) {
     const wrapped = error instanceof Error ? error : new Error(String(error));
     wrapped.message = `Failed to serialize history: ${wrapped.message}`;

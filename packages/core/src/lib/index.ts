@@ -105,6 +105,29 @@ export type {
   PromptRequestMetadata,
   PromptRequestScope,
 } from '../agent/promptCoordinator.js';
+export type {
+  AssistantMessageRuntimeEvent,
+  BannerRuntimeEvent,
+  CommandResultRuntimeEvent,
+  ContextUsageRuntimeEvent,
+  DebugRuntimeEvent,
+  ErrorRuntimeEvent,
+  PassRuntimeEvent,
+  PlanProgressRuntimeEvent,
+  PlanRuntimeEvent,
+  RequestInputRuntimeEvent,
+  RuntimeEvent,
+  RuntimeEventBase,
+  RuntimeEventObserver,
+  RuntimeProperty,
+  StatusRuntimeEvent,
+  ThinkingRuntimeEvent,
+  UnknownRuntimeEvent,
+  AgentRuntimeOptions,
+} from '../agent/runtimeTypes.js';
+export type { ChatMessageEntry } from '../contracts/index.js';
+export type { CommandResult } from '../commands/run.js';
+export type { ContextUsageSummary } from '../utils/contextUsage.js';
 
 const exported = {
   ...startupFlagAccessors,

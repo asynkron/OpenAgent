@@ -39,7 +39,7 @@ export async function runCommand(
   cmd: unknown,
   cwd: string | undefined,
   timeoutSec: number | null | undefined,
-  shellOrOptions: string | boolean | RunOptions | undefined,
+  shellOrOptions?: string | boolean | RunOptions,
 ): Promise<CommandResult> {
   if (typeof cmd !== 'string') {
     throw new TypeError('runCommand expects a normalized command string.');

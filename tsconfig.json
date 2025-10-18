@@ -3,6 +3,12 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "baseUrl": ".",
+    "paths": {
+      "@asynkron/openagent-core": [
+        "packages/core/src/lib/index.ts"
+      ]
+    },
     "allowJs": true,
     "checkJs": false,
     "resolveJsonModule": true,

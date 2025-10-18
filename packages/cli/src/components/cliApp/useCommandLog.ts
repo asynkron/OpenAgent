@@ -12,6 +12,12 @@ import { appendWithLimit, formatDebugPayload } from './logging.js';
 import { cloneValue, parsePositiveInteger } from './runtimeUtils.js';
 import type { AppendTimelineEntry } from './useTimeline.js';
 import type { PlanStep } from '../planUtils.js';
+import type {
+  Command as CommandPayload,
+  CommandExecution,
+  CommandPreview,
+  CommandResult,
+} from '../commandUtils.js';
 
 export interface UseCommandLogOptions {
   limit: number;
@@ -32,22 +38,25 @@ export function useCommandLog({ limit, appendCommandResult, appendStatus }: UseC
   const [commandLog, setCommandLog] = useState<CommandLogEntry[]>([]);
   const [commandInspector, setCommandInspector] = useState<CommandInspectorState | null>(null);
 
-  const createCommandLogEntry = useCallback((commandPayload: unknown): CommandLogEntry => {
-    const entry = {
-      id: commandLogIdRef.current + 1,
-      command: cloneValue(commandPayload),
-      receivedAt: Date.now(),
-    } satisfies CommandLogEntry;
-    commandLogIdRef.current = entry.id;
-    return entry;
-  }, []);
+  const createCommandLogEntry = useCallback(
+    (commandPayload: CommandPayload): CommandLogEntry => {
+      const entry: CommandLogEntry = {
+        id: commandLogIdRef.current + 1,
+        command: cloneValue(commandPayload),
+        receivedAt: Date.now(),
+      };
+      commandLogIdRef.current = entry.id;
+      return entry;
+    },
+    [],
+  );
 
   const handleCommandEvent = useCallback(
     (event: CommandResultRuntimeEvent) => {
-      const commandPayload = cloneValue(event.command ?? null);
-      const resultPayload = cloneValue(event.result ?? null);
-      const previewPayload = cloneValue(event.preview ?? {});
-      const executionPayload = cloneValue(event.execution ?? null);
+      const commandPayload = cloneValue(event.command ?? null) as CommandPayload | null;
+      const resultPayload = cloneValue(event.result ?? null) as CommandResult | null;
+      const previewPayload = cloneValue(event.preview ?? null) as CommandPreview | null;
+      const executionPayload = cloneValue(event.execution ?? null) as CommandExecution | null;
       const planStepPayload = cloneValue(event.planStep ?? null) as PlanStep | null;
 
       appendCommandResult('command-result', {

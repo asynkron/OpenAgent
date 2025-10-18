@@ -16,7 +16,7 @@ import {
   runCommand as coreRunCommand,
   setNoHumanFlag,
   tailLines,
-  type AgentRuntimeConfig,
+  type AgentRuntimeOptions,
   type CommandResult,
 } from '@asynkron/openagent-core';
 
@@ -26,21 +26,21 @@ import type { AgentRuntimeLike } from './components/cliApp/types.js';
 type RunCommandInput = string | readonly string[];
 
 type CliAgentRuntimeDependencies = {
-  getAutoApproveFlag: NonNullable<AgentRuntimeConfig['getAutoApproveFlag']>;
-  getNoHumanFlag: NonNullable<AgentRuntimeConfig['getNoHumanFlag']>;
-  getPlanMergeFlag: NonNullable<AgentRuntimeConfig['getPlanMergeFlag']>;
-  getDebugFlag: NonNullable<AgentRuntimeConfig['getDebugFlag']>;
-  setNoHumanFlag: NonNullable<AgentRuntimeConfig['setNoHumanFlag']>;
-  runCommandFn: NonNullable<AgentRuntimeConfig['runCommandFn']>;
-  applyFilterFn: NonNullable<AgentRuntimeConfig['applyFilterFn']>;
-  tailLinesFn: NonNullable<AgentRuntimeConfig['tailLinesFn']>;
-  isPreapprovedCommandFn: NonNullable<AgentRuntimeConfig['isPreapprovedCommandFn']>;
-  isSessionApprovedFn: NonNullable<AgentRuntimeConfig['isSessionApprovedFn']>;
-  approveForSessionFn: NonNullable<AgentRuntimeConfig['approveForSessionFn']>;
-  preapprovedCfg: AgentRuntimeConfig['preapprovedCfg'];
+  getAutoApproveFlag: NonNullable<AgentRuntimeOptions['getAutoApproveFlag']>;
+  getNoHumanFlag: NonNullable<AgentRuntimeOptions['getNoHumanFlag']>;
+  getPlanMergeFlag: NonNullable<AgentRuntimeOptions['getPlanMergeFlag']>;
+  getDebugFlag: NonNullable<AgentRuntimeOptions['getDebugFlag']>;
+  setNoHumanFlag: NonNullable<AgentRuntimeOptions['setNoHumanFlag']>;
+  runCommandFn: NonNullable<AgentRuntimeOptions['runCommandFn']>;
+  applyFilterFn: NonNullable<AgentRuntimeOptions['applyFilterFn']>;
+  tailLinesFn: NonNullable<AgentRuntimeOptions['tailLinesFn']>;
+  isPreapprovedCommandFn: NonNullable<AgentRuntimeOptions['isPreapprovedCommandFn']>;
+  isSessionApprovedFn: NonNullable<AgentRuntimeOptions['isSessionApprovedFn']>;
+  approveForSessionFn: NonNullable<AgentRuntimeOptions['approveForSessionFn']>;
+  preapprovedCfg: AgentRuntimeOptions['preapprovedCfg'];
 };
 
-type RuntimeOptions = AgentRuntimeConfig;
+type RuntimeOptions = AgentRuntimeOptions;
 
 function determineCommandKey(command: RunCommandInput): string {
   if (Array.isArray(command)) {
@@ -62,7 +62,7 @@ function determineCommandKey(command: RunCommandInput): string {
 
 function normalizeRuntimeOptions(
   overrides: RuntimeOptions = {},
-): AgentRuntimeConfig & CliAgentRuntimeDependencies {
+): AgentRuntimeOptions & CliAgentRuntimeDependencies {
   const baseDependencies: CliAgentRuntimeDependencies = {
     getAutoApproveFlag,
     getNoHumanFlag,
@@ -78,7 +78,7 @@ function normalizeRuntimeOptions(
     preapprovedCfg: PREAPPROVED_CFG as CliAgentRuntimeDependencies['preapprovedCfg'],
   };
 
-  const normalized: AgentRuntimeConfig & CliAgentRuntimeDependencies = {
+  const normalized: AgentRuntimeOptions & CliAgentRuntimeDependencies = {
     ...baseDependencies,
     ...overrides,
   };
