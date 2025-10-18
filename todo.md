@@ -30,7 +30,7 @@ Top refactor targets:
 - [x] `packages/cli/src/components/cliApp/runtimeUtils.ts` – Utility grab bag mixing cloning, integer parsing, and status normalization; deserves a separation between runtime data helpers and CLI-only coercions.
 - [ ] `packages/cli/src/components/cliApp/useCommandLog.ts` – Handles timeline updates, log trimming, and slash command messaging; consider peeling the log store into a pure reducer to make the hook smaller.
 - [x] `packages/cli/src/components/cliApp/useTimeline.ts` – Batches event inserts, bounded lists, and key management; factoring timeline math into a utility module would improve clarity.
-- [ ] `packages/cli/src/components/cliApp/useDebugPanel.ts` – Handles payload cloning, summarization, and max-size trimming. Splitting formatting helpers from the hook will lighten repeated cloning.
+- [x] `packages/cli/src/components/cliApp/useDebugPanel.ts` – Handles payload cloning, summarization, and max-size trimming. Splitting formatting helpers from the hook will lighten repeated cloning.
 - [x] `packages/cli/src/runtime.ts` – Still mixes dependency normalization, Ink mounting, and command stats; extracting the dependency bundle into its own factory would ease extending runtime options.
 - [ ] `packages/cli/src/loadCoreModule.ts` – Guard logic for dynamic imports intermingles with retry/fallback messaging; separating validation from logging would improve readability.
 - [x] `packages/cli/src/components/commandUtils.ts` – Normalizes commands, builds summaries, and formats previews; moving edit/replace detail builders into distinct modules would lower cross-coupling with themed components.

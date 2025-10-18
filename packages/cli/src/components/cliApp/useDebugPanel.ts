@@ -55,67 +55,60 @@ export function useDebugPanel({ limit, appendStatus }: UseDebugPanelOptions): {
   const debugEventIdRef = useRef(0);
   const [debugEvents, setDebugEvents] = useState<DebugEntry[]>([]);
 
-  const createDebugEntry = useCallback((event: DebugRuntimeEvent): DebugEntry | null => {
-    const formatted = formatDebugPayload(event.payload);
-    if (!formatted) {
-      return null;
-    }
+  const createDebugEntry = useCallback(
+    (event: DebugRuntimeEvent, payload: unknown = event.payload): DebugEntry | null => {
+      const formatted = formatDebugPayload(payload);
+      if (!formatted) {
+        return null;
+      }
 
-    const entryId =
-      typeof event.id === 'string' || typeof event.id === 'number'
-        ? (event.id as string | number)
-        : debugEventIdRef.current + 1;
+      // Reuse runtime-supplied identifiers when present so follow-up instructions can target them.
+      const stableId =
+        typeof event.id === 'string' || typeof event.id === 'number' ? event.id : null;
+      const entryId = stableId ?? debugEventIdRef.current + 1;
 
-    if (typeof entryId === 'number') {
-      debugEventIdRef.current = entryId;
-    } else {
-      debugEventIdRef.current += 1;
-    }
+      if (typeof entryId === 'number') {
+        debugEventIdRef.current = entryId;
+      } else {
+        debugEventIdRef.current += 1;
+      }
 
-    return { id: entryId, content: formatted } satisfies DebugEntry;
-  }, []);
+      return { id: entryId, content: formatted } satisfies DebugEntry;
+    },
+    [],
+  );
 
   const handleDebugEvent = useCallback(
     (event: DebugRuntimeEvent) => {
-      const managed = parseManagedDebugPayload(event.payload);
-      setDebugEvents((prev) => {
-        const eventId = event.id;
+      const instruction = parseManagedDebugPayload(event.payload);
+      const stableId =
+        typeof event.id === 'string' || typeof event.id === 'number' ? event.id : null;
+      const payloadForEntry = instruction ? instruction.value : event.payload;
 
-        if (
-          managed?.action === 'remove' &&
-          (typeof eventId === 'string' || typeof eventId === 'number')
-        ) {
-          return prev.filter((existing) => existing.id !== eventId);
+      setDebugEvents((previous) => {
+        if (instruction?.action === 'remove' && stableId !== null) {
+          return previous.filter((existing) => existing.id !== stableId);
         }
 
-        const payloadForEntry = managed ? managed.value : event.payload;
-        const entry = createDebugEntry({ ...event, payload: payloadForEntry } as DebugRuntimeEvent);
+        const entry = createDebugEntry(event, payloadForEntry);
         if (!entry) {
-          return prev;
+          return previous;
         }
 
-        if (
-          managed?.action === 'replace' &&
-          (typeof eventId === 'string' || typeof eventId === 'number')
-        ) {
-          let replaced = false;
-          const next = prev.map((existing) => {
-            if (existing.id === entry.id) {
-              replaced = true;
-              return entry;
-            }
-            return existing;
-          });
-          if (replaced) {
+        if (instruction?.action === 'replace' && stableId !== null) {
+          const index = previous.findIndex((existing) => existing.id === entry.id);
+          if (index >= 0) {
+            const next = previous.slice();
+            next[index] = entry;
             return next;
           }
         }
 
-        return appendWithLimit(prev, entry, limit).next;
+        return appendWithLimit(previous, entry, limit).next;
       });
 
       const summary =
-        managed?.action === 'remove' ? null : summarizeAutoResponseDebug(event.payload);
+        instruction?.action === 'remove' ? null : summarizeAutoResponseDebug(event.payload);
       if (summary) {
         appendStatus({ level: 'warn', message: summary });
       }
