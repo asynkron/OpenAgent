@@ -29,5 +29,8 @@
     "chalk": "^4.1.2",
     "dotenv": "^17.2.3",
     "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@jest/globals": "^29.7.0"
   }
 }

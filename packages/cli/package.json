@@ -30,5 +30,8 @@
     "marked": "^12.0.2",
     "marked-terminal": "^7.1.0",
     "react": "^19.2.0"
+  },
+  "devDependencies": {
+    "@jest/globals": "^29.7.0"
   }
 }

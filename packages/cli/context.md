@@ -22,3 +22,7 @@
 
 - Core workspace providing the runtime: [`../core/context.md`](../core/context.md).
 - CLI-specific documentation: [`../../docs/context.md`](../../docs/context.md).
+
+## Maintenance Notes
+
+- CLI unit tests import `@jest/globals`; the package declares it as a devDependency so Jest helpers resolve even when the workspace is installed in isolation.
