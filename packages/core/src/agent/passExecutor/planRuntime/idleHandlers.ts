@@ -1,13 +1,8 @@
 import type { PlanStep } from '../planExecution.js';
-import { refusalHeuristics } from '../refusalDetection.js';
-import {
-  createRefusalAutoResponseEntry,
-  type ObservationRecord,
-} from '../../historyMessageBuilder.js';
+import type { ObservationRecord } from '../../historyMessageBuilder.js';
 import { createCommandRejectionObservation } from './observationRecorder.js';
 import type { PlanStateMachine } from './stateMachine/index.js';
 import {
-  createHistoryEntryEffect,
   createPlanObservationEffect,
   createPlanSnapshotEffect,
   createResetReminderEffect,
@@ -18,6 +13,8 @@ import {
 } from './effects.js';
 import { normalizeAssistantMessage } from '../planStepStatus.js';
 import type { PlanPersistenceCoordinator } from './persistenceCoordinator.js';
+import { resetPlanStateFromPersistence } from './persistenceEffects.js';
+import { maybeCreateRefusalEffects } from './refusalEffects.js';
 
 export interface NoExecutableContext {
   readonly parsedMessage: string;
@@ -55,29 +52,14 @@ export const handleNoExecutableMessage = async ({
   const incomingPlanEmpty =
     !stateMachine.state.initialIncomingPlan || stateMachine.state.initialIncomingPlan.length === 0;
 
-  if (
-    activePlanEmpty &&
-    incomingPlanEmpty &&
-    refusalHeuristics.isLikelyRefusalMessage(normalizedMessage)
-  ) {
-    effects.push(
-      ...toEmitEffects({
-        type: 'status',
-        level: 'info',
-        message: refusalHeuristics.statusMessage,
-      }),
-    );
-
-    effects.push(
-      createHistoryEntryEffect(
-        createRefusalAutoResponseEntry({
-          autoResponseMessage: refusalHeuristics.autoResponse,
-          pass: passIndex,
-        }),
-      ),
-    );
-
-    effects.push(createResetReminderEffect());
+  const refusalEffects = maybeCreateRefusalEffects({
+    normalizedMessage,
+    passIndex,
+    activePlanEmpty,
+    incomingPlanEmpty,
+  });
+  if (refusalEffects) {
+    effects.push(...refusalEffects);
     return { type: 'continue-refusal', effects } satisfies HandleNoExecutableResult;
   }
 
@@ -88,10 +70,12 @@ export const handleNoExecutableMessage = async ({
   }
 
   if (activePlanEmpty) {
-    const cleared = await persistence.resetPlanSnapshot();
-    effects.push(...toEmitEffects(cleared.warning));
-    stateMachine.replaceActivePlan(cleared.plan);
-    effects.push(createPlanSnapshotEffect(stateMachine.cloneActivePlan()));
+    effects.push(
+      ...(await resetPlanStateFromPersistence({
+        persistence,
+        stateMachine,
+      })),
+    );
     stateMachine.resetMutationFlag();
   }
 
