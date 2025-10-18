@@ -3,6 +3,11 @@ import { jest } from '@jest/globals';
 import { queueModelResponse, resetQueuedResponses } from './agentRuntimeTestHarness.js';
 import { bootTestCLI } from './utils/cliTestHarness.js';
 import { createPlanBuilder } from './utils/planBuilder.js';
+import {
+  expectNoPromptIncludes,
+  expectPromptAtIndexContains,
+  expectStatusMessagesInclude,
+} from './utils/eventExpectations.js';
 
 const planBuilder = createPlanBuilder({
   gather: {
@@ -71,14 +76,8 @@ describe('Approval flow integration', () => {
     await ui.start();
 
     expect(runCommandMock).toHaveBeenCalledTimes(1);
-    const prompts = ui.events
-      .filter((event) => event.type === 'request-input')
-      .map((event) => event.prompt);
-    const statuses = ui.events
-      .filter((event) => event.type === 'status')
-      .map((event) => event.message);
-    expect(prompts[1]).toContain('Approve running this command?');
-    expect(statuses.some((msg) => msg && msg.includes('approved for single execution'))).toBe(true);
+    expectPromptAtIndexContains(ui.events, 1, 'Approve running this command?');
+    expectStatusMessagesInclude(ui.events, 'approved for single execution');
   });
 
   test('skips command execution when human rejects', async () => {
@@ -120,14 +119,8 @@ describe('Approval flow integration', () => {
     await ui.start();
 
     expect(runCommandMock).not.toHaveBeenCalled();
-    const prompts = ui.events
-      .filter((event) => event.type === 'request-input')
-      .map((event) => event.prompt);
-    const statuses = ui.events
-      .filter((event) => event.type === 'status')
-      .map((event) => event.message);
-    expect(prompts[1]).toContain('Approve running this command?');
-    expect(statuses.some((msg) => msg && msg.includes('canceled by human'))).toBe(true);
+    expectPromptAtIndexContains(ui.events, 1, 'Approve running this command?');
+    expectStatusMessagesInclude(ui.events, 'canceled by human');
   });
 
   test('auto-approves commands flagged as preapproved', async () => {
@@ -166,11 +159,6 @@ describe('Approval flow integration', () => {
     await ui.start();
 
     expect(runCommandMock).toHaveBeenCalledTimes(1);
-    const prompts = ui.events
-      .filter((event) => event.type === 'request-input')
-      .map((event) => event.prompt);
-    expect(
-      prompts.some((prompt) => prompt && prompt.includes('Approve running this command?')),
-    ).toBe(false);
+    expectNoPromptIncludes(ui.events, 'Approve running this command?');
   });
 });

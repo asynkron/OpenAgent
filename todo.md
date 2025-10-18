@@ -69,4 +69,4 @@ Top refactor targets:
 ## tests
 - Integration suites provide good coverage but remain slow.  Opportunities:
   - [ ] Consolidate repeated CLI boot helpers under `tests/integration/utils`.
-  - [ ] Move snapshot-less expectation helpers into shared utilities to cut duplication.
+- [x] Move snapshot-less expectation helpers into shared utilities to cut duplication.
