@@ -2,6 +2,7 @@ import type { EscPayload, EscState } from './escState.js';
 import type { PromptRequestMetadata } from '../prompts/types.js';
 import { PromptCoordinatorStateMachine } from './promptCoordinatorState.js';
 import { normalizePromptMetadata } from './promptMetadataNormalizer.js';
+import { cancelPendingPrompt, forwardEscCancellation } from './promptCoordinatorCancellation.js';
 
 export type { PromptRequestMetadata, PromptRequestScope } from '../prompts/types.js';
 
@@ -88,24 +89,9 @@ export class PromptCoordinator {
   }
 
   handleCancel(payload: EscPayload = null): void {
-    if (this.cancelFn) {
-      this.cancelFn('ui-cancel');
-    }
-
-    const escState = this.escState;
-    if (escState && escState.waiters.size > 0) {
-      const normalizedPayload = this.normalizeEscPayload(payload);
-      if (escState.trigger && typeof escState.trigger === 'function') {
-        escState.trigger(normalizedPayload);
-      }
-    }
-
-    this.emitEvent({
-      type: 'status',
-      level: 'warn',
-      message: 'Cancellation requested by UI.',
-      details: null,
-    });
+    cancelPendingPrompt(this.cancelFn);
+    forwardEscCancellation(this.escState, payload);
+    this.emitCancellationStatus();
   }
 
   close(): void {
@@ -115,19 +101,13 @@ export class PromptCoordinator {
     }
   }
 
-  private normalizeEscPayload(payload: EscPayload): EscPayload {
-    if (typeof payload === 'string') {
-      return payload;
-    }
-
-    if (payload && typeof payload === 'object') {
-      const candidate = payload as { reason?: unknown };
-      if (typeof candidate.reason === 'string' && candidate.reason.length > 0) {
-        return { reason: candidate.reason };
-      }
-    }
-
-    return { reason: 'ui-cancel' };
+  private emitCancellationStatus(): void {
+    this.emitEvent({
+      type: 'status',
+      level: 'warn',
+      message: 'Cancellation requested by UI.',
+      details: null,
+    });
   }
 }
 
