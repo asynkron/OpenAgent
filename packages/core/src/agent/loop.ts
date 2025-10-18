@@ -153,7 +153,14 @@ export function createAgentRuntime({
 
   const nextPass = () => {
     passCounter += 1;
-    emit({ type: 'pass', pass: passCounter });
+    emit({
+      type: 'pass',
+      payload: {
+        pass: passCounter,
+        index: null,
+        value: null,
+      },
+    });
     return passCounter;
   };
 
@@ -200,8 +207,12 @@ export function createAgentRuntime({
   } catch (err) {
     emit({
       type: 'error',
-      message: 'Failed to initialize OpenAI client. Ensure API key is configured.',
-      details: err instanceof Error ? err.message : String(err),
+      payload: {
+        message: 'Failed to initialize OpenAI client. Ensure API key is configured.',
+        details: err instanceof Error ? err.message : String(err),
+        raw: null,
+        attempts: null,
+      },
     });
     outputsQueue.close();
     inputsQueue.close();
@@ -215,8 +226,24 @@ export function createAgentRuntime({
     getAutoApproveFlag,
     askHuman: async (prompt) => promptCoordinator.request(prompt, { scope: 'approval' }),
     preapprovedCfg: preapprovedCfg ?? { allowlist: [] },
-    logWarn: (message) => emit({ type: 'status', level: 'warn', message }),
-    logSuccess: (message) => emit({ type: 'status', level: 'info', message }),
+    logWarn: (message) =>
+      emit({
+        type: 'status',
+        payload: {
+          level: 'warn',
+          message,
+          details: null,
+        },
+      }),
+    logSuccess: (message) =>
+      emit({
+        type: 'status',
+        payload: {
+          level: 'info',
+          message,
+          details: null,
+        },
+      }),
   };
 
   const approvalManager = createApprovalManager({
@@ -266,7 +293,8 @@ export function createAgentRuntime({
 
   async function start(): Promise<void> {
     if (running) {
-      throw new Error('Agent runtime already started.');
+      // Make start idempotent to tolerate duplicate invocations from hosts.
+      return;
     }
     running = true;
     inputProcessorPromise = processAgentInputs({
@@ -288,26 +316,26 @@ export function createAgentRuntime({
       typeof executeAgentPassFn === 'function' ? executeAgentPassFn : executeAgentPass;
 
     const baseOptions: PassExecutionBaseOptions = {
-        openai,
-        model,
-        history,
-        emitEvent: emit,
-        onDebug: (payload) => emitDebug(payload),
-        runCommandFn,
-        applyFilterFn,
-        tailLinesFn,
-        getNoHumanFlag,
-        setNoHumanFlag,
-        planReminderMessage,
-        startThinkingFn: thinkingController.start,
-        stopThinkingFn: thinkingController.stop,
-        escState,
-        approvalManager,
-        historyCompactor: normalizedHistoryCompactor,
-        planManager: planManagerForExecutor,
-        planAutoResponseTracker,
-        emitAutoApproveStatus,
-        ...normalizedPassExecutorDeps,
+      openai,
+      model,
+      history,
+      emitEvent: emit,
+      onDebug: (payload) => emitDebug(payload),
+      runCommandFn,
+      applyFilterFn,
+      tailLinesFn,
+      getNoHumanFlag,
+      setNoHumanFlag,
+      planReminderMessage,
+      startThinkingFn: thinkingController.start,
+      stopThinkingFn: thinkingController.stop,
+      escState,
+      approvalManager,
+      historyCompactor: normalizedHistoryCompactor,
+      planManager: planManagerForExecutor,
+      planAutoResponseTracker,
+      emitAutoApproveStatus,
+      ...normalizedPassExecutorDeps,
     };
 
     const passContext: PassExecutionContext = {
@@ -331,8 +359,12 @@ export function createAgentRuntime({
         onPassError: (error) =>
           emit({
             type: 'error',
-            message: 'Agent loop encountered an error.',
-            details: error instanceof Error ? error.message : String(error),
+            payload: {
+              message: 'Agent loop encountered an error.',
+              details: error instanceof Error ? error.message : String(error),
+              raw: null,
+              attempts: null,
+            },
           }),
       });
     } finally {

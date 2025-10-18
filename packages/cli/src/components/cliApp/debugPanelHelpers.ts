@@ -2,9 +2,6 @@ import type { MutableRefObject } from 'react';
 
 import type { DebugEntry, DebugRuntimeEvent } from './types.js';
 
-const STREAM_ACTION_FIELD = '__openagentStreamAction';
-const STREAM_VALUE_FIELD = '__openagentStreamValue';
-
 export type StableDebugIdentifier = string | number;
 
 export type ManagedDebugAction = 'replace' | 'remove';
@@ -14,28 +11,34 @@ export interface ManagedDebugInstruction {
   value?: unknown;
 }
 
-type ManagedPayload = {
-  [STREAM_ACTION_FIELD]?: unknown;
-  [STREAM_VALUE_FIELD]?: unknown;
-};
-
-export function parseManagedDebugPayload(payload: unknown): ManagedDebugInstruction | null {
+export function parseManagedDebugPayload(
+  payload: DebugRuntimeEvent['payload'],
+): ManagedDebugInstruction | null {
   if (!payload || typeof payload !== 'object') {
     return null;
   }
 
-  const record = payload as ManagedPayload;
-  const action = record[STREAM_ACTION_FIELD];
-
-  if (action === 'remove') {
-    return { action: 'remove' };
+  // Legacy streaming fields used by integration tests
+  const legacyAction = (payload as { __openagentStreamAction?: unknown }).__openagentStreamAction;
+  const legacyValue = (payload as { __openagentStreamValue?: unknown }).__openagentStreamValue;
+  if (legacyAction === 'remove') {
+    return { action: 'remove' } satisfies ManagedDebugInstruction;
+  }
+  if (legacyAction === 'replace') {
+    return { action: 'replace', value: legacyValue } satisfies ManagedDebugInstruction;
   }
 
-  if (action === 'replace' || action === 'update') {
-    return {
-      action: 'replace',
-      value: record[STREAM_VALUE_FIELD],
-    } satisfies ManagedDebugInstruction;
+  if ('stage' in payload && payload.stage === 'structured-stream') {
+    if (payload.action === 'remove') {
+      return { action: 'remove' } satisfies ManagedDebugInstruction;
+    }
+
+    if (payload.action === 'replace') {
+      return {
+        action: 'replace',
+        value: 'value' in payload ? payload.value ?? null : null,
+      } satisfies ManagedDebugInstruction;
+    }
   }
 
   return null;

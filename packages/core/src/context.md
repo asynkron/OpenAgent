@@ -39,3 +39,11 @@
 - Single-responsibility architecture plan: [`../../docs/architecture/single-resp.md`](../../docs/architecture/single-resp.md).
 - Tests exercising these modules: [`../../tests/context.md`](../../tests/context.md).
 - CLI consumer of the runtime: [`../../cli/context.md`](../../cli/context.md).
+
+## Maintenance Notes
+
+- WebSocket binding imports core runtime types and handles the async queue DONE sentinel when iterating `outputs`. Error events are emitted with the typed `payload` envelope.
+- Assistant response schema error serialization now preserves `instancePath` and `params` so downstream listeners receive complete validation details.
+- Fixed deep relative imports to `utils/plan.js` in plan runtime and command result processing, and corrected a misplaced type import in the plan persistence coordinator.
+- Runtime emitter assigns event IDs immutably during cloning instead of mutating a readonly field.
+- Agent runtime start is now idempotent: repeated calls to `start()` on the same runtime instance return immediately without throwing. This prevents accidental double-starts from hosts integrating Ink/React or wrapper scripts.

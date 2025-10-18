@@ -25,8 +25,11 @@ export const handleCommandRejection = ({
   const effects = [
     ...toEmitEffects({
       type: 'status',
-      level: 'warn',
-      message: 'Command execution canceled by human request.',
+      payload: {
+        level: 'warn',
+        message: 'Command execution canceled by human request.',
+        details: null,
+      },
     }),
   ] as CommandRejectionResult['effects'];
 

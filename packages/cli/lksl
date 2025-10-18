@@ -1,0 +1,34 @@
+[
+  {
+    "eventType": "chat-message",
+    "payload": {
+      "role": "system",
+      "content": "You are an AI agent that helps users by executing commands and completing tasks.\n\nThe following local operating rules are mandatory. They are sourced from AGENTS.md files present in the workspace:\n\nFile: agents.md\n# Agents.md\n\n- Start every task by locating the nearest `context.md` (walk from repo root downward). The directory index explains purpose, key files, and known risks—treat it as your jump table before exploring code or docs.\n- Keep the context network accurate: whenever you modify code, tests, docs, prompts, or tooling, update the `context.md` in that directory and refresh any parent summaries that reference it.\n\n## Rules for TypeScript\n\n- Write types as if you were writing Golang.\n- Avoid Record<string, unknown> and use explicit types instead.\n- Avoid any.\n- Avoid unknown unless absolutely necessary.\n- Avoid union types unless absolutely necessary.\n- Avoid generics unless absolutely necessary.\n- I want the types to be as explicit as possible to make it easy to understand the data structures used in the code.\n- Keep the canonical contracts under `packages/core/src/contracts/`, one file per contract, defining the runtime types shared across packages.\n\n## Clean up existing mess\n\n- Eliminate all instances of Record<string, unknown>, any, unknown, union types, and generics from the codebase.\n- Refactor the code to use explicit types defined in the contracts folder.\n- Ensure that all types are well-documented and easy to understand.\n\nWorkspace metadata:\n- workspace_root: /Users/rogerjohansson/git/asynkron/OpenAgent\n- detection_source: git\n\nEnvironment information discovered during CLI boot:\n- JavaScript: detected (package.json name=@asynkron/openagent version=2.13.12; type=module; scripts: build, clean, prestart, start; tsconfig.json; comby is installed and ready to use; jscodeshift is installed and ready to use; ast-grep is installed and ready to use; acorn is installed and ready to use | tools: ## Recommended refactoring tools for JavaScript:\n\n### jscodeshift\nhttps://github.com/facebook/jscodeshift\n\n### ast-grep\nhttps://ast-grep.github.io/\n\n### comby\nhttps://comby.dev/\nhttps://github.com/comby-tools/comby\n\n### acorn\nhttps://github.com/acornjs/acorn\n\n### Tool availability\n- comby is installed and ready to use\n- jscodeshift is installed and ready to use\n- ast-grep is installed and ready to use\n- acorn is installed and ready to use\n\nCheck for existence on client computer.\nAsk user if you may install them when missing.\nCheck help output per tool to learn how to use them.\nPrefer proper refactoring tools over manual edits.)\n- Node.js: detected (workspace signals: package.json, tsconfig.json; node is installed and ready to use; npx is installed and ready to use; npm is installed and ready to use | tools: Use nvm, fnm, or asdf to manage Node.js versions when multiple runtimes are required.\nnpm is bundled with Node.js; prefer package managers already present (npm/pnpm/yarn/bun) to avoid redundant installs.\n\n### Tool availability\n- node is installed and ready to use\n- npx is installed and ready to use\n- npm is installed and ready to use)\n- TypeScript: detected (tsconfig.json; tsconfig.json options: strict=false | tools: Use TypeScript compiler (tsc) with ts-node or SWC for execution plus ESLint, Prettier, and Jest/Vitest for developer workflows.)\n- Operating system: detected (Darwin 24.6.0 (darwin/arm64); CPU: 8 × Apple M1; Memory: 1.4GB free / 16GB total; Shell: /bin/zsh | tools: ## Operating system insights\n\n- Consider platform-specific tooling when planning actions.\n- Use detected CPU and memory information to estimate resource heavy tasks.\n- Shell information can help decide between POSIX and Windows command syntax.)\n- OS: Darwin 24.6.0 (darwin/arm64)"
+    },
+    "pass": 0
+  },
+  {
+    "eventType": "chat-message",
+    "payload": {
+      "role": "user",
+      "content": "klk"
+    },
+    "pass": 1
+  },
+  {
+    "eventType": "chat-message",
+    "payload": {
+      "role": "user",
+      "content": "dasdsds"
+    },
+    "pass": 2
+  },
+  {
+    "eventType": "chat-message",
+    "payload": {
+      "role": "user",
+      "content": "dsdsds"
+    },
+    "pass": 3
+  }
+]

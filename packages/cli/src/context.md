@@ -36,3 +36,9 @@
 
 - Core runtime powering the CLI: [`../../core/src/context.md`](../../core/src/context.md).
 - Package overview: [`../context.md`](../context.md).
+
+## Maintenance Notes
+
+- Runtime event router includes a handler for `schema_validation_failed` to surface assistant schema issues as status entries.
+- The plan view normalizes snapshot step IDs to strings when rendering (numeric IDs are coerced to strings) to align with local `PlanStep` contracts used by the UI helpers.
+- Command log helpers tighten type guards around `exit_code` to satisfy strict TypeScript checks.

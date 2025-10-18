@@ -14,6 +14,43 @@ function createQueueMap() {
   ]);
 }
 
+function toLegacyEvent(event: unknown): unknown {
+  if (!event || typeof event !== 'object') {
+    return event;
+  }
+  const e = event as { type?: unknown; payload?: unknown } & Record<string, unknown>;
+  const type = typeof e.type === 'string' ? e.type : '';
+  const payload = e.payload && typeof e.payload === 'object' ? (e.payload as Record<string, unknown>) : null;
+  if (!payload) {
+    return event;
+  }
+  switch (type) {
+    case 'status': {
+      return { ...e, ...payload };
+    }
+    case 'plan': {
+      return { ...e, ...payload };
+    }
+    case 'command-result': {
+      return { ...e, ...payload };
+    }
+    case 'request-input': {
+      return { ...e, ...payload };
+    }
+    case 'error': {
+      return { ...e, ...payload };
+    }
+    case 'context-usage': {
+      return { ...e, ...payload };
+    }
+    case 'plan-progress': {
+      return { ...e, ...payload };
+    }
+    default:
+      return event;
+  }
+}
+
 export function createTestRunnerUI(runtime, { onEvent } = {}) {
   const events = [];
   const responseQueues = createQueueMap();
@@ -87,11 +124,12 @@ export function createTestRunnerUI(runtime, { onEvent } = {}) {
 
   const processOutputs = async () => {
     for await (const event of runtime.outputs) {
-      events.push(event);
-      notifyListeners(event);
+      const legacy = toLegacyEvent(event);
+      events.push(legacy);
+      notifyListeners(legacy as { type: string });
 
-      if (event.type === 'request-input') {
-        const metadata = (event as { metadata?: PromptRequestMetadata | null }).metadata;
+      if ((legacy as { type?: string }).type === 'request-input') {
+        const metadata = (legacy as { metadata?: PromptRequestMetadata | null }).metadata;
         const scope = metadata?.scope ?? INPUT_SCOPES.USER;
         const response = await waitForResponse(scope);
         runtime.submitPrompt(response ?? '');

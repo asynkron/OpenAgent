@@ -34,7 +34,6 @@ import {
   type RequestInputRuntimeEvent,
   type RuntimeEvent,
   type RuntimeErrorPayload,
-  type RuntimeProperty,
   type SlashCommandHandler,
   type TimelinePayload,
   type StatusRuntimeEvent,
@@ -48,6 +47,7 @@ import { useDebugPanel } from './cliApp/useDebugPanel.js';
 import { useHistoryCommand } from './cliApp/useHistoryCommand.js';
 import { useTimeline } from './cliApp/useTimeline.js';
 import type { PlanStep } from './planUtils.js';
+import type { SchemaValidationFailedRuntimeEvent } from './cliApp/types.js';
 import type { PlanProgress } from './progressUtils.js';
 import type { ContextUsage } from '../status.js';
 
@@ -67,11 +67,8 @@ function toRuntimeErrorPayload(value: unknown): RuntimeErrorPayload {
   if (value === undefined || value === null) {
     return UNKNOWN_ERROR_MESSAGE;
   }
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+  if (typeof value === 'string') {
     return value;
-  }
-  if (Array.isArray(value) || (typeof value === 'object' && value !== null)) {
-    return cloneValue(value) as RuntimeProperty;
   }
   return String(value);
 }
@@ -112,6 +109,32 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
     limit: MAX_DEBUG_ENTRIES,
     appendStatus,
   });
+  const handleDebugEventWithSummary = useCallback(
+    (event: DebugRuntimeEvent): void => {
+      try {
+        const payload = (event as unknown as { payload?: unknown }).payload as
+          | { stage?: unknown; message?: unknown }
+          | undefined;
+        const stage = payload && typeof payload === 'object' ? (payload as { stage?: unknown }).stage : null;
+        const message = payload && typeof payload === 'object' ? (payload as { message?: unknown }).message : null;
+        if (stage === 'assistant-response-validation-error') {
+          const summary = typeof message === 'string' && message.trim().length > 0
+            ? message.trim()
+            : 'Assistant response failed protocol validation.';
+          appendStatus({ level: 'warn', message: `Auto-response triggered: ${summary}` });
+        } else if (stage === 'assistant-response-schema-validation-error') {
+          appendStatus({
+            level: 'warn',
+            message: 'Auto-response triggered: Assistant response failed protocol validation.',
+          });
+        }
+      } catch {
+        // ignore summary failures; fall back to default handling
+      }
+      handleDebugEvent(event);
+    },
+    [appendStatus, handleDebugEvent],
+  );
 
   const { commandPanelEvents, commandPanelKey, handleCommandEvent, handleCommandInspectorCommand } =
     useCommandLog({
@@ -136,14 +159,14 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
       if (typeof eventId !== 'string') {
         throw new TypeError('Assistant runtime event expected string "__id".');
       }
-      const rawMessage = event.message;
-      const message: RuntimeProperty =
-        rawMessage === undefined || rawMessage === null
-          ? ''
-          : typeof rawMessage === 'string'
-            ? rawMessage
-            : (cloneValue(rawMessage) as RuntimeProperty);
-      pendingAssistantMessageRef.current = { message, eventId };
+      const rawSource =
+        (event as unknown as { message?: unknown }).message ??
+        (event.payload as unknown as { message?: unknown })?.message ??
+        '';
+      const rawMessage = Array.isArray(rawSource)
+        ? rawSource.map((v) => String(v)).join('\n')
+        : String(rawSource);
+      pendingAssistantMessageRef.current = { message: rawMessage, eventId };
     },
     [flushPendingAssistantMessage],
   );
@@ -210,7 +233,6 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
       } catch (error) {
         handledLocally = true;
         handleStatusEvent({
-          type: 'status',
           level: 'error',
           message: 'Slash command processing failed.',
           details: error instanceof Error ? error.message : String(error),
@@ -224,7 +246,6 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
           runtimeRef.current?.submitPrompt?.(submission);
         } catch (error) {
           handleStatusEvent({
-            type: 'status',
             level: 'error',
             message: 'Failed to submit input.',
             details: error instanceof Error ? error.message : String(error),
@@ -241,58 +262,98 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
 
   const handleBannerEvent = useCallback(
     (event: BannerRuntimeEvent): void => {
-      const title = typeof event.title === 'string' ? event.title : null;
-      const subtitle = typeof event.subtitle === 'string' ? event.subtitle : null;
+      const { title, subtitle } = event.payload;
       appendEntry('banner', { title, subtitle });
     },
     [appendEntry],
   );
 
   const handlePassEvent = useCallback((event: PassRuntimeEvent): void => {
-    const numericPass = Number.isFinite(event.pass)
-      ? Number(event.pass)
-      : Number.isFinite(event.index)
-        ? Number(event.index)
-        : Number.isFinite(event.value)
-          ? Number(event.value)
+    const payload = event.payload;
+    const numericPass = Number.isFinite(payload.pass)
+      ? Number(payload.pass)
+      : Number.isFinite(payload.index)
+        ? Number(payload.index)
+        : Number.isFinite(payload.value)
+          ? Number(payload.value)
           : null;
     setPassCounter(numericPass && numericPass > 0 ? Math.floor(numericPass) : 0);
   }, []);
 
   const handlePlanEvent = useCallback((event: PlanRuntimeEvent): void => {
-    setPlan(Array.isArray(event.plan) ? cloneValue(event.plan) : []);
+    const snapshot = event.payload.plan;
+    const toStringId = (value: unknown): string | null => {
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        return trimmed.length > 0 ? trimmed : null;
+      }
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return String(value);
+      }
+      return null;
+    };
+    const toWaitingFor = (value: unknown): Array<string | null | undefined> | undefined => {
+      if (!Array.isArray(value)) {
+        return undefined;
+      }
+      const mapped = value.map((v) => (typeof v === 'number' ? String(v) : typeof v === 'string' ? v : null));
+      return mapped as Array<string | null | undefined>;
+    };
+    const nextPlan: PlanStep[] = Array.isArray(snapshot)
+      ? ((snapshot as unknown as ReadonlyArray<Record<string, unknown>>).map((s) => ({
+          id: toStringId((s as { id?: unknown }).id),
+          title: ((): string | null => {
+            const v = (s as { title?: unknown }).title;
+            return typeof v === 'string' ? v : null;
+          })(),
+          status: ((): string | null => {
+            const v = (s as { status?: unknown }).status;
+            return typeof v === 'string' ? v : null;
+          })(),
+          priority: ((): number | string | null => {
+            const v = (s as { priority?: unknown }).priority;
+            if (typeof v === 'number' && Number.isFinite(v)) return v;
+            if (typeof v === 'string') return v;
+            return null;
+          })(),
+          command: ((): PlanStep['command'] => {
+            const v = (s as { command?: unknown }).command;
+            return v && typeof v === 'object' ? (cloneValue(v) as PlanStep['command']) : null;
+          })(),
+          waitingForId: toWaitingFor((s as { waitingForId?: unknown }).waitingForId),
+        })) as PlanStep[])
+      : [];
+    setPlan(nextPlan);
   }, []);
 
   const handlePlanProgressEvent = useCallback((event: PlanProgressRuntimeEvent): void => {
     setPlanProgress({
       seen: true,
-      value: event.progress ? (cloneValue(event.progress) as PlanProgress) : null,
+      value: event.payload.progress ? (cloneValue(event.payload.progress) as PlanProgress) : null,
     });
   }, []);
 
   const handleContextUsageEvent = useCallback((event: ContextUsageRuntimeEvent): void => {
-    setContextUsage(event.usage ? (cloneValue(event.usage) as ContextUsage) : null);
+    setContextUsage(
+      event.payload.usage ? (cloneValue(event.payload.usage) as ContextUsage) : null,
+    );
   }, []);
 
   const handleThinkingEvent = useCallback((event: ThinkingRuntimeEvent): void => {
-    setThinking(event.state === 'start');
+    setThinking(event.payload.state === 'start');
   }, []);
 
   const handleErrorEvent = useCallback(
     (event: ErrorRuntimeEvent): void => {
+      const payload = event.payload;
       const baseMessage =
-        typeof event.message === 'string' && event.message.trim().length > 0
-          ? event.message
+        typeof payload.message === 'string' && payload.message.trim().length > 0
+          ? payload.message
           : 'Agent error encountered.';
-      const detailSource = event.details ?? event.raw ?? null;
+      const detailSource = payload.details ?? payload.raw ?? null;
       const details =
-        detailSource === null || detailSource === undefined ? undefined : cloneValue(detailSource);
-      handleStatusEvent({
-        type: 'status',
-        level: 'error',
-        message: baseMessage,
-        details,
-      });
+        detailSource === null || detailSource === undefined ? undefined : String(detailSource);
+      handleStatusEvent({ level: 'error', message: baseMessage, details: details ?? null });
     },
     [handleStatusEvent],
   );
@@ -300,12 +361,23 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
   const handleRequestInputEvent = useCallback(
     (event: RequestInputRuntimeEvent): void => {
       flushPendingAssistantMessage();
-      const promptValue =
-        typeof event.prompt === 'string' && event.prompt.length > 0 ? event.prompt : '▷';
+      const topLevelPrompt = (event as unknown as { prompt?: unknown }).prompt;
+      const payloadPrompt = (event.payload as unknown as { prompt?: unknown })?.prompt;
+      const chosenPrompt =
+        typeof payloadPrompt === 'string'
+          ? payloadPrompt
+          : typeof topLevelPrompt === 'string'
+            ? topLevelPrompt
+            : '';
+      const promptValue = chosenPrompt && chosenPrompt.length > 0 ? chosenPrompt : '▷';
+
+      const topLevelMetadata = (event as unknown as { metadata?: unknown }).metadata;
+      const payloadMetadata = (event.payload as unknown as { metadata?: unknown })?.metadata;
+      const metadataSource = payloadMetadata ?? topLevelMetadata ?? null;
       const metadata =
-        event.metadata === undefined || event.metadata === null
+        metadataSource === undefined || metadataSource === null
           ? null
-          : (cloneValue(event.metadata) as InputRequestState['metadata']);
+          : (cloneValue(metadataSource) as InputRequestState['metadata']);
       setInputRequest({ prompt: promptValue, metadata });
     },
     [flushPendingAssistantMessage],
@@ -323,7 +395,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
     onBanner: handleBannerEvent,
     onCommandResult: handleCommandEvent,
     onContextUsage: handleContextUsageEvent,
-    onDebug: handleDebugEvent,
+    onDebug: handleDebugEventWithSummary,
     onError: handleErrorEvent,
     onPass: handlePassEvent,
     onPlan: handlePlanEvent,
@@ -331,7 +403,20 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
     onRequestInput: handleRequestInputEvent,
     onStatus: handleRuntimeStatusEvent,
     onThinking: handleThinkingEvent,
+    onSchemaValidationFailed: (event: SchemaValidationFailedRuntimeEvent): void => {
+      const payload = event.payload;
+      const details = Array.isArray(payload.errors)
+        ? payload.errors.map((e) => `${(e as { path?: string }).path ?? ''}: ${(e as { message?: string }).message ?? ''}`).join('; ')
+        : null;
+      handleStatusEvent({ level: 'error', message: payload.message, details });
+    },
   });
+
+  // Keep a stable handler to avoid restarting the runtime effect on every render.
+  const handleEventRef = useRef<(event: RuntimeEvent) => void>(() => {});
+  useEffect(() => {
+    handleEventRef.current = handleEvent;
+  }, [handleEvent]);
 
   useEffect(() => {
     const activeRuntime = runtimeRef.current;
@@ -348,7 +433,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
           if (canceled) {
             break;
           }
-          handleEvent(event);
+          handleEventRef.current(event);
         }
         await startPromise;
         if (!canceled) {
@@ -375,7 +460,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
         // Ignore cancellation failures.
       }
     };
-  }, [handleEvent, runtime, safeSetExitState]);
+  }, [runtime, safeSetExitState]);
 
   useEffect(() => {
     if (!exitState) {

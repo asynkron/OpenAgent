@@ -55,13 +55,15 @@ const handleParseFailure = (
 
   context.emitEvent?.({
     type: 'error',
-    message: 'LLM returned invalid JSON.',
-    details:
-      parseResult.error instanceof Error
-        ? parseResult.error.message
-        : String(parseResult.error ?? 'Unknown error'),
-    raw: context.responseContent,
-    attempts,
+    payload: {
+      message: 'LLM returned invalid JSON.',
+      details:
+        parseResult.error instanceof Error
+          ? parseResult.error.message
+          : String(parseResult.error ?? 'Unknown error'),
+      raw: context.responseContent,
+      attempts,
+    },
   });
 
   pushObservation({
@@ -92,6 +94,8 @@ const handleSchemaFailure = (
     path: error.path,
     message: error.message,
     keyword: error.keyword,
+    instancePath: error.instancePath,
+    params: error.params,
   }));
 
   context.emitDebug(() => ({
@@ -103,10 +107,15 @@ const handleSchemaFailure = (
 
   context.emitEvent?.({
     type: 'schema_validation_failed',
+    payload: {
+      message: 'Assistant response failed schema validation.',
+      errors: serializedErrors,
+      raw: context.responseContent,
+    },
     message: 'Assistant response failed schema validation.',
     errors: serializedErrors,
     raw: context.responseContent,
-  });
+  } as unknown as Parameters<NonNullable<typeof context.emitEvent>>[0]);
 
   const schemaMessages = schemaValidation.errors.map((error) => `${error.path}: ${error.message}`);
   const summary =
@@ -198,11 +207,14 @@ export const evaluateAssistantResponse = (
     parseResult.recovery.strategy &&
     parseResult.recovery.strategy !== 'direct'
   ) {
-    context.emitEvent?.({
-      type: 'status',
+  context.emitEvent?.({
+    type: 'status',
+    payload: {
       level: 'info',
       message: `Assistant JSON parsed after applying ${parseResult.recovery.strategy.replace(/_/g, ' ')} recovery.`,
-    });
+      details: null,
+    },
+  });
   }
 
   const success = {

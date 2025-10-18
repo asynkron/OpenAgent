@@ -3,7 +3,6 @@ import type {
   AsyncQueueLike,
   DebugRuntimeEvent,
   IdGeneratorFn,
-  RuntimeProperty,
   RuntimeDebugPayload,
   RuntimeEmitter,
   RuntimeEvent,
@@ -50,7 +49,7 @@ export function createRuntimeEmitter({
   const logWithFallback = (
     level: LoggerLevel,
     message: string,
-    details: RuntimeProperty = null,
+    details: string | null = null,
   ): void => {
     const sink = logger ?? console;
     const fn = sink && typeof sink[level] === 'function' ? sink[level].bind(sink) : null;
@@ -78,8 +77,7 @@ export function createRuntimeEmitter({
       throw new TypeError('Agent emit expected event to be an object.');
     }
 
-    const clonedEvent = cloneEvent(event);
-    clonedEvent.__id = nextId();
+    const clonedEvent = { ...cloneEvent(event), __id: nextId() } as RuntimeEvent;
     outputsQueue.push(clonedEvent);
 
     if (!Array.isArray(eventObservers)) {
@@ -93,8 +91,11 @@ export function createRuntimeEmitter({
       } catch (_error) {
         outputsQueue.push({
           type: 'status',
-          level: 'warn',
-          message: 'eventObservers item threw.',
+          payload: {
+            level: 'warn',
+            message: 'eventObservers item threw.',
+            details: null,
+          },
         });
       }
     }
@@ -103,9 +104,11 @@ export function createRuntimeEmitter({
   const emitFactoryWarning = (message: string, error: string | null = null): void => {
     const warning: StatusRuntimeEvent = {
       type: 'status',
-      level: 'warn',
-      message,
-      details: error,
+      payload: {
+        level: 'warn',
+        message,
+        details: error,
+      },
     };
     emit(warning);
   };
@@ -115,24 +118,26 @@ export function createRuntimeEmitter({
       return;
     }
 
-    let payload: RuntimeProperty | void;
+    let payload: DebugRuntimeEvent['payload'] | null | undefined;
     try {
       payload = typeof payloadOrFactory === 'function' ? payloadOrFactory() : payloadOrFactory;
     } catch (error) {
       emit({
         type: 'status',
-        level: 'warn',
-        message: 'Failed to prepare debug payload.',
-        details: error instanceof Error ? error.message : String(error),
+        payload: {
+          level: 'warn',
+          message: 'Failed to prepare debug payload.',
+          details: error instanceof Error ? error.message : String(error),
+        },
       });
       return;
     }
 
-    if (typeof payload === 'undefined') {
+    if (!payload) {
       return;
     }
 
-    const debugEvent: DebugRuntimeEvent = { type: 'debug', payload: payload as RuntimeProperty };
+    const debugEvent: DebugRuntimeEvent = { type: 'debug', payload };
     emit(debugEvent);
   };
 

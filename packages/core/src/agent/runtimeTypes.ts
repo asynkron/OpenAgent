@@ -1,6 +1,4 @@
 import type { ResponsesClient } from '../openai/responses.js';
-import type { ContextUsageSummary } from '../utils/contextUsage.js';
-import type { PlanProgress } from '../utils/plan.js';
 import type { CommandDraft } from '../contracts/index.js';
 import type { HistoryCompactor, HistoryCompactorOptions } from './historyCompactor.js';
 import type {
@@ -9,12 +7,7 @@ import type {
 } from './passExecutor/types.js';
 import type { ExecuteAgentPassOptions } from './passExecutor.js';
 import type { createPlanManager, PlanManagerOptions } from './planManager.js';
-import type {
-  PromptCoordinatorEvent,
-  PromptCoordinatorOptions,
-  PromptRequestEvent,
-  PromptRequestMetadata,
-} from './promptCoordinator.js';
+import type { PromptCoordinatorOptions, PromptRequestMetadata } from './promptCoordinator.js';
 import type { ApprovalManager, ApprovalManagerOptions, ApprovalConfig } from './approvalManager.js';
 import type { EscPayload, EscState, EscStateController } from './escState.js';
 import type { AsyncQueue as AsyncQueueType } from '../utils/asyncQueue.js';
@@ -26,6 +19,7 @@ import type {
   CommandResultRuntimeEvent,
   ContextUsageRuntimeEvent,
   DebugRuntimeEvent,
+  DebugRuntimeEventPayload,
   ErrorRuntimeEvent,
   PassRuntimeEvent,
   PlanProgressRuntimeEvent,
@@ -34,10 +28,11 @@ import type {
   RuntimeEvent,
   RuntimeEventBase,
   RuntimeEventObserver,
-  RuntimeProperty,
+  SchemaValidationFailedRuntimeEvent,
+  StatusLevel,
   StatusRuntimeEvent,
   ThinkingRuntimeEvent,
-  UnknownRuntimeEvent,
+  ThinkingState,
 } from './runtimeEvents.js';
 
 export type {
@@ -46,6 +41,7 @@ export type {
   CommandResultRuntimeEvent,
   ContextUsageRuntimeEvent,
   DebugRuntimeEvent,
+  DebugRuntimeEventPayload,
   ErrorRuntimeEvent,
   PassRuntimeEvent,
   PlanProgressRuntimeEvent,
@@ -54,10 +50,11 @@ export type {
   RuntimeEvent,
   RuntimeEventBase,
   RuntimeEventObserver,
-  RuntimeProperty,
+  SchemaValidationFailedRuntimeEvent,
+  StatusLevel,
   StatusRuntimeEvent,
   ThinkingRuntimeEvent,
-  UnknownRuntimeEvent,
+  ThinkingState,
 } from './runtimeEvents.js';
 
 export type GuardRequestOptions = Parameters<
@@ -141,7 +138,7 @@ export type PlanManagerFactoryConfig = PlanManagerOptions & {
 };
 
 export interface PromptCoordinatorFactoryConfig extends PromptCoordinatorOptions {
-  emitEvent: (event: PromptCoordinatorEvent) => void;
+  emitEvent: (event: RuntimeEvent) => void;
   escState: EscState | null;
 }
 
@@ -214,11 +211,13 @@ export interface RuntimeLogger {
   logWithFallback(
     level: 'log' | 'info' | 'warn' | 'error' | 'debug',
     message: string,
-    details?: RuntimeProperty,
+    details?: string | null,
   ): void;
 }
 
-export type RuntimeDebugPayload = RuntimeProperty | (() => RuntimeProperty | void);
+export type RuntimeDebugPayload =
+  | DebugRuntimeEventPayload
+  | (() => DebugRuntimeEventPayload | null | undefined);
 
 export interface RuntimeEmitter extends RuntimeLogger {
   emit(event: RuntimeEvent): void;

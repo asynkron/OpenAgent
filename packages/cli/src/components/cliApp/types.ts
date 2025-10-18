@@ -13,18 +13,21 @@ import type {
   CommandResultRuntimeEvent,
   ContextUsageRuntimeEvent,
   DebugRuntimeEvent,
+  DebugRuntimeEventPayload,
   ErrorRuntimeEvent,
   PassRuntimeEvent,
+  PlanHistorySnapshot,
   PlanProgressRuntimeEvent,
   PlanRuntimeEvent,
   PromptRequestMetadata,
   RequestInputRuntimeEvent,
   RuntimeEvent,
   RuntimeEventBase,
-  RuntimeProperty,
+  SchemaValidationFailedRuntimeEvent,
+  StatusLevel,
   StatusRuntimeEvent,
   ThinkingRuntimeEvent,
-  UnknownRuntimeEvent,
+  ThinkingState,
 } from '@asynkron/openagent-core';
 
 export type {
@@ -33,28 +36,29 @@ export type {
   CommandResultRuntimeEvent,
   ContextUsageRuntimeEvent,
   DebugRuntimeEvent,
+  DebugRuntimeEventPayload,
   ErrorRuntimeEvent,
   PassRuntimeEvent,
   PlanProgressRuntimeEvent,
   PlanRuntimeEvent,
+  SchemaValidationFailedRuntimeEvent,
   RequestInputRuntimeEvent,
   RuntimeEvent,
   RuntimeEventBase,
-  RuntimeProperty,
+  StatusLevel,
   StatusRuntimeEvent,
   ThinkingRuntimeEvent,
-  UnknownRuntimeEvent,
+  ThinkingState,
 };
 
 type CancellationPayload = string | { reason: string } | null;
 
-export type RuntimeErrorPayload = Error | RuntimeProperty;
+export type RuntimeErrorPayload = Error | string;
 
 export type StatusLikePayload = {
-  type?: 'status';
-  level?: string;
-  message?: string;
-  details?: RuntimeProperty;
+  level?: string | null;
+  message: string;
+  details?: string | null;
 };
 
 export interface AgentRuntimeLike {
@@ -77,7 +81,7 @@ export type TimelineBannerPayload = {
 };
 
 export type TimelineAssistantPayload = {
-  message: RuntimeProperty;
+  message: string;
   eventId: string;
 };
 
@@ -90,6 +94,7 @@ export type TimelineCommandPayload = {
   result: CommandResult | null;
   preview: CommandPreview | null;
   execution: CommandExecution | null;
+  observation: string | null;
   planStep: PlanStep | null;
 };
 
@@ -131,6 +136,8 @@ export type DebugEntry = {
   id: string | number;
   content: string;
 };
+
+export type DebugPayload = DebugRuntimeEventPayload | SchemaValidationFailedRuntimeEvent['payload'];
 
 export type CommandLogEntry = {
   id: number;

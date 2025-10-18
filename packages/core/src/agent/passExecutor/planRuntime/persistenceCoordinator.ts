@@ -8,8 +8,8 @@ import {
   type PreparedIncomingPlan,
   type ResolvePlanResult,
   type ResetPlanResult,
-  type RuntimeStatusEvent,
 } from './persistence.js';
+import type { StatusRuntimeEvent } from '../../runtimeEvents.js';
 
 /**
  * Coordinates persistence hooks so the plan runtime can focus on state-machine updates.
@@ -18,7 +18,7 @@ export interface PlanPersistenceCoordinator {
   prepareIncomingPlan(incomingPlan: PlanStep[] | null): PreparedIncomingPlan;
   resolveActivePlan(normalizedPlan: PlanStep[] | null): Promise<ResolvePlanResult>;
   resetPlanSnapshot(): Promise<ResetPlanResult>;
-  persistPlanSnapshot(plan: PlanStep[]): Promise<RuntimeStatusEvent | null>;
+  persistPlanSnapshot(plan: PlanStep[]): Promise<StatusRuntimeEvent | null>;
 }
 
 export const createPlanPersistenceCoordinator = (

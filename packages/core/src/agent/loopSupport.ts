@@ -71,8 +71,12 @@ export async function processAgentInputs({
   } catch (error) {
     emit({
       type: 'error',
-      message: 'Input processing terminated unexpectedly.',
-      details: error instanceof Error ? error.message : String(error),
+      payload: {
+        message: 'Input processing terminated unexpectedly.',
+        details: error instanceof Error ? error.message : String(error),
+        raw: null,
+        attempts: null,
+      },
     });
   }
 }
@@ -92,22 +96,41 @@ export function emitSessionIntro({
   getAutoApproveFlag: () => boolean;
   getNoHumanFlag: () => boolean;
 }): void {
-  emit({ type: 'banner', title: 'OpenAgent - AI Agent with JSON Protocol' });
-  emit({ type: 'status', level: 'info', message: 'Submit prompts to drive the conversation.' });
+  emit({
+    type: 'banner',
+    payload: {
+      title: 'OpenAgent - AI Agent with JSON Protocol',
+      subtitle: null,
+    },
+  });
+  emit({
+    type: 'status',
+    payload: {
+      level: 'info',
+      message: 'Submit prompts to drive the conversation.',
+      details: null,
+    },
+  });
   if (getAutoApproveFlag()) {
     emit({
       type: 'status',
-      level: 'warn',
-      message:
-        'Full auto-approval mode enabled via CLI flag. All commands will run without prompting.',
+      payload: {
+        level: 'warn',
+        message:
+          'Full auto-approval mode enabled via CLI flag. All commands will run without prompting.',
+        details: null,
+      },
     });
   }
   if (getNoHumanFlag()) {
     emit({
       type: 'status',
-      level: 'warn',
-      message:
-        "No-human mode enabled (--nohuman). Agent will auto-respond with \"continue or say 'done'\" until the AI replies \"done\".",
+      payload: {
+        level: 'warn',
+        message:
+          "No-human mode enabled (--nohuman). Agent will auto-respond with \"continue or say 'done'\" until the AI replies \"done\".",
+        details: null,
+      },
     });
   }
 }
@@ -117,8 +140,8 @@ export function createThinkingController(emit: (event: RuntimeEvent) => void): {
   stop: () => void;
 } {
   return {
-    start: () => emit({ type: 'thinking', state: 'start' }),
-    stop: () => emit({ type: 'thinking', state: 'stop' }),
+    start: () => emit({ type: 'thinking', payload: { state: 'start' } }),
+    stop: () => emit({ type: 'thinking', payload: { state: 'stop' } }),
   };
 }
 
@@ -132,7 +155,14 @@ export async function runConversationLoop(context: ConversationLoopContext): Pro
     });
 
     if (decision.kind === 'exit') {
-      context.emit({ type: 'status', level: 'info', message: 'Goodbye!' });
+      context.emit({
+        type: 'status',
+        payload: {
+          level: 'info',
+          message: 'Goodbye!',
+          details: null,
+        },
+      });
       break;
     }
 

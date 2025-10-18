@@ -26,7 +26,7 @@ import { createObservationHistoryEntry, type ObservationRecord } from './history
 import { buildOpenAgentRequestPayload } from './modelRequestPayload.js';
 import type { ObservationBuilder } from './observationBuilder.js';
 import type { ChatMessageEntry } from './historyEntry.js';
-import type { RuntimeEvent, RuntimeProperty } from './runtimeTypes.js';
+import type { RuntimeEvent } from './runtimeTypes.js';
 
 interface CancellationRegistrationOptions {
   description: string;
@@ -49,8 +49,6 @@ const isAbortLikeError = (error: unknown): boolean => {
 
 type EmitEvent = (event: RuntimeEvent) => void;
 
-const STREAM_DEBUG_ACTION_FIELD = '__openagentStreamAction';
-const STREAM_DEBUG_VALUE_FIELD = '__openagentStreamValue';
 let structuredStreamDebugCounter = 0;
 
 export interface RequestModelCompletionOptions {
@@ -126,25 +124,28 @@ export async function requestModelCompletion({
     value?: PlanResponseStreamPartial,
   ): void => {
     try {
-      const payload =
-        action === 'remove'
-          ? { [STREAM_DEBUG_ACTION_FIELD]: 'remove' as const }
-          : (() => {
-              try {
-                const serialized = JSON.parse(JSON.stringify(value ?? null)) as RuntimeProperty;
-                return {
-                  [STREAM_DEBUG_ACTION_FIELD]: 'replace' as const,
-                  [STREAM_DEBUG_VALUE_FIELD]: serialized,
-                };
-              } catch (_serializationError) {
-                return { [STREAM_DEBUG_ACTION_FIELD]: 'replace' as const };
-              }
-            })();
+      const clonedValue: PlanResponseStreamPartial | null = (() => {
+        if (action === 'remove') {
+          return null;
+        }
+        if (!value) {
+          return null;
+        }
+        try {
+          return JSON.parse(JSON.stringify(value)) as PlanResponseStreamPartial;
+        } catch (_serializationError) {
+          return null;
+        }
+      })();
 
       emitEvent({
         type: 'debug',
         id: streamDebugId,
-        payload,
+        payload: {
+          stage: 'structured-stream',
+          action,
+          value: clonedValue,
+        },
       });
     } catch (_error) {
       // Ignore debug stream emission failures to keep the request resilient.
@@ -224,8 +225,11 @@ export async function requestModelCompletion({
       resetEscState(escState);
       emitEvent({
         type: 'status',
-        level: 'warn',
-        message: 'Operation canceled via user request.',
+        payload: {
+          level: 'warn',
+          message: 'Operation canceled via user request.',
+          details: null,
+        },
       });
 
       if (typeof setNoHumanFlag === 'function') {
@@ -251,8 +255,11 @@ export async function requestModelCompletion({
 
       emitEvent({
         type: 'status',
-        level: 'warn',
-        message: 'Operation aborted before completion.',
+        payload: {
+          level: 'warn',
+          message: 'Operation aborted before completion.',
+          details: null,
+        },
       });
 
       if (typeof setNoHumanFlag === 'function') {

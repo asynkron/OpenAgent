@@ -32,6 +32,7 @@ function renderCommandEntry({
   result,
   preview,
   execution,
+  observation,
   planStep,
 }: TimelineCommandPayload): ReactElement {
   return (
@@ -40,6 +41,7 @@ function renderCommandEntry({
       result={result}
       preview={preview}
       execution={execution}
+      observation={observation}
       planStep={planStep}
     />
   );

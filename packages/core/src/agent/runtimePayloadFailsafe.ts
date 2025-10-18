@@ -77,12 +77,13 @@ export const enforcePayloadGrowthLimit = async (
       emitter: input.emitter,
     });
   } catch (dumpError) {
-    input.emitter.logWithFallback('error', '[failsafe] Failed to persist history snapshot.', {
-      error: dumpError instanceof Error ? dumpError.message : String(dumpError),
-    });
+    input.emitter.logWithFallback(
+      'error',
+      '[failsafe] Failed to persist history snapshot.',
+      dumpError instanceof Error ? dumpError.message : String(dumpError),
+    );
   }
 
   input.emitter.logWithFallback('error', '[failsafe] Exiting to prevent excessive API charges.');
   process.exit(1);
 };
-

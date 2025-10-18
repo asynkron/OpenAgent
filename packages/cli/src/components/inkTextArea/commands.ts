@@ -395,14 +395,22 @@ export function buildSlashCommandEvent(
   item: SlashCommandItem,
   replacement: string,
   value: string,
+  caretIndex?: number,
+  originalValue?: string,
 ): SlashCommandSelectEvent {
+  const startIndex = activeCommand.startIndex;
+  const endIndex = typeof caretIndex === 'number' ? caretIndex : activeCommand.endIndex;
+  const queryStart = startIndex + activeCommand.command.triggerLength;
+  const baseForQuery = typeof originalValue === 'string' ? originalValue : value;
+  const computedQuery = baseForQuery.slice(queryStart, endIndex);
+
   return {
     item: item.source ?? item,
-    query: activeCommand.query,
+    query: computedQuery || activeCommand.query,
     command: activeCommand.command.source ?? activeCommand.command,
     range: {
-      startIndex: activeCommand.startIndex,
-      endIndex: activeCommand.endIndex,
+      startIndex,
+      endIndex,
     },
     replacement,
     value,

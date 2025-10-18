@@ -6,6 +6,9 @@
  */
 import { createAgentRuntime } from '../agent/loop.js';
 import { isFunction, isPromiseLike, isRecord } from './websocket/guards.js';
+import type { AgentRuntime } from '../agent/runtimeTypes.js';
+import type { RuntimeEvent } from '../agent/runtimeEvents.js';
+import type { EscPayload } from '../agent/escState.js';
 import {
   defaultParseIncoming,
   normaliseIncomingMessage,
@@ -20,21 +23,6 @@ type ListenerMethod = (event: string, handler: EventHandler) => unknown;
 type SendResult = void | boolean | PromiseLike<void | boolean>;
 
 const isRuntimeEvent = (value: unknown): value is RuntimeEvent => isRecord(value);
-
-export interface RuntimeOutputs {
-  next(): Promise<RuntimeEvent | null | undefined>;
-  close(): void;
-  [Symbol.asyncIterator]?(): AsyncIterator<RuntimeEvent | null | undefined>;
-}
-
-export interface RuntimeEvent extends Record<string, unknown> {}
-
-export interface AgentRuntime {
-  outputs?: RuntimeOutputs | null;
-  start(): Promise<void>;
-  cancel(payload?: unknown): void;
-  submitPrompt(prompt: string): void;
-}
 
 export interface WebSocketLike {
   send(data: unknown): SendResult;
@@ -121,8 +109,14 @@ function attachListener(socket: WebSocketLike, event: string, handler: EventHand
 
 // Normalizes the runtime.outputs contract into a clean async iterable, regardless of
 // whether the queue exposes Symbol.asyncIterator or a bare next() method.
+type RuntimeOutputsLike = {
+  next?: () => Promise<RuntimeEvent | symbol | null | undefined>;
+  close?: () => void;
+  [Symbol.asyncIterator]?: () => AsyncIterator<RuntimeEvent | null | undefined>;
+};
+
 const createOutputIterable = (
-  outputs: RuntimeOutputs | null | undefined,
+  outputs: RuntimeOutputsLike | null | undefined,
 ): AsyncIterable<RuntimeEvent> | null => {
   if (!outputs) {
     return null;
@@ -165,7 +159,11 @@ const createOutputIterable = (
       async *[Symbol.asyncIterator]() {
         try {
           while (true) {
-            const value = await outputs.next();
+            const nextFn = outputs.next as () => Promise<RuntimeEvent | symbol | null | undefined>;
+            const value = await nextFn();
+            if (typeof value === 'symbol') {
+              break;
+            }
             if (value == null) {
               continue;
             }
@@ -269,8 +267,12 @@ function createMessageHandler(
         formatOutgoing,
         {
           type: 'error',
-          message: 'Failed to parse incoming WebSocket message.',
-          details: error instanceof Error ? error.message : String(error),
+          payload: {
+            message: 'Failed to parse incoming WebSocket message.',
+            details: error instanceof Error ? error.message : String(error),
+            raw: null,
+            attempts: null,
+          },
         },
         { suppressErrors: true },
       );
@@ -283,7 +285,7 @@ function createMessageHandler(
     }
 
     if (envelope.kind === 'cancel') {
-      runtime.cancel(envelope.payload);
+      runtime.cancel(envelope.payload as EscPayload);
       return;
     }
 
@@ -366,8 +368,12 @@ function createPumpOutputs(
           formatOutgoing,
           {
             type: 'error',
-            message: 'WebSocket UI failed to forward agent event.',
-            details: error instanceof Error ? error.message : String(error),
+            payload: {
+              message: 'WebSocket UI failed to forward agent event.',
+              details: error instanceof Error ? error.message : String(error),
+              raw: null,
+              attempts: null,
+            },
           },
           { suppressErrors: true },
         );

@@ -37,12 +37,18 @@ const guardRequestPayloadSize = async ({
   try {
     await guardRequestPayloadSizeFn({ history, model, passIndex });
   } catch (error) {
+    const details = error instanceof Error ? error.message : String(error);
     emitEvent({
       type: 'status',
+      payload: {
+        level: 'warn',
+        message: '[failsafe] Unable to evaluate request payload size before history compaction.',
+        details,
+      },
       level: 'warn',
       message: '[failsafe] Unable to evaluate request payload size before history compaction.',
-      details: error instanceof Error ? error.message : String(error),
-    });
+      details,
+    } as unknown as Parameters<typeof emitEvent>[0]);
   }
 };
 
@@ -62,12 +68,18 @@ const compactHistoryIfNeeded = async ({
   try {
     await historyCompactor.compactIfNeeded({ history });
   } catch (error) {
+    const details = error instanceof Error ? error.message : String(error);
     emitEvent({
       type: 'status',
+      payload: {
+        level: 'warn',
+        message: '[history-compactor] Unexpected error during history compaction.',
+        details,
+      },
       level: 'warn',
       message: '[history-compactor] Unexpected error during history compaction.',
-      details: error instanceof Error ? error.message : String(error),
-    });
+      details,
+    } as unknown as Parameters<typeof emitEvent>[0]);
   }
 };
 
@@ -85,14 +97,22 @@ const emitContextUsageSummary = ({
   try {
     const usage = summarizeContextUsageFn({ history, model });
     if (usage && usage.total) {
-      emitEvent({ type: 'context-usage', usage });
+      emitEvent({
+        type: 'context-usage',
+        payload: {
+          usage,
+        },
+        usage,
+      } as unknown as Parameters<typeof emitEvent>[0]);
     }
   } catch (error) {
     emitEvent({
       type: 'status',
-      level: 'warn',
-      message: 'Failed to summarize context usage.',
-      details: error instanceof Error ? error.message : String(error),
+      payload: {
+        level: 'warn',
+        message: 'Failed to summarize context usage.',
+        details: error instanceof Error ? error.message : String(error),
+      },
     });
   }
 };
@@ -158,8 +178,17 @@ const requestAssistantCompletion = async ({
   if (!responseContent) {
     emitEvent({
       type: 'error',
+      payload: {
+        message: 'OpenAI response did not include text output.',
+        details: null,
+        raw: null,
+        attempts: null,
+      },
       message: 'OpenAI response did not include text output.',
-    });
+      details: null,
+      raw: null,
+      attempts: null,
+    } as unknown as Parameters<typeof emitEvent>[0]);
     return { status: 'missing-content' };
   }
 

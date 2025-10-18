@@ -64,9 +64,15 @@ export class PlanManagerController {
     if (!Array.isArray(nextPlan)) {
       this.emitStatus({
         type: 'status',
+        payload: {
+          level: 'warn',
+          message: 'Plan manager received an invalid plan snapshot during sync. Resetting plan.',
+          details: null,
+        },
         level: 'warn',
         message: 'Plan manager received an invalid plan snapshot during sync. Resetting plan.',
-      });
+        details: null,
+      } as unknown as Parameters<PlanManagerControllerConfig['emitStatus']>[0]);
       this.activePlan = [];
     } else {
       this.activePlan = this.clonePlanSnapshot(nextPlan as PlanSnapshot);
@@ -113,7 +119,14 @@ export class PlanManagerController {
     }
 
     this.lastProgressSignature = signature;
-    this.emit({ type: 'plan-progress', progress });
+    const evt: unknown = {
+      type: 'plan-progress',
+      payload: {
+        progress,
+      },
+      progress,
+    };
+    this.emit(evt as Parameters<PlanManagerControllerConfig['emit']>[0]);
     return progress;
   }
 
@@ -136,17 +149,28 @@ export class PlanManagerController {
 
       this.emitStatus({
         type: 'status',
+        payload: {
+          level: 'warn',
+          message: 'Plan persistence adapter returned an invalid snapshot. Resetting plan.',
+          details: null,
+        },
         level: 'warn',
         message: 'Plan persistence adapter returned an invalid snapshot. Resetting plan.',
-      });
+        details: null,
+      } as unknown as Parameters<PlanManagerControllerConfig['emitStatus']>[0]);
       this.activePlan = [];
     } catch (error) {
       this.emitStatus({
         type: 'status',
+        payload: {
+          level: 'warn',
+          message: 'Failed to load plan snapshot. Resetting plan.',
+          details: error instanceof Error ? error.message : String(error),
+        },
         level: 'warn',
         message: 'Failed to load plan snapshot. Resetting plan.',
         details: error instanceof Error ? error.message : String(error),
-      });
+      } as unknown as Parameters<PlanManagerControllerConfig['emitStatus']>[0]);
       this.activePlan = [];
     }
   }
@@ -155,9 +179,15 @@ export class PlanManagerController {
     if (!Array.isArray(plan)) {
       this.emitStatus({
         type: 'status',
+        payload: {
+          level: 'warn',
+          message: 'Plan manager received an invalid plan snapshot. Ignoring payload.',
+          details: null,
+        },
         level: 'warn',
         message: 'Plan manager received an invalid plan snapshot. Ignoring payload.',
-      });
+        details: null,
+      } as unknown as Parameters<PlanManagerControllerConfig['emitStatus']>[0]);
       return [];
     }
 
@@ -170,9 +200,17 @@ export class PlanManagerController {
         if (this.activePlan.length > 0) {
           this.emitStatus({
             type: 'status',
+            payload: {
+              level: 'info',
+              message:
+                'Cleared active plan after receiving an empty plan while merging is disabled.',
+              details: null,
+            },
             level: 'info',
-            message: 'Cleared active plan after receiving an empty plan while merging is disabled.',
-          });
+            message:
+              'Cleared active plan after receiving an empty plan while merging is disabled.',
+            details: null,
+          } as unknown as Parameters<PlanManagerControllerConfig['emitStatus']>[0]);
         }
         this.activePlan = [];
       }
@@ -187,9 +225,15 @@ export class PlanManagerController {
     if (this.activePlan.length > 0) {
       this.emitStatus({
         type: 'status',
+        payload: {
+          level: 'info',
+          message: 'Replacing active plan with assistant update because plan merging is disabled.',
+          details: null,
+        },
         level: 'info',
         message: 'Replacing active plan with assistant update because plan merging is disabled.',
-      });
+        details: null,
+      } as unknown as Parameters<PlanManagerControllerConfig['emitStatus']>[0]);
     }
 
     this.activePlan = incomingPlan;

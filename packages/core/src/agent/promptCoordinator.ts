@@ -1,5 +1,10 @@
 import type { EscPayload, EscState } from './escState.js';
 import type { PromptRequestMetadata } from '../prompts/types.js';
+import type {
+  RequestInputRuntimeEvent,
+  RuntimeEvent,
+  StatusRuntimeEvent,
+} from './runtimeEvents.js';
 import { PromptCoordinatorStateMachine } from './promptCoordinatorState.js';
 import { normalizePromptMetadata } from './promptMetadataNormalizer.js';
 
@@ -11,24 +16,7 @@ export type { PromptRequestMetadata, PromptRequestScope } from '../prompts/types
  * response. We keep the union open-ended to allow experiments without
  * updating the coordinator every time a new scope appears.
  */
-export interface PromptRequestEvent {
-  type: 'request-input';
-  prompt: string;
-  metadata: PromptRequestMetadata;
-  __id?: string;
-}
-
-export interface PromptCoordinatorStatusEvent {
-  type: 'status';
-  level: string;
-  message: string;
-  details?: string | null;
-  __id?: string;
-}
-
-export type PromptCoordinatorEvent = PromptRequestEvent | PromptCoordinatorStatusEvent;
-
-export type EmitEventFn = (event: PromptCoordinatorEvent) => void;
+export type EmitEventFn = (event: RuntimeEvent) => void;
 export type CancelFn = (reason?: EscPayload) => void;
 
 export interface PromptCoordinatorOptions {
@@ -56,10 +44,12 @@ export class PromptCoordinator {
   }
 
   request(prompt: string, metadata?: PromptRequestMetadata | null): Promise<string> {
-    const event: PromptRequestEvent = {
+    const event: RequestInputRuntimeEvent = {
       type: 'request-input',
-      prompt,
-      metadata: normalizePromptMetadata(metadata ?? null),
+      payload: {
+        prompt,
+        metadata: normalizePromptMetadata(metadata ?? null),
+      },
     };
 
     this.emitEvent(event);
@@ -95,12 +85,15 @@ export class PromptCoordinator {
       escState.trigger?.(this.normalizeEscPayload(payload));
     }
 
-    this.emitEvent({
+    const statusEvent: StatusRuntimeEvent = {
       type: 'status',
-      level: 'warn',
-      message: 'Cancellation requested by UI.',
-      details: null,
-    });
+      payload: {
+        level: 'warn',
+        message: 'Cancellation requested by UI.',
+        details: null,
+      },
+    };
+    this.emitEvent(statusEvent);
   }
 
   close(): void {

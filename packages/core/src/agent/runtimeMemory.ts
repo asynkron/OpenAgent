@@ -51,9 +51,11 @@ export const createMemoryPolicyController = ({
     } catch (error) {
       emitter.emit({
         type: 'status',
-        level: 'warn',
-        message: '[memory] Failed to initialize amnesia manager.',
-        details: error instanceof Error ? error.message : String(error),
+        payload: {
+          level: 'warn',
+          message: '[memory] Failed to initialize amnesia manager.',
+          details: error instanceof Error ? error.message : String(error),
+        },
       });
     }
   }
@@ -77,9 +79,11 @@ export const createMemoryPolicyController = ({
       } catch (error) {
         emitter.emit({
           type: 'status',
-          level: 'warn',
-          message: '[memory] Failed to apply amnesia filter.',
-          details: error instanceof Error ? error.message : String(error),
+          payload: {
+            level: 'warn',
+            message: '[memory] Failed to apply amnesia filter.',
+            details: error instanceof Error ? error.message : String(error),
+          },
         });
       }
     }
@@ -95,9 +99,11 @@ export const createMemoryPolicyController = ({
       } catch (error) {
         emitter.emit({
           type: 'status',
-          level: 'warn',
-          message: '[memory] Failed to apply dementia pruning.',
-          details: error instanceof Error ? error.message : String(error),
+          payload: {
+            level: 'warn',
+            message: '[memory] Failed to apply dementia pruning.',
+            details: error instanceof Error ? error.message : String(error),
+          },
         });
       }
     }
