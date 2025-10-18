@@ -1,13 +1,11 @@
-import { createWebSocketBinding, type WebSocketBinding } from '@asynkron/openagent-core';
-import type { RawData, WebSocket } from 'ws';
+import type { WebSocketBinding } from '@asynkron/openagent-core';
+import type { WebSocket } from 'ws';
 
-import {
-  describeAgentError,
-  formatAgentEvent,
-  isWebSocketOpen,
-  normaliseAgentText,
-  type AgentPayload,
-} from './utils.js';
+import { isWebSocketOpen, type AgentPayload } from './utils.js';
+import { initialiseAgentBinding } from './agentSocketBinding.js';
+import { registerAgentMessageHandler } from './agentSocketMessages.js';
+import { createCleanupBundle, registerLifecycleHandlers } from './agentSocketLifecycle.js';
+import { closeAgentSocket, startAgentRuntime } from './agentSocketRuntime.js';
 
 export interface AgentConfig {
   autoApprove: boolean;
@@ -24,64 +22,6 @@ interface AgentSocketRecord {
   cleanup: ((reason?: string) => Promise<void>) | null;
 }
 
-interface AgentPromptMessage {
-  type: string;
-  prompt?: unknown;
-  text?: unknown;
-  value?: unknown;
-  message?: unknown;
-}
-
-function serialiseIncomingMessage(raw: RawData, isBinary: boolean): string | undefined {
-  if (typeof raw === 'string') {
-    return raw;
-  }
-
-  if (Buffer.isBuffer(raw)) {
-    return raw.toString('utf8');
-  }
-
-  if (Array.isArray(raw)) {
-    return Buffer.concat(raw).toString('utf8');
-  }
-
-  if (!isBinary && raw instanceof ArrayBuffer) {
-    return Buffer.from(raw).toString('utf8');
-  }
-
-  return undefined;
-}
-
-function isAgentPromptMessage(value: unknown): value is AgentPromptMessage {
-  if (!value || typeof value !== 'object') {
-    return false;
-  }
-
-  const type = (value as { type?: unknown }).type;
-  if (typeof type !== 'string') {
-    return false;
-  }
-
-  const normalizedType = type.toLowerCase();
-  if (normalizedType !== 'chat' && normalizedType !== 'prompt') {
-    return false;
-  }
-
-  return true;
-}
-
-function resolvePrompt(message: AgentPromptMessage): string | undefined {
-  const promptSource = message.prompt ?? message.text ?? message.value ?? message.message;
-
-  if (typeof promptSource === 'string') {
-    const trimmed = promptSource.trim();
-    return trimmed ? trimmed : undefined;
-  }
-
-  const normalised = normaliseAgentText(promptSource).trim();
-  return normalised ? normalised : undefined;
-}
-
 export class AgentSocketManager {
   private readonly agentConfig: AgentConfig;
 
@@ -90,59 +30,26 @@ export class AgentSocketManager {
   private readonly clients: Map<WebSocket, AgentSocketRecord> = new Map();
 
   constructor({ agentConfig, sendPayload }: AgentSocketManagerOptions) {
-    this.agentConfig = agentConfig;
     this.sendPayload = sendPayload;
+    this.agentConfig = agentConfig;
     // Track each websocket so we can cleanly tear down bindings on shutdown.
   }
 
-  private buildRuntimeOptions():
-    | { getAutoApproveFlag: () => boolean; emitAutoApproveStatus: boolean }
-    | undefined {
-    if (this.agentConfig?.autoApprove === false) {
-      return undefined;
-    }
-    return {
-      getAutoApproveFlag: () => true,
-      emitAutoApproveStatus: true,
-    };
-  }
-
   handleConnection(ws: WebSocket): void {
-    let binding: WebSocketBinding | undefined;
     console.log('Agent websocket connection received - initialising runtime binding');
-    try {
-      const runtimeOptions = this.buildRuntimeOptions();
-      const bindingOptions: Parameters<typeof createWebSocketBinding>[0] = {
-        socket: ws,
-        autoStart: false,
-        formatOutgoing: (event) => {
-          console.log('Agent runtime emitted event', event);
-          const payload = formatAgentEvent(event);
-          return payload ? JSON.stringify(payload) : undefined;
-        },
-      };
-
-      if (runtimeOptions) {
-        bindingOptions.runtimeOptions = runtimeOptions;
-      }
-
-      binding = createWebSocketBinding(bindingOptions);
-    } catch (error) {
-      const details = describeAgentError(error);
-      this.sendPayload(ws, {
-        type: 'agent_error',
-        message: 'Failed to initialize the agent runtime.',
-        ...(details ? { details } : {}),
-      });
-      try {
-        ws.close(1011, 'Agent runtime unavailable');
-      } catch (closeError) {
-        console.warn('Failed to close agent websocket after initialization error', closeError);
-      }
-      return;
-    }
+    const { binding, errorPayload, closeReason, closeWarningContext } = initialiseAgentBinding(
+      ws,
+      this.agentConfig,
+    );
 
     if (!binding) {
+      if (errorPayload) {
+        this.sendPayload(ws, errorPayload);
+      }
+
+      if (closeReason && closeWarningContext) {
+        closeAgentSocket(ws, 1011, closeReason, closeWarningContext);
+      }
       return;
     }
 
@@ -152,118 +59,20 @@ export class AgentSocketManager {
       cleanup: null,
     };
 
-    const handleClose = (): void => {
-      console.log('Agent websocket closed by client');
-      void cleanup('socket-close');
-    };
-
-    const handleError = (socketError: unknown): void => {
-      if (socketError instanceof Error && socketError.message) {
-        console.warn('Agent websocket error', socketError);
-      }
-      void cleanup('socket-error');
-    };
-
-    const cleanup = async (reason = 'socket-close'): Promise<void> => {
-      if (record.cleaned) {
-        return;
-      }
-      record.cleaned = true;
+    const removeClient = (): void => {
       this.clients.delete(ws);
-
-      console.log('Cleaning up agent websocket binding', { reason });
-
-      try {
-        ws.off?.('close', handleClose);
-        ws.off?.('error', handleError);
-      } catch (_error) {
-        // Ignore listener removal failures; the socket may already be closed.
-      }
-
-      try {
-        await binding?.stop?.({ reason });
-      } catch (error) {
-        console.warn('Failed to stop agent binding cleanly', error);
-      }
     };
 
-    record.cleanup = cleanup;
+    const lifecycle = createCleanupBundle(ws, record, removeClient, binding);
+    record.cleanup = lifecycle.cleanup;
     this.clients.set(ws, record);
 
-    ws.on('close', handleClose);
-    ws.on('error', handleError);
-
-    ws.on('message', (raw: RawData, isBinary: boolean) => {
-      const serialized = serialiseIncomingMessage(raw, isBinary);
-      console.log('Agent websocket received payload', serialized ?? raw);
-
-      const runtime = binding.runtime;
-      if (!serialized || !runtime?.submitPrompt) {
-        return;
-      }
-
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(serialized);
-      } catch (_error) {
-        return;
-      }
-
-      if (!isAgentPromptMessage(parsed)) {
-        return;
-      }
-
-      const prompt = resolvePrompt(parsed);
-      if (!prompt) {
-        return;
-      }
-
-      try {
-        runtime.submitPrompt(prompt);
-        console.log('Forwarded agent prompt payload to runtime queue');
-      } catch (error) {
-        console.warn('Failed to forward agent prompt payload to runtime queue', error);
-      }
+    registerLifecycleHandlers(ws, lifecycle);
+    registerAgentMessageHandler(binding, (listener) => {
+      ws.on('message', listener);
     });
 
-    try {
-      const startResult = binding.start?.();
-      if (startResult && typeof (startResult as Promise<void>).then === 'function') {
-        void (startResult as Promise<void>)
-          .then(() => {
-            console.log('Agent runtime reported async start completion');
-          })
-          .catch(async (startError: unknown) => {
-            const details = describeAgentError(startError);
-            this.sendPayload(ws, {
-              type: 'agent_error',
-              message: 'Agent runtime failed to start.',
-              ...(details ? { details } : {}),
-            });
-            await cleanup?.('runtime-error');
-            try {
-              ws.close(1011, 'Agent runtime failed to start');
-            } catch (closeError) {
-              console.warn('Failed to close agent websocket after runtime error', closeError);
-            }
-          });
-      } else {
-        console.log('Agent runtime started synchronously');
-      }
-    } catch (error) {
-      const details = describeAgentError(error);
-      this.sendPayload(ws, {
-        type: 'agent_error',
-        message: 'Agent runtime failed to start.',
-        ...(details ? { details } : {}),
-      });
-      void cleanup?.('runtime-error');
-      try {
-        ws.close(1011, 'Agent runtime failed to start');
-      } catch (closeError) {
-        console.warn('Failed to close agent websocket after synchronous runtime error', closeError);
-      }
-    }
+    startAgentRuntime(binding, ws, this.sendPayload, lifecycle.cleanup);
   }
 
   async stopAll(reason: string = 'server-stop'): Promise<void> {

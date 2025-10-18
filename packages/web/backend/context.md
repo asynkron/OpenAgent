@@ -9,7 +9,8 @@
 
 - `src/index.ts` — boots the backend with runtime configuration derived from environment variables.
 - `src/server.ts` — wraps HTTP and WebSocket server lifecycle management.
-- `src/server/agentSocket.ts` — manages runtime bindings for each connected agent websocket client (now emitting strongly typed agent payloads and stricter prompt parsing helpers).
+- `src/server/agentSocket.ts` — manages runtime bindings for each connected agent websocket client with dedicated helpers for initialisation, lifecycle cleanup, message forwarding, and runtime start error handling.
+- `src/server/agentSocketBinding.ts`, `src/server/agentSocketLifecycle.ts`, `src/server/agentSocketMessages.ts`, `src/server/agentSocketRuntime.ts` — helper modules that create the runtime binding, orchestrate cleanup/startup flows, normalise incoming prompt payloads, and manage runtime start/stop error handling for the socket manager.
 - `src/server/utils.ts` — shared helpers for normalising runtime payloads and error reporting; returns typed payload objects for the websocket bridge.
 - `src/server/__tests__/` — Jest suites covering the websocket manager wiring plus payload formatting utilities.
 - `src/types/openagent-core.d.ts` — ambient bindings for the core runtime websocket adapter exposed by the CLI package.
