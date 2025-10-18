@@ -2,53 +2,27 @@ import { jest } from '@jest/globals';
 
 import { queueModelResponse, resetQueuedResponses } from './agentRuntimeTestHarness.js';
 import { bootTestCLI } from './utils/cliTestHarness.js';
+import { createPlanBuilder } from './utils/planBuilder.js';
 
-const PLAN_STEP_TITLES = {
-  gather: 'Review instructions and constraints',
-  execute: 'Execute requested command',
-};
-
-const DEFAULT_SHELL = '/bin/bash';
-
-function withDefaultCommand(command, fallbackRun) {
-  const base = {
-    shell: DEFAULT_SHELL,
-    run: fallbackRun,
+const planBuilder = createPlanBuilder({
+  gather: {
+    title: 'Review instructions and constraints',
+    fallbackRun: 'echo "gathering context"',
+  },
+  execute: {
+    title: 'Execute requested command',
+    fallbackRun: 'echo "waiting for approval"',
+  },
+  commandDefaults: {
+    shell: '/bin/bash',
     cwd: '.',
-    timeout_sec: 5,
-  };
-
-  if (!command) {
-    return base;
-  }
-
-  return { ...base, ...command };
-}
-
-function buildPlan(statusGather, statusExecute, command = null) {
-  return [
-    {
-      id: 'plan-step-gather',
-      title: PLAN_STEP_TITLES.gather,
-      status: statusGather,
-      command: withDefaultCommand(null, 'echo "gathering context"'),
-    },
-    {
-      id: 'plan-step-execute',
-      title: PLAN_STEP_TITLES.execute,
-      status: statusExecute,
-      command: withDefaultCommand(command, 'echo "waiting for approval"'),
-    },
-  ];
-}
+    timeoutSec: 5,
+  },
+  handshakeMessage: 'Handshake',
+});
 
 function enqueueHandshakeResponse() {
-  const plan = buildPlan('completed', 'pending');
-  plan[1].waitingForId = ['await-human'];
-  queueModelResponse({
-    message: 'Handshake',
-    plan,
-  });
+  planBuilder.enqueueHandshake();
 }
 
 jest.setTimeout(20000);
@@ -78,13 +52,13 @@ describe('Approval flow integration', () => {
 
     const firstPayload = {
       message: 'Needs approval',
-      plan: buildPlan('completed', 'pending', {
+      plan: planBuilder.buildPlan('completed', 'pending', {
         run: 'echo "APPROVED"',
       }),
     };
     const secondPayload = {
       message: 'Follow-up',
-      plan: buildPlan('completed', 'completed'),
+      plan: planBuilder.buildPlan('completed', 'completed'),
     };
 
     queueModelResponse(firstPayload);
@@ -127,13 +101,13 @@ describe('Approval flow integration', () => {
 
     const firstPayload = {
       message: 'Needs approval',
-      plan: buildPlan('completed', 'pending', {
+      plan: planBuilder.buildPlan('completed', 'pending', {
         run: 'echo "SHOULD_NOT_RUN"',
       }),
     };
     const secondPayload = {
       message: 'Alternative requested',
-      plan: buildPlan('completed', 'completed'),
+      plan: planBuilder.buildPlan('completed', 'completed'),
     };
 
     queueModelResponse(firstPayload);
@@ -177,7 +151,7 @@ describe('Approval flow integration', () => {
 
     const preapprovedCommand = {
       message: 'Preapproved command incoming',
-      plan: buildPlan('completed', 'pending', {
+      plan: planBuilder.buildPlan('completed', 'pending', {
         run: 'npm test',
       }),
     };
@@ -185,7 +159,7 @@ describe('Approval flow integration', () => {
     queueModelResponse(preapprovedCommand);
     queueModelResponse({
       message: 'Follow-up',
-      plan: buildPlan('completed', 'completed'),
+      plan: planBuilder.buildPlan('completed', 'completed'),
     });
     ui.queueUserInput('Please handle this', 'exit');
 

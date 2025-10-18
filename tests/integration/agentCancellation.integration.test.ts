@@ -2,61 +2,32 @@ import { jest } from '@jest/globals';
 
 import { queueModelResponse, resetQueuedResponses } from './agentRuntimeTestHarness.js';
 import { bootTestCLI } from './utils/cliTestHarness.js';
+import { createPlanBuilder } from './utils/planBuilder.js';
 import { cancel as cancelActive } from '../../packages/core/dist/src/utils/cancellation.js';
 
-const PLAN_STEP_TITLES = {
-  gather: 'Review instructions and constraints',
-  execute: 'Run long command',
-};
-
-const DEFAULT_SHELL = '/bin/bash';
-
-function withDefaultCommand(command, fallbackRun) {
-  const base = {
-    shell: DEFAULT_SHELL,
-    run: fallbackRun,
+const planBuilder = createPlanBuilder({
+  gather: {
+    title: 'Review instructions and constraints',
+    fallbackRun: 'echo "gathering context"',
+  },
+  execute: {
+    title: 'Run long command',
+    fallbackRun: 'echo "pending execution"',
+  },
+  commandDefaults: {
+    shell: '/bin/bash',
     cwd: '.',
-    timeout_sec: 30,
-  };
-
-  if (!command) {
-    return base;
-  }
-
-  return { ...base, ...command };
-}
-
-function buildPlan(statusGather, statusExecute, command = null) {
-  return [
-    {
-      id: 'plan-step-gather',
-      title: PLAN_STEP_TITLES.gather,
-      status: statusGather,
-      command: withDefaultCommand(null, 'echo "gathering context"'),
-    },
-    {
-      id: 'plan-step-execute',
-      title: PLAN_STEP_TITLES.execute,
-      status: statusExecute,
-      command: withDefaultCommand(command, 'echo "pending execution"'),
-    },
-  ];
-}
+    timeoutSec: 30,
+  },
+  handshakeMessage: 'Handshake ready',
+});
 
 function enqueueHandshakeResponse() {
-  const plan = buildPlan('completed', 'pending');
-  plan[1].waitingForId = ['await-human'];
-  queueModelResponse({
-    message: 'Handshake ready',
-    plan,
-  });
+  planBuilder.enqueueHandshake();
 }
 
 function enqueueFollowUp(message, statusExecute) {
-  queueModelResponse({
-    message,
-    plan: buildPlan('completed', statusExecute),
-  });
+  planBuilder.enqueueFollowUp(message, statusExecute);
 }
 
 jest.setTimeout(20000);
@@ -122,7 +93,7 @@ test('ESC cancellation aborts an in-flight command and surfaces UI feedback', as
   });
 
   enqueueHandshakeResponse();
-  const executionPlan = buildPlan('completed', 'pending', {
+  const executionPlan = planBuilder.buildPlan('completed', 'pending', {
     shell: 'bash',
     run: 'sleep 30',
   });
