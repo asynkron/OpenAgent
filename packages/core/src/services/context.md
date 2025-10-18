@@ -6,8 +6,12 @@
 
 ## Key Files
 
-- `commandApprovalService.js` — manages pre-approved command allowlist loading, session-level approvals, and helper functions (`isPreapprovedCommand`, `sessionApprovalService`).
-- `commandStatsService.js` — accumulates command execution metrics (counts, durations) and exposes reset helpers.
+- `commandApprovalService.ts` — orchestrates allowlist loading, session-level approvals, and re-exports the plain helpers (`isPreapprovedCommand`, `commandSignature`, `isCommandStringSafe`).
+- `commandApprovalParser.ts` — parses candidate commands (`isCommandStringSafe`, tokenization, shell validation) before allowlist checks.
+- `commandApprovalAllowlist.ts` — isolates allowlist lookups and subcommand gating so policy logic stays declarative.
+- `commandApprovalCommandRules.ts` — houses per-command argument guards to keep high-risk tools constrained.
+- `commandApprovalTypes.ts` — shared TypeScript contracts for command approvals, ensuring loaders and guards agree on structure.
+- `commandStatsService.ts` — accumulates command execution metrics (counts, durations) and exposes reset helpers.
 
 ## Positive Signals
 
