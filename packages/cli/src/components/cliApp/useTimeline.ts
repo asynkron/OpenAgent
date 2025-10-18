@@ -1,12 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 
-import type { TimelineEntry, TimelineEntryType, TimelinePayload } from './types.js';
+import type { AppendTimelineEntry, TimelineEntry, TimelineEntryType } from './types.js';
 import { appendWithLimit } from './logging.js';
-
-export type AppendTimelineEntry = <Type extends TimelineEntryType>(
-  type: Type,
-  payload: TimelinePayload<Type>,
-) => void;
 
 /**
  * Keeps the timeline entry state isolated so the main CliApp component focuses on routing events.
@@ -21,21 +16,19 @@ export function useTimeline(limit: number): {
   const [timelineKey, setTimelineKey] = useState(0);
 
   const appendEntry = useCallback<AppendTimelineEntry>(
-    (type, payload) => {
+    (type: TimelineEntryType, payload: TimelineEntry['payload']) => {
       const id = entryIdRef.current + 1;
       entryIdRef.current = id;
 
-      let trimmed = false;
       const entry = { id, type, payload } as TimelineEntry;
-      setEntries((prev) => {
-        const { next, trimmed: wasTrimmed } = appendWithLimit(prev, entry, limit);
-        trimmed = wasTrimmed;
+      setEntries((previousEntries) => {
+        const { next, trimmed } = appendWithLimit(previousEntries, entry, limit);
+        if (trimmed) {
+          // Incrementing the key forces Ink's <Static> list to rerender after trimming.
+          setTimelineKey((value) => value + 1);
+        }
         return next;
       });
-
-      if (trimmed) {
-        setTimelineKey((value) => value + 1);
-      }
     },
     [limit],
   );

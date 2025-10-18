@@ -119,6 +119,14 @@ export type TimelinePayload<Type extends TimelineEntryType> = Extract<
   { type: Type }
 >['payload'];
 
+export type AppendTimelineEntry = {
+  (type: 'assistant-message', payload: TimelineAssistantPayload): void;
+  (type: 'human-message', payload: TimelineHumanPayload): void;
+  (type: 'command-result', payload: TimelineCommandPayload): void;
+  (type: 'banner', payload: TimelineBannerPayload): void;
+  (type: 'status', payload: TimelineStatusPayload): void;
+};
+
 export type DebugEntry = {
   id: string | number;
   content: string;
