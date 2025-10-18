@@ -20,3 +20,8 @@
 
 - CLI workspace consuming these exports: [`../cli/context.md`](../cli/context.md).
 - Root workspace overview: [`../../context.md`](../../context.md).
+
+## Maintenance Notes
+
+- JSON schema utilities import types from `@ai-sdk/provider`; keep its version aligned with `@ai-sdk/provider-utils` to avoid typing mismatches.
+- Local unit suites import `@jest/globals`; the package declares it as a devDependency so builds do not rely on the root workspace for Jest helpers.
