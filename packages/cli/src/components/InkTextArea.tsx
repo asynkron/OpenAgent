@@ -14,7 +14,6 @@ import {
 } from './inkTextArea/layout.js';
 import {
   createDeletionHandler,
-  createMovementHandler,
   evaluateKeyEvent,
   type PreviousKeySnapshot,
 } from './inkTextArea/keyEvents.js';
@@ -25,6 +24,7 @@ import { useCommandMenu } from './inkTextArea/useCommandMenu.js';
 import { useStdoutWidth } from './inkTextArea/useStdoutWidth.js';
 import type { SlashCommandSelectEvent } from './inkTextArea/types.js';
 import { toBoxProps, toTextProps, type BoxStyleProps, type TextStyleProps } from '../styleTypes.js';
+import { useCaretNavigation } from './inkTextArea/useCaretNavigation.js';
 
 type LegacySlashMenuItem = SlashCommandSourceItem;
 
@@ -140,9 +140,13 @@ function InkTextArea(props: InkTextAreaProps) {
     [caretIndex, rows, value.length],
   );
 
-  const resetDesiredColumn = useCallback(() => {
-    desiredColumnRef.current = null;
-  }, []);
+  const { handleMovementKey, resetDesiredColumn } = useCaretNavigation({
+    caretPosition,
+    rows,
+    valueLength: value.length,
+    setCaretIndex,
+    desiredColumnRef,
+  });
 
   const updateValue = useCallback(
     (nextValue: string, nextCaretIndex: number) => {
@@ -167,81 +171,6 @@ function InkTextArea(props: InkTextAreaProps) {
     onSlashCommandSelect,
     updateValue,
   });
-
-  const handleArrowUp = useCallback(() => {
-    const currentRowIndex = caretPosition.rowIndex;
-    if (currentRowIndex === 0) {
-      return;
-    }
-    const targetRow = rows[currentRowIndex - 1];
-    const desiredColumn = desiredColumnRef.current ?? caretPosition.column;
-    desiredColumnRef.current = desiredColumn;
-    const nextColumn = Math.min(desiredColumn, targetRow.text.length);
-    const nextIndex = targetRow.startIndex + nextColumn;
-    setCaretIndex(nextIndex);
-  }, [caretPosition, rows, desiredColumnRef, setCaretIndex]);
-
-  const handleArrowDown = useCallback(() => {
-    const currentRowIndex = caretPosition.rowIndex;
-    if (currentRowIndex >= rows.length - 1) {
-      return;
-    }
-    const targetRow = rows[currentRowIndex + 1];
-    const desiredColumn = desiredColumnRef.current ?? caretPosition.column;
-    desiredColumnRef.current = desiredColumn;
-    const nextColumn = Math.min(desiredColumn, targetRow.text.length);
-    const nextIndex = targetRow.startIndex + nextColumn;
-    setCaretIndex(nextIndex);
-  }, [caretPosition, rows, desiredColumnRef, setCaretIndex]);
-
-  const handleArrowLeft = useCallback(() => {
-    setCaretIndex((prev) => Math.max(0, prev - 1));
-  }, [setCaretIndex]);
-
-  const handleArrowRight = useCallback(() => {
-    setCaretIndex((prev) => Math.min(value.length, prev + 1));
-  }, [setCaretIndex, value.length]);
-
-  const handleHome = useCallback(() => {
-    const rowStart = caretPosition.row.startIndex;
-    const nextIndex = clamp(rowStart, 0, value.length);
-    setCaretIndex(nextIndex);
-  }, [caretPosition, setCaretIndex, value.length]);
-
-  const handleEnd = useCallback(() => {
-    const rowStart = caretPosition.row.startIndex;
-    const rowEnd = clamp(rowStart + caretPosition.row.text.length, 0, value.length);
-    const nextIndex = Math.max(rowStart, rowEnd);
-    setCaretIndex(nextIndex);
-  }, [caretPosition, setCaretIndex, value.length]);
-
-  // Consolidate navigation keys so the input handler just routes high-level actions.
-  const handleMovementKey = useMemo(
-    () =>
-      createMovementHandler({
-        onUp: handleArrowUp,
-        onDown: handleArrowDown,
-        onLeft: () => {
-          desiredColumnRef.current = null;
-          handleArrowLeft();
-        },
-        onRight: () => {
-          desiredColumnRef.current = null;
-          handleArrowRight();
-        },
-        onHome: handleHome,
-        onEnd: handleEnd,
-      }),
-    [
-      desiredColumnRef,
-      handleArrowDown,
-      handleArrowLeft,
-      handleArrowRight,
-      handleArrowUp,
-      handleEnd,
-      handleHome,
-    ],
-  );
 
   const handleBackspace = useCallback(() => {
     if (caretIndex === 0) {
