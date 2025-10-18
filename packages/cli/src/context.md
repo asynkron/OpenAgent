@@ -13,9 +13,9 @@
 - `runtimeDependencies.ts` & `runtimeLifecycle.ts` — extracted helpers that encapsulate the core dependency bundle and Ink lifecycle wiring so `runtime.ts` stays focused on orchestrating the agent loop.
 - `loadCoreModule.ts` — dynamically resolves `@asynkron/openagent-core`, falls back to the local workspace copy when `node_modules` links are absent, and now delegates import retries to `loadCoreModuleHelpers.ts` so the public API stays focused on memoization.
 - `loadCoreModuleHelpers.ts` — shared helpers that normalize importer overrides, build fallback specifiers, validate exports, and expose the import-with-fallback loop for targeted tests.
-- `render.ts`, `status.ts`, `thinking.ts` — helper utilities for formatting markdown, plan progress, context usage, and spinner indicators.
-- `io.ts` — wraps readline input handling, exposing `askHuman` and ESC detection constants.
-- `components/commandUtils.ts`, `components/planUtils.ts`, `components/progressUtils.ts` — shared formatting utilities that feed both Ink components and legacy console renderers, now exported as typed helpers. `commandUtils.ts` is a facade that re-exports the decomposed helpers under `components/command/` (type inference, detail builders, summary generation) so consumers gain the smaller modules without rewriting imports.
+- `render.ts`, `status.ts`, `thinking.ts` — helper utilities for formatting markdown, plan progress, context usage, and spinner indicators. `thinking.ts` now exposes only named exports so legacy default bundles no longer linger in the public surface.
+- `io.ts` — wraps readline input handling, exposing `askHuman` and ESC detection constants via named exports only to keep the API surface lean.
+- `components/commandUtils.ts`, `components/planUtils.ts`, `components/progressUtils.ts` — shared formatting utilities that feed both Ink components and legacy console renderers, now exported as typed helpers. `commandUtils.ts` is a facade that re-exports the decomposed helpers under `components/command/` (type inference, detail builders, summary generation) so consumers gain the smaller modules without rewriting imports, and the modules now publish only the named helpers actually used by the UI.
 
 ## Positive Signals
 

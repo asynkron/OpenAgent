@@ -29,10 +29,3 @@ export { extractCommandDescription } from './command/descriptions.js';
 export { buildCommandRenderData } from './command/renderData.js';
 export type { SummaryBuildInput } from './command/summaryLines.js';
 
-export default {
-  normalizePreviewLines,
-  inferCommandType,
-  buildHeadingDetail,
-  extractCommandDescription,
-  buildCommandRenderData,
-};

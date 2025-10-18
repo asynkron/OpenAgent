@@ -137,10 +137,3 @@ export function stopThinking(): void {
   defaultIndicator.stop();
 }
 
-export default {
-  ThinkingIndicator,
-  defaultIndicator,
-  startThinking,
-  stopThinking,
-  formatElapsedTime,
-};

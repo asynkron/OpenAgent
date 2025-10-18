@@ -143,7 +143,3 @@ export async function askHuman(rl: readline.Interface, prompt: string): Promise<
   return String(answer).trim();
 }
 
-export default {
-  createInterface,
-  askHuman,
-};

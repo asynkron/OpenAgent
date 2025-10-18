@@ -245,26 +245,3 @@ export function createPlanNodes(plan: PlanStep[] | null | undefined): PlanNode[]
   });
 }
 
-export function buildPlanLines(plan: PlanStep[] | null | undefined): string[] {
-  const nodes = createPlanNodes(plan);
-  return nodes.map((node) => {
-    const indent = '  '.repeat(node.depth);
-    const titlePart = node.title ? ` ${node.title}` : '';
-    const statusPart = node.status ? ` [${node.status}]` : '';
-    const metaDetails: string[] = [];
-    if (Number.isFinite(node.priority)) {
-      metaDetails.push(`priority ${node.priority}`);
-    }
-    if (node.blocked && node.waitingFor.length > 0) {
-      metaDetails.push(`waiting for ${node.waitingFor.join(', ')}`);
-    }
-    const metaPart = metaDetails.length > 0 ? ` (${metaDetails.join(', ')})` : '';
-    const commandPart = node.commandPreview ? ` — ${node.commandPreview}` : '';
-    return `${indent}${node.symbol} ${node.label}.${titlePart}${statusPart}${metaPart}${commandPart}`.trimEnd();
-  });
-}
-
-export default {
-  createPlanNodes,
-  buildPlanLines,
-};
