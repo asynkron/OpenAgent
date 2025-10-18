@@ -1,5 +1,5 @@
 import React, { memo, type ReactElement } from 'react';
-import { Box, Static, Text } from 'ink';
+import { Box, Text } from 'ink';
 
 import AgentResponse from '../AgentResponse.js';
 import HumanMessage from '../HumanMessage.js';
@@ -131,9 +131,7 @@ function Timeline({ entries }: TimelineProps): ReactElement | null {
 
   return (
     <Box width="100%" flexDirection="column" flexGrow={1}>
-      <Static items={[...entries]} style={{ width: '100%', flexGrow: 1 }}>
-        {(entry: TimelineEntry) => renderTimelineEntry(entry)}
-      </Static>
+      {entries.map((entry) => renderTimelineEntry(entry))}
     </Box>
   );
 }

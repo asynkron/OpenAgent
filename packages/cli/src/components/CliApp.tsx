@@ -108,10 +108,11 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
             : 'Assistant response failed protocol validation.';
           appendStatus({ level: 'warn', message: `Auto-response triggered: ${summary}` });
         } else if (stage === 'assistant-response-schema-validation-error') {
-          appendStatus({
-            level: 'warn',
-            message: 'Auto-response triggered: Assistant response failed protocol validation.',
-          });
+          const summary =
+            typeof message === 'string' && message.trim().length > 0
+              ? message.trim()
+              : 'Assistant response failed schema validation.';
+          appendStatus({ level: 'warn', message: `Auto-response triggered: ${summary}` });
         }
       } catch {
         // ignore summary failures; fall back to default handling
