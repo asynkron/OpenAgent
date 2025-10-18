@@ -5,6 +5,8 @@ import type { HistoryCompactor } from '../historyCompactor.js';
 import type { ChatMessageEntry } from '../historyEntry.js';
 import type { DebugEmitter } from './debugEmitter.js';
 import type { CompletionAttempt, EmitEvent, NormalizedExecuteAgentPassOptions } from './types.js';
+import { createStructuredResponseEventEmitter } from '../structuredResponseEventEmitter.js';
+import type { StructuredResponseEventEmitter } from '../structuredResponseEventEmitter.js';
 
 type SummarizeContextUsageFn =
   (typeof import('../../utils/contextUsage.js'))['summarizeContextUsage'];
@@ -132,6 +134,7 @@ const requestAssistantCompletion = async ({
   stopThinkingFn,
   setNoHumanFlag,
   passIndex,
+  responseEmitter,
 }: {
   requestModelCompletionFn: RequestModelCompletionFn;
   extractOpenAgentToolCallFn: ExtractOpenAgentToolCallFn;
@@ -147,6 +150,7 @@ const requestAssistantCompletion = async ({
   stopThinkingFn: () => void;
   setNoHumanFlag: SetNoHumanFlagFn;
   passIndex: number;
+  responseEmitter: StructuredResponseEventEmitter | null;
 }): Promise<CompletionAttempt> => {
   const completionResult = await requestModelCompletionFn({
     openai,
@@ -159,6 +163,7 @@ const requestAssistantCompletion = async ({
     setNoHumanFlag,
     emitEvent,
     passIndex,
+    structuredResponseEmitter: responseEmitter,
   });
 
   if (completionResult.status === 'canceled') {
@@ -201,13 +206,13 @@ const requestAssistantCompletion = async ({
     }),
   );
 
-  return { status: 'success', responseContent };
+  return { status: 'success', responseContent, responseEmitter };
 };
 
 export type PrePassSequenceResult =
   | { status: 'canceled' }
   | { status: 'missing-content' }
-  | { status: 'completed'; responseContent: string };
+  | { status: 'completed'; responseContent: string; responseEmitter: StructuredResponseEventEmitter | null };
 
 export const runPrePassSequence = async ({
   options,
@@ -239,6 +244,8 @@ export const runPrePassSequence = async ({
     emitEvent: options.emitEvent,
   });
 
+  const responseEmitter = createStructuredResponseEventEmitter({ emitEvent: options.emitEvent });
+
   const completionAttempt = await requestAssistantCompletion({
     requestModelCompletionFn: options.requestModelCompletionFn,
     extractOpenAgentToolCallFn: options.extractOpenAgentToolCallFn,
@@ -254,6 +261,7 @@ export const runPrePassSequence = async ({
     stopThinkingFn: options.stopThinkingFn,
     setNoHumanFlag: options.setNoHumanFlag,
     passIndex: options.passIndex,
+    responseEmitter,
   });
 
   if (completionAttempt.status === 'canceled') {
@@ -264,7 +272,11 @@ export const runPrePassSequence = async ({
     return { status: 'missing-content' };
   }
 
-  return { status: 'completed', responseContent: completionAttempt.responseContent };
+  return {
+    status: 'completed',
+    responseContent: completionAttempt.responseContent,
+    responseEmitter: completionAttempt.responseEmitter,
+  };
 };
 
 export type { CompletionAttempt };

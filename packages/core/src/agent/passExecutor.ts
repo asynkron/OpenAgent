@@ -2,6 +2,7 @@ import { createExecutionContext } from './passExecutor/executionContext.js';
 import { runPrePassSequence } from './passExecutor/prePassSequence.js';
 import { resolveAssistantResponse } from './passExecutor/responseResolution.js';
 import { executePlan } from './passExecutor/planExecutor.js';
+import { emitAssistantMessageEvent } from './assistantMessageEmitter.js';
 import type {
   AssistantResponseSuccess,
   EmitEvent,
@@ -96,32 +97,15 @@ function handleAssistantResolution(
     case 'schema-failed':
       return { kind: 'finalize', success: true };
     case 'success': {
-      emitAssistantMessage(emitEvent, resolution.parsed.message);
+      const messageEmitted = resolution.emissionSummary?.messageEmitted === true;
+      if (!messageEmitted) {
+        emitAssistantMessageEvent(emitEvent, resolution.parsed.message);
+      }
       return { kind: 'continue', parsed: resolution.parsed };
     }
   }
   const exhaustiveCheck: never = resolution;
   return assertUnreachable(exhaustiveCheck);
-}
-
-function emitAssistantMessage(emitEvent: EmitEvent, value: unknown): void {
-  const message = extractAssistantMessage(value);
-  if (message) {
-    emitEvent({
-      type: 'assistant-message',
-      payload: {
-        message,
-      },
-    });
-  }
-}
-
-function extractAssistantMessage(value: unknown): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
 }
 
 function isSuccessfulPlanOutcome(outcome: PlanExecutorOutcome): boolean {

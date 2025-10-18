@@ -33,7 +33,11 @@ describe('runPrePassSequence', () => {
       debugEmitter: { emit: jest.fn() },
     });
 
-    expect(result).toEqual({ status: 'completed', responseContent: '{"message":"hello"}' });
+    expect(result).toEqual({
+      status: 'completed',
+      responseContent: '{"message":"hello"}',
+      responseEmitter: expect.any(Object),
+    });
     expect(history).toHaveLength(1);
     expect(guardRequestPayloadSizeFn).toHaveBeenCalledWith({
       history,

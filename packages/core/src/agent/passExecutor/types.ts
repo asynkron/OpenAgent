@@ -16,6 +16,10 @@ import type {
   RuntimeEvent,
 } from '../runtimeTypes.js';
 import type {
+  StructuredResponseEmissionSummary,
+  StructuredResponseEventEmitter,
+} from '../structuredResponseEventEmitter.js';
+import type {
   validateAssistantResponseSchema as ValidateAssistantResponseSchema,
   validateAssistantResponse as ValidateAssistantResponse,
 } from '../responseValidator.js';
@@ -47,7 +51,11 @@ export type RecordRequestPayloadSizeFn =
 export type CompletionAttempt =
   | { status: 'canceled' }
   | { status: 'missing-content' }
-  | { status: 'success'; responseContent: string };
+  | {
+      status: 'success';
+      responseContent: string;
+      responseEmitter: StructuredResponseEventEmitter | null;
+    };
 
 export type CommandRunOutcome = CommandExecutionResult;
 
@@ -110,6 +118,7 @@ export interface AssistantResponseSuccess {
   status: 'success';
   parsed: PlanResponse;
   responseContent: string;
+  emissionSummary: StructuredResponseEmissionSummary | null;
 }
 
 export interface AssistantResponseFailure {

@@ -12,6 +12,10 @@ import type {
 import type { DebugEmitter } from './debugEmitter.js';
 import type { AssistantResponseResolution, ExecuteAgentPassOptions } from './types.js';
 import type { PlanResponse } from '../../contracts/index.js';
+import type {
+  StructuredResponseEmissionSummary,
+  StructuredResponseEventEmitter,
+} from '../structuredResponseEventEmitter.js';
 
 interface ResponseEvaluationContext {
   responseContent: string;
@@ -22,6 +26,7 @@ interface ResponseEvaluationContext {
   parseAssistantResponseFn: Required<ExecuteAgentPassOptions>['parseAssistantResponseFn'];
   validateAssistantResponseSchemaFn: Required<ExecuteAgentPassOptions>['validateAssistantResponseSchemaFn'];
   validateAssistantResponseFn: Required<ExecuteAgentPassOptions>['validateAssistantResponseFn'];
+  responseEmitter: StructuredResponseEventEmitter | null;
 }
 
 const mapParseAttempts = (result: ParseFailure): ObservationParseAttempt[] => {
@@ -202,6 +207,25 @@ export const evaluateAssistantResponse = (
     parsed: parseResult.value,
   }));
 
+  let emissionSummary: StructuredResponseEmissionSummary | null = null;
+
+  if (context.responseEmitter) {
+    try {
+      emissionSummary = context.responseEmitter.handleFinalResponse(
+        parseResult.value as unknown as PlanResponse,
+      );
+    } catch (error) {
+      context.emitEvent?.({
+        type: 'status',
+        payload: {
+          level: 'warn',
+          message: 'Failed to emit structured response events from assistant response.',
+          details: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+  }
+
   if (
     parseResult.recovery &&
     parseResult.recovery.strategy &&
@@ -221,6 +245,7 @@ export const evaluateAssistantResponse = (
     status: 'success',
     parsed: parseResult.value as unknown as PlanResponse,
     responseContent: context.responseContent,
+    emissionSummary,
   } as const satisfies AssistantResponseResolution;
 
   return success;
