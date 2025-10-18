@@ -1,9 +1,18 @@
 import type { EscPayload, EscState } from './escState.js';
-import type { PromptRequestMetadata } from '../prompts/types.js';
 import { PromptCoordinatorStateMachine } from './promptCoordinatorState.js';
 import { normalizePromptMetadata } from './promptMetadataNormalizer.js';
+import { PromptCoordinatorCancellation } from './promptCoordinatorCancellation.js';
+import type { CancelFn, EmitEventFn, PromptRequestEvent, PromptRequestMetadata } from './promptCoordinatorTypes.js';
 
-export type { PromptRequestMetadata, PromptRequestScope } from '../prompts/types.js';
+export type {
+  CancelFn,
+  EmitEventFn,
+  PromptCoordinatorEvent,
+  PromptCoordinatorStatusEvent,
+  PromptRequestEvent,
+  PromptRequestMetadata,
+} from './promptCoordinatorTypes.js';
+export type { PromptRequestScope } from '../prompts/types.js';
 
 /**
  * The runtime differentiates between prompt scopes so downstream hosts can
@@ -11,26 +20,6 @@ export type { PromptRequestMetadata, PromptRequestScope } from '../prompts/types
  * response. We keep the union open-ended to allow experiments without
  * updating the coordinator every time a new scope appears.
  */
-export interface PromptRequestEvent {
-  type: 'request-input';
-  prompt: string;
-  metadata: PromptRequestMetadata;
-  __id?: string;
-}
-
-export interface PromptCoordinatorStatusEvent {
-  type: 'status';
-  level: string;
-  message: string;
-  details?: string | null;
-  __id?: string;
-}
-
-export type PromptCoordinatorEvent = PromptRequestEvent | PromptCoordinatorStatusEvent;
-
-export type EmitEventFn = (event: PromptCoordinatorEvent) => void;
-export type CancelFn = (reason?: EscPayload) => void;
-
 export interface PromptCoordinatorOptions {
   emitEvent?: EmitEventFn;
   escState?: EscState | null;
@@ -44,15 +33,21 @@ export interface PromptCoordinatorOptions {
  */
 export class PromptCoordinator {
   private readonly emitEvent: EmitEventFn;
-  private readonly escState: EscState | null;
-  private readonly cancelFn: CancelFn | null;
   private readonly stateMachine: PromptCoordinatorStateMachine;
+  private readonly cancellation: PromptCoordinatorCancellation;
 
   constructor({ emitEvent, escState, cancelFn }: PromptCoordinatorOptions = {}) {
-    this.emitEvent = typeof emitEvent === 'function' ? emitEvent : () => {};
-    this.escState = escState || null;
-    this.cancelFn = typeof cancelFn === 'function' ? cancelFn : null;
+    const normalizedEmitEvent = typeof emitEvent === 'function' ? emitEvent : () => {};
+    const normalizedEscState = escState || null;
+    const normalizedCancelFn = typeof cancelFn === 'function' ? cancelFn : null;
+
+    this.emitEvent = normalizedEmitEvent;
     this.stateMachine = new PromptCoordinatorStateMachine();
+    this.cancellation = new PromptCoordinatorCancellation({
+      emitEvent: normalizedEmitEvent,
+      escState: normalizedEscState,
+      cancelFn: normalizedCancelFn,
+    });
   }
 
   request(prompt: string, metadata?: PromptRequestMetadata | null): Promise<string> {
@@ -88,24 +83,7 @@ export class PromptCoordinator {
   }
 
   handleCancel(payload: EscPayload = null): void {
-    if (this.cancelFn) {
-      this.cancelFn('ui-cancel');
-    }
-
-    const escState = this.escState;
-    if (escState && escState.waiters.size > 0) {
-      const normalizedPayload = this.normalizeEscPayload(payload);
-      if (escState.trigger && typeof escState.trigger === 'function') {
-        escState.trigger(normalizedPayload);
-      }
-    }
-
-    this.emitEvent({
-      type: 'status',
-      level: 'warn',
-      message: 'Cancellation requested by UI.',
-      details: null,
-    });
+    this.cancellation.handle(payload);
   }
 
   close(): void {
@@ -113,21 +91,6 @@ export class PromptCoordinator {
     for (const resolve of waiters) {
       resolve('');
     }
-  }
-
-  private normalizeEscPayload(payload: EscPayload): EscPayload {
-    if (typeof payload === 'string') {
-      return payload;
-    }
-
-    if (payload && typeof payload === 'object') {
-      const candidate = payload as { reason?: unknown };
-      if (typeof candidate.reason === 'string' && candidate.reason.length > 0) {
-        return { reason: candidate.reason };
-      }
-    }
-
-    return { reason: 'ui-cancel' };
   }
 }
 
