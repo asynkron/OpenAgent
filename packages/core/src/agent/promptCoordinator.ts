@@ -48,28 +48,30 @@ export class PromptCoordinator {
   private readonly cancelFn: CancelFn | null;
   private readonly stateMachine: PromptCoordinatorStateMachine;
 
-  constructor({ emitEvent, escState, cancelFn }: PromptCoordinatorOptions = {}) {
-    this.emitEvent = typeof emitEvent === 'function' ? emitEvent : () => {};
-    this.escState = escState || null;
-    this.cancelFn = typeof cancelFn === 'function' ? cancelFn : null;
+  constructor({
+    emitEvent = () => {},
+    escState = null,
+    cancelFn = null,
+  }: PromptCoordinatorOptions = {}) {
+    this.emitEvent = emitEvent;
+    this.escState = escState;
+    this.cancelFn = cancelFn;
     this.stateMachine = new PromptCoordinatorStateMachine();
   }
 
   request(prompt: string, metadata?: PromptRequestMetadata | null): Promise<string> {
-    const event: PromptRequestEvent = {
+    this.emitEvent({
       type: 'request-input',
       prompt,
       metadata: normalizePromptMetadata(metadata ?? null),
-    };
-
-    this.emitEvent(event);
+    });
 
     if (this.stateMachine.isClosed()) {
       return Promise.resolve('');
     }
 
     const buffered = this.stateMachine.takeBuffered();
-    if (typeof buffered === 'string') {
+    if (buffered !== null) {
       return Promise.resolve(buffered);
     }
 
@@ -88,16 +90,11 @@ export class PromptCoordinator {
   }
 
   handleCancel(payload: EscPayload = null): void {
-    if (this.cancelFn) {
-      this.cancelFn('ui-cancel');
-    }
+    this.cancelFn?.('ui-cancel');
 
     const escState = this.escState;
-    if (escState && escState.waiters.size > 0) {
-      const normalizedPayload = this.normalizeEscPayload(payload);
-      if (escState.trigger && typeof escState.trigger === 'function') {
-        escState.trigger(normalizedPayload);
-      }
+    if (escState?.waiters.size && typeof escState.trigger === 'function') {
+      escState.trigger(this.normalizeEscPayload(payload));
     }
 
     this.emitEvent({
@@ -109,8 +106,7 @@ export class PromptCoordinator {
   }
 
   close(): void {
-    const waiters = this.stateMachine.close();
-    for (const resolve of waiters) {
+    for (const resolve of this.stateMachine.close()) {
       resolve('');
     }
   }
@@ -120,11 +116,9 @@ export class PromptCoordinator {
       return payload;
     }
 
-    if (payload && typeof payload === 'object') {
-      const candidate = payload as { reason?: unknown };
-      if (typeof candidate.reason === 'string' && candidate.reason.length > 0) {
-        return { reason: candidate.reason };
-      }
+    const reason = typeof payload === 'object' && payload !== null ? payload.reason : null;
+    if (typeof reason === 'string' && reason.length > 0) {
+      return { reason };
     }
 
     return { reason: 'ui-cancel' };
