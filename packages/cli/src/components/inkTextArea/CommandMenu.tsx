@@ -49,4 +49,3 @@ export function CommandMenu({ matches, activeMatch, isVisible, title }: CommandM
   );
 }
 
-export default CommandMenu;

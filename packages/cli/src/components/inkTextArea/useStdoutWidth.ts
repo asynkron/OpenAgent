@@ -49,4 +49,3 @@ export function useStdoutWidth(explicitWidth?: number) {
   return { measuredWidth, normalizedWidth } as const;
 }
 
-export default useStdoutWidth;

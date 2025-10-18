@@ -85,7 +85,3 @@ export function buildProgressLine(progress: PlanProgress | null | undefined): st
   return `Plan progress: ${filledBar}${emptyBar} ${percentLabel} (${summary})`;
 }
 
-export default {
-  computeProgressState,
-  buildProgressLine,
-};

@@ -264,7 +264,3 @@ export function buildPlanLines(plan: PlanStep[] | null | undefined): string[] {
   });
 }
 
-export default {
-  createPlanNodes,
-  buildPlanLines,
-};
