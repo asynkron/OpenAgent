@@ -22,20 +22,24 @@ export function useTimeline(limit: number): {
 
   const appendEntry = useCallback<AppendTimelineEntry>(
     (type, payload) => {
-      const id = entryIdRef.current + 1;
-      entryIdRef.current = id;
+      const entry = {
+        id: entryIdRef.current + 1,
+        type,
+        payload,
+      } as TimelineEntry;
 
-      let trimmed = false;
-      const entry = { id, type, payload } as TimelineEntry;
+      entryIdRef.current = entry.id;
+
       setEntries((prev) => {
-        const { next, trimmed: wasTrimmed } = appendWithLimit(prev, entry, limit);
-        trimmed = wasTrimmed;
+        const { next, trimmed } = appendWithLimit(prev, entry, limit);
+
+        if (trimmed) {
+          // When the list is trimmed React needs a new key so Ink rerenders the scroller.
+          setTimelineKey((value) => value + 1);
+        }
+
         return next;
       });
-
-      if (trimmed) {
-        setTimelineKey((value) => value + 1);
-      }
     },
     [limit],
   );
