@@ -8,6 +8,7 @@
 ## Key Modules
 
 - `chat.ts` — top-level composition layer that wires DOM controller methods to typed socket/router/input helpers while tracking conversation state.
+- `chat_domHelpers.ts` — Provides DOM listener helpers and textarea auto-resize logic with injectable scheduling/document dependencies; `chat_dom.ts` re-exports the defaults for compatibility with existing callers.
 - `chat_domController.ts` — DOM mutation utilities responsible for rendering messages, plans, status banners, and thinking indicators.
 - `chat_eventDisplay.ts` — Resolves banner/status headings and bodies using deterministic resolver functions so DOM renderers receive consistent copy without duplicating heuristics.
 - `chat_eventDisplayHelpers.ts` — Shared normalisation helpers and resolver functions used by the event display module to keep per-file complexity low.
@@ -20,4 +21,4 @@
 
 ## Tests
 
-- Jest suites under `__tests__/` cover chat model utilities plus the socket manager, router normalisation, and input controller queueing/retry behaviour using lightweight fakes.
+- Jest suites under `__tests__/` cover chat model utilities plus the socket manager, router normalisation, DOM helper scheduling/resize behaviours, and input controller queueing/retry behaviour using lightweight fakes.
