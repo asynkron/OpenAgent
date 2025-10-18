@@ -1,19 +1,58 @@
 import { useCallback, useRef, useState } from 'react';
 
-import type { AppendTimelineEntry, TimelineEntry, TimelineEntryType } from './types.js';
-import { appendWithLimit } from './logging.js';
+import type {
+  AppendTimelineEntry,
+  TimelineAssistantPayload,
+  TimelineCommandPayload,
+  TimelineEntry,
+  TimelineEntryType,
+  UpsertAssistantTimelineEntry,
+  UpsertCommandTimelineEntry,
+} from './types.js';
 
-/**
- * Keeps the timeline entry state isolated so the main CliApp component focuses on routing events.
- */
+interface AppendResult {
+  readonly next: TimelineEntry[];
+  readonly trimmedEntries: TimelineEntry[];
+}
+
+const applyLimit = (
+  previous: TimelineEntry[],
+  entry: TimelineEntry,
+  limit: number,
+): AppendResult => {
+  const appended = [...previous, entry];
+  if (!limit || appended.length <= limit) {
+    return { next: appended, trimmedEntries: [] } satisfies AppendResult;
+  }
+
+  const trimmedCount = appended.length - limit;
+  return {
+    next: appended.slice(trimmedCount),
+    trimmedEntries: appended.slice(0, trimmedCount),
+  } satisfies AppendResult;
+};
+
 export function useTimeline(limit: number): {
   entries: TimelineEntry[];
   timelineKey: number;
   appendEntry: AppendTimelineEntry;
+  upsertAssistantEntry: UpsertAssistantTimelineEntry;
+  upsertCommandEntry: UpsertCommandTimelineEntry;
 } {
   const entryIdRef = useRef(0);
+  const eventIdMapRef = useRef<Map<string, number>>(new Map());
   const [entries, setEntries] = useState<TimelineEntry[]>([]);
   const [timelineKey, setTimelineKey] = useState(0);
+
+  const removeEventMappingForEntry = useCallback((entry: TimelineEntry): void => {
+    if (entry.type === 'assistant-message') {
+      eventIdMapRef.current.delete(entry.payload.eventId);
+      return;
+    }
+    if (entry.type === 'command-result') {
+      eventIdMapRef.current.delete(entry.payload.eventId);
+    }
+  }, []);
 
   const appendEntry = useCallback<AppendTimelineEntry>(
     (type: TimelineEntryType, payload: TimelineEntry['payload']) => {
@@ -22,16 +61,79 @@ export function useTimeline(limit: number): {
 
       const entry = { id, type, payload } as TimelineEntry;
       setEntries((previousEntries) => {
-        const { next, trimmed } = appendWithLimit(previousEntries, entry, limit);
-        if (trimmed) {
-          // Incrementing the key forces Ink's <Static> list to rerender after trimming.
+        const { next, trimmedEntries } = applyLimit(previousEntries, entry, limit);
+        if (trimmedEntries.length > 0) {
+          trimmedEntries.forEach((trimmed) => removeEventMappingForEntry(trimmed));
           setTimelineKey((value) => value + 1);
         }
         return next;
       });
     },
-    [limit],
+    [limit, removeEventMappingForEntry],
   );
 
-  return { entries, timelineKey, appendEntry };
+  const upsertAssistantEntry = useCallback<UpsertAssistantTimelineEntry>(
+    (payload: TimelineAssistantPayload) => {
+      const eventId = payload.eventId;
+      if (!eventId) {
+        appendEntry('assistant-message', payload);
+        return;
+      }
+
+      setEntries((previousEntries) => {
+        const existingId = eventIdMapRef.current.get(eventId);
+        if (existingId) {
+          return previousEntries.map((entry) =>
+            entry.id === existingId
+              ? ({ ...entry, payload } as TimelineEntry)
+              : entry,
+          );
+        }
+
+        const id = entryIdRef.current + 1;
+        entryIdRef.current = id;
+        const entry: TimelineEntry = { id, type: 'assistant-message', payload };
+        const { next, trimmedEntries } = applyLimit(previousEntries, entry, limit);
+        eventIdMapRef.current.set(eventId, id);
+        if (trimmedEntries.length > 0) {
+          trimmedEntries.forEach((trimmed) => removeEventMappingForEntry(trimmed));
+          setTimelineKey((value) => value + 1);
+        }
+        return next;
+      });
+    },
+    [appendEntry, limit, removeEventMappingForEntry],
+  );
+
+  const upsertCommandEntry = useCallback<UpsertCommandTimelineEntry>(
+    (payload: TimelineCommandPayload) => {
+      const eventId = payload.eventId;
+      setEntries((previousEntries) => {
+        const existingId = eventIdMapRef.current.get(eventId);
+        if (existingId) {
+          return previousEntries.map((entry) =>
+            entry.id === existingId
+              ? ({ ...entry, payload } as TimelineEntry)
+              : entry,
+          );
+        }
+
+        const id = entryIdRef.current + 1;
+        entryIdRef.current = id;
+        const entry: TimelineEntry = { id, type: 'command-result', payload };
+        const { next, trimmedEntries } = applyLimit(previousEntries, entry, limit);
+        eventIdMapRef.current.set(eventId, id);
+        if (trimmedEntries.length > 0) {
+          trimmedEntries.forEach((trimmed) => removeEventMappingForEntry(trimmed));
+          setTimelineKey((value) => value + 1);
+        }
+        return next;
+      });
+    },
+    [limit, removeEventMappingForEntry],
+  );
+
+  return { entries, timelineKey, appendEntry, upsertAssistantEntry, upsertCommandEntry };
 }
+
+export type { AppendResult };

@@ -90,6 +90,7 @@ export type TimelineHumanPayload = {
 };
 
 export type TimelineCommandPayload = {
+  eventId: string;
   command: CommandPayload | null;
   result: CommandResult | null;
   preview: CommandPreview | null;
@@ -131,6 +132,10 @@ export type AppendTimelineEntry = {
   (type: 'banner', payload: TimelineBannerPayload): void;
   (type: 'status', payload: TimelineStatusPayload): void;
 };
+
+export type UpsertAssistantTimelineEntry = (payload: TimelineAssistantPayload) => void;
+
+export type UpsertCommandTimelineEntry = (payload: TimelineCommandPayload) => void;
 
 export type DebugEntry = {
   id: string | number;

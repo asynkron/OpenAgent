@@ -219,8 +219,12 @@ export type RuntimeDebugPayload =
   | DebugRuntimeEventPayload
   | (() => DebugRuntimeEventPayload | null | undefined);
 
+export interface EmitRuntimeEventOptions {
+  readonly id?: string;
+}
+
 export interface RuntimeEmitter extends RuntimeLogger {
-  emit(event: RuntimeEvent): void;
+  emit(event: RuntimeEvent, options?: EmitRuntimeEventOptions): void;
   emitFactoryWarning(message: string, error?: string | null): void;
   emitDebug(payloadOrFactory: RuntimeDebugPayload): void;
 }

@@ -2,10 +2,12 @@ import { QUEUE_DONE } from '../utils/asyncQueue.js';
 import type {
   AgentInputEvent,
   AsyncQueueLike,
+  EmitRuntimeEventOptions,
   HistorySnapshot,
   RuntimeEvent,
 } from './runtimeTypes.js';
 import type { ExecuteAgentPassOptions } from './passExecutor.js';
+import type { EmitEvent } from './passExecutor/types.js';
 import type { HistoryCompactor as HistoryCompactorClass } from './historyCompactor.js';
 import type { HistoryCompactorLike } from './runtimeTypes.js';
 import type { PromptRequestMetadata } from './promptCoordinator.js';
@@ -34,7 +36,7 @@ export interface ConversationLoopContext {
   getNoHumanFlag: () => boolean;
   noHumanAutoMessage: string;
   userInputPrompt: string;
-  emit: (event: RuntimeEvent) => void;
+  emit: EmitEvent;
   history: HistorySnapshot;
   createChatMessageEntryFn: (options: {
     eventType: string;
@@ -54,7 +56,7 @@ export async function processAgentInputs({
 }: {
   inputsQueue: AsyncQueueLike<AgentInputEvent>;
   promptCoordinator: PromptCoordinatorLike;
-  emit: (event: RuntimeEvent) => void;
+  emit: EmitEvent;
 }): Promise<void> {
   try {
     while (true) {
@@ -92,7 +94,7 @@ export function emitSessionIntro({
   getAutoApproveFlag,
   getNoHumanFlag,
 }: {
-  emit: (event: RuntimeEvent) => void;
+  emit: EmitEvent;
   getAutoApproveFlag: () => boolean;
   getNoHumanFlag: () => boolean;
 }): void {
@@ -135,7 +137,7 @@ export function emitSessionIntro({
   }
 }
 
-export function createThinkingController(emit: (event: RuntimeEvent) => void): {
+export function createThinkingController(emit: EmitEvent): {
   start: () => void;
   stop: () => void;
 } {
@@ -257,8 +259,13 @@ async function executePassSequence({
   let continueLoop = true;
 
   while (continueLoop) {
+    const emitEvent = createPassScopedEmitEvent({
+      emitEvent: passContext.baseOptions.emitEvent,
+      passIndex: currentPass,
+    });
     const shouldContinue = await passContext.passExecutor({
       ...passContext.baseOptions,
+      emitEvent,
       passIndex: currentPass,
     });
 
@@ -270,6 +277,97 @@ async function executePassSequence({
       currentPass = passContext.nextPass();
     }
   }
+}
+
+function createPassScopedEmitEvent({
+  emitEvent,
+  passIndex,
+}: {
+  emitEvent?: EmitEvent;
+  passIndex: number;
+}): EmitEvent {
+  if (typeof emitEvent !== 'function') {
+    return () => {};
+  }
+
+  let commandFallbackCounter = 0;
+
+  const toStableString = (value: unknown): string | null => {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value);
+    }
+    return null;
+  };
+
+  const extractPlanStep = (event: RuntimeEvent): unknown => {
+    if (!event || typeof event !== 'object') {
+      return null;
+    }
+    const directPlanStep = (event as { planStep?: unknown }).planStep;
+    if (directPlanStep && typeof directPlanStep === 'object') {
+      return directPlanStep;
+    }
+    const payload = (event as { payload?: unknown }).payload;
+    if (payload && typeof payload === 'object') {
+      const nestedPlanStep = (payload as { planStep?: unknown }).planStep;
+      if (nestedPlanStep && typeof nestedPlanStep === 'object') {
+        return nestedPlanStep;
+      }
+    }
+    return null;
+  };
+
+  const resolveCommandId = (event: RuntimeEvent): string => {
+    const planStepCandidate = extractPlanStep(event);
+    if (planStepCandidate && typeof planStepCandidate === 'object') {
+      const identifier = toStableString((planStepCandidate as { id?: unknown }).id);
+      if (identifier) {
+        return `pass-${passIndex}-command-${identifier}`;
+      }
+    }
+    commandFallbackCounter += 1;
+    return `pass-${passIndex}-command-${commandFallbackCounter}`;
+  };
+
+  const deriveStableId = (event: RuntimeEvent): string | null => {
+    const type = typeof event?.type === 'string' ? event.type : null;
+    if (!type) {
+      return null;
+    }
+    switch (type) {
+      case 'assistant-message':
+        return `pass-${passIndex}-assistant-message`;
+      case 'command-result':
+        return resolveCommandId(event);
+      case 'plan':
+        return `pass-${passIndex}-plan`;
+      case 'plan-progress':
+        return `pass-${passIndex}-plan-progress`;
+      case 'context-usage':
+        return `pass-${passIndex}-context-usage`;
+      default:
+        return null;
+    }
+  };
+
+  return (event: RuntimeEvent, options?: EmitRuntimeEventOptions): void => {
+    const explicitId =
+      options && typeof options.id === 'string' && options.id.length > 0 ? options.id : null;
+    if (explicitId) {
+      emitEvent(event, { id: explicitId });
+      return;
+    }
+    const derivedId = deriveStableId(event);
+    if (derivedId) {
+      emitEvent(event, { id: derivedId });
+      return;
+    }
+    emitEvent(event);
+  };
 }
 
 function isExitCommand(value: string): boolean {

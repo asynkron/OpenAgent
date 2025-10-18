@@ -153,14 +153,17 @@ export function createAgentRuntime({
 
   const nextPass = () => {
     passCounter += 1;
-    emit({
-      type: 'pass',
-      payload: {
-        pass: passCounter,
-        index: null,
-        value: null,
+    emit(
+      {
+        type: 'pass',
+        payload: {
+          pass: passCounter,
+          index: null,
+          value: null,
+        },
       },
-    });
+      { id: `pass-${passCounter}` },
+    );
     return passCounter;
   };
 
@@ -319,7 +322,7 @@ export function createAgentRuntime({
       openai,
       model,
       history,
-      emitEvent: emit,
+      emitEvent: (event, options) => emit(event, options),
       onDebug: (payload) => emitDebug(payload),
       runCommandFn,
       applyFilterFn,

@@ -28,6 +28,7 @@ function renderHumanEntry({ message }: TimelineHumanPayload): ReactElement {
 }
 
 function renderCommandEntry({
+  eventId,
   command,
   result,
   preview,
@@ -37,6 +38,7 @@ function renderCommandEntry({
 }: TimelineCommandPayload): ReactElement {
   return (
     <MemoCommand
+      key={eventId}
       command={command}
       result={result}
       preview={preview}
