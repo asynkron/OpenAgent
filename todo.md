@@ -28,7 +28,7 @@ Top refactor targets:
 - [ ] `packages/cli/src/components/InkTextArea.tsx` – Key event parsing, row transforms, and caret management share a single file; splitting input parsing vs. rendering would simplify test coverage.
 - [ ] `packages/cli/src/components/CliApp.tsx` – Now strongly typed, but it still handles every runtime event branch directly; extracting event routers (status, command, debug) into dedicated hooks would shrink the component.
 - [x] `packages/cli/src/components/cliApp/runtimeUtils.ts` – Utility grab bag mixing cloning, integer parsing, and status normalization; deserves a separation between runtime data helpers and CLI-only coercions.
-- [ ] `packages/cli/src/components/cliApp/useCommandLog.ts` – Handles timeline updates, log trimming, and slash command messaging; consider peeling the log store into a pure reducer to make the hook smaller.
+- [x] `packages/cli/src/components/cliApp/useCommandLog.ts` – Handles timeline updates, log trimming, and slash command messaging; consider peeling the log store into a pure reducer to make the hook smaller.
 - [x] `packages/cli/src/components/cliApp/useTimeline.ts` – Batches event inserts, bounded lists, and key management; factoring timeline math into a utility module would improve clarity.
 - [x] `packages/cli/src/components/cliApp/useDebugPanel.ts` – Handles payload cloning, summarization, and max-size trimming. Splitting formatting helpers from the hook will lighten repeated cloning.
 - [x] `packages/cli/src/runtime.ts` – Still mixes dependency normalization, Ink mounting, and command stats; extracting the dependency bundle into its own factory would ease extending runtime options.
