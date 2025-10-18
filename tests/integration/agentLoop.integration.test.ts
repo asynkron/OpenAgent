@@ -1,12 +1,7 @@
 import { jest } from '@jest/globals';
 
-import {
-  loadAgentWithMockedModules,
-  queueModelResponse,
-  queueModelCompletion,
-  resetQueuedResponses,
-} from './agentRuntimeTestHarness.js';
-import { createTestRunnerUI } from './testRunnerUI.js';
+import { queueModelResponse, queueModelCompletion, resetQueuedResponses } from './agentRuntimeTestHarness.js';
+import { bootTestCLI } from './utils/cliTestHarness.js';
 import {
   nestedShellResponseText,
   rawNestedShellResponsePayload,
@@ -25,9 +20,18 @@ if (!rawNestedShellResponsePayload.includes('"stage": "openai-response"')) {
 }
 
 test('agent runtime executes one mocked command then exits on user request', async () => {
-  process.env.OPENAI_API_KEY = 'test-key';
-  const { agent, createTestPlanManager } = await loadAgentWithMockedModules();
-  agent.STARTUP_FORCE_AUTO_APPROVE = true;
+  const runCommandMock = jest.fn().mockResolvedValue({
+    stdout: 'MOCKED_OK\n',
+    stderr: '',
+    exit_code: 0,
+    killed: false,
+    runtime_ms: 5,
+  });
+
+  const { ui } = await bootTestCLI({
+    autoApprove: true,
+    runtime: { runCommandFn: runCommandMock },
+  });
 
   queueModelResponse({
     message: 'Mocked response',
@@ -49,22 +53,6 @@ test('agent runtime executes one mocked command then exits on user request', asy
     message: 'Mocked follow-up',
     plan: [],
   });
-
-  const runCommandMock = jest.fn().mockResolvedValue({
-    stdout: 'MOCKED_OK\n',
-    stderr: '',
-    exit_code: 0,
-    killed: false,
-    runtime_ms: 5,
-  });
-
-  const runtime = agent.createAgentRuntime({
-    getAutoApproveFlag: () => agent.STARTUP_FORCE_AUTO_APPROVE,
-    runCommandFn: runCommandMock,
-    createPlanManagerFn: createTestPlanManager,
-  });
-
-  const ui = createTestRunnerUI(runtime);
   ui.queueUserInput('Run the test command', 'exit');
 
   await ui.start();
@@ -75,9 +63,18 @@ test('agent runtime executes one mocked command then exits on user request', asy
 });
 
 test('agent runtime executes nested shell commands from raw response strings', async () => {
-  process.env.OPENAI_API_KEY = 'test-key';
-  const { agent, createTestPlanManager } = await loadAgentWithMockedModules();
-  agent.STARTUP_FORCE_AUTO_APPROVE = true;
+  const runCommandMock = jest.fn().mockResolvedValue({
+    stdout: 'hello\n',
+    stderr: '',
+    exit_code: 0,
+    killed: false,
+    runtime_ms: 1,
+  });
+
+  const { ui } = await bootTestCLI({
+    autoApprove: true,
+    runtime: { runCommandFn: runCommandMock },
+  });
 
   queueModelCompletion({
     status: 'success',
@@ -97,22 +94,6 @@ test('agent runtime executes nested shell commands from raw response strings', a
     message: 'Mocked follow-up',
     plan: [],
   });
-
-  const runCommandMock = jest.fn().mockResolvedValue({
-    stdout: 'hello\n',
-    stderr: '',
-    exit_code: 0,
-    killed: false,
-    runtime_ms: 1,
-  });
-
-  const runtime = agent.createAgentRuntime({
-    getAutoApproveFlag: () => agent.STARTUP_FORCE_AUTO_APPROVE,
-    runCommandFn: runCommandMock,
-    createPlanManagerFn: createTestPlanManager,
-  });
-
-  const ui = createTestRunnerUI(runtime);
   ui.queueUserInput('Run the raw command', 'exit');
 
   await ui.start();
@@ -124,8 +105,7 @@ test('agent runtime executes nested shell commands from raw response strings', a
 });
 
 const _driveRefusalAutoResponse = async (refusalMessage) => {
-  process.env.OPENAI_API_KEY = 'test-key';
-  const { agent, mocks, createTestPlanManager } = await loadAgentWithMockedModules();
+  const { mocks, ui } = await bootTestCLI();
 
   // The first response simulates the model refusing; the second proves we nudged it to try again.
   queueModelResponse({
@@ -136,11 +116,6 @@ const _driveRefusalAutoResponse = async (refusalMessage) => {
     message: 'Second attempt succeeds.',
     plan: [],
   });
-
-  const runtime = agent.createAgentRuntime({
-    createPlanManagerFn: createTestPlanManager,
-  });
-  const ui = createTestRunnerUI(runtime);
   ui.queueUserInput('Please try something else', 'exit');
 
   await ui.start();
