@@ -43,6 +43,7 @@ import {
 } from './cliApp/types.js';
 import { coerceRuntime, cloneValue, normalizeStatus } from './cliApp/runtimeUtils.js';
 import { useCommandLog } from './cliApp/useCommandLog.js';
+import { createPlanCommandPayload } from './cliApp/commandLogHelpers.js';
 import { useHistoryCommand } from './cliApp/useHistoryCommand.js';
 import { useTimeline } from './cliApp/useTimeline.js';
 import type { PlanStep } from './planUtils.js';
@@ -312,7 +313,14 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
         })) as PlanStep[])
       : [];
     setPlan(nextPlan);
-  }, []);
+
+    nextPlan.forEach((step) => {
+      const placeholder = createPlanCommandPayload(step);
+      if (placeholder) {
+        upsertCommandEntry(placeholder);
+      }
+    });
+  }, [upsertCommandEntry]);
 
   const handlePlanProgressEvent = useCallback((event: PlanProgressRuntimeEvent): void => {
     setPlanProgress({
