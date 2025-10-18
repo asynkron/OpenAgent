@@ -18,7 +18,7 @@ Top refactor targets:
 - [x] `packages/core/src/agent/planManager.ts` – The merge/reset logic combines file I/O, in-memory caches, and plan diffing; splitting adapter concerns from the domain model would shrink the cognitive load.
 - [x] `packages/core/src/agent/historyCompactor.ts` – Blends context window estimation, history slicing, and logging; worth extracting the token estimation and compaction strategies into targeted helpers.
 - [x] `packages/core/src/commands/run.ts` – Shell execution wraps temp files, cancellation, and result normalization; introducing a dedicated child-process adapter plus typed stderr augmenters would tame the branching.
-- [ ] `packages/core/src/services/commandApprovalService.ts` – Approval policy resolution still couples async session storage with prompt formatting; isolating the persistence layer and command signature helpers would pay down technical debt.
+- [x] `packages/core/src/services/commandApprovalService.ts` – Approval policy resolution still couples async session storage with prompt formatting; isolating the persistence layer and command signature helpers would pay down technical debt.
 
 ## packages/cli
 - Ink components now compile under strict TS, but two surfaces still depend on `@ts-nocheck`, and the event router shoulders most runtime branching.  Many hooks continue to clone or guard payloads manually instead of leaning on the richer core contracts.
