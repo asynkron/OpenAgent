@@ -44,7 +44,7 @@ Top refactor targets:
 - [ ] `packages/web/frontend/src/js/services/chat_router.ts` – Dispatch tables blend payload coercion with side-effects; consider introducing typed command objects per event.
 - [ ] `packages/web/frontend/src/js/services/chat_sessionController.ts` – Outstanding TODOs around optimistic queue management; isolating session state into pure reducers would reduce mutable patterns.
 - [ ] `packages/web/frontend/src/js/services/chat_domController.ts` – Handles low-level DOM construction and state gating; templating helpers would reduce duplicated element creation.
-- [ ] `packages/web/frontend/src/js/services/chat_eventDisplay.ts` – Body selection heuristics are still ad-hoc; codifying banner/status rendering rules would prevent regressions.
+- [x] `packages/web/frontend/src/js/services/chat_eventDisplay.ts` – Body selection heuristics are still ad-hoc; codifying banner/status rendering rules would prevent regressions.
 - [ ] `packages/web/frontend/src/js/services/chat_inputController.ts` – Key event handling remains sprawling; extract caret/shortcut handling into pure utilities.
 - [ ] `packages/web/frontend/src/js/components/plan_model.ts` – Combines tree normalization and highlight handling; splitting schema transforms from rendering decisions would tidy the module.
 - [ ] `packages/web/frontend/src/js/services/chat_model.ts` – Serializes responses to the DOM; needs better typing and separation between history transforms and summary building.
