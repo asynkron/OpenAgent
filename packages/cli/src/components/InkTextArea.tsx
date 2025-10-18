@@ -10,11 +10,9 @@ import {
   type CaretPosition,
   type HorizontalPaddingInput,
   type LastKeyEvent,
-  type TextRow,
 } from './inkTextArea/layout.js';
 import {
   createDeletionHandler,
-  createMovementHandler,
   evaluateKeyEvent,
   type PreviousKeySnapshot,
 } from './inkTextArea/keyEvents.js';
@@ -24,6 +22,8 @@ import { useCaretBlink } from './inkTextArea/useCaretBlink.js';
 import { useCommandMenu } from './inkTextArea/useCommandMenu.js';
 import { useStdoutWidth } from './inkTextArea/useStdoutWidth.js';
 import type { SlashCommandSelectEvent } from './inkTextArea/types.js';
+import { useCaretNavigation } from './inkTextArea/useCaretNavigation.js';
+import { renderRows } from './inkTextArea/renderRows.js';
 import { toBoxProps, toTextProps, type BoxStyleProps, type TextStyleProps } from '../styleTypes.js';
 
 type LegacySlashMenuItem = SlashCommandSourceItem;
@@ -168,80 +168,13 @@ function InkTextArea(props: InkTextAreaProps) {
     updateValue,
   });
 
-  const handleArrowUp = useCallback(() => {
-    const currentRowIndex = caretPosition.rowIndex;
-    if (currentRowIndex === 0) {
-      return;
-    }
-    const targetRow = rows[currentRowIndex - 1];
-    const desiredColumn = desiredColumnRef.current ?? caretPosition.column;
-    desiredColumnRef.current = desiredColumn;
-    const nextColumn = Math.min(desiredColumn, targetRow.text.length);
-    const nextIndex = targetRow.startIndex + nextColumn;
-    setCaretIndex(nextIndex);
-  }, [caretPosition, rows, desiredColumnRef, setCaretIndex]);
-
-  const handleArrowDown = useCallback(() => {
-    const currentRowIndex = caretPosition.rowIndex;
-    if (currentRowIndex >= rows.length - 1) {
-      return;
-    }
-    const targetRow = rows[currentRowIndex + 1];
-    const desiredColumn = desiredColumnRef.current ?? caretPosition.column;
-    desiredColumnRef.current = desiredColumn;
-    const nextColumn = Math.min(desiredColumn, targetRow.text.length);
-    const nextIndex = targetRow.startIndex + nextColumn;
-    setCaretIndex(nextIndex);
-  }, [caretPosition, rows, desiredColumnRef, setCaretIndex]);
-
-  const handleArrowLeft = useCallback(() => {
-    setCaretIndex((prev) => Math.max(0, prev - 1));
-  }, [setCaretIndex]);
-
-  const handleArrowRight = useCallback(() => {
-    setCaretIndex((prev) => Math.min(value.length, prev + 1));
-  }, [setCaretIndex, value.length]);
-
-  const handleHome = useCallback(() => {
-    const rowStart = caretPosition.row.startIndex;
-    const nextIndex = clamp(rowStart, 0, value.length);
-    setCaretIndex(nextIndex);
-  }, [caretPosition, setCaretIndex, value.length]);
-
-  const handleEnd = useCallback(() => {
-    const rowStart = caretPosition.row.startIndex;
-    const rowEnd = clamp(rowStart + caretPosition.row.text.length, 0, value.length);
-    const nextIndex = Math.max(rowStart, rowEnd);
-    setCaretIndex(nextIndex);
-  }, [caretPosition, setCaretIndex, value.length]);
-
-  // Consolidate navigation keys so the input handler just routes high-level actions.
-  const handleMovementKey = useMemo(
-    () =>
-      createMovementHandler({
-        onUp: handleArrowUp,
-        onDown: handleArrowDown,
-        onLeft: () => {
-          desiredColumnRef.current = null;
-          handleArrowLeft();
-        },
-        onRight: () => {
-          desiredColumnRef.current = null;
-          handleArrowRight();
-        },
-        onHome: handleHome,
-        onEnd: handleEnd,
-      }),
-    [
-      desiredColumnRef,
-      handleArrowDown,
-      handleArrowLeft,
-      handleArrowRight,
-      handleArrowUp,
-      handleEnd,
-      handleHome,
-    ],
-  );
+  const handleMovementKey = useCaretNavigation({
+    caretPosition,
+    rows,
+    valueLength: maxIndex,
+    desiredColumnRef,
+    setCaretIndex,
+  });
 
   const handleBackspace = useCallback(() => {
     if (caretIndex === 0) {
@@ -384,85 +317,18 @@ function InkTextArea(props: InkTextAreaProps) {
   const caretColumnDisplay = caretPosition.column + 1;
   const caretLineDisplay = caretRowIndex + 1;
 
-  const rowElements = displayRows.map((row: TextRow, index: number) => {
-    const isCaretRow = caretVisible && index === caretRowIndex;
-    const caretColumn = caretPosition.column;
-    const key = `row-${row.startIndex}-${index}`;
-
-    if (!isCaretRow) {
-      const textContent = row.text.length > 0 ? row.text : ' ';
-      return (
-        <Box key={key} flexDirection="row" width="100%">
-          <Text {...computedTextProps}>{textContent}</Text>
-        </Box>
-      );
-    }
-
-    if (!hasValue) {
-      const segments = [
-        <Text key="caret" inverse={caretVisible} {...computedTextProps}>
-          {' '}
-        </Text>,
-      ];
-
-      if (row.text.length > 0) {
-        segments.push(
-          <Text key="placeholder" {...computedTextProps}>
-            {row.text}
-          </Text>,
-        );
-      }
-
-      return (
-        <Box key={key} flexDirection="row" width="100%">
-          {segments}
-        </Box>
-      );
-    }
-
-    const beforeCaret = row.text.slice(0, caretColumn);
-    const caretChar = row.text[caretColumn];
-    const caretDisplay = caretChar ?? ' ';
-    const afterStart = caretChar ? caretColumn + 1 : caretColumn;
-    const afterCaret = row.text.slice(afterStart);
-    const segments = [];
-
-    if (beforeCaret.length > 0) {
-      segments.push(
-        <Text key="before" {...computedTextProps}>
-          {beforeCaret}
-        </Text>,
-      );
-    }
-
-    segments.push(
-      <Text key="caret" inverse={caretVisible} {...computedTextProps}>
-        {caretDisplay}
-      </Text>,
-    );
-
-    if (afterCaret.length > 0) {
-      segments.push(
-        <Text key="after" {...computedTextProps}>
-          {afterCaret}
-        </Text>,
-      );
-    }
-
-    if (segments.length === 1 && caretDisplay === ' ') {
-      segments.push(
-        <Text key="padding" {...computedTextProps}>
-          {''}
-        </Text>,
-      );
-    }
-
-    return (
-      <Box key={key} flexDirection="row" width="100%">
-        {segments}
-      </Box>
-    );
-  });
+  const rowElements = useMemo(
+    () =>
+      renderRows({
+        rows: displayRows,
+        caretPosition,
+        caretRowIndex,
+        caretVisible,
+        hasValue,
+        textProps: computedTextProps,
+      }),
+    [caretPosition, caretRowIndex, caretVisible, computedTextProps, displayRows, hasValue],
+  );
 
   const commandMenuElement = (
     <CommandMenu
