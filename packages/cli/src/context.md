@@ -14,7 +14,7 @@
 - `loadCoreModule.ts` — dynamically resolves `@asynkron/openagent-core`, falls back to the local workspace copy when `node_modules` links are absent, and now guards against missing exports at runtime with explicit shape assertions reused across the CLI.
 - `render.ts`, `status.ts`, `thinking.ts` — helper utilities for formatting markdown, plan progress, context usage, and spinner indicators.
 - `io.ts` — wraps readline input handling, exposing `askHuman` and ESC detection constants.
-- `components/commandUtils.ts`, `components/planUtils.ts`, `components/progressUtils.ts` — shared formatting utilities that feed both Ink components and legacy console renderers, now exported as typed helpers.
+- `components/commandUtils.ts`, `components/planUtils.ts`, `components/progressUtils.ts` — shared formatting utilities that feed both Ink components and legacy console renderers, now exported as typed helpers. `commandUtils.ts` is a facade that re-exports the decomposed helpers under `components/command/` (type inference, detail builders, summary generation) so consumers gain the smaller modules without rewriting imports.
 
 ## Positive Signals
 

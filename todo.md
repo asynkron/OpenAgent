@@ -33,7 +33,7 @@ Top refactor targets:
 - [ ] `packages/cli/src/components/cliApp/useDebugPanel.ts` – Handles payload cloning, summarization, and max-size trimming. Splitting formatting helpers from the hook will lighten repeated cloning.
 - [x] `packages/cli/src/runtime.ts` – Still mixes dependency normalization, Ink mounting, and command stats; extracting the dependency bundle into its own factory would ease extending runtime options.
 - [ ] `packages/cli/src/loadCoreModule.ts` – Guard logic for dynamic imports intermingles with retry/fallback messaging; separating validation from logging would improve readability.
-- [ ] `packages/cli/src/components/commandUtils.ts` – Normalizes commands, builds summaries, and formats previews; moving edit/replace detail builders into distinct modules would lower cross-coupling with themed components.
+- [x] `packages/cli/src/components/commandUtils.ts` – Normalizes commands, builds summaries, and formats previews; moving edit/replace detail builders into distinct modules would lower cross-coupling with themed components.
 
 ## packages/web/frontend
 - Chat orchestration remains the riskiest area (FTA ~81).  The module graph improved after splitting controllers, yet several files still contain hybrid DOM + state management logic that’s difficult to test in isolation.
