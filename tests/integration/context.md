@@ -15,6 +15,7 @@
 - `scripts.integration.test.ts` — smoke-tests automation scripts when invoked via the CLI runtime.
 - `agentRuntimeTestHarness.ts` & `testRunnerUI.ts` — scaffolding to run the agent loop programmatically and assert emitted events, now injecting an in-memory plan manager so suites stay isolated from `.openagent/plan.json` while still exercising merge/progress logic.
 - `agentRuntimeTestHarness.ts` & `testRunnerUI.ts` — scaffolding to run the agent loop programmatically and assert emitted events, now injecting an in-memory plan manager so suites stay isolated from `.openagent/plan.json` while still exercising merge/progress logic. The harness also stubs the Vercel AI SDK `streamObject` helper so offline test runs no longer depend on the real package export surface.
+- `utils/cliTestHarness.ts` — consolidates CLI bootstrapping for tests (environment priming, runtime creation, UI harness wiring) so suites only configure the command hooks they care about before queuing mocked model responses.
 
 ## Positive Signals
 

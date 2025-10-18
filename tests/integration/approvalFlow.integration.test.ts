@@ -1,11 +1,7 @@
 import { jest } from '@jest/globals';
 
-import {
-  loadAgentWithMockedModules,
-  queueModelResponse,
-  resetQueuedResponses,
-} from './agentRuntimeTestHarness.js';
-import { createTestRunnerUI } from './testRunnerUI.js';
+import { queueModelResponse, resetQueuedResponses } from './agentRuntimeTestHarness.js';
+import { bootTestCLI } from './utils/cliTestHarness.js';
 
 const PLAN_STEP_TITLES = {
   gather: 'Review instructions and constraints',
@@ -63,9 +59,20 @@ beforeEach(() => {
 
 describe('Approval flow integration', () => {
   test('executes command after human approves once', async () => {
-    process.env.OPENAI_API_KEY = 'test-key';
+    const runCommandMock = jest.fn().mockResolvedValue({
+      stdout: 'APPROVED\n',
+      stderr: '',
+      exit_code: 0,
+      killed: false,
+      runtime_ms: 1,
+    });
 
-    const { agent, createTestPlanManager } = await loadAgentWithMockedModules();
+    const { ui } = await bootTestCLI({
+      runtime: {
+        getAutoApproveFlag: () => false,
+        runCommandFn: runCommandMock,
+      },
+    });
 
     enqueueHandshakeResponse();
 
@@ -83,21 +90,6 @@ describe('Approval flow integration', () => {
     queueModelResponse(firstPayload);
     queueModelResponse(secondPayload);
 
-    const runCommandMock = jest.fn().mockResolvedValue({
-      stdout: 'APPROVED\n',
-      stderr: '',
-      exit_code: 0,
-      killed: false,
-      runtime_ms: 1,
-    });
-
-    const runtime = agent.createAgentRuntime({
-      getAutoApproveFlag: () => false,
-      runCommandFn: runCommandMock,
-      createPlanManagerFn: createTestPlanManager,
-    });
-
-    const ui = createTestRunnerUI(runtime);
     ui.queueUserInput('Please run the command');
     ui.queueApprovalResponse('1');
     ui.queueUserInput('exit');
@@ -116,9 +108,20 @@ describe('Approval flow integration', () => {
   });
 
   test('skips command execution when human rejects', async () => {
-    process.env.OPENAI_API_KEY = 'test-key';
+    const runCommandMock = jest.fn().mockResolvedValue({
+      stdout: '',
+      stderr: '',
+      exit_code: 0,
+      killed: false,
+      runtime_ms: 0,
+    });
 
-    const { agent, createTestPlanManager } = await loadAgentWithMockedModules();
+    const { ui } = await bootTestCLI({
+      runtime: {
+        getAutoApproveFlag: () => false,
+        runCommandFn: runCommandMock,
+      },
+    });
 
     enqueueHandshakeResponse();
 
@@ -136,15 +139,6 @@ describe('Approval flow integration', () => {
     queueModelResponse(firstPayload);
     queueModelResponse(secondPayload);
 
-    const runCommandMock = jest.fn();
-
-    const runtime = agent.createAgentRuntime({
-      getAutoApproveFlag: () => false,
-      runCommandFn: runCommandMock,
-      createPlanManagerFn: createTestPlanManager,
-    });
-
-    const ui = createTestRunnerUI(runtime);
     ui.queueUserInput('Attempt command');
     ui.queueApprovalResponse('3', '3');
     ui.queueUserInput('exit');
@@ -163,9 +157,21 @@ describe('Approval flow integration', () => {
   });
 
   test('auto-approves commands flagged as preapproved', async () => {
-    process.env.OPENAI_API_KEY = 'test-key';
+    const runCommandMock = jest.fn().mockResolvedValue({
+      stdout: 'ok\n',
+      stderr: '',
+      exit_code: 0,
+      killed: false,
+      runtime_ms: 1,
+    });
 
-    const { agent, createTestPlanManager } = await loadAgentWithMockedModules();
+    const { ui } = await bootTestCLI({
+      runtime: {
+        getAutoApproveFlag: () => false,
+        runCommandFn: runCommandMock,
+        isPreapprovedCommandFn: () => true,
+      },
+    });
 
     enqueueHandshakeResponse();
 
@@ -181,23 +187,6 @@ describe('Approval flow integration', () => {
       message: 'Follow-up',
       plan: buildPlan('completed', 'completed'),
     });
-
-    const runCommandMock = jest.fn().mockResolvedValue({
-      stdout: 'ok\n',
-      stderr: '',
-      exit_code: 0,
-      killed: false,
-      runtime_ms: 1,
-    });
-
-    const runtime = agent.createAgentRuntime({
-      getAutoApproveFlag: () => false,
-      runCommandFn: runCommandMock,
-      isPreapprovedCommandFn: () => true,
-      createPlanManagerFn: createTestPlanManager,
-    });
-
-    const ui = createTestRunnerUI(runtime);
     ui.queueUserInput('Please handle this', 'exit');
 
     await ui.start();

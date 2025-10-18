@@ -1,11 +1,7 @@
 import { jest } from '@jest/globals';
 
-import {
-  loadAgentWithMockedModules,
-  queueModelResponse,
-  resetQueuedResponses,
-} from './agentRuntimeTestHarness.js';
-import { createTestRunnerUI } from './testRunnerUI.js';
+import { queueModelResponse, resetQueuedResponses } from './agentRuntimeTestHarness.js';
+import { bootTestCLI } from './utils/cliTestHarness.js';
 import { cancel as cancelActive } from '../../packages/core/dist/src/utils/cancellation.js';
 
 const PLAN_STEP_TITLES = {
@@ -75,23 +71,6 @@ afterEach(() => {
 });
 
 test('ESC cancellation aborts an in-flight command and surfaces UI feedback', async () => {
-  process.env.OPENAI_API_KEY = 'test-key';
-  const { agent, createTestPlanManager } = await loadAgentWithMockedModules();
-  agent.STARTUP_FORCE_AUTO_APPROVE = true;
-
-  enqueueHandshakeResponse();
-
-  const executionPlan = buildPlan('completed', 'pending', {
-    shell: 'bash',
-    run: 'sleep 30',
-  });
-  queueModelResponse({
-    message: 'Preparing to run command',
-    plan: executionPlan,
-  });
-
-  enqueueFollowUp('Command canceled acknowledgement', 'completed');
-
   let cancelCurrentCommand;
   let cancelObserved = false;
   const runCommandMock = jest.fn().mockImplementation(() => {
@@ -134,14 +113,25 @@ test('ESC cancellation aborts an in-flight command and surfaces UI feedback', as
     });
   });
 
-  const runtime = agent.createAgentRuntime({
-    getAutoApproveFlag: () => agent.STARTUP_FORCE_AUTO_APPROVE,
-    runCommandFn: runCommandMock,
-    emitAutoApproveStatus: true,
-    createPlanManagerFn: createTestPlanManager,
+  const { ui } = await bootTestCLI({
+    autoApprove: true,
+    runtime: {
+      runCommandFn: runCommandMock,
+      emitAutoApproveStatus: true,
+    },
   });
 
-  const ui = createTestRunnerUI(runtime);
+  enqueueHandshakeResponse();
+  const executionPlan = buildPlan('completed', 'pending', {
+    shell: 'bash',
+    run: 'sleep 30',
+  });
+  queueModelResponse({
+    message: 'Preparing to run command',
+    plan: executionPlan,
+  });
+
+  enqueueFollowUp('Command canceled acknowledgement', 'completed');
 
   ui.addEventListener((event) => {
     if (event.type === 'status' && event.message === 'Command auto-approved via flag.') {
