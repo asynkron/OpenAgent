@@ -54,7 +54,7 @@ Top refactor targets:
 - The backend codebase is smaller but still entangles socket lifecycle with agent runtime wiring.
 
 Top refactor targets:
-- [ ] `packages/web/backend/src/server/agentSocket.ts` – Largest file; could use better separation between WebSocket lifecycle, runtime binding, and log formatting.
+- [x] `packages/web/backend/src/server/agentSocket.ts` – Largest file; could use better separation between WebSocket lifecycle, runtime binding, and log formatting.
 - [ ] `packages/web/backend/src/server/utils.ts` – Normalizes payloads and command logs; splitting serialization helpers from runtime adapters would aid reuse.
 - [ ] `packages/web/backend/src/server.ts` – HTTP + WS orchestration in one file; consider a dedicated bootstrap layer to keep handlers lean.
 - [ ] `packages/web/backend/src/index.ts` – Boot wiring mixes env configuration and server start; factoring an env loader would simplify offline testing.
