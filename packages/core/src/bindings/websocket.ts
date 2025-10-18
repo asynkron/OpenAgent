@@ -9,7 +9,6 @@ import { isFunction, isPromiseLike, isRecord } from './websocket/guards.js';
 import {
   defaultParseIncoming,
   normaliseIncomingMessage,
-  type IncomingStructuredMessage,
   type ParseIncomingFn,
   type ParsedIncomingMessage,
 } from './websocket/messageUtils.js';

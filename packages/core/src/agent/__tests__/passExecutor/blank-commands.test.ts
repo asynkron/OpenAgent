@@ -1,5 +1,4 @@
 /* eslint-env jest */
-import { jest } from '@jest/globals';
 import * as H from './helpers';
 Object.assign(globalThis, H);
 

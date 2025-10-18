@@ -2,12 +2,12 @@ import theme from '../../theme.js';
 import type { BoxStyleProps, TextStyleMap, TextStyleProps } from '../../styleTypes.js';
 
 export type { BoxStyleProps, TextStyleProps } from '../../styleTypes.js';
-export type SummaryLineStyleMap = TextStyleMap<string>;
+export type SummaryLineStyleMap = TextStyleMap;
 type CommandThemeProps = {
   container?: BoxStyleProps;
   heading?: TextStyleProps;
   headingDetail?: TextStyleProps;
-  summaryLine?: TextStyleMap<string>;
+  summaryLine?: TextStyleMap;
   runContainer?: BoxStyleProps;
 };
 
@@ -16,7 +16,7 @@ type CommandTheme = {
   container: BoxStyleProps;
   heading: TextStyleProps;
   headingDetail: TextStyleProps;
-  summaryLine: TextStyleMap<string>;
+  summaryLine: TextStyleMap;
   runContainer: BoxStyleProps;
 };
 

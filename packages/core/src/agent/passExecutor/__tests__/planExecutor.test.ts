@@ -30,12 +30,13 @@ const loadPlanExecutor = async () => {
   const planRuntimeConfig: {
     nextExecutables: unknown[];
     noExecutableResult: 'continue' | 'stop';
-    instances: Array<Record<string, any>>;
+    instances: Array<Record<string, unknown>>;
   } = { nextExecutables: [], noExecutableResult: 'continue', instances: [] };
 
   jest.unstable_mockModule('../planRuntime.js', () => {
     class FakePlanRuntime {
       options: Record<string, unknown>;
+      lastNoExecutableMessage?: string;
       initialize = jest.fn(async () => ({ type: 'plan-initialized', effects: [] }));
       selectNextExecutableEntry = jest.fn(() => planRuntimeConfig.nextExecutables.shift() ?? null);
       handleNoExecutable = jest.fn(async ({ parsedMessage }) => {

@@ -31,15 +31,23 @@ export interface DeletionCallbacks {
   onDelete: () => void;
 }
 
+type AugmentedKey = Key & {
+  isShiftPressed?: boolean;
+  home?: boolean;
+  end?: boolean;
+  code?: string;
+};
+
 export const evaluateKeyEvent = (
   input: string,
   key: Key,
   previous: PreviousKeySnapshot | undefined,
 ): KeyEventEvaluation => {
+  const augmentedKey = key as AugmentedKey;
   const printableInput = input && input !== '\u0000' ? input : '';
   const specialKeys = extractSpecialKeys(key);
   const shiftModifierActive = Boolean(
-    key?.shift || (key as any)?.isShiftPressed || specialKeys.includes('shift'),
+    key?.shift || augmentedKey.isShiftPressed || specialKeys.includes('shift'),
   );
   const isLineFeedInput = printableInput === '\n';
   const isCarriageReturnInput = printableInput === '\r';
@@ -85,6 +93,7 @@ export const createMovementHandler = ({
   onEnd,
 }: MovementCallbacks) => {
   return (key: Key) => {
+    const augmentedKey = key as AugmentedKey;
     if (key.upArrow) {
       onUp();
       return true;
@@ -105,12 +114,12 @@ export const createMovementHandler = ({
       return true;
     }
 
-    if ((key as any).home) {
+    if (augmentedKey.home) {
       onHome();
       return true;
     }
 
-    if ((key as any).end) {
+    if (augmentedKey.end) {
       onEnd();
       return true;
     }
@@ -121,7 +130,8 @@ export const createMovementHandler = ({
 
 export const createDeletionHandler = ({ onBackwardDelete, onDelete }: DeletionCallbacks) => {
   return (key: Key) => {
-    const isBackwardDelete = key.backspace || (key.delete && !(key as any).code);
+    const augmentedKey = key as AugmentedKey;
+    const isBackwardDelete = key.backspace || (key.delete && !augmentedKey.code);
     if (isBackwardDelete) {
       onBackwardDelete();
       return true;

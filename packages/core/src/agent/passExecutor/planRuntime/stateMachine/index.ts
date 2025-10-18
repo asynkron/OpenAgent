@@ -2,9 +2,9 @@ import { clonePlanForExecution } from '../../planExecution.js';
 import { createDependencyManager } from './dependencyManager.js';
 import { createPlanMutations } from './mutations.js';
 import { createPlanSelection } from './selection.js';
-import type { CommandObservationResult, PlanState, PlanStateMachine } from './types.js';
+import type { PlanState, PlanStateMachine } from './types.js';
 
-export type { CommandObservationResult, PlanState, PlanStateMachine } from './types.js';
+export type { PlanState, PlanStateMachine } from './types.js';
 
 export const createPlanStateMachine = (): PlanStateMachine => {
   const state: PlanState = {

@@ -5,7 +5,6 @@ import type { EscState } from '../escState.js';
 import type { ApprovalManager } from '../approvalManager.js';
 import type { HistoryCompactor } from '../historyCompactor.js';
 import type { AgentCommandContext, CommandExecutionResult } from '../commandExecution.js';
-import type { PlanStep } from './planExecution.js';
 import type { PlanResponse } from '../../contracts/index.js';
 import type { ChatMessageEntry } from '../historyEntry.js';
 import type { requestModelCompletion as RequestModelCompletion } from '../modelRequest.js';

@@ -1,5 +1,6 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import type { PlanResponse } from '../../contracts/index.js';
+import type { ResponsesClient } from '../responses.js';
 
 let streamObjectMock: jest.Mock;
 
@@ -28,7 +29,7 @@ describe('createResponse uses generateObject with tool schema', () => {
   test('passes provider-agnostic schema wrapper to AI SDK', async () => {
     const { createResponse } = await import('../responses.ts');
 
-    const openaiProvider = (model: string) => ({ model });
+    const openaiProvider: ResponsesClient = ((model: string) => ({ model })) as ResponsesClient;
 
     const result = await createResponse({
       openai: openaiProvider as Record<string, unknown>,
@@ -81,13 +82,12 @@ describe('createResponse uses generateObject with tool schema', () => {
     const onFinish = jest.fn();
 
     const languageModel = {};
-    const openaiProvider = { responses: jest.fn().mockReturnValue(languageModel) } as Record<
-      string,
-      unknown
-    >;
+    const openaiProvider: ResponsesClient = {
+      responses: jest.fn().mockReturnValue(languageModel),
+    };
 
     await createResponse({
-      openai: openaiProvider as any,
+      openai: openaiProvider,
       model: 'test-model',
       input: [],
       tools: [ToolDefinition as Record<string, unknown>],

@@ -46,7 +46,7 @@ export interface TextStyleProps {
   backgroundColor?: string;
 }
 
-export interface TextStyleMap<T extends string = string> {
+export interface TextStyleMap {
   base?: TextStyleProps;
   [key: string]: TextStyleProps | undefined;
 }

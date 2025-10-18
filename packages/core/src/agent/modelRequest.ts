@@ -26,7 +26,7 @@ import { createObservationHistoryEntry, type ObservationRecord } from './history
 import { buildOpenAgentRequestPayload } from './modelRequestPayload.js';
 import type { ObservationBuilder } from './observationBuilder.js';
 import type { ChatMessageEntry } from './historyEntry.js';
-import type { RuntimeEvent, RuntimeProperty, RuntimeDebugPayload } from './runtimeTypes.js';
+import type { RuntimeEvent, RuntimeProperty } from './runtimeTypes.js';
 
 interface CancellationRegistrationOptions {
   description: string;

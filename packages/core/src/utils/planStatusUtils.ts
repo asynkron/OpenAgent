@@ -4,10 +4,9 @@ import {
   FAILED_STATUS,
   TERMINAL_PLAN_STATUS_SET,
   normalizePlanStatus,
-  type PlanStatus,
 } from './planStatusTypes.js';
 
-export type { PlanStatus } from './planStatusTypes.js';
+export { type PlanStatus } from './planStatusTypes.js';
 
 export const isCompletedStatus = (status: unknown): boolean =>
   normalizePlanStatus(status) === COMPLETED_STATUS;

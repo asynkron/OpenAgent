@@ -4,12 +4,12 @@ import type ObservationBuilder from '../../observationBuilder.js';
 import type { CommandResult } from '../../../commands/run.js';
 import type { NormalizedExecuteAgentPassOptions } from '../types.js';
 
-const createMock = <T extends (...args: any[]) => any>(
-  impl?: (...args: Parameters<T>) => ReturnType<T>,
-): T =>
-  jest.fn(
-    impl ?? ((() => undefined) as unknown as (...args: Parameters<T>) => ReturnType<T>),
-  ) as unknown as T;
+type AnyFunction = (...args: unknown[]) => unknown;
+
+const createMock = <T extends AnyFunction>(impl?: (...args: Parameters<T>) => ReturnType<T>): T => {
+  const fallback = (..._args: Parameters<T>): ReturnType<T> => undefined as ReturnType<T>;
+  return jest.fn(impl ?? fallback) as unknown as T;
+};
 
 export const createObservationBuilderStub = (): ObservationBuilder =>
   ({
