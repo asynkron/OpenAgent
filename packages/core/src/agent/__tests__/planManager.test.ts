@@ -118,4 +118,107 @@ describe('createPlanManager', () => {
     expect(merged).toHaveLength(1);
     expect(merged[0].status).toBe('failed');
   });
+
+  test('replaces plan when merge flag is disabled', async () => {
+    const emit = jest.fn();
+    const emitStatus = jest.fn();
+    const planManager = createPlanManager({
+      emit,
+      emitStatus,
+      getPlanMergeFlag: () => false,
+    });
+
+    await planManager.initialize();
+
+    await planManager.update([
+      {
+        id: 'step-1',
+        title: 'Original',
+        status: 'completed',
+        command: { run: 'echo done', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
+      },
+    ]);
+
+    const replacementPlan = [
+      {
+        id: 'step-2',
+        title: 'Follow up',
+        status: 'running',
+        command: { run: 'echo running', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
+      },
+    ];
+
+    const updated = await planManager.update(replacementPlan);
+
+    expect(updated).toHaveLength(1);
+    expect(updated[0].id).toBe('step-2');
+    expect(updated[0].status).toBe('running');
+    expect(emitStatus).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'status',
+        level: 'info',
+        message: 'Replacing active plan with assistant update because plan merging is disabled.',
+      }),
+    );
+  });
+
+  test('clears plan when merge disabled and assistant sends empty plan', async () => {
+    const emit = jest.fn();
+    const emitStatus = jest.fn();
+    const planManager = createPlanManager({
+      emit,
+      emitStatus,
+      getPlanMergeFlag: () => false,
+    });
+
+    await planManager.initialize();
+    await planManager.update([
+      {
+        id: 'step-1',
+        title: 'Keep me',
+        status: 'completed',
+        command: { run: 'echo done', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
+      },
+    ]);
+
+    const cleared = await planManager.update([]);
+
+    expect(cleared).toHaveLength(0);
+    expect(emitStatus).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'status',
+        level: 'info',
+        message: 'Cleared active plan after receiving an empty plan while merging is disabled.',
+      }),
+    );
+  });
+
+  test('integrates with persistence adapter', async () => {
+    const emit = jest.fn();
+    const emitStatus = jest.fn();
+    const load = jest.fn(async () => [
+      {
+        id: 'step-1',
+        title: 'Persisted',
+        status: 'pending',
+        command: { run: 'echo hi', max_bytes: DEFAULT_COMMAND_MAX_BYTES },
+      },
+    ]);
+    const save = jest.fn(async () => {});
+    const clear = jest.fn(async () => {});
+
+    const planManager = createPlanManager({
+      emit,
+      emitStatus,
+      persistence: { load, save, clear },
+    });
+
+    const initialized = await planManager.initialize();
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(save).toHaveBeenCalled();
+    expect(initialized).toHaveLength(1);
+
+    await planManager.reset();
+    expect(clear).toHaveBeenCalled();
+  });
 });
