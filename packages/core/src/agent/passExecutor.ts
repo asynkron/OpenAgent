@@ -107,7 +107,12 @@ function handleAssistantResolution(
 function emitAssistantMessage(emitEvent: EmitEvent, value: unknown): void {
   const message = extractAssistantMessage(value);
   if (message) {
-    emitEvent({ type: 'assistant-message', message });
+    emitEvent({
+      type: 'assistant-message',
+      payload: {
+        message,
+      },
+    });
   }
 }
 

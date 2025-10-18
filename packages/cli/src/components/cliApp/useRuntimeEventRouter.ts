@@ -12,6 +12,7 @@ import type {
   PlanRuntimeEvent,
   RequestInputRuntimeEvent,
   RuntimeEvent,
+  SchemaValidationFailedRuntimeEvent,
   StatusRuntimeEvent,
   ThinkingRuntimeEvent,
 } from './types.js';
@@ -31,6 +32,7 @@ type RuntimeEventRouterConfig = {
   onError: (event: ErrorRuntimeEvent) => void;
   onRequestInput: (event: RequestInputRuntimeEvent) => void;
   onDebug: (event: DebugRuntimeEvent) => void;
+  onSchemaValidationFailed: (event: SchemaValidationFailedRuntimeEvent) => void;
 };
 
 function buildRuntimeEventMap(config: RuntimeEventRouterConfig): Map<string, RuntimeEventHandler> {
@@ -72,6 +74,9 @@ function buildRuntimeEventMap(config: RuntimeEventRouterConfig): Map<string, Run
   map.set('debug', (event) => {
     config.onDebug(event as DebugRuntimeEvent);
   });
+  map.set('schema_validation_failed', (event) => {
+    config.onSchemaValidationFailed(event as SchemaValidationFailedRuntimeEvent);
+  });
   return map;
 }
 
@@ -90,6 +95,7 @@ export function useRuntimeEventRouter(config: RuntimeEventRouterConfig): (event:
       config.onPlanProgress,
       config.onRequestInput,
       config.onStatus,
+      config.onSchemaValidationFailed,
       config.onThinking,
     ],
   );

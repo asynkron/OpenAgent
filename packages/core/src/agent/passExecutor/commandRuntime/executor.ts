@@ -27,9 +27,11 @@ const executeCommandSafely = async (
 
     options.emitEvent?.({
       type: 'status',
-      level: 'error',
-      message: 'Command execution threw an exception.',
-      details: normalizedError.stack || normalizedError.message,
+      payload: {
+        level: 'error',
+        message: 'Command execution threw an exception.',
+        details: normalizedError.stack || normalizedError.message || null,
+      },
     });
 
     return {

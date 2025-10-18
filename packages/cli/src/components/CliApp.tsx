@@ -34,7 +34,6 @@ import {
   type RequestInputRuntimeEvent,
   type RuntimeEvent,
   type RuntimeErrorPayload,
-  type RuntimeProperty,
   type SlashCommandHandler,
   type TimelinePayload,
   type StatusRuntimeEvent,
@@ -67,11 +66,8 @@ function toRuntimeErrorPayload(value: unknown): RuntimeErrorPayload {
   if (value === undefined || value === null) {
     return UNKNOWN_ERROR_MESSAGE;
   }
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+  if (typeof value === 'string') {
     return value;
-  }
-  if (Array.isArray(value) || (typeof value === 'object' && value !== null)) {
-    return cloneValue(value) as RuntimeProperty;
   }
   return String(value);
 }
@@ -136,14 +132,8 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
       if (typeof eventId !== 'string') {
         throw new TypeError('Assistant runtime event expected string "__id".');
       }
-      const rawMessage = event.message;
-      const message: RuntimeProperty =
-        rawMessage === undefined || rawMessage === null
-          ? ''
-          : typeof rawMessage === 'string'
-            ? rawMessage
-            : (cloneValue(rawMessage) as RuntimeProperty);
-      pendingAssistantMessageRef.current = { message, eventId };
+      const rawMessage = event.payload.message;
+      pendingAssistantMessageRef.current = { message: rawMessage, eventId };
     },
     [flushPendingAssistantMessage],
   );
@@ -210,7 +200,6 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
       } catch (error) {
         handledLocally = true;
         handleStatusEvent({
-          type: 'status',
           level: 'error',
           message: 'Slash command processing failed.',
           details: error instanceof Error ? error.message : String(error),
@@ -224,7 +213,6 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
           runtimeRef.current?.submitPrompt?.(submission);
         } catch (error) {
           handleStatusEvent({
-            type: 'status',
             level: 'error',
             message: 'Failed to submit input.',
             details: error instanceof Error ? error.message : String(error),
@@ -241,58 +229,56 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
 
   const handleBannerEvent = useCallback(
     (event: BannerRuntimeEvent): void => {
-      const title = typeof event.title === 'string' ? event.title : null;
-      const subtitle = typeof event.subtitle === 'string' ? event.subtitle : null;
+      const { title, subtitle } = event.payload;
       appendEntry('banner', { title, subtitle });
     },
     [appendEntry],
   );
 
   const handlePassEvent = useCallback((event: PassRuntimeEvent): void => {
-    const numericPass = Number.isFinite(event.pass)
-      ? Number(event.pass)
-      : Number.isFinite(event.index)
-        ? Number(event.index)
-        : Number.isFinite(event.value)
-          ? Number(event.value)
+    const payload = event.payload;
+    const numericPass = Number.isFinite(payload.pass)
+      ? Number(payload.pass)
+      : Number.isFinite(payload.index)
+        ? Number(payload.index)
+        : Number.isFinite(payload.value)
+          ? Number(payload.value)
           : null;
     setPassCounter(numericPass && numericPass > 0 ? Math.floor(numericPass) : 0);
   }, []);
 
   const handlePlanEvent = useCallback((event: PlanRuntimeEvent): void => {
-    setPlan(Array.isArray(event.plan) ? cloneValue(event.plan) : []);
+    setPlan(Array.isArray(event.payload.plan) ? cloneValue(event.payload.plan) : []);
   }, []);
 
   const handlePlanProgressEvent = useCallback((event: PlanProgressRuntimeEvent): void => {
     setPlanProgress({
       seen: true,
-      value: event.progress ? (cloneValue(event.progress) as PlanProgress) : null,
+      value: event.payload.progress ? (cloneValue(event.payload.progress) as PlanProgress) : null,
     });
   }, []);
 
   const handleContextUsageEvent = useCallback((event: ContextUsageRuntimeEvent): void => {
-    setContextUsage(event.usage ? (cloneValue(event.usage) as ContextUsage) : null);
+    setContextUsage(
+      event.payload.usage ? (cloneValue(event.payload.usage) as ContextUsage) : null,
+    );
   }, []);
 
   const handleThinkingEvent = useCallback((event: ThinkingRuntimeEvent): void => {
-    setThinking(event.state === 'start');
+    setThinking(event.payload.state === 'start');
   }, []);
 
   const handleErrorEvent = useCallback(
     (event: ErrorRuntimeEvent): void => {
+      const payload = event.payload;
       const baseMessage =
-        typeof event.message === 'string' && event.message.trim().length > 0
-          ? event.message
+        typeof payload.message === 'string' && payload.message.trim().length > 0
+          ? payload.message
           : 'Agent error encountered.';
-      const detailSource = event.details ?? event.raw ?? null;
+      const detailSource = payload.details ?? payload.raw ?? null;
       const details =
-        detailSource === null || detailSource === undefined ? undefined : cloneValue(detailSource);
-      handleStatusEvent({
-        type: 'status',
-        level: 'error',
-        message: baseMessage,
-        details,
-      });
+        detailSource === null || detailSource === undefined ? undefined : String(detailSource);
+      handleStatusEvent({ level: 'error', message: baseMessage, details: details ?? null });
     },
     [handleStatusEvent],
   );
@@ -301,11 +287,13 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
     (event: RequestInputRuntimeEvent): void => {
       flushPendingAssistantMessage();
       const promptValue =
-        typeof event.prompt === 'string' && event.prompt.length > 0 ? event.prompt : '▷';
+        typeof event.payload.prompt === 'string' && event.payload.prompt.length > 0
+          ? event.payload.prompt
+          : '▷';
       const metadata =
-        event.metadata === undefined || event.metadata === null
+        event.payload.metadata === undefined || event.payload.metadata === null
           ? null
-          : (cloneValue(event.metadata) as InputRequestState['metadata']);
+          : (cloneValue(event.payload.metadata) as InputRequestState['metadata']);
       setInputRequest({ prompt: promptValue, metadata });
     },
     [flushPendingAssistantMessage],

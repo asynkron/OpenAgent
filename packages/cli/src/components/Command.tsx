@@ -41,6 +41,7 @@ type CommandProps = {
   preview?: CommandPreview | null;
   execution?: CommandExecution | null;
   planStep?: PlanStep | null;
+  observation?: string | null;
   maxRunCharacters?: number;
 };
 
@@ -55,6 +56,7 @@ function Command({
   preview = {},
   execution = {},
   planStep = null,
+  observation = null,
   maxRunCharacters = DEFAULT_MAX_RUN_CHARACTERS,
 }: CommandProps): ReactElement | null {
   const data: CommandRenderData | null = buildCommandRenderData(

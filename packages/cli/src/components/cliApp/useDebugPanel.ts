@@ -27,13 +27,13 @@ export function useDebugPanel({ limit, appendStatus }: UseDebugPanelOptions): {
   const [debugEvents, setDebugEvents] = useState<DebugEntry[]>([]);
 
   const createDebugEntry = useCallback(
-    (event: DebugRuntimeEvent): DebugEntry | null => {
-      const formatted = formatDebugPayload(event.payload);
+    (eventId: DebugRuntimeEvent['id'], payload: unknown): DebugEntry | null => {
+      const formatted = formatDebugPayload(payload);
       if (!formatted) {
         return null;
       }
 
-      const entryId = resolveEntryIdentifier(event.id, debugEventIdRef);
+      const entryId = resolveEntryIdentifier(eventId, debugEventIdRef);
 
       return { id: entryId, content: formatted } satisfies DebugEntry;
     },
@@ -43,7 +43,7 @@ export function useDebugPanel({ limit, appendStatus }: UseDebugPanelOptions): {
   const handleDebugEvent = useCallback(
     (event: DebugRuntimeEvent) => {
       const managed = parseManagedDebugPayload(event.payload);
-      const eventId = event.id;
+      const eventId = event.id ?? null;
 
       setDebugEvents((prev) => {
         if (shouldRemoveEntry(managed, eventId)) {
@@ -51,7 +51,7 @@ export function useDebugPanel({ limit, appendStatus }: UseDebugPanelOptions): {
         }
 
         const payloadForEntry = managed ? managed.value : event.payload;
-        const entry = createDebugEntry({ ...event, payload: payloadForEntry } as DebugRuntimeEvent);
+        const entry = createDebugEntry(eventId, payloadForEntry);
         if (!entry) {
           return prev;
         }

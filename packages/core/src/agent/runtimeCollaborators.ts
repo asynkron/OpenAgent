@@ -134,14 +134,16 @@ export const createPromptCoordinatorBundle = ({
   } catch (error) {
     emit({
       type: 'status',
-      level: 'warn',
-      message: 'Failed to initialize ESC state via factory.',
-      details: error instanceof Error ? error.message : String(error),
+      payload: {
+        level: 'warn',
+        message: 'Failed to initialize ESC state via factory.',
+        details: error instanceof Error ? error.message : String(error),
+      },
     });
   }
 
   const promptCoordinatorConfig: PromptCoordinatorFactoryConfig = {
-    emitEvent: (event) => emit(event as RuntimeEvent),
+    emitEvent: emit,
     escState: {
       ...escController.state,
       trigger: escController.trigger ?? escController.state.trigger,

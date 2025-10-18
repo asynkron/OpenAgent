@@ -11,6 +11,7 @@ import type {
   CommandLogEntry,
   CommandPanelEvent,
   CommandResultRuntimeEvent,
+  TimelineCommandPayload,
   TimelinePayload,
 } from './types.js';
 
@@ -26,19 +27,19 @@ export type CommandInspectorResolution = {
 export function createCommandResultPayload(
   event: CommandResultRuntimeEvent,
 ): TimelinePayload<'command-result'> {
-  const commandPayload = event.command as CommandPayload | null | undefined;
-  const resultPayload = event.result as CommandResult | null | undefined;
-  const previewPayload = event.preview as CommandPreview | null | undefined;
-  const executionPayload = event.execution as CommandExecution | null | undefined;
-  const planStepPayload = event.planStep as PlanStep | null | undefined;
+  const { command, result, preview, execution, observation, planStep, planSnapshot } =
+    event.payload;
 
-  return {
-    command: cloneCommandPayload(commandPayload),
-    result: cloneCommandResult(resultPayload),
-    preview: cloneCommandPreview(previewPayload),
-    execution: cloneCommandExecution(executionPayload),
-    planStep: clonePlanStep(planStepPayload),
+  const timelinePayload: TimelineCommandPayload = {
+    command: cloneCommandPayload(command),
+    result: cloneCommandResult(result),
+    preview: cloneCommandPreview(preview),
+    execution: cloneCommandExecution(execution),
+    observation: extractObservationSummary(observation ?? planSnapshot?.summary ?? null),
+    planStep: clonePlanStep(planStep),
   };
+
+  return timelinePayload;
 }
 
 export function resolveCommandInspectorRequest(
@@ -98,26 +99,118 @@ function clampCommandCount(requested: number, totalCommands: number): number {
   return Math.min(upperBound, normalized);
 }
 
-function cloneCommandPayload(value: CommandPayload | null | undefined): CommandPayload | null {
-  if (!value) {
+function cloneCommandPayload(command: unknown): CommandPayload | null {
+  if (!command || typeof command !== 'object') {
     return null;
   }
 
-  return cloneValue(value) as CommandPayload;
+  const source = command as {
+    run?: unknown;
+    reason?: unknown;
+    description?: unknown;
+  };
+
+  const payload: CommandPayload = {};
+
+  if (typeof source.run === 'string') {
+    payload.run = source.run;
+  }
+
+  const descriptionCandidate = typeof source.description === 'string' ? source.description : null;
+  if (descriptionCandidate) {
+    payload.description = descriptionCandidate;
+  } else if (typeof source.reason === 'string') {
+    payload.description = source.reason;
+  }
+
+  return Object.keys(payload).length > 0 ? payload : null;
 }
 
-function cloneCommandResult(value: CommandResult | null | undefined): CommandResult | null {
-  return cloneValue(value ?? null) as CommandResult | null;
+function cloneCommandResult(value: unknown): CommandResult | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const source = value as { exit_code?: unknown; killed?: unknown };
+  const result: CommandResult = {};
+
+  if (typeof source.exit_code === 'number' || source.exit_code === null) {
+    result.exit_code = source.exit_code ?? null;
+  }
+  if (typeof source.killed === 'boolean') {
+    result.killed = source.killed;
+  }
+
+  return Object.keys(result).length > 0 ? result : null;
 }
 
-function cloneCommandPreview(value: CommandPreview | null | undefined): CommandPreview | null {
-  return cloneValue(value ?? null) as CommandPreview | null;
+function cloneCommandPreview(value: unknown): CommandPreview | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const source = value as {
+    stdoutPreview?: unknown;
+    stderrPreview?: unknown;
+    execution?: unknown;
+  };
+
+  const preview: CommandPreview = {};
+
+  if (typeof source.stdoutPreview === 'string') {
+    preview.stdoutPreview = source.stdoutPreview;
+  }
+  if (typeof source.stderrPreview === 'string') {
+    preview.stderrPreview = source.stderrPreview;
+  }
+  if (source.execution && typeof source.execution === 'object') {
+    preview.execution = cloneValue(source.execution) as CommandExecution | null;
+  }
+
+  return Object.keys(preview).length > 0 ? preview : null;
 }
 
-function cloneCommandExecution(value: CommandExecution | null | undefined): CommandExecution | null {
-  return cloneValue(value ?? null) as CommandExecution | null;
+function cloneCommandExecution(value: unknown): CommandExecution | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  return cloneValue(value) as CommandExecution | null;
 }
 
-function clonePlanStep(value: PlanStep | null | undefined): PlanStep | null {
-  return cloneValue(value ?? null) as PlanStep | null;
+function clonePlanStep(value: unknown): PlanStep | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  return cloneValue(value) as PlanStep | null;
+}
+
+function extractObservationSummary(observation: unknown): string | null {
+  if (!observation) {
+    return null;
+  }
+
+  if (typeof observation === 'string') {
+    return observation;
+  }
+
+  if (typeof observation !== 'object') {
+    return null;
+  }
+
+  const record = (observation as { observation_for_llm?: unknown }).observation_for_llm;
+  if (!record || typeof record !== 'object') {
+    return null;
+  }
+
+  if ('summary' in record && typeof record.summary === 'string') {
+    return record.summary;
+  }
+
+  if ('message' in record && typeof record.message === 'string') {
+    return record.message;
+  }
+
+  return null;
 }

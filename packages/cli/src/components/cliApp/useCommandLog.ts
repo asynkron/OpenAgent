@@ -52,9 +52,10 @@ export function useCommandLog({ limit, appendCommandResult, appendStatus }: UseC
 
   const handleCommandEvent = useCallback(
     (event: CommandResultRuntimeEvent) => {
-      appendCommandResult('command-result', createCommandResultPayload(event));
+      const timelinePayload = createCommandResultPayload(event);
+      appendCommandResult('command-result', timelinePayload);
 
-      const commandPayload = event.command as CommandPayload | null | undefined;
+      const commandPayload = timelinePayload.command as CommandPayload | null | undefined;
       if (!commandPayload) {
         return;
       }

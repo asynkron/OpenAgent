@@ -1,10 +1,14 @@
-import { clonePlanForExecution } from '../planExecution.js';
 import { deepCloneValue } from '../../../utils/planCloneUtils.js';
+import { buildPlanStepSnapshot } from '../planSnapshot.js';
 import type ObservationBuilder from '../../observationBuilder.js';
 import type { ExecuteAgentPassOptions } from '../types.js';
 import type { PlanRuntime } from '../planRuntime.js';
 import type { CommandExecutedResult, CommandContinueResult } from './types.js';
-import type { RuntimeProperty, RuntimeDebugPayload } from '../../runtimeTypes.js';
+import type { RuntimeDebugPayload } from '../../runtimeTypes.js';
+import type { PlanSnapshotStep } from '../../utils/plan.js';
+import type { CommandDraft } from '../../../contracts/index.js';
+import type { CommandResult } from '../../../commands/run.js';
+import type { PlanHistorySnapshot } from '../planSnapshot.js';
 
 export interface ResultProcessorOptions {
   readonly observationBuilder: ObservationBuilder;
@@ -46,11 +50,71 @@ const recordCommandStats = async (
   } catch (error) {
     options.emitEvent?.({
       type: 'status',
-      level: 'warn',
-      message: 'Failed to record command usage statistics.',
-      details: error instanceof Error ? error.message : String(error),
+      payload: {
+        level: 'warn',
+        message: 'Failed to record command usage statistics.',
+        details: error instanceof Error ? error.message : String(error),
+      },
     });
   }
+};
+
+const sanitizeCommand = (command: CommandExecutedResult['command'] | null): CommandDraft | null => {
+  if (!command || typeof command !== 'object') {
+    return null;
+  }
+
+  const ensureString = (value: unknown): string | undefined =>
+    typeof value === 'string' ? value : undefined;
+  const ensureNumber = (value: unknown): number | undefined =>
+    typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+
+  const sanitized: CommandDraft = {};
+
+  const reason = ensureString(command.reason);
+  if (reason !== undefined) sanitized.reason = reason;
+  const shell = ensureString(command.shell);
+  if (shell !== undefined) sanitized.shell = shell;
+  const run = ensureString(command.run);
+  if (run !== undefined) sanitized.run = run;
+  const cwd = ensureString(command.cwd);
+  if (cwd !== undefined) sanitized.cwd = cwd;
+  const timeout = ensureNumber(command.timeout_sec);
+  if (timeout !== undefined) sanitized.timeout_sec = timeout;
+  const filterRegex = ensureString(command.filter_regex);
+  if (filterRegex !== undefined) sanitized.filter_regex = filterRegex;
+  const tailLines = ensureNumber(command.tail_lines);
+  if (tailLines !== undefined) sanitized.tail_lines = tailLines;
+  const maxBytes = ensureNumber(command.max_bytes);
+  if (maxBytes !== undefined) sanitized.max_bytes = maxBytes;
+
+  return sanitized;
+};
+
+const sanitizeResult = (result: CommandResult): CommandResult => ({
+  stdout: result.stdout,
+  stderr: result.stderr,
+  exit_code: result.exit_code,
+  killed: result.killed,
+  runtime_ms: result.runtime_ms,
+});
+
+const sanitizePlanStep = (planStep: CommandExecutedResult['planStep']): PlanSnapshotStep | null => {
+  if (!planStep) {
+    return null;
+  }
+
+  return deepCloneValue(planStep) as PlanSnapshotStep;
+};
+
+const sanitizePlanSnapshot = (
+  planStep: CommandExecutedResult['planStep'],
+): PlanHistorySnapshot | null => {
+  if (!planStep) {
+    return null;
+  }
+
+  return buildPlanStepSnapshot(planStep);
 };
 
 export const processCommandExecution = async (
@@ -70,13 +134,13 @@ export const processCommandExecution = async (
     commandResult: executed.result,
   });
 
-  const sanitizedCommand = deepCloneValue(executed.command ?? null) as RuntimeProperty;
-  const sanitizedResult = deepCloneValue(executed.result) as RuntimeProperty;
-  const sanitizedExecution = deepCloneValue(executed.outcome.executionDetails) as RuntimeProperty;
-  const sanitizedObservation = deepCloneValue(observation) as RuntimeProperty;
-  const sanitizedPlanStep = executed.planStep
-    ? ((clonePlanForExecution([executed.planStep])[0] ?? null) as RuntimeProperty)
-    : null;
+  const sanitizedCommand = sanitizeCommand(executed.command ?? null);
+  const sanitizedResult = sanitizeResult(executed.result);
+  const sanitizedExecution = deepCloneValue(executed.outcome.executionDetails);
+  const sanitizedObservation = deepCloneValue(observation);
+  const sanitizedPlanStep = sanitizePlanStep(executed.planStep ?? null);
+  const sanitizedPlanSnapshot = sanitizePlanSnapshot(executed.planStep ?? null);
+  const sanitizedPreview = deepCloneValue(renderPayload);
 
   options.emitDebug(() => ({
     stage: 'command-execution',
@@ -88,11 +152,15 @@ export const processCommandExecution = async (
 
   options.emitEvent?.({
     type: 'command-result',
-    command: sanitizedCommand,
-    result: sanitizedResult,
-    preview: deepCloneValue(renderPayload) as RuntimeProperty,
-    execution: sanitizedExecution,
-    planStep: sanitizedPlanStep,
+    payload: {
+      command: sanitizedCommand,
+      result: sanitizedResult,
+      preview: sanitizedPreview,
+      execution: sanitizedExecution,
+      observation: sanitizedObservation,
+      planStep: sanitizedPlanStep,
+      planSnapshot: sanitizedPlanSnapshot,
+    },
   });
 
   const snapshotEffect = options.planRuntime.emitPlanSnapshot();

@@ -31,8 +31,11 @@ export const maybeCreateRefusalEffects = ({
   return [
     ...toEmitEffects({
       type: 'status',
-      level: 'info',
-      message: refusalHeuristics.statusMessage,
+      payload: {
+        level: 'info',
+        message: refusalHeuristics.statusMessage,
+        details: null,
+      },
     }),
     createHistoryEntryEffect(
       createRefusalAutoResponseEntry({

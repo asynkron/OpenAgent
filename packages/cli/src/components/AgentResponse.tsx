@@ -1,8 +1,6 @@
 import type { ReactElement } from 'react';
 import { Box, Text } from 'ink';
 
-import type { RuntimeProperty } from '@asynkron/openagent-core';
-
 import { renderMarkdownMessage, wrapStructuredContent } from '../render.js';
 import theme from '../theme.js';
 import { toBoxProps, toTextProps, type BoxStyleProps, type TextStyleProps } from '../styleTypes.js';
@@ -12,7 +10,7 @@ const agentColors = agent.colors;
 const agentProps = agent.props;
 
 type AgentResponseProps = {
-  message?: RuntimeProperty | null;
+  message?: string | null;
 };
 
 /**

@@ -19,22 +19,27 @@ export function normalizeStatus(
     return null;
   }
 
-  const message = typeof event.message === 'string' ? event.message.trim() : '';
+  const payload = 'payload' in event && event.payload
+    ? (event.payload as StatusLikePayload)
+    : (event as StatusLikePayload);
+
+  const message = typeof payload.message === 'string' ? payload.message.trim() : '';
   if (!message) {
     return null;
   }
 
   const normalized: TimelineStatusPayload = { message };
 
-  if (typeof event.level === 'string') {
-    const level = event.level.trim();
+  if (typeof payload.level === 'string') {
+    const level = payload.level.trim();
     if (level) {
       normalized.level = level;
     }
   }
 
-  if (event.details !== undefined && event.details !== null) {
-    normalized.details = String(event.details);
+  if (payload.details !== undefined && payload.details !== null) {
+    const details = typeof payload.details === 'string' ? payload.details : String(payload.details);
+    normalized.details = details;
   }
 
   return normalized;

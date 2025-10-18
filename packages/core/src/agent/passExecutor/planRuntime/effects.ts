@@ -2,9 +2,11 @@ import type { ExecuteAgentPassOptions } from '../types.js';
 import type { ChatMessageEntry } from '../../historyEntry.js';
 import type { PlanStep } from '../planExecution.js';
 import { clonePlanForExecution } from '../planExecution.js';
+import { clonePlanTree } from '../../../utils/planCloneUtils.js';
 import type { RuntimeReminderController } from './reminderController.js';
 import { createPlanObservationHistoryEntry } from './observationRecorder.js';
-import type { RuntimeStatusEvent } from './persistence.js';
+import type { StatusRuntimeEvent } from '../../runtimeEvents.js';
+import type { PlanSnapshot } from '../../utils/plan.js';
 
 export type RuntimeEvent = Parameters<NonNullable<ExecuteAgentPassOptions['emitEvent']>>[0];
 
@@ -64,9 +66,8 @@ export const createPlanObservationEffect = ({
     }),
   );
 
-export const toEmitEffects = (
-  event: RuntimeEvent | RuntimeStatusEvent | null,
-): PlanRuntimeEffect[] => (event ? [createEmitEffect(event as RuntimeEvent)] : []);
+export const toEmitEffects = (event: RuntimeEvent | null): PlanRuntimeEffect[] =>
+  event ? [createEmitEffect(event)] : [];
 
 export interface PlanRuntimeEffectContext {
   readonly history: ChatMessageEntry[];
@@ -85,10 +86,15 @@ export const applyPlanRuntimeEffects = (
         context.emitEvent?.(effect.event);
         break;
       case 'plan-snapshot':
-        context.emitEvent?.({
+        if (!context.emitEvent) {
+          break;
+        }
+        context.emitEvent({
           type: 'plan',
-          plan: clonePlanForExecution(effect.plan),
-        } as RuntimeEvent);
+          payload: {
+            plan: clonePlanTree(effect.plan as unknown as PlanSnapshot),
+          },
+        });
         break;
       case 'history-entry':
         context.history.push(effect.entry);

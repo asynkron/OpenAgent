@@ -88,9 +88,11 @@ export const createExecutionContext = (options: ExecuteAgentPassOptions): Execut
     } catch (error) {
       normalized.emitEvent({
         type: 'status',
-        level: 'warn',
-        message: '[failsafe] Unable to record request payload baseline after pass.',
-        details: error instanceof Error ? error.message : String(error),
+        payload: {
+          level: 'warn',
+          message: '[failsafe] Unable to record request payload baseline after pass.',
+          details: error instanceof Error ? error.message : String(error),
+        },
       });
     }
   };

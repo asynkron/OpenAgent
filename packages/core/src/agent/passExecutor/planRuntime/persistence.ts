@@ -1,13 +1,7 @@
 import { clonePlanForExecution, type PlanStep } from '../planExecution.js';
 import type { PlanManagerAdapter } from '../planManagerAdapter.js';
 import { globalRegistry } from '../planStepRegistry.js';
-
-export interface RuntimeStatusEvent {
-  type: 'status';
-  level: 'info' | 'warn' | 'error';
-  message: string;
-  details?: string;
-}
+import type { StatusRuntimeEvent } from '../../runtimeEvents.js';
 
 export interface PreparedIncomingPlan {
   sanitizedPlan: PlanStep[] | null;
@@ -31,7 +25,7 @@ export const prepareIncomingPlan = (incomingPlan: PlanStep[] | null): PreparedIn
 
 export interface ResolvePlanResult {
   plan: PlanStep[] | null;
-  warning: RuntimeStatusEvent | null;
+  warning: StatusRuntimeEvent | null;
 }
 
 export const resolveActivePlan = async (
@@ -55,9 +49,11 @@ export const resolveActivePlan = async (
       plan: null,
       warning: {
         type: 'status',
-        level: 'warn',
-        message: 'Failed to update persistent plan state.',
-        details: message,
+        payload: {
+          level: 'warn',
+          message: 'Failed to update persistent plan state.',
+          details: message,
+        },
       },
     } satisfies ResolvePlanResult;
   }
@@ -65,7 +61,7 @@ export const resolveActivePlan = async (
 
 export interface ResetPlanResult {
   plan: PlanStep[];
-  warning: RuntimeStatusEvent | null;
+  warning: StatusRuntimeEvent | null;
 }
 
 export const resetPersistedPlan = async (
@@ -89,9 +85,11 @@ export const resetPersistedPlan = async (
       plan: [],
       warning: {
         type: 'status',
-        level: 'warn',
-        message: 'Failed to clear persistent plan state after completion.',
-        details: message,
+        payload: {
+          level: 'warn',
+          message: 'Failed to clear persistent plan state after completion.',
+          details: message,
+        },
       },
     } satisfies ResetPlanResult;
   }
@@ -100,7 +98,7 @@ export const resetPersistedPlan = async (
 export const syncPlanSnapshot = async (
   planManager: PlanManagerAdapter | null,
   plan: PlanStep[],
-): Promise<RuntimeStatusEvent | null> => {
+): Promise<StatusRuntimeEvent | null> => {
   if (!planManager) {
     return null;
   }
@@ -112,9 +110,11 @@ export const syncPlanSnapshot = async (
     const message = error instanceof Error ? error.message : String(error);
     return {
       type: 'status',
-      level: 'warn',
-      message: 'Failed to persist plan state after execution.',
-      details: message,
-    } satisfies RuntimeStatusEvent;
+      payload: {
+        level: 'warn',
+        message: 'Failed to persist plan state after execution.',
+        details: message,
+      },
+    } satisfies StatusRuntimeEvent;
   }
 };

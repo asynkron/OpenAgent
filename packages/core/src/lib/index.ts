@@ -98,19 +98,14 @@ export {
   applyStartupFlagsFromArgv,
   startupFlagAccessors,
 };
-export type {
-  PromptCoordinatorEvent,
-  PromptCoordinatorStatusEvent,
-  PromptRequestEvent,
-  PromptRequestMetadata,
-  PromptRequestScope,
-} from '../agent/promptCoordinator.js';
+export type { PromptRequestMetadata, PromptRequestScope } from '../agent/promptCoordinator.js';
 export type {
   AssistantMessageRuntimeEvent,
   BannerRuntimeEvent,
   CommandResultRuntimeEvent,
   ContextUsageRuntimeEvent,
   DebugRuntimeEvent,
+  DebugRuntimeEventPayload,
   ErrorRuntimeEvent,
   PassRuntimeEvent,
   PlanProgressRuntimeEvent,
@@ -119,12 +114,14 @@ export type {
   RuntimeEvent,
   RuntimeEventBase,
   RuntimeEventObserver,
-  RuntimeProperty,
+  SchemaValidationFailedRuntimeEvent,
+  StatusLevel,
   StatusRuntimeEvent,
   ThinkingRuntimeEvent,
-  UnknownRuntimeEvent,
+  ThinkingState,
   AgentRuntimeOptions,
 } from '../agent/runtimeTypes.js';
+export type { PlanHistorySnapshot } from '../agent/passExecutor/planSnapshot.js';
 export type { ChatMessageEntry } from '../contracts/index.js';
 export type { CommandResult } from '../commands/run.js';
 export type { ContextUsageSummary } from '../utils/contextUsage.js';

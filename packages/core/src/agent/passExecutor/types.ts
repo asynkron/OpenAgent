@@ -10,7 +10,7 @@ import type { ChatMessageEntry } from '../historyEntry.js';
 import type { requestModelCompletion as RequestModelCompletion } from '../modelRequest.js';
 import type { executeAgentCommand as ExecuteAgentCommand } from '../commandExecution.js';
 import type { parseAssistantResponse as ParseAssistantResponse } from '../responseParser.js';
-import type { RuntimeProperty, RuntimeEvent } from '../runtimeTypes.js';
+import type { DebugRuntimeEventPayload, RuntimeEvent } from '../runtimeTypes.js';
 import type {
   validateAssistantResponseSchema as ValidateAssistantResponseSchema,
   validateAssistantResponse as ValidateAssistantResponse,
@@ -47,17 +47,12 @@ export type CompletionAttempt =
 
 export type CommandRunOutcome = CommandExecutionResult;
 
-export interface DebugMetadata {
-  stage: string;
-  [key: string]: RuntimeProperty;
-}
-
 export interface ExecuteAgentPassOptions {
   openai: ResponsesClient;
   model: string;
   history: PlanHistory;
   emitEvent?: EmitEvent;
-  onDebug?: ((payload: DebugMetadata) => void) | null;
+  onDebug?: ((payload: DebugRuntimeEventPayload) => void) | null;
   runCommandFn: AgentCommandContext['runCommandFn'];
   applyFilterFn: ObservationBuilderDeps['applyFilter'];
   tailLinesFn: ObservationBuilderDeps['tailLines'];

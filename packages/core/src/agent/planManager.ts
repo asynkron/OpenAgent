@@ -13,14 +13,9 @@ import {
   type PlanProgress,
 } from '../utils/plan.js';
 import { PlanManagerController } from './planManagerController.js';
-import type { StatusRuntimeEvent } from './runtimeTypes.js';
+import type { PlanProgressRuntimeEvent, StatusRuntimeEvent } from './runtimeTypes.js';
 
-export interface PlanManagerEvents {
-  type: 'plan-progress';
-  progress: PlanProgress;
-}
-
-export type EmitFn = (event: PlanManagerEvents) => void;
+export type EmitFn = (event: PlanProgressRuntimeEvent) => void;
 export type EmitStatusFn = (event: StatusRuntimeEvent) => void;
 
 export interface PlanPersistenceAdapter {

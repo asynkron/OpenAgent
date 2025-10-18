@@ -33,11 +33,14 @@ export const requestCommandApproval = async (
 
     emitEvent?.({
       type: 'status',
-      level: 'info',
-      message:
-        outcome.decision === 'approve_session'
-          ? 'Command approved for the remainder of the session.'
-          : 'Command approved for single execution.',
+      payload: {
+        level: 'info',
+        message:
+          outcome.decision === 'approve_session'
+            ? 'Command approved for the remainder of the session.'
+            : 'Command approved for single execution.',
+        details: null,
+      },
     });
 
     return { ...prepared, type: 'approved' } satisfies ApprovedCommand;
@@ -46,8 +49,11 @@ export const requestCommandApproval = async (
   if (autoApproval.source === 'flag' && emitAutoApproveStatus) {
     emitEvent?.({
       type: 'status',
-      level: 'info',
-      message: 'Command auto-approved via flag.',
+      payload: {
+        level: 'info',
+        message: 'Command auto-approved via flag.',
+        details: null,
+      },
     });
   }
 
