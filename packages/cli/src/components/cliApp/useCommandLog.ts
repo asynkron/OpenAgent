@@ -10,14 +10,10 @@ import type {
   TimelinePayload,
 } from './types.js';
 import { appendWithLimit, formatDebugPayload } from './logging.js';
-import { cloneValue, parsePositiveInteger } from './runtimeUtils.js';
-import type { PlanStep } from '../planUtils.js';
-import type {
-  Command as CommandPayload,
-  CommandExecution,
-  CommandPreview,
-  CommandResult,
-} from '../commandUtils.js';
+import { parsePositiveInteger } from './runtimeUtils.js';
+import { resolveCommandInspector } from './commandInspector.js';
+import { normaliseCommandResultEvent } from './commandLogNormalizer.js';
+import type { Command as CommandPayload } from '../commandUtils.js';
 
 export interface UseCommandLogOptions {
   limit: number;
@@ -42,7 +38,7 @@ export function useCommandLog({ limit, appendCommandResult, appendStatus }: UseC
     (commandPayload: CommandPayload): CommandLogEntry => {
       const entry: CommandLogEntry = {
         id: commandLogIdRef.current + 1,
-        command: cloneValue(commandPayload),
+        command: commandPayload,
         receivedAt: Date.now(),
       };
       commandLogIdRef.current = entry.id;
@@ -53,23 +49,13 @@ export function useCommandLog({ limit, appendCommandResult, appendStatus }: UseC
 
   const handleCommandEvent = useCallback(
     (event: CommandResultRuntimeEvent) => {
-      const commandPayload = cloneValue(event.command ?? null) as CommandPayload | null;
-      const resultPayload = cloneValue(event.result ?? null) as CommandResult | null;
-      const previewPayload = cloneValue(event.preview ?? null) as CommandPreview | null;
-      const executionPayload = cloneValue(event.execution ?? null) as CommandExecution | null;
-      const planStepPayload = cloneValue(event.planStep ?? null) as PlanStep | null;
+      const normalised = normaliseCommandResultEvent(event);
 
-      appendCommandResult('command-result', {
-        command: commandPayload,
-        result: resultPayload,
-        preview: previewPayload,
-        execution: executionPayload,
-        planStep: planStepPayload,
-      });
+      appendCommandResult('command-result', normalised.timelinePayload);
 
-      if (commandPayload) {
+      if (normalised.command) {
         setCommandLog((prev) => {
-          const entry = createCommandLogEntry(commandPayload);
+          const entry = createCommandLogEntry(normalised.command);
           return appendWithLimit(prev, entry, limit).next;
         });
       }
@@ -79,36 +65,16 @@ export function useCommandLog({ limit, appendCommandResult, appendStatus }: UseC
 
   const executeCommandInspectorCommand = useCallback(
     (rest: string) => {
-      if (!commandLog || commandLog.length === 0) {
-        appendStatus({ level: 'info', message: 'No commands have been received yet.' });
-        setCommandInspector(null);
-        return;
-      }
+      const result = resolveCommandInspector({
+        commandLog,
+        rest,
+        now: Date.now,
+        parseCount: parsePositiveInteger,
+      });
 
-      let requested = 1;
-      if (rest.length > 0) {
-        const parsed = parsePositiveInteger(rest, Number.NaN);
-        if (!Number.isFinite(parsed)) {
-          appendStatus({
-            level: 'warn',
-            message:
-              'Command inspector requires a positive integer. Showing the latest command instead.',
-          });
-        } else {
-          requested = parsed;
-        }
-      }
-
-      const safeCount = Math.max(1, Math.min(commandLog.length, requested));
-      const panelKey = Date.now();
-      setCommandInspector({ requested: safeCount, token: panelKey });
-
-      appendStatus({
-        level: 'info',
-        message:
-          safeCount === 1
-            ? 'Showing the most recent command payload.'
-            : `Showing the ${safeCount} most recent command payloads.`,
+      setCommandInspector(result.state);
+      result.statusMessages.forEach((payload) => {
+        appendStatus(payload);
       });
     },
     [appendStatus, commandLog],
@@ -123,17 +89,14 @@ export function useCommandLog({ limit, appendCommandResult, appendStatus }: UseC
   );
 
   const commandPanelEvents = useMemo<CommandPanelEvent[]>(() => {
-    if (!commandInspector || !commandLog.length) {
+    if (!commandInspector || commandLog.length === 0) {
       return [];
     }
 
-    const safeCount = Math.max(
-      1,
-      Math.min(commandLog.length, parsePositiveInteger(commandInspector.requested, 1)),
-    );
+    const startIndex = Math.max(commandLog.length - commandInspector.requested, 0);
 
     return commandLog
-      .slice(commandLog.length - safeCount)
+      .slice(startIndex)
       .reverse()
       .map((entry) => ({ id: entry.id, content: formatDebugPayload(entry.command) }));
   }, [commandInspector, commandLog]);
