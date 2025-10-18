@@ -47,4 +47,67 @@ describe('StructuredResponseEventEmitter', () => {
     expect(emitEvent).not.toHaveBeenCalled();
     expect(finalSummary.messageEmitted).toBe(false);
   });
+
+  test('emits plan snapshots during streaming and final response handling', () => {
+    const emitEvent = jest.fn();
+    const emitter = createStructuredResponseEventEmitter({ emitEvent });
+
+    const streamSummary = emitter.handleStreamPartial({
+      plan: [
+        {
+          id: 'step-1',
+          title: 'Prep workspace',
+          status: 'in_progress',
+          command: { run: 'ls' },
+        },
+      ],
+    });
+
+    expect(streamSummary.planEmitted).toBe(true);
+    expect(emitEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'plan',
+        payload: {
+          plan: [
+            expect.objectContaining({
+              id: 'step-1',
+              status: 'in_progress',
+              command: expect.objectContaining({ run: 'ls' }),
+            }),
+          ],
+        },
+      }),
+    );
+
+    emitEvent.mockClear();
+
+    const finalSummary = emitter.handleFinalResponse({
+      message: 'done',
+      plan: [
+        {
+          id: 'step-1',
+          title: 'Prep workspace',
+          status: 'complete',
+          command: { run: 'ls' },
+          observation: null,
+        },
+      ],
+    });
+
+    expect(finalSummary.planEmitted).toBe(true);
+    expect(emitEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'plan',
+        payload: {
+          plan: [
+            expect.objectContaining({
+              id: 'step-1',
+              status: 'complete',
+              observation: null,
+            }),
+          ],
+        },
+      }),
+    );
+  });
 });

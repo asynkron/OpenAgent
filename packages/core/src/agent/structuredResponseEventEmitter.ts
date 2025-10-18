@@ -259,9 +259,13 @@ const emptySummary: StructuredResponseEmissionSummary = {
 export class StructuredResponseEventEmitter {
   private readonly emitEvent: EmitRuntimeEvent | null;
 
-  private plan: PlanSnapshotStep[] = [];
+  private streamingPlan: PlanSnapshotStep[] = [];
 
-  private lastPlanSignature: string | null = null;
+  private finalPlan: PlanSnapshotStep[] = [];
+
+  private lastStreamingPlanSignature: string | null = null;
+
+  private lastFinalPlanSignature: string | null = null;
 
   private lastMessageSignature: string | null = null;
 
@@ -276,14 +280,14 @@ export class StructuredResponseEventEmitter {
       return emptySummary;
     }
 
-    let planEmitted = false;
-
     if (typeof partial.message === 'string') {
       this.applyMessageUpdate(partial.message);
     }
 
+    let planEmitted = false;
+
     if ('plan' in partial) {
-      const planChanged = this.mergePlanSnapshot(
+      const planChanged = this.mergeStreamingPlanSnapshot(
         partial.plan === null
           ? null
           : Array.isArray(partial.plan)
@@ -291,7 +295,7 @@ export class StructuredResponseEventEmitter {
           : undefined,
       );
       if (planChanged) {
-        planEmitted = this.emitPlanIfChanged();
+        planEmitted = this.emitStreamingPlanSnapshot();
       }
     }
 
@@ -303,8 +307,14 @@ export class StructuredResponseEventEmitter {
 
   handleFinalResponse(response: PlanResponse): StructuredResponseEmissionSummary {
     this.applyMessageUpdate(response.message);
-    const planChanged = this.replacePlanSnapshot(response.plan.map((step) => buildSnapshotFromPlanStep(step)));
-    const planEmitted = planChanged ? this.emitPlanIfChanged() : false;
+    const finalPlanSnapshot = response.plan.map((step) => buildSnapshotFromPlanStep(step));
+    const planChanged = this.replaceFinalPlanSnapshot(finalPlanSnapshot);
+    const planEmitted = planChanged ? this.emitFinalPlanSnapshot() : false;
+
+    if (this.streamingPlan.length > 0 || this.lastStreamingPlanSignature !== null) {
+      this.streamingPlan = [];
+      this.lastStreamingPlanSignature = null;
+    }
 
     return {
       messageEmitted: this.hasEmittedMessage,
@@ -333,16 +343,17 @@ export class StructuredResponseEventEmitter {
     return true;
   }
 
-  private mergePlanSnapshot(plan: PlanSnapshotStep[] | null | undefined): boolean {
+  private mergeStreamingPlanSnapshot(plan: PlanSnapshotStep[] | null | undefined): boolean {
     if (plan === undefined) {
       return false;
     }
 
     if (plan === null) {
-      if (this.plan.length === 0) {
+      if (this.streamingPlan.length === 0) {
         return false;
       }
-      this.plan = [];
+      this.streamingPlan = [];
+      this.lastStreamingPlanSignature = null;
       return true;
     }
 
@@ -353,41 +364,80 @@ export class StructuredResponseEventEmitter {
       if (!incoming) {
         continue;
       }
-      const existing = index < this.plan.length ? this.plan[index] : undefined;
+      const existing = index < this.streamingPlan.length ? this.streamingPlan[index] : undefined;
       const mergedStep = mergePlanSnapshotStep(existing, incoming);
       if (hasPlanSnapshotContent(mergedStep)) {
         merged.push(mergedStep);
       }
     }
 
-    return this.replacePlanSnapshot(merged);
+    return this.replaceStreamingPlanSnapshot(merged);
   }
 
-  private replacePlanSnapshot(plan: PlanSnapshotStep[]): boolean {
+  private replaceStreamingPlanSnapshot(plan: PlanSnapshotStep[]): boolean {
     const serializedNext = serializePlan(plan);
-    const serializedCurrent = serializePlan(this.plan);
+    const serializedCurrent = serializePlan(this.streamingPlan);
 
     if (serializedNext === serializedCurrent) {
       return false;
     }
 
-    this.plan = plan;
+    this.streamingPlan = plan;
+    this.lastStreamingPlanSignature = null;
     return true;
   }
 
-  private emitPlanIfChanged(): boolean {
+  private replaceFinalPlanSnapshot(plan: PlanSnapshotStep[]): boolean {
+    const serializedNext = serializePlan(plan);
+    const serializedCurrent = serializePlan(this.finalPlan);
+
+    if (serializedNext === serializedCurrent) {
+      return false;
+    }
+
+    this.finalPlan = plan;
+    return true;
+  }
+
+  private emitStreamingPlanSnapshot(): boolean {
     if (!this.emitEvent) {
       return false;
     }
 
-    const snapshot: PlanSnapshot = clonePlanTree(this.plan);
+    const snapshot: PlanSnapshot = clonePlanTree(this.streamingPlan);
     const serialized = serializePlan(snapshot);
 
-    if (this.lastPlanSignature === serialized) {
+    if (this.lastStreamingPlanSignature === serialized) {
       return false;
     }
 
-    this.lastPlanSignature = serialized;
+    this.lastStreamingPlanSignature = serialized;
+
+    const event: RuntimeEvent = {
+      type: 'plan',
+      payload: {
+        plan: snapshot,
+      },
+      plan: snapshot,
+    } as RuntimeEvent;
+
+    this.emitEvent(event);
+    return true;
+  }
+
+  private emitFinalPlanSnapshot(): boolean {
+    if (!this.emitEvent) {
+      return false;
+    }
+
+    const snapshot: PlanSnapshot = clonePlanTree(this.finalPlan);
+    const serialized = serializePlan(snapshot);
+
+    if (this.lastFinalPlanSignature === serialized) {
+      return false;
+    }
+
+    this.lastFinalPlanSignature = serialized;
 
     const event: RuntimeEvent = {
       type: 'plan',
