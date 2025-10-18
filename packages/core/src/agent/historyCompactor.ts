@@ -14,11 +14,12 @@
  */
 
 import { createChatMessageEntry, mapHistoryToModelMessages } from './historyEntry.js';
+import { buildSummarizationInput, getHighestPass } from './historyCompactorHelpers.js';
 import { summarizeContextUsage, type ContextUsageSummary } from '../utils/contextUsage.js';
 import { extractResponseText } from '../openai/responseUtils.js';
 import { createResponse, type ResponsesClient } from '../openai/responses.js';
 import { getOpenAIRequestSettings } from '../openai/client.js';
-import type { ChatMessageContent, ChatMessageEntry } from '../contracts/index.js';
+import type { ChatMessageEntry } from '../contracts/index.js';
 
 const DEFAULT_USAGE_THRESHOLD = 0.5;
 const DEFAULT_SUMMARY_PREFIX = 'Compacted memory:';
@@ -46,67 +47,17 @@ export interface CompactIfNeededInput {
   history?: ChatMessageEntry[] | null;
 }
 
-const stringifyContent = (content: ChatMessageContent | undefined): string => {
-  if (typeof content === 'string') {
-    return content;
-  }
-
-  if (Array.isArray(content)) {
-    return content
-      .map((item) => {
-        if (item.type === 'text' && typeof item.text === 'string') {
-          return item.text;
-        }
-
-        if (item.type === 'text' && typeof item.value === 'string') {
-          return item.value;
-        }
-
-        return '';
-      })
-      .filter((chunk) => chunk.length > 0)
-      .join('\n');
-  }
-
-  return '';
-};
-
-const normalizeContent = (entry: ChatMessageEntry): string => {
-  const payloadContent =
-    Object.prototype.hasOwnProperty.call(entry.payload, 'content') && entry.payload.content
-      ? entry.payload.content
-      : undefined;
-
-  const chosenContent =
-    typeof entry.content !== 'undefined' ? entry.content : (payloadContent as ChatMessageContent);
-
-  return stringifyContent(chosenContent);
-};
-
-const buildSummarizationInput = (entries: ChatMessageEntry[]): ChatMessageEntry[] => {
-  const formattedEntries = entries
-    .map((entry, index) => {
-      const role = typeof entry.role === 'string' ? entry.role : 'unknown';
-      const content = normalizeContent(entry);
-      const passLabel = Number.isFinite(entry.pass) ? `pass ${entry.pass}` : 'unknown pass';
-      return `Entry ${index + 1} (${role}, ${passLabel}):\n${content}`;
-    })
-    .join('\n\n');
-
-  return [
-    createChatMessageEntry({
-      eventType: 'chat-message',
-      role: 'system',
-      content:
-        'You summarize prior conversation history into a concise long-term memory for an autonomous agent. Capture key facts, decisions, obligations, and user preferences. Respond with plain text only.',
-    }),
-    createChatMessageEntry({
-      eventType: 'chat-message',
-      role: 'user',
-      content: `Summarize the following ${entries.length} conversation entries for long-term memory. Preserve critical details while remaining concise.\n\n${formattedEntries}`,
-    }),
-  ];
-};
+/**
+ * Captures the compaction decision so `compactIfNeeded` only orchestrates the
+ * async summarization + splice step. Keeping the branching here helps the
+ * public method stay linear for readability and testing.
+ */
+interface CompactionPlan {
+  startIndex: number;
+  endIndex: number;
+  model: string;
+  responsesClient: ResponsesClient;
+}
 
 export class HistoryCompactor {
   private readonly openai?: ResponsesClient | null;
@@ -134,42 +85,16 @@ export class HistoryCompactor {
       return false;
     }
 
-    if (!this.hasResponsesClient()) {
+    const plan = this.planCompaction(history);
+    if (!plan) {
       return false;
     }
 
-    const usage = this.summarizeUsage(history);
-    if (!usage || usage.total === null || usage.total <= 0) {
-      return false;
-    }
-
-    const usageRatio = usage.used / usage.total;
-    if (usageRatio <= this.usageThreshold) {
-      return false;
-    }
-
-    const firstContentIndex = history[0]?.role === 'system' ? 1 : 0;
-    const availableEntries = history.length - firstContentIndex;
-    if (availableEntries <= 1) {
-      return false;
-    }
-
-    const entriesToCompactCount = Math.max(1, Math.floor(availableEntries / 2));
-    const entriesToCompact = history.slice(
-      firstContentIndex,
-      firstContentIndex + entriesToCompactCount,
-    );
-
-    const modelName = typeof this.model === 'string' && this.model.trim() ? this.model : null;
-    if (!modelName) {
-      return false;
-    }
-
-    const responsesClient = this.resolveResponsesClient();
+    const entriesToCompact = history.slice(plan.startIndex, plan.endIndex);
 
     let summary: string;
     try {
-      summary = await this.generateSummary(entriesToCompact, responsesClient, modelName);
+      summary = await this.generateSummary(entriesToCompact, plan.responsesClient, plan.model);
     } catch (error) {
       this.warn('[history-compactor] Failed to summarize history entries.', {
         error: error instanceof Error ? error.message : String(error),
@@ -184,12 +109,7 @@ export class HistoryCompactor {
 
     this.log(`[history-compactor] Compacted summary:\n${summarizedText}`);
 
-    const compactedPass = entriesToCompact.reduce<number>((max, entry) => {
-      if (typeof entry.pass === 'number' && entry.pass > max) {
-        return entry.pass;
-      }
-      return max;
-    }, 0);
+    const compactedPass = getHighestPass(entriesToCompact);
 
     const compactedEntry = createChatMessageEntry({
       eventType: 'chat-message',
@@ -199,7 +119,8 @@ export class HistoryCompactor {
     });
 
     const originalHistoryLength = history.length;
-    history.splice(firstContentIndex, entriesToCompactCount, compactedEntry);
+    const entriesToCompactCount = plan.endIndex - plan.startIndex;
+    history.splice(plan.startIndex, entriesToCompactCount, compactedEntry);
     this.log('[history-compactor] Compacted history entries.', {
       entriesCompacted: entriesToCompactCount,
       originalHistoryLength,
@@ -207,6 +128,43 @@ export class HistoryCompactor {
     });
 
     return true;
+  }
+
+  private planCompaction(history: ChatMessageEntry[]): CompactionPlan | null {
+    if (!this.hasResponsesClient()) {
+      return null;
+    }
+
+    const usage = this.summarizeUsage(history);
+    if (!usage || usage.total === null || usage.total <= 0) {
+      return null;
+    }
+
+    const usageRatio = usage.used / usage.total;
+    if (usageRatio <= this.usageThreshold) {
+      return null;
+    }
+
+    const startIndex = history[0]?.role === 'system' ? 1 : 0;
+    const availableEntries = history.length - startIndex;
+    if (availableEntries <= 1) {
+      return null;
+    }
+
+    const entriesToCompactCount = Math.max(1, Math.floor(availableEntries / 2));
+    const endIndex = startIndex + entriesToCompactCount;
+
+    const modelName = typeof this.model === 'string' && this.model.trim() ? this.model : null;
+    if (!modelName) {
+      return null;
+    }
+
+    return {
+      startIndex,
+      endIndex,
+      model: modelName,
+      responsesClient: this.resolveResponsesClient(),
+    };
   }
 
   async generateSummary(
