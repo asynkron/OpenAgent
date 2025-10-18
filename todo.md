@@ -47,7 +47,7 @@ Top refactor targets:
 - [x] `packages/web/frontend/src/js/services/chat_eventDisplay.ts` – Body selection heuristics are still ad-hoc; codifying banner/status rendering rules would prevent regressions.
 - [ ] `packages/web/frontend/src/js/services/chat_inputController.ts` – Key event handling remains sprawling; extract caret/shortcut handling into pure utilities.
 - [ ] `packages/web/frontend/src/js/components/plan_model.ts` – Combines tree normalization and highlight handling; splitting schema transforms from rendering decisions would tidy the module.
-- [ ] `packages/web/frontend/src/js/services/chat_model.ts` – Serializes responses to the DOM; needs better typing and separation between history transforms and summary building.
+- [x] `packages/web/frontend/src/js/services/chat_model.ts` – Serializes responses to the DOM; needs better typing and separation between history transforms and summary building.
 - [ ] `packages/web/frontend/src/js/services/chat_dom.ts` – Low-level DOM helpers still rely on implicit document globals; moving to explicit dependency injection would ease unit testing.
 
 ## packages/web/backend

@@ -14,6 +14,9 @@
 - `chat_socket.ts` — WebSocket manager emitting typed lifecycle/status events, encapsulating reconnect timers, and guarding against stale sockets; shared helpers now centralise URL resolution and teardown logging so the event handlers stay small.
 - `chat_router.ts` — Payload handler map converting agent payloads into normalised actions (`message`, `status`, `plan`, etc.) consumed by the DOM layer.
 - `chat_inputController.ts` — Form/input coordinator managing auto-resize, submission shortcuts, and an outgoing message queue bound to an injected sender.
+- `chat_model.ts` — Shared type definitions plus re-exports of the pure chat helper modules.
+- `chat_modelText.ts` — Text and approval-detection utilities shared by the router and DOM controllers.
+- `chat_modelPreview.ts` — Command preview normalisers used when rendering shell snippets.
 
 ## Tests
 
