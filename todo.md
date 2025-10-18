@@ -15,7 +15,7 @@ Top refactor targets:
 - [x] `packages/core/src/openai/responses.ts` – Streams/generator plumbing, schema coercion, and provider option setup all live together; the new partial typings help, but the normalizer still deserves a dedicated module per payload branch.
 - [x] `packages/core/src/agent/runtimePayloadGuard.ts` – The payload growth guard mixes metrics reporting and history dumping; carving out the logging and threshold calculations would simplify the guard loop.
 - [ ] `packages/core/src/agent/promptCoordinator.ts` – Prompt queue orchestration still leans on optional chaining and loose payload types; refactoring toward an explicit state machine would remove ad-hoc checks.
-- [ ] `packages/core/src/agent/planManager.ts` – The merge/reset logic combines file I/O, in-memory caches, and plan diffing; splitting adapter concerns from the domain model would shrink the cognitive load.
+- [x] `packages/core/src/agent/planManager.ts` – The merge/reset logic combines file I/O, in-memory caches, and plan diffing; splitting adapter concerns from the domain model would shrink the cognitive load.
 - [x] `packages/core/src/agent/historyCompactor.ts` – Blends context window estimation, history slicing, and logging; worth extracting the token estimation and compaction strategies into targeted helpers.
 - [ ] `packages/core/src/commands/run.ts` – Shell execution wraps temp files, cancellation, and result normalization; introducing a dedicated child-process adapter plus typed stderr augmenters would tame the branching.
 - [ ] `packages/core/src/services/commandApprovalService.ts` – Approval policy resolution still couples async session storage with prompt formatting; isolating the persistence layer and command signature helpers would pay down technical debt.
@@ -27,9 +27,9 @@ Top refactor targets:
 - [ ] `packages/cli/src/components/AskHuman.tsx` – Still `@ts-nocheck`; newline handling, slash-menu orchestration, and lock state need typed helpers to re-enable strict mode.
 - [ ] `packages/cli/src/components/InkTextArea.tsx` – Key event parsing, row transforms, and caret management share a single file; splitting input parsing vs. rendering would simplify test coverage.
 - [ ] `packages/cli/src/components/CliApp.tsx` – Now strongly typed, but it still handles every runtime event branch directly; extracting event routers (status, command, debug) into dedicated hooks would shrink the component.
-- [ ] `packages/cli/src/components/cliApp/runtimeUtils.ts` – Utility grab bag mixing cloning, integer parsing, and status normalization; deserves a separation between runtime data helpers and CLI-only coercions.
+- [x] `packages/cli/src/components/cliApp/runtimeUtils.ts` – Utility grab bag mixing cloning, integer parsing, and status normalization; deserves a separation between runtime data helpers and CLI-only coercions.
 - [ ] `packages/cli/src/components/cliApp/useCommandLog.ts` – Handles timeline updates, log trimming, and slash command messaging; consider peeling the log store into a pure reducer to make the hook smaller.
-- [ ] `packages/cli/src/components/cliApp/useTimeline.ts` – Batches event inserts, bounded lists, and key management; factoring timeline math into a utility module would improve clarity.
+- [x] `packages/cli/src/components/cliApp/useTimeline.ts` – Batches event inserts, bounded lists, and key management; factoring timeline math into a utility module would improve clarity.
 - [ ] `packages/cli/src/components/cliApp/useDebugPanel.ts` – Handles payload cloning, summarization, and max-size trimming. Splitting formatting helpers from the hook will lighten repeated cloning.
 - [ ] `packages/cli/src/runtime.ts` – Still mixes dependency normalization, Ink mounting, and command stats; extracting the dependency bundle into its own factory would ease extending runtime options.
 - [ ] `packages/cli/src/loadCoreModule.ts` – Guard logic for dynamic imports intermingles with retry/fallback messaging; separating validation from logging would improve readability.

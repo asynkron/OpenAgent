@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 
 import type {
+  AppendTimelineEntry,
   CommandInspectorState,
   CommandLogEntry,
   CommandPanelEvent,
@@ -10,7 +11,6 @@ import type {
 } from './types.js';
 import { appendWithLimit, formatDebugPayload } from './logging.js';
 import { cloneValue, parsePositiveInteger } from './runtimeUtils.js';
-import type { AppendTimelineEntry } from './useTimeline.js';
 import type { PlanStep } from '../planUtils.js';
 import type {
   Command as CommandPayload,
