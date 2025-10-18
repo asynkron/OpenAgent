@@ -13,9 +13,7 @@
 - `constants.ts` — shared runtime defaults (command byte/line caps, etc.) consumed by schemas, parsers, and tests to keep limit tuning in one place.
 - `commands/` — shell command executors and helpers.
 - `services/` — command approval allowlist/session tracking plus command statistics collection.
-- `openai/` — client configuration, request/response helpers, response extraction utilities.
-  - Includes `contracts.ts` barrel that re-exports request/response DTOs and the OpenAgent tool schema for single-path imports.
-  - Canonical DTOs live under the root `contracts` directory; the local `contracts/index.ts` now mirrors those interfaces while providing schema helpers. Prefer importing runtime types from `contracts` when authoring new modules.
+- `openai/` — client configuration, request/response helpers, response extraction utilities. Prefer importing shared DTOs directly from `contracts/index.ts`; the legacy barrel in this directory has been removed so call sites lean on the canonical module.
   - `responses.ts` now calls the AI SDK `streamObject` helper and exposes optional callbacks for partial structured responses, enabling downstream consumers to stream debug previews while awaiting the final object.
 - `prompts/` — typed manager/IO definitions (`manager.ts`, `types.ts`) backing future prompt discovery work. The manager now accepts structured metadata (`promptId`, `description`, `tags`, and `extra` key-value entries) instead of loose records.
 - `config/` — system prompt discovery/building.
