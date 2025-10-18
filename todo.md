@@ -40,7 +40,7 @@ Top refactor targets:
 
 Top refactor targets:
 - [ ] `packages/web/frontend/src/js/services/chat.ts` – Still the central socket orchestrator; needs a slimmer core that delegates DOM mutations entirely to controllers.
-- [ ] `packages/web/frontend/src/js/services/chat_socket.ts` – Reconnection logic and event fan-out could move into a reusable transport adapter.
+- [x] `packages/web/frontend/src/js/services/chat_socket.ts` – Reconnection logic and event fan-out could move into a reusable transport adapter.
 - [ ] `packages/web/frontend/src/js/services/chat_router.ts` – Dispatch tables blend payload coercion with side-effects; consider introducing typed command objects per event.
 - [ ] `packages/web/frontend/src/js/services/chat_sessionController.ts` – Outstanding TODOs around optimistic queue management; isolating session state into pure reducers would reduce mutable patterns.
 - [ ] `packages/web/frontend/src/js/services/chat_domController.ts` – Handles low-level DOM construction and state gating; templating helpers would reduce duplicated element creation.
