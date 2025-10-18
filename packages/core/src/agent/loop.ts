@@ -15,9 +15,20 @@ import {
 } from '../services/commandApprovalService.js';
 import { applyFilter, tailLines } from '../utils/text.js';
 import { executeAgentPass } from './passExecutor.js';
+import type { ExecuteAgentPassOptions } from './passExecutor.js';
+import {
+  createThinkingController,
+  emitSessionIntro,
+  initializePlanManagerIfNeeded,
+  normalizeHistoryCompactor,
+  processAgentInputs,
+  runConversationLoop,
+  type PassExecutionBaseOptions,
+  type PassExecutionContext,
+} from './loopSupport.js';
 import { extractOpenAgentToolCall, extractResponseText } from '../openai/responseUtils.js';
 import { HistoryCompactor } from './historyCompactor.js';
-import { AsyncQueue, QUEUE_DONE } from '../utils/asyncQueue.js';
+import { AsyncQueue } from '../utils/asyncQueue.js';
 import { cancel as cancelActive } from '../utils/cancellation.js';
 import { AmnesiaManager, applyDementiaPolicy } from './amnesiaManager.js';
 import type { ApprovalConfig } from './approvalManager.js';
@@ -239,7 +250,7 @@ export function createAgentRuntime({
     defaultApplyDementiaPolicy: applyDementiaPolicy,
   });
 
-  const historyCompactor: HistoryCompactor | HistoryCompactorLike | null =
+  const historyCompactorCandidate: HistoryCompactor | HistoryCompactorLike | null =
     typeof createHistoryCompactorFn === 'function'
       ? createHistoryCompactorFn({
           openai: openai as unknown as HistoryCompactorOptions['openai'],
@@ -248,161 +259,89 @@ export function createAgentRuntime({
         })
       : null;
 
-  const toHistoryCompactor = (
-    candidate: HistoryCompactor | HistoryCompactorLike | null,
-  ): HistoryCompactor | null =>
-    candidate && typeof candidate === 'object' && typeof candidate.compactIfNeeded === 'function'
-      ? (candidate as HistoryCompactor)
-      : null;
-
-  const normalizedHistoryCompactor = toHistoryCompactor(historyCompactor);
+  const normalizedHistoryCompactor = normalizeHistoryCompactor(historyCompactorCandidate);
 
   let running = false;
-  let inputProcessorPromise = null;
-
-  async function processInputEvents(): Promise<void> {
-    try {
-      while (true) {
-        const event = await inputsQueue.next();
-        if (event === QUEUE_DONE) {
-          promptCoordinator.close();
-          return;
-        }
-        if (!event || typeof event !== 'object') {
-          continue;
-        }
-        const typedEvent = event as AgentInputEvent;
-        if (typedEvent.type === 'cancel') {
-          promptCoordinator.handleCancel(typedEvent.payload ?? null);
-        } else if (typedEvent.type === 'prompt') {
-          promptCoordinator.handlePrompt(typedEvent.prompt ?? typedEvent.value ?? '');
-        }
-      }
-    } catch (error) {
-      emit({
-        type: 'error',
-        message: 'Input processing terminated unexpectedly.',
-        details: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
+  let inputProcessorPromise: Promise<void> | null = null;
 
   async function start(): Promise<void> {
     if (running) {
       throw new Error('Agent runtime already started.');
     }
     running = true;
-    inputProcessorPromise = processInputEvents();
+    inputProcessorPromise = processAgentInputs({
+      inputsQueue,
+      promptCoordinator,
+      emit,
+    });
 
-    if (planManager && typeof planManager.initialize === 'function') {
-      await planManager.initialize();
-    }
+    await initializePlanManagerIfNeeded(planManager);
 
-    emit({ type: 'banner', title: 'OpenAgent - AI Agent with JSON Protocol' });
-    emit({ type: 'status', level: 'info', message: 'Submit prompts to drive the conversation.' });
-    if (getAutoApproveFlag()) {
-      emit({
-        type: 'status',
-        level: 'warn',
-        message:
-          'Full auto-approval mode enabled via CLI flag. All commands will run without prompting.',
-      });
-    }
-    if (getNoHumanFlag()) {
-      emit({
-        type: 'status',
-        level: 'warn',
-        message:
-          'No-human mode enabled (--nohuman). Agent will auto-respond with "continue or say \'done\'" until the AI replies "done".',
-      });
-    }
+    emitSessionIntro({
+      emit,
+      getAutoApproveFlag,
+      getNoHumanFlag,
+    });
 
-    const startThinkingEvent = (): void => emit({ type: 'thinking', state: 'start' });
-    const stopThinkingEvent = (): void => emit({ type: 'thinking', state: 'stop' });
+    const thinkingController = createThinkingController(emit);
+    const passExecutor: typeof executeAgentPass =
+      typeof executeAgentPassFn === 'function' ? executeAgentPassFn : executeAgentPass;
+
+    const baseOptions: PassExecutionBaseOptions = {
+        openai,
+        model,
+        history,
+        emitEvent: emit,
+        onDebug: (payload) => emitDebug(payload),
+        runCommandFn,
+        applyFilterFn,
+        tailLinesFn,
+        getNoHumanFlag,
+        setNoHumanFlag,
+        planReminderMessage,
+        startThinkingFn: thinkingController.start,
+        stopThinkingFn: thinkingController.stop,
+        escState,
+        approvalManager,
+        historyCompactor: normalizedHistoryCompactor,
+        planManager: planManagerForExecutor,
+        planAutoResponseTracker,
+        emitAutoApproveStatus,
+        ...normalizedPassExecutorDeps,
+    };
+
+    const passContext: PassExecutionContext = {
+      passExecutor,
+      baseOptions,
+      enforceMemoryPolicies,
+      nextPass,
+    };
 
     try {
-      while (true) {
-        const noHumanActive = getNoHumanFlag();
-        const userInput = noHumanActive
-          ? noHumanAutoMessage
-          : await promptCoordinator.request(userInputPrompt, { scope: 'user-input' });
-
-        if (!userInput) {
-          if (noHumanActive) {
-            continue;
-          }
-          continue;
-        }
-
-        if (userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
-          emit({ type: 'status', level: 'info', message: 'Goodbye!' });
-          break;
-        }
-
-        const activePass = nextPass();
-
-        history.push(
-          createChatMessageEntryFn({
-            eventType: 'chat-message',
-            role: 'user',
-            content: userInput,
-            pass: activePass,
-          }),
-        );
-
-        enforceMemoryPolicies(activePass);
-
-        try {
-          let continueLoop = true;
-          let currentPass = activePass;
-
-          while (continueLoop) {
-            const shouldContinue = await (executeAgentPassFn || executeAgentPass)({
-              openai,
-              model,
-              history,
-              emitEvent: emit,
-              onDebug: (payload) => emitDebug(payload),
-              runCommandFn,
-              applyFilterFn,
-              tailLinesFn,
-              getNoHumanFlag,
-              setNoHumanFlag,
-              planReminderMessage,
-              startThinkingFn: startThinkingEvent,
-              stopThinkingFn: stopThinkingEvent,
-              escState,
-              approvalManager,
-              historyCompactor: normalizedHistoryCompactor,
-              planManager: planManagerForExecutor,
-              planAutoResponseTracker,
-              emitAutoApproveStatus,
-              passIndex: currentPass,
-              ...normalizedPassExecutorDeps,
-            });
-
-            enforceMemoryPolicies(currentPass);
-
-            if (!shouldContinue) {
-              continueLoop = false;
-            } else {
-              currentPass = nextPass();
-              continueLoop = true;
-            }
-          }
-        } catch (error) {
+      await runConversationLoop({
+        promptCoordinator,
+        getNoHumanFlag,
+        noHumanAutoMessage,
+        userInputPrompt,
+        emit,
+        history,
+        createChatMessageEntryFn,
+        enforceMemoryPolicies,
+        passContext,
+        onPassError: (error) =>
           emit({
             type: 'error',
             message: 'Agent loop encountered an error.',
             details: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
+          }),
+      });
     } finally {
       inputsQueue.close();
       outputsQueue.close();
       detachEscListener?.();
-      await inputProcessorPromise;
+      if (inputProcessorPromise) {
+        await inputProcessorPromise;
+      }
     }
   }
 
@@ -423,6 +362,7 @@ export function createAgentRuntime({
     getHistorySnapshot,
   };
 }
+
 
 export function createAgentLoop(options: AgentRuntimeOptions = {}): () => Promise<void> {
   const runtime = createAgentRuntime(options);
