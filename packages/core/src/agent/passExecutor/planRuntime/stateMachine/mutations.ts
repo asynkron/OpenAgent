@@ -71,8 +71,7 @@ export const createPlanMutations = ({
         mutated = true;
       }
 
-      const legacyExitCode =
-        (commandResult as { exitCode?: number }).exitCode ?? null;
+      const legacyExitCode = (commandResult as { exitCode?: number }).exitCode ?? null;
       const exitCode =
         typeof commandResult?.exit_code === 'number'
           ? commandResult.exit_code

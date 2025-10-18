@@ -1,13 +1,7 @@
 import { AmnesiaManager, applyDementiaPolicy } from '../amnesiaManager.js';
-import {
-  createChatMessageEntry,
-  type ChatMessageEntry,
-} from '../historyEntry.js';
+import { createChatMessageEntry, type ChatMessageEntry } from '../historyEntry.js';
 import { PlanStatus } from '../../contracts/index.js';
-import {
-  DEFAULT_COMMAND_MAX_BYTES,
-  DEFAULT_COMMAND_TAIL_LINES,
-} from '../../constants.js';
+import { DEFAULT_COMMAND_MAX_BYTES, DEFAULT_COMMAND_TAIL_LINES } from '../../constants.js';
 
 interface BuildEntryOptions {
   pass: number;
@@ -23,7 +17,6 @@ const buildHistoryEntry = ({
   createChatMessageEntry({ eventType: 'chat-message', role, pass, content });
 
 describe('AmnesiaManager', () => {
-
   it('removes plan update entries older than the threshold', () => {
     const history = [
       createChatMessageEntry({

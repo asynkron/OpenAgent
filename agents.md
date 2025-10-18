@@ -19,4 +19,3 @@
 - Eliminate all instances of Record<string, unknown>, any, unknown, union types, and generics from the codebase.
 - Refactor the code to use explicit types defined in the contracts folder.
 - Ensure that all types are well-documented and easy to understand.
-  

@@ -21,8 +21,14 @@ import {
 import { toBoxProps, toTextProps } from '../styleTypes.js';
 import type { PlanStep } from './planUtils.js';
 
-const { colors: commandColors, container, heading, headingDetail, summaryLine, runContainer } =
-  createCommandTheme();
+const {
+  colors: commandColors,
+  container,
+  heading,
+  headingDetail,
+  summaryLine,
+  runContainer,
+} = createCommandTheme();
 const commandContainerProps: BoxStyleProps = { ...container };
 const commandHeadingProps: TextStyleProps = { ...heading };
 const commandHeadingDetailProps: TextStyleProps = { ...headingDetail };
@@ -39,7 +45,6 @@ type CommandProps = {
 };
 
 const DEFAULT_MAX_RUN_CHARACTERS = 270;
-
 
 /**
  * Displays command execution details, mirroring the textual summaries.
@@ -161,16 +166,12 @@ function Command({
   const rootBoxProps = toBoxProps(rootProps);
   const planHeaderBoxProps = toBoxProps(planHeaderProps);
 
-  const headingDetailNode = inlineRunPreview
-    ? // Avoid overriding the ANSI color codes produced by the markdown renderer.
-      (
-        <Text>{inlineRunPreview}</Text>
-      )
-    : headingDetailText
-      ? (
-          <Text {...headingDetailProps}>{headingDetailText}</Text>
-        )
-      : null;
+  const headingDetailNode = inlineRunPreview ? (
+    // Avoid overriding the ANSI color codes produced by the markdown renderer.
+    <Text>{inlineRunPreview}</Text>
+  ) : headingDetailText ? (
+    <Text {...headingDetailProps}>{headingDetailText}</Text>
+  ) : null;
 
   return (
     <Box {...rootBoxProps}>
@@ -188,9 +189,7 @@ function Command({
           <Text> </Text>
           {headingDetailNode}
         </Text>
-        {runElements ? (
-          <Box {...runContainerProps}>{runElements}</Box>
-        ) : null}
+        {runElements ? <Box {...runContainerProps}>{runElements}</Box> : null}
         {summaryLines.map((line, index) => (
           <SummaryLine
             key={index}

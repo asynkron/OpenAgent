@@ -14,9 +14,15 @@ import {
 } from './parserTypes.js';
 import { normalizeCommandPayload } from './commandNormalizer.js';
 import { normalizePlan } from './planNormalizer.js';
-import { escapeBareLineBreaks, extractFromCodeFence, extractBalancedJson } from './jsonExtractor.js';
+import {
+  escapeBareLineBreaks,
+  extractFromCodeFence,
+  extractBalancedJson,
+} from './jsonExtractor.js';
 
-const normalizeAssistantPayload = (payload: AssistantPayload | unknown): AssistantPayload | unknown => {
+const normalizeAssistantPayload = (
+  payload: AssistantPayload | unknown,
+): AssistantPayload | unknown => {
   if (!isPlainObject(payload)) {
     return payload;
   }

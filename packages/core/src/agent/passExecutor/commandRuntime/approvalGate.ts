@@ -1,11 +1,7 @@
 import type { ApprovalManager } from '../../approvalManager.js';
 import type { ExecuteAgentPassOptions } from '../types.js';
 import type { PlanRuntime } from '../planRuntime.js';
-import {
-  type ApprovedCommand,
-  type CommandRejectedResult,
-  type PreparedCommand,
-} from './types.js';
+import { type ApprovedCommand, type CommandRejectedResult, type PreparedCommand } from './types.js';
 
 export interface ApprovalGateOptions {
   readonly approvalManager: ApprovalManager | null;

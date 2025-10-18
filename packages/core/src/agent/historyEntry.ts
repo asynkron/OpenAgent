@@ -142,9 +142,7 @@ const definePropertyAccessors = (message: ChatMessageEntry): void => {
   });
 };
 
-export const createChatMessageEntry = (
-  entry: ChatMessageEntryInput = {},
-): ChatMessageEntry => {
+export const createChatMessageEntry = (entry: ChatMessageEntryInput = {}): ChatMessageEntry => {
   const {
     eventType,
     payload: providedPayload,

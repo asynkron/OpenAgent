@@ -116,9 +116,7 @@ const populateObservationFields = (
       }
     }
     if ('plan' in payload && Array.isArray(payload.plan)) {
-      snapshot.plan = payload.plan.map((entry) =>
-        cloneJson(entry as Record<string, unknown>),
-      );
+      snapshot.plan = payload.plan.map((entry) => cloneJson(entry as Record<string, unknown>));
     }
     if ('summary' in payload && typeof payload.summary === 'string') {
       snapshot.summary = payload.summary;

@@ -100,7 +100,8 @@ export async function runCommand(
 
     const commandLabel = getCommandLabel(providedLabel ?? '', trimmedCommand);
     const operationDescription = getOperationDescription(providedDescription ?? '', commandLabel);
-    const effectiveCloseStdin = closeStdin !== undefined ? Boolean(closeStdin) : stdin === undefined;
+    const effectiveCloseStdin =
+      closeStdin !== undefined ? Boolean(closeStdin) : stdin === undefined;
     const shouldPipeStdin = stdin !== undefined || effectiveCloseStdin === false;
 
     const spawnOptions: SpawnOptions = {

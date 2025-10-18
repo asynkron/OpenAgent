@@ -3,10 +3,7 @@
 import { jest } from '@jest/globals';
 
 import { executeAgentCommand } from '../commandExecution.js';
-import {
-  DEFAULT_COMMAND_MAX_BYTES,
-  DEFAULT_COMMAND_TAIL_LINES,
-} from '../../constants.js';
+import { DEFAULT_COMMAND_MAX_BYTES, DEFAULT_COMMAND_TAIL_LINES } from '../../constants.js';
 
 describe('executeAgentCommand', () => {
   const makeDeps = () => ({

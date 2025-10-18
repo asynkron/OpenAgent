@@ -1,8 +1,5 @@
 import type { PlanManagerAdapter } from '../planManagerAdapter.js';
-import {
-  resetPersistedPlan,
-  syncPlanSnapshot,
-} from './persistence.js';
+import { resetPersistedPlan, syncPlanSnapshot } from './persistence.js';
 import type { PlanStateMachine } from './stateMachine/index.js';
 import {
   createPlanObservationEffect,

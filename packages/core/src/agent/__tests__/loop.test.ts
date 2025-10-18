@@ -1,10 +1,7 @@
 import { createAgentRuntime } from '../loop.js';
 import { QUEUE_DONE } from '../../utils/asyncQueue.js';
 import type { ResponsesClient, ResponsesProvider } from '../../openai/responses.js';
-import type {
-  PromptCoordinatorEvent,
-  PromptRequestMetadata,
-} from '../promptCoordinator.js';
+import type { PromptCoordinatorEvent, PromptRequestMetadata } from '../promptCoordinator.js';
 import type { RuntimeEvent } from '../runtimeTypes.js';
 
 class TestOutputsQueue {

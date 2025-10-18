@@ -48,7 +48,12 @@ describe('createPlanStateMachine', () => {
 
   test('detects pending executable work', () => {
     const machine = createPlanStateMachine();
-    const waiting = { id: 'child', status: 'pending', waitingForId: ['parent'], command: { run: 'run child' } };
+    const waiting = {
+      id: 'child',
+      status: 'pending',
+      waitingForId: ['parent'],
+      command: { run: 'run child' },
+    };
     const parent = { id: 'parent', status: 'pending', command: { run: 'run parent' } };
 
     machine.replaceActivePlan([parent, waiting]);

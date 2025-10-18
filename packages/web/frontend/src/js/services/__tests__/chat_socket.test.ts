@@ -52,37 +52,37 @@ class FakeWebSocket {
 }
 
 describe('createChatSocketManager', () => {
-function createWindowStub() {
-  const timers: Array<() => void> = [];
-  const windowRef = {
-    location: { protocol: 'http:', host: 'localhost' },
-    setTimeout: ((handler: TimerHandler) => {
-      const index = timers.length;
-      timers.push(() => {
-        if (typeof handler === 'function') {
-          handler();
+  function createWindowStub() {
+    const timers: Array<() => void> = [];
+    const windowRef = {
+      location: { protocol: 'http:', host: 'localhost' },
+      setTimeout: ((handler: TimerHandler) => {
+        const index = timers.length;
+        timers.push(() => {
+          if (typeof handler === 'function') {
+            handler();
+          }
+        });
+        return index;
+      }) as unknown as Window['setTimeout'],
+      clearTimeout: ((id?: number) => {
+        if (typeof id === 'number' && timers[id]) {
+          timers[id] = () => {};
         }
-      });
-      return index;
-    }) as unknown as Window['setTimeout'],
-    clearTimeout: ((id?: number) => {
-      if (typeof id === 'number' && timers[id]) {
-        timers[id] = () => {};
-      }
-    }) as unknown as Window['clearTimeout'],
-    WebSocket: FakeWebSocket as unknown as typeof WebSocket,
-  } as Window & typeof globalThis;
+      }) as unknown as Window['clearTimeout'],
+      WebSocket: FakeWebSocket as unknown as typeof WebSocket,
+    } as Window & typeof globalThis;
 
-  return {
-    windowRef,
-    flushTimers(): void {
-      while (timers.length > 0) {
-        const timer = timers.shift();
-        timer?.();
-      }
-    },
-  };
-}
+    return {
+      windowRef,
+      flushTimers(): void {
+        while (timers.length > 0) {
+          const timer = timers.shift();
+          timer?.();
+        }
+      },
+    };
+  }
 
   it('reconnects after close events and reports status updates', () => {
     jest.useFakeTimers();

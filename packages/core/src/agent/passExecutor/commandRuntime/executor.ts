@@ -3,11 +3,7 @@ import type { ExecuteAgentPassOptions } from '../types.js';
 import type { PlanRuntime } from '../planRuntime.js';
 import type { CommandRunOutcome } from '../types.js';
 import type { ExecutableCandidate } from '../planRuntime.js';
-import {
-  type ApprovedCommand,
-  type CommandExecutedResult,
-  type PreparedCommand,
-} from './types.js';
+import { type ApprovedCommand, type CommandExecutedResult, type PreparedCommand } from './types.js';
 
 export interface CommandExecutorOptions {
   readonly executeAgentCommandFn: NonNullable<ExecuteAgentPassOptions['executeAgentCommandFn']>;
@@ -56,11 +52,10 @@ const executeCommandSafely = async (
   }
 };
 
-export const prepareCommandCandidate = (
-  candidate: ExecutableCandidate,
-): PreparedCommand => {
+export const prepareCommandCandidate = (candidate: ExecutableCandidate): PreparedCommand => {
   const { step: planStepCandidate, command } = candidate;
-  const planStep = planStepCandidate && typeof planStepCandidate === 'object' ? planStepCandidate : null;
+  const planStep =
+    planStepCandidate && typeof planStepCandidate === 'object' ? planStepCandidate : null;
 
   const normalizedRun = typeof command.run === 'string' ? command.run.trim() : '';
   if (normalizedRun && command.run !== normalizedRun) {

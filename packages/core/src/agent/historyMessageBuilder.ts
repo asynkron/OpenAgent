@@ -216,7 +216,10 @@ const buildObservationContent = ({
       summaryParts.push('I have an update from the last command execution.');
     }
 
-    if (isCommandOutputObservation(nonPlanPayload) && typeof nonPlanPayload.exit_code === 'number') {
+    if (
+      isCommandOutputObservation(nonPlanPayload) &&
+      typeof nonPlanPayload.exit_code === 'number'
+    ) {
       summaryParts.push(`It finished with exit code ${nonPlanPayload.exit_code}.`);
     }
 

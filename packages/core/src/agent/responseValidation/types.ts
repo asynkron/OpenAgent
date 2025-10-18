@@ -1,4 +1,11 @@
-export type SchemaValidationParamValue = string | number | boolean | string[] | number[] | boolean[] | null;
+export type SchemaValidationParamValue =
+  | string
+  | number
+  | boolean
+  | string[]
+  | number[]
+  | boolean[]
+  | null;
 
 export interface SchemaValidationParams {
   missingProperty?: string;

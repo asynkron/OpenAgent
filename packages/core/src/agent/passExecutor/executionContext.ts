@@ -18,10 +18,7 @@ import { createPlanManagerAdapter } from './planManagerAdapter.js';
 import { createDebugEmitter } from './debugEmitter.js';
 import type { DebugEmitter } from './debugEmitter.js';
 import type { PlanManagerAdapter } from './planManagerAdapter.js';
-import type {
-  ExecuteAgentPassOptions,
-  NormalizedExecuteAgentPassOptions,
-} from './types.js';
+import type { ExecuteAgentPassOptions, NormalizedExecuteAgentPassOptions } from './types.js';
 
 interface ExecutionContext {
   options: NormalizedExecuteAgentPassOptions;
@@ -46,7 +43,8 @@ const createNormalizedOptions = (
   parseAssistantResponseFn: options.parseAssistantResponseFn ?? defaultParseAssistantResponse,
   validateAssistantResponseSchemaFn:
     options.validateAssistantResponseSchemaFn ?? defaultValidateAssistantResponseSchema,
-  validateAssistantResponseFn: options.validateAssistantResponseFn ?? defaultValidateAssistantResponse,
+  validateAssistantResponseFn:
+    options.validateAssistantResponseFn ?? defaultValidateAssistantResponse,
   createChatMessageEntryFn: options.createChatMessageEntryFn ?? defaultCreateChatMessageEntry,
   extractOpenAgentToolCallFn: options.extractOpenAgentToolCallFn ?? defaultExtractOpenAgentToolCall,
   summarizeContextUsageFn: options.summarizeContextUsageFn ?? defaultSummarizeContextUsage,
@@ -54,7 +52,8 @@ const createNormalizedOptions = (
   createObservationBuilderFn:
     options.createObservationBuilderFn ?? ((deps) => new ObservationBuilder(deps)),
   combineStdStreamsFn:
-    options.combineStdStreamsFn ?? ((stdout, stderr, exitCode) => defaultCombineStdStreams(stdout, stderr, exitCode ?? 0)),
+    options.combineStdStreamsFn ??
+    ((stdout, stderr, exitCode) => defaultCombineStdStreams(stdout, stderr, exitCode ?? 0)),
   buildPreviewFn: options.buildPreviewFn ?? ((text) => defaultBuildPreview(text)),
 });
 

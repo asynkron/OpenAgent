@@ -1,7 +1,10 @@
 /* eslint-env jest */
 import { jest } from '@jest/globals';
 import type { PlanResponse } from '../../../contracts/index.js';
-import { createNormalizedOptions, createObservationBuilderStub } from '../__testUtils__/passExecutor.js';
+import {
+  createNormalizedOptions,
+  createObservationBuilderStub,
+} from '../__testUtils__/passExecutor.js';
 
 const loadPlanExecutor = async () => {
   jest.resetModules();
@@ -84,7 +87,9 @@ describe('executePlan', () => {
     });
 
     expect(outcome).toBe('no-executable');
-    expect(planRuntimeConfig.instances[0].handleNoExecutable).toHaveBeenCalledWith({ parsedMessage: 'hello' });
+    expect(planRuntimeConfig.instances[0].handleNoExecutable).toHaveBeenCalledWith({
+      parsedMessage: 'hello',
+    });
     expect(planRuntimeConfig.instances[0].applyEffects).toHaveBeenCalled();
   });
 

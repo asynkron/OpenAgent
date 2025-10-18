@@ -40,7 +40,9 @@ const recordCommandStats = async (
   executed: CommandExecutedResult,
 ): Promise<void> => {
   try {
-    await options.incrementCommandCountFn(deriveCommandKey(executed.command, executed.normalizedRun));
+    await options.incrementCommandCountFn(
+      deriveCommandKey(executed.command, executed.normalizedRun),
+    );
   } catch (error) {
     options.emitEvent?.({
       type: 'status',

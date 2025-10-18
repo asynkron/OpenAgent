@@ -160,9 +160,7 @@ export function buildHeadingDetail(
     }
     case 'REPLACE': {
       const specCandidate = execution?.spec ?? command?.replace;
-      const spec: ReplaceSpecification = isReplaceSpecification(specCandidate)
-        ? specCandidate
-        : {};
+      const spec: ReplaceSpecification = isReplaceSpecification(specCandidate) ? specCandidate : {};
       return buildReplaceDetail(spec);
     }
     default: {

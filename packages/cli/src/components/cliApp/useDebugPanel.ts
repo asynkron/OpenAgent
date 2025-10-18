@@ -114,7 +114,8 @@ export function useDebugPanel({ limit, appendStatus }: UseDebugPanelOptions): {
         return appendWithLimit(prev, entry, limit).next;
       });
 
-      const summary = managed?.action === 'remove' ? null : summarizeAutoResponseDebug(event.payload);
+      const summary =
+        managed?.action === 'remove' ? null : summarizeAutoResponseDebug(event.payload);
       if (summary) {
         appendStatus({ level: 'warn', message: summary });
       }

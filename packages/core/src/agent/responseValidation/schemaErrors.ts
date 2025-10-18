@@ -62,7 +62,9 @@ export function describeSchemaError(error: ErrorObject | null | undefined): Sche
   const pathLabel = formatInstancePath(error?.instancePath ?? '');
   const params: SchemaValidationParams = {
     missingProperty:
-      typeof error?.params?.missingProperty === 'string' ? error?.params?.missingProperty : undefined,
+      typeof error?.params?.missingProperty === 'string'
+        ? error?.params?.missingProperty
+        : undefined,
     additionalProperty:
       typeof error?.params?.additionalProperty === 'string'
         ? error?.params?.additionalProperty

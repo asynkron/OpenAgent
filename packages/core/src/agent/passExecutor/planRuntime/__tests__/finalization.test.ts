@@ -12,9 +12,7 @@ const createPlanManagerMock = () => ({
 describe('finalizePlanRuntime', () => {
   test('persists plan snapshot and records observation when plan mutated', async () => {
     const stateMachine = createPlanStateMachine();
-    stateMachine.replaceActivePlan([
-      { id: 'root', status: 'running', command: { run: 'ls' } },
-    ]);
+    stateMachine.replaceActivePlan([{ id: 'root', status: 'running', command: { run: 'ls' } }]);
     const planManager = createPlanManagerMock();
 
     const result = await finalizePlanRuntime({

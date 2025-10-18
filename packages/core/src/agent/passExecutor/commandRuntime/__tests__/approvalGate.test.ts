@@ -19,12 +19,17 @@ const createPlanRuntimeMock = (): PlanRuntime =>
     handleNoExecutable: jest.fn(),
     finalize: jest.fn(),
     resetPlanReminder: jest.fn(),
-  } as unknown as PlanRuntime);
+  }) as unknown as PlanRuntime;
 
 describe('requestCommandApproval', () => {
   test('returns approved when manager missing', async () => {
     const planRuntime = createPlanRuntimeMock();
-    const prepared = { type: 'prepared', command: { run: 'echo' }, planStep: null, normalizedRun: 'echo' };
+    const prepared = {
+      type: 'prepared',
+      command: { run: 'echo' },
+      planStep: null,
+      normalizedRun: 'echo',
+    };
 
     const result = await requestCommandApproval(
       {
@@ -41,7 +46,10 @@ describe('requestCommandApproval', () => {
 
   test('applies rejection effects when human declines', async () => {
     const planRuntime = createPlanRuntimeMock();
-    const rejectionResult = { type: 'command-rejected', effects: [{ type: 'history-entry', entry: {} }] };
+    const rejectionResult = {
+      type: 'command-rejected',
+      effects: [{ type: 'history-entry', entry: {} }],
+    };
     (planRuntime.handleCommandRejection as unknown as jest.Mock).mockReturnValue(rejectionResult);
 
     const approvalManager = {
@@ -49,7 +57,12 @@ describe('requestCommandApproval', () => {
       requestHumanDecision: jest.fn().mockResolvedValue({ decision: 'reject' }),
     };
 
-    const prepared = { type: 'prepared', command: { run: 'ls' }, planStep: null, normalizedRun: 'ls' } as const;
+    const prepared = {
+      type: 'prepared',
+      command: { run: 'ls' },
+      planStep: null,
+      normalizedRun: 'ls',
+    } as const;
 
     const result = await requestCommandApproval(
       {

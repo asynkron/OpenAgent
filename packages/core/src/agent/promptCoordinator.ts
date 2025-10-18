@@ -80,12 +80,13 @@ export class PromptCoordinator {
         ? (metadata.scope as PromptRequestScope)
         : ('user-input' as PromptRequestScope);
 
-    const promptId =
-      metadata && typeof metadata.promptId === 'string' ? metadata.promptId : null;
+    const promptId = metadata && typeof metadata.promptId === 'string' ? metadata.promptId : null;
     const description =
       metadata && typeof metadata.description === 'string' ? metadata.description : null;
     const tags =
-      metadata && Array.isArray(metadata.tags) ? metadata.tags.filter((tag): tag is string => typeof tag === 'string') : [];
+      metadata && Array.isArray(metadata.tags)
+        ? metadata.tags.filter((tag): tag is string => typeof tag === 'string')
+        : [];
     const extraEntries =
       metadata && Array.isArray(metadata.extra)
         ? metadata.extra

@@ -3,11 +3,12 @@ import { describe, expect, test, jest } from '@jest/globals';
 import { processCommandExecution } from '../resultProcessor.js';
 import type { PlanRuntime } from '../../planRuntime.js';
 
-const createPlanRuntimeMock = () => ({
-  applyCommandObservation: jest.fn(),
-  emitPlanSnapshot: jest.fn().mockReturnValue({ type: 'plan-snapshot', plan: [] }),
-  applyEffects: jest.fn(),
-} as unknown as PlanRuntime);
+const createPlanRuntimeMock = () =>
+  ({
+    applyCommandObservation: jest.fn(),
+    emitPlanSnapshot: jest.fn().mockReturnValue({ type: 'plan-snapshot', plan: [] }),
+    applyEffects: jest.fn(),
+  }) as unknown as PlanRuntime;
 
 describe('processCommandExecution', () => {
   test('records stats, emits event, and snapshots plan', async () => {

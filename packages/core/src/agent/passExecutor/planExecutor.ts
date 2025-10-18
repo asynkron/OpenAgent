@@ -44,7 +44,8 @@ export const executePlan = async ({
   let nextExecutable: ExecutableCandidate | null = planRuntime.selectNextExecutableEntry();
 
   if (!nextExecutable) {
-    const assistantMessage = typeof parsedResponse.message === 'string' ? parsedResponse.message : '';
+    const assistantMessage =
+      typeof parsedResponse.message === 'string' ? parsedResponse.message : '';
     const outcome = await planRuntime.handleNoExecutable({ parsedMessage: assistantMessage });
     planRuntime.applyEffects(outcome.effects);
     if (outcome.type === 'continue-refusal' || outcome.type === 'continue-pending') {

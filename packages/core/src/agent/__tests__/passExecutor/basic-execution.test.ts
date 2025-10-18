@@ -56,12 +56,8 @@ describe('executeAgentPass', () => {
   });
 
   test('returns true when a human rejects the command so the next pass can run', async () => {
-    const {
-      executeAgentPass,
-      parseAssistantResponse,
-      executeAgentCommand,
-      planHasOpenSteps,
-    } = await setupPassExecutor();
+    const { executeAgentPass, parseAssistantResponse, executeAgentCommand, planHasOpenSteps } =
+      await setupPassExecutor();
 
     planHasOpenSteps.mockReturnValue(true);
     parseAssistantResponse.mockImplementation(() => ({

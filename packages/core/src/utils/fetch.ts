@@ -170,10 +170,7 @@ export class HttpClient implements HttpClientInterface {
   ): HttpResponse {
     const status = response.status ?? 0;
     const statusText = response.statusText ?? '';
-    const ok =
-      typeof response.ok === 'boolean'
-        ? response.ok
-        : status >= 200 && status < 300;
+    const ok = typeof response.ok === 'boolean' ? response.ok : status >= 200 && status < 300;
 
     return { body, status, statusText, ok };
   }

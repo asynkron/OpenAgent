@@ -12,15 +12,8 @@
   ],
   "workspaces": {
     ".": {
-      "entry": [
-        "index.ts",
-        "scripts/**/*.{ts,cts}",
-        "tests/**/*.ts"
-      ],
-      "project": [
-        "scripts/**/*.{ts,cts}",
-        "tests/**/*.ts"
-      ]
+      "entry": ["index.ts", "scripts/**/*.{ts,cts}", "tests/**/*.ts"],
+      "project": ["scripts/**/*.{ts,cts}", "tests/**/*.ts"]
     },
     "packages/core": {
       "entry": [
@@ -29,15 +22,8 @@
         "src/**/__tests__/**/*.ts",
         "scripts/**/*.ts"
       ],
-      "project": [
-        "src/**/*.{ts,tsx}",
-        "scripts/**/*.ts"
-      ],
-      "ignore": [
-        "dist/**",
-        "prompts/**",
-        "debugdata/**"
-      ]
+      "project": ["src/**/*.{ts,tsx}", "scripts/**/*.ts"],
+      "ignore": ["dist/**", "prompts/**", "debugdata/**"]
     },
     "packages/cli": {
       "entry": [
@@ -47,12 +33,8 @@
         "src/**/*.test.ts",
         "src/**/__tests__/**/*.ts"
       ],
-      "project": [
-        "src/**/*.{ts,tsx}"
-      ],
-      "ignore": [
-        "dist/**"
-      ]
+      "project": ["src/**/*.{ts,tsx}"],
+      "ignore": ["dist/**"]
     }
   }
 }

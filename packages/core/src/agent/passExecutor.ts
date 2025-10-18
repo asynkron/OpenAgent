@@ -7,15 +7,28 @@ import type { ExecuteAgentPassOptions } from './passExecutor/types.js';
 export type { ExecuteAgentPassOptions } from './passExecutor/types.js';
 
 export async function executeAgentPass(options: ExecuteAgentPassOptions): Promise<boolean> {
-  const { options: normalized, observationBuilder, debugEmitter, planManagerAdapter, finalizePass } =
-    createExecutionContext(options);
+  const {
+    options: normalized,
+    observationBuilder,
+    debugEmitter,
+    planManagerAdapter,
+    finalizePass,
+  } = createExecutionContext(options);
 
-  const prePassResult = await runPrePassSequence({ options: normalized, observationBuilder, debugEmitter });
+  const prePassResult = await runPrePassSequence({
+    options: normalized,
+    observationBuilder,
+    debugEmitter,
+  });
   if (prePassResult.status === 'canceled' || prePassResult.status === 'missing-content') {
     return finalizePass(false);
   }
 
-  const assistantResolution = resolveAssistantResponse({ prePassResult, options: normalized, debugEmitter });
+  const assistantResolution = resolveAssistantResponse({
+    prePassResult,
+    options: normalized,
+    debugEmitter,
+  });
   if (assistantResolution.status === 'canceled') {
     return finalizePass(false);
   }
@@ -24,7 +37,9 @@ export async function executeAgentPass(options: ExecuteAgentPassOptions): Promis
   }
 
   const assistantMessage =
-    typeof assistantResolution.parsed.message === 'string' ? assistantResolution.parsed.message : '';
+    typeof assistantResolution.parsed.message === 'string'
+      ? assistantResolution.parsed.message
+      : '';
   normalized.emitEvent({ type: 'assistant-message', message: assistantMessage });
 
   const planOutcome = await executePlan({

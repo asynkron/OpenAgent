@@ -3,11 +3,12 @@ import { describe, expect, test, jest } from '@jest/globals';
 import { prepareCommandCandidate, runApprovedCommand } from '../executor.js';
 import type { PlanRuntime } from '../../planRuntime.js';
 
-const createPlanRuntimeMock = () => ({
-  markCommandRunning: jest.fn(),
-  emitPlanSnapshot: jest.fn().mockReturnValue({ type: 'plan-snapshot', plan: [] }),
-  applyEffects: jest.fn(),
-} as unknown as PlanRuntime);
+const createPlanRuntimeMock = () =>
+  ({
+    markCommandRunning: jest.fn(),
+    emitPlanSnapshot: jest.fn().mockReturnValue({ type: 'plan-snapshot', plan: [] }),
+    applyEffects: jest.fn(),
+  }) as unknown as PlanRuntime;
 
 describe('prepareCommandCandidate', () => {
   test('trims command run text', () => {

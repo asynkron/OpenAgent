@@ -19,7 +19,11 @@ describe('observationRecorder helpers', () => {
 
   test('createPlanObservationHistoryEntry wraps observations in a chat entry', () => {
     const timestamp = new Date('2024-02-02T02:02:02.000Z');
-    const entry = createPlanObservationHistoryEntry({ activePlan: samplePlan, passIndex: 3, timestamp });
+    const entry = createPlanObservationHistoryEntry({
+      activePlan: samplePlan,
+      passIndex: 3,
+      timestamp,
+    });
 
     expect(entry).toMatchObject({ eventType: 'chat-message', role: 'user', pass: 3 });
     const parsed = JSON.parse(String(entry.content));

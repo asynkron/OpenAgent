@@ -44,7 +44,9 @@ export interface PromptManagerOptions {
   cacheTTL?: number;
 }
 
-const normalizeMetadataEntries = (entries: PromptMetadataEntry[] | undefined): PromptMetadataEntry[] => {
+const normalizeMetadataEntries = (
+  entries: PromptMetadataEntry[] | undefined,
+): PromptMetadataEntry[] => {
   if (!Array.isArray(entries)) {
     return [];
   }

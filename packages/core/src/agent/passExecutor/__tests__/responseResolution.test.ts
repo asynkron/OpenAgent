@@ -21,7 +21,10 @@ describe('resolveAssistantResponse', () => {
   test('bubbles schema failure when validation fails', () => {
     const options = createNormalizedOptions({
       parseAssistantResponseFn: createParseSuccess({ message: 'hi', plan: [] }),
-      validateAssistantResponseSchemaFn: jest.fn(() => ({ valid: false, errors: [{ path: '$', message: 'nope' }] })),
+      validateAssistantResponseSchemaFn: jest.fn(() => ({
+        valid: false,
+        errors: [{ path: '$', message: 'nope' }],
+      })),
     });
 
     const result = resolveAssistantResponse({

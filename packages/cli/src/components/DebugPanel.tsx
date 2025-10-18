@@ -18,10 +18,7 @@ type DebugPanelProps = {
 /**
  * Displays debug payloads emitted by the agent when the debug flag is active.
  */
-function DebugPanel({
-  events = [],
-  heading = 'Debug',
-}: DebugPanelProps): ReactElement | null {
+function DebugPanel({ events = [], heading = 'Debug' }: DebugPanelProps): ReactElement | null {
   if (!Array.isArray(events) || events.length === 0) {
     return null;
   }

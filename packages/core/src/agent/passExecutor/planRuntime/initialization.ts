@@ -2,11 +2,7 @@ import type { PlanStep } from '../planExecution.js';
 import type { PlanManagerAdapter } from '../planManagerAdapter.js';
 import { prepareIncomingPlan, resolveActivePlan } from './persistence.js';
 import type { PlanStateMachine } from './stateMachine/index.js';
-import {
-  createPlanSnapshotEffect,
-  type InitializeResult,
-  toEmitEffects,
-} from './effects.js';
+import { createPlanSnapshotEffect, type InitializeResult, toEmitEffects } from './effects.js';
 
 export interface PlanInitializationContext {
   readonly incomingPlan: PlanStep[] | null;
@@ -29,7 +25,10 @@ export const initializePlanRuntime = async ({
     : ([] as PlanStep[]);
   stateMachine.replaceActivePlan(basePlan);
 
-  const { plan: resolvedPlan, warning } = await resolveActivePlan(planManager, prepared.sanitizedPlan);
+  const { plan: resolvedPlan, warning } = await resolveActivePlan(
+    planManager,
+    prepared.sanitizedPlan,
+  );
   effects.push(...toEmitEffects(warning));
 
   if (Array.isArray(resolvedPlan)) {

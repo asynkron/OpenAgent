@@ -4,10 +4,7 @@ import {
   type ChatDomController,
   type ChatInputElement,
 } from './chat_domController.js';
-import {
-  createChatInputController,
-  type ChatInputController,
-} from './chat_inputController.js';
+import { createChatInputController, type ChatInputController } from './chat_inputController.js';
 
 export interface ChatBootstrapOptions {
   panel: HTMLElement | null | undefined;
@@ -43,24 +40,28 @@ export interface ChatBootstrapDependencies {
   autoResizeInput?: (input: ChatInputElement) => void;
 }
 
-export function createChatBootstrap({
-  panel,
-  startContainer,
-  startForm,
-  startInput,
-  chatContainer,
-  chatBody,
-  messageList,
-  chatForm,
-  chatInput,
-  planContainer,
-  statusElement,
-  windowRef = window,
-  documentRef = document,
-}: ChatBootstrapOptions,
-{ createDomController: createDom = createChatDomController,
-  createInputController: createInput = createChatInputController,
-  autoResizeInput = autoResize }: ChatBootstrapDependencies = {}): ChatBootstrapResult | null {
+export function createChatBootstrap(
+  {
+    panel,
+    startContainer,
+    startForm,
+    startInput,
+    chatContainer,
+    chatBody,
+    messageList,
+    chatForm,
+    chatInput,
+    planContainer,
+    statusElement,
+    windowRef = window,
+    documentRef = document,
+  }: ChatBootstrapOptions,
+  {
+    createDomController: createDom = createChatDomController,
+    createInputController: createInput = createChatInputController,
+    autoResizeInput = autoResize,
+  }: ChatBootstrapDependencies = {},
+): ChatBootstrapResult | null {
   if (!panel) {
     return null;
   }

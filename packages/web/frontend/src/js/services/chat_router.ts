@@ -99,14 +99,18 @@ export interface ChatRouter {
   onStatus(payload: AgentIncomingPayload & { type: 'agent_status' }): ChatRouteAction[];
   onError(payload: AgentIncomingPayload & { type: 'agent_error' }): ChatRouteAction[];
   onThinking(payload: AgentIncomingPayload & { type: 'agent_thinking' }): ChatRouteAction[];
-  onRequestInput(payload: AgentIncomingPayload & { type: 'agent_request_input' }): ChatRouteAction[];
+  onRequestInput(
+    payload: AgentIncomingPayload & { type: 'agent_request_input' },
+  ): ChatRouteAction[];
   onPlan(payload: AgentIncomingPayload & { type: 'agent_plan' }): ChatRouteAction[];
   onEvent(payload: AgentIncomingPayload & { type: 'agent_event' }): ChatRouteAction[];
   onCommand(payload: AgentIncomingPayload & { type: 'agent_command' }): ChatRouteAction[];
   route(payload: AgentIncomingPayload): ChatRouteAction[];
 }
 
-function ensureArray(actions: ChatRouteAction | ChatRouteAction[] | null | undefined): ChatRouteAction[] {
+function ensureArray(
+  actions: ChatRouteAction | ChatRouteAction[] | null | undefined,
+): ChatRouteAction[] {
   if (!actions) {
     return [];
   }
@@ -186,9 +190,7 @@ export function createChatRouter(): ChatRouter {
 
   const onPlan: ChatRouter['onPlan'] = (payload) => {
     const planSteps: PlanStep[] = Array.isArray(payload.plan) ? (payload.plan as PlanStep[]) : [];
-    return [
-      { type: 'plan', steps: planSteps, startConversation: true },
-    ];
+    return [{ type: 'plan', steps: planSteps, startConversation: true }];
   };
 
   const onEvent: ChatRouter['onEvent'] = (payload) => {
@@ -209,7 +211,9 @@ export function createChatRouter(): ChatRouter {
   ];
 
   const handlers: {
-    [Type in AgentPayloadType]: (payload: Extract<AgentIncomingPayload, { type: Type }>) => ChatRouteAction | ChatRouteAction[] | null;
+    [Type in AgentPayloadType]: (
+      payload: Extract<AgentIncomingPayload, { type: Type }>,
+    ) => ChatRouteAction | ChatRouteAction[] | null;
   } = {
     agent_message: onMessage,
     agent_status: onStatus,

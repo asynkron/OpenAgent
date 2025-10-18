@@ -4,15 +4,13 @@ import type { EscState } from '../escState.js';
 import type { HistoryCompactor } from '../historyCompactor.js';
 import type { ChatMessageEntry } from '../historyEntry.js';
 import type { DebugEmitter } from './debugEmitter.js';
-import type {
-  CompletionAttempt,
-  EmitEvent,
-  NormalizedExecuteAgentPassOptions,
-} from './types.js';
+import type { CompletionAttempt, EmitEvent, NormalizedExecuteAgentPassOptions } from './types.js';
 
-type SummarizeContextUsageFn = (typeof import('../../utils/contextUsage.js'))['summarizeContextUsage'];
+type SummarizeContextUsageFn =
+  (typeof import('../../utils/contextUsage.js'))['summarizeContextUsage'];
 type RequestModelCompletionFn = (typeof import('../modelRequest.js'))['requestModelCompletion'];
-type ExtractOpenAgentToolCallFn = (typeof import('../../openai/responseUtils.js'))['extractOpenAgentToolCall'];
+type ExtractOpenAgentToolCallFn =
+  (typeof import('../../openai/responseUtils.js'))['extractOpenAgentToolCall'];
 type CreateChatMessageEntryFn = (typeof import('../historyEntry.js'))['createChatMessageEntry'];
 
 type SetNoHumanFlagFn = ((value: boolean) => void) | undefined;
@@ -149,7 +147,8 @@ const requestAssistantCompletion = async ({
 
   const { completion } = completionResult;
   const toolCall = extractOpenAgentToolCallFn(completion);
-  const responseContent = toolCall && typeof toolCall.arguments === 'string' ? toolCall.arguments : '';
+  const responseContent =
+    toolCall && typeof toolCall.arguments === 'string' ? toolCall.arguments : '';
 
   emitDebug(() => ({
     stage: 'openai-response',

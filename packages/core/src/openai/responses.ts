@@ -308,7 +308,10 @@ export interface CreateResponseParams {
 }
 
 // Throw a predictable error instead of propagating null checks through every call site.
-function requireResponsesModel(openaiProvider: ResponsesClient | undefined, model: string): LanguageModel {
+function requireResponsesModel(
+  openaiProvider: ResponsesClient | undefined,
+  model: string,
+): LanguageModel {
   const languageModel = resolveResponsesModel(openaiProvider, model);
   if (!languageModel) {
     throw new Error('Invalid OpenAI client instance provided.');
@@ -384,23 +387,16 @@ async function createStructuredResult(
         })()
       : null;
 
-  const [
-    object,
-    finishReason,
-    usage,
-    warnings,
-    request,
-    response,
-    providerMetadata,
-  ] = await Promise.all([
-    streamResult.object,
-    streamResult.finishReason,
-    streamResult.usage,
-    streamResult.warnings,
-    streamResult.request,
-    streamResult.response,
-    streamResult.providerMetadata,
-  ]);
+  const [object, finishReason, usage, warnings, request, response, providerMetadata] =
+    await Promise.all([
+      streamResult.object,
+      streamResult.finishReason,
+      streamResult.usage,
+      streamResult.warnings,
+      streamResult.request,
+      streamResult.response,
+      streamResult.providerMetadata,
+    ]);
 
   await streamTask?.catch(() => {});
   notifyComplete();
@@ -408,9 +404,7 @@ async function createStructuredResult(
   const argumentsText = JSON.stringify(object);
   const responseRecord = response as Record<string, unknown>;
   const callId =
-    responseRecord && typeof responseRecord.id === 'string'
-      ? (responseRecord.id as string)
-      : null;
+    responseRecord && typeof responseRecord.id === 'string' ? (responseRecord.id as string) : null;
 
   const structured: GenerateObjectResult<PlanResponse> = {
     object,

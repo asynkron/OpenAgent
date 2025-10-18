@@ -18,12 +18,16 @@ class FakeEventTarget implements EventTarget {
   dispatchEvent(event: Event): boolean {
     const listeners = this.listeners.get(event.type ?? '');
     if (!listeners) {
-      return !('defaultPrevented' in event && (event as { defaultPrevented?: boolean }).defaultPrevented);
+      return !(
+        'defaultPrevented' in event && (event as { defaultPrevented?: boolean }).defaultPrevented
+      );
     }
     for (const listener of listeners) {
       listener.call(this, event);
     }
-    return !('defaultPrevented' in event && (event as { defaultPrevented?: boolean }).defaultPrevented);
+    return !(
+      'defaultPrevented' in event && (event as { defaultPrevented?: boolean }).defaultPrevented
+    );
   }
 
   emit<Type extends string, EventShape extends Record<string, unknown>>(

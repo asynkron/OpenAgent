@@ -19,13 +19,20 @@ type HarnessProps = {
   appendStatus: jest.Mock;
 };
 
-const Harness = forwardRef<HarnessHandle, HarnessProps>(function Harness({ limit = 5, appendStatus }, ref) {
+const Harness = forwardRef<HarnessHandle, HarnessProps>(function Harness(
+  { limit = 5, appendStatus },
+  ref,
+) {
   const { debugEvents, handleDebugEvent } = useDebugPanel({ limit, appendStatus });
 
-  useImperativeHandle(ref, () => ({
-    emit: handleDebugEvent,
-    snapshot: () => debugEvents,
-  }), [handleDebugEvent, debugEvents]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      emit: handleDebugEvent,
+      snapshot: () => debugEvents,
+    }),
+    [handleDebugEvent, debugEvents],
+  );
 
   return null;
 });

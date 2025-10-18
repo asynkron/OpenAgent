@@ -117,7 +117,12 @@ export class HistoryCompactor {
 
   private readonly logger: HistoryCompactorLogger | null;
 
-  constructor({ openai, model, usageThreshold = DEFAULT_USAGE_THRESHOLD, logger }: HistoryCompactorOptions = {}) {
+  constructor({
+    openai,
+    model,
+    usageThreshold = DEFAULT_USAGE_THRESHOLD,
+    logger,
+  }: HistoryCompactorOptions = {}) {
     this.openai = openai ?? undefined;
     this.model = model ?? undefined;
     this.usageThreshold = usageThreshold;

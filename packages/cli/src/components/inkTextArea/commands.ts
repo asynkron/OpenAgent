@@ -60,12 +60,7 @@ export interface SlashCommandSourceObject {
   replacement?: unknown;
 }
 
-export type SlashCommandSourceItem =
-  | null
-  | undefined
-  | string
-  | number
-  | SlashCommandSourceObject;
+export type SlashCommandSourceItem = null | undefined | string | number | SlashCommandSourceObject;
 
 export interface NormalizedSlashCommand {
   id: string;

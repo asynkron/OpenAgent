@@ -36,4 +36,5 @@ export const normalizePlanStatus = (value: unknown): PlanStatus | null => {
   return PLAN_STATUS_LOOKUP.has(normalized) ? (normalized as PlanStatus) : null;
 };
 
-export const isPlanStatus = (value: unknown): value is PlanStatus => normalizePlanStatus(value) !== null;
+export const isPlanStatus = (value: unknown): value is PlanStatus =>
+  normalizePlanStatus(value) !== null;

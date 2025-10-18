@@ -9,10 +9,7 @@ import {
   runApprovedCommand,
   type CommandExecutorOptions,
 } from './commandRuntime/executor.js';
-import {
-  requestCommandApproval,
-  type ApprovalGateOptions,
-} from './commandRuntime/approvalGate.js';
+import { requestCommandApproval, type ApprovalGateOptions } from './commandRuntime/approvalGate.js';
 import {
   processCommandExecution,
   type ResultProcessorOptions,

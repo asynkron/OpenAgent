@@ -30,9 +30,7 @@ export interface ObservationRenderPayload {
 }
 
 export interface ObservationPayload extends ObservationRecord {
-  observation_for_llm:
-    | CommandOutputObservationForLLM
-    | OperationCanceledObservationForLLM;
+  observation_for_llm: CommandOutputObservationForLLM | OperationCanceledObservationForLLM;
   observation_metadata: ObservationMetadata;
 }
 

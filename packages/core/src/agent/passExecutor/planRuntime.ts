@@ -3,11 +3,11 @@ import type { ExecuteAgentPassOptions } from './types.js';
 import type { ChatMessageEntry } from '../historyEntry.js';
 import type { CommandResult } from '../../commands/run.js';
 import type { ObservationRecord } from '../historyMessageBuilder.js';
+import { createPlanStateMachine, type PlanStateMachine } from './planRuntime/stateMachine/index.js';
 import {
-  createPlanStateMachine,
-  type PlanStateMachine,
-} from './planRuntime/stateMachine/index.js';
-import { createRuntimeReminderController, type RuntimeReminderController } from './planRuntime/reminderController.js';
+  createRuntimeReminderController,
+  type RuntimeReminderController,
+} from './planRuntime/reminderController.js';
 import { initializePlanRuntime } from './planRuntime/initialization.js';
 import { finalizePlanRuntime } from './planRuntime/finalization.js';
 import {
@@ -117,7 +117,11 @@ export class PlanRuntime {
     });
   }
 
-  async handleNoExecutable({ parsedMessage }: { parsedMessage: string }): Promise<HandleNoExecutableResult> {
+  async handleNoExecutable({
+    parsedMessage,
+  }: {
+    parsedMessage: string;
+  }): Promise<HandleNoExecutableResult> {
     return handleNoExecutableMessage({
       parsedMessage,
       stateMachine: this.stateMachine,

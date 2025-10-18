@@ -1,7 +1,10 @@
 import type { PlanStep } from '../planExecution.js';
 import type { PlanManagerAdapter } from '../planManagerAdapter.js';
 import { refusalHeuristics } from '../refusalDetection.js';
-import { createRefusalAutoResponseEntry, type ObservationRecord } from '../../historyMessageBuilder.js';
+import {
+  createRefusalAutoResponseEntry,
+  type ObservationRecord,
+} from '../../historyMessageBuilder.js';
 import { createCommandRejectionObservation } from './observationRecorder.js';
 import type { PlanStateMachine } from './stateMachine/index.js';
 import {
@@ -36,7 +39,11 @@ export const handleNoExecutableMessage = async ({
 }: NoExecutableContext): Promise<HandleNoExecutableResult> => {
   const effects = [] as HandleNoExecutableResult['effects'];
 
-  if (typeof getNoHumanFlag === 'function' && typeof setNoHumanFlag === 'function' && getNoHumanFlag()) {
+  if (
+    typeof getNoHumanFlag === 'function' &&
+    typeof setNoHumanFlag === 'function' &&
+    getNoHumanFlag()
+  ) {
     const normalizedMessage = normalizeAssistantMessage(parsedMessage.trim().toLowerCase());
     if (normalizedMessage.replace(/[.!]+$/, '') === 'done') {
       effects.push(createSetNoHumanFlagEffect(false));
@@ -49,7 +56,11 @@ export const handleNoExecutableMessage = async ({
   const incomingPlanEmpty =
     !stateMachine.state.initialIncomingPlan || stateMachine.state.initialIncomingPlan.length === 0;
 
-  if (activePlanEmpty && incomingPlanEmpty && refusalHeuristics.isLikelyRefusalMessage(normalizedMessage)) {
+  if (
+    activePlanEmpty &&
+    incomingPlanEmpty &&
+    refusalHeuristics.isLikelyRefusalMessage(normalizedMessage)
+  ) {
     effects.push(
       ...toEmitEffects({
         type: 'status',

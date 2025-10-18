@@ -8,7 +8,9 @@ const normalizePlanIdentifier = (value: unknown): string => {
   return value.trim() || '';
 };
 
-export const buildPlanLookup = (plan: PlanSnapshot | null | undefined): Map<string, PlanSnapshotStep> => {
+export const buildPlanLookup = (
+  plan: PlanSnapshot | null | undefined,
+): Map<string, PlanSnapshotStep> => {
   const lookup = new Map<string, PlanSnapshotStep>();
 
   if (!Array.isArray(plan)) {

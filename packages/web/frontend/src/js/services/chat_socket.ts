@@ -40,8 +40,7 @@ export function createChatSocketManager({
   createSocket,
 }: ChatSocketManagerOptions): ChatSocketManager {
   const { location } = windowRef;
-  const createSocketFn =
-    createSocket ?? ((url: string) => new windowRef.WebSocket(url));
+  const createSocketFn = createSocket ?? ((url: string) => new windowRef.WebSocket(url));
 
   let socket: WebSocket | null = null;
   let cleanup: CleanupFn | null = null;

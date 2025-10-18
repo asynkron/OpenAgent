@@ -12,10 +12,7 @@
  * to regenerate it after editing this source until the build pipeline emits from
  * TypeScript directly.
  */
-import {
-  DEFAULT_COMMAND_MAX_BYTES,
-  DEFAULT_COMMAND_TAIL_LINES,
-} from '../constants.js';
+import { DEFAULT_COMMAND_MAX_BYTES, DEFAULT_COMMAND_TAIL_LINES } from '../constants.js';
 import ExecuteCommand from './commands/ExecuteCommand.js';
 import type { CommandResult } from '../commands/run.js';
 import type { CommandDraft, CommandExecutionDetails } from '../contracts/index.js';

@@ -81,7 +81,10 @@ describe('createResponse uses generateObject with tool schema', () => {
     const onFinish = jest.fn();
 
     const languageModel = {};
-    const openaiProvider = { responses: jest.fn().mockReturnValue(languageModel) } as Record<string, unknown>;
+    const openaiProvider = { responses: jest.fn().mockReturnValue(languageModel) } as Record<
+      string,
+      unknown
+    >;
 
     await createResponse({
       openai: openaiProvider as any,

@@ -18,7 +18,10 @@ const normalizePlanIdentifier = (value: unknown): string => {
   return trimmed || '';
 };
 
-const createPlanKey = (item: PlanSnapshotStep | null | undefined, fallbackIndex: number): string => {
+const createPlanKey = (
+  item: PlanSnapshotStep | null | undefined,
+  fallbackIndex: number,
+): string => {
   if (!item || typeof item !== 'object') {
     return `index:${fallbackIndex}`;
   }

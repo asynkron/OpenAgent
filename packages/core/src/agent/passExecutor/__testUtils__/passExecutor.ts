@@ -6,12 +6,16 @@ import type { NormalizedExecuteAgentPassOptions } from '../types.js';
 
 const createMock = <T extends (...args: any[]) => any>(
   impl?: (...args: Parameters<T>) => ReturnType<T>,
-): T => jest.fn(impl ?? ((() => undefined) as unknown as (...args: Parameters<T>) => ReturnType<T>)) as unknown as T;
+): T =>
+  jest.fn(
+    impl ?? ((() => undefined) as unknown as (...args: Parameters<T>) => ReturnType<T>),
+  ) as unknown as T;
 
-export const createObservationBuilderStub = (): ObservationBuilder => ({
-  build: jest.fn(),
-  buildCancellationObservation: jest.fn(() => ({})),
-} as unknown as ObservationBuilder);
+export const createObservationBuilderStub = (): ObservationBuilder =>
+  ({
+    build: jest.fn(),
+    buildCancellationObservation: jest.fn(() => ({})),
+  }) as unknown as ObservationBuilder;
 
 export const createNormalizedOptions = (
   overrides: Partial<NormalizedExecuteAgentPassOptions> = {},
@@ -21,13 +25,16 @@ export const createNormalizedOptions = (
   history: [],
   emitEvent: createMock<NormalizedExecuteAgentPassOptions['emitEvent']>(),
   onDebug: null,
-  runCommandFn: createMock<NormalizedExecuteAgentPassOptions['runCommandFn']>(async () => ({
-    stdout: '',
-    stderr: '',
-    exit_code: 0,
-    killed: false,
-    runtime_ms: 0,
-  } satisfies CommandResult)),
+  runCommandFn: createMock<NormalizedExecuteAgentPassOptions['runCommandFn']>(
+    async () =>
+      ({
+        stdout: '',
+        stderr: '',
+        exit_code: 0,
+        killed: false,
+        runtime_ms: 0,
+      }) satisfies CommandResult,
+  ),
   applyFilterFn: createMock<NormalizedExecuteAgentPassOptions['applyFilterFn']>((text) => text),
   tailLinesFn: createMock<NormalizedExecuteAgentPassOptions['tailLinesFn']>((text) => text),
   getNoHumanFlag: () => false,
@@ -42,34 +49,70 @@ export const createNormalizedOptions = (
   emitAutoApproveStatus: false,
   planAutoResponseTracker: null,
   passIndex: 1,
-  requestModelCompletionFn: createMock<NormalizedExecuteAgentPassOptions['requestModelCompletionFn']>(async () =>
-    ({} as Awaited<ReturnType<NormalizedExecuteAgentPassOptions['requestModelCompletionFn']>>),
+  requestModelCompletionFn: createMock<
+    NormalizedExecuteAgentPassOptions['requestModelCompletionFn']
+  >(
+    async () =>
+      ({}) as Awaited<ReturnType<NormalizedExecuteAgentPassOptions['requestModelCompletionFn']>>,
   ),
-  executeAgentCommandFn: createMock<NormalizedExecuteAgentPassOptions['executeAgentCommandFn']>(async () =>
-    ({} as Awaited<ReturnType<NormalizedExecuteAgentPassOptions['executeAgentCommandFn']>>),
+  executeAgentCommandFn: createMock<NormalizedExecuteAgentPassOptions['executeAgentCommandFn']>(
+    async () =>
+      ({}) as Awaited<ReturnType<NormalizedExecuteAgentPassOptions['executeAgentCommandFn']>>,
   ),
-  createObservationBuilderFn: createMock<NormalizedExecuteAgentPassOptions['createObservationBuilderFn']>(() =>
-    ({ build: jest.fn(), buildCancellationObservation: jest.fn(() => ({})) } as unknown as ObservationBuilder),
+  createObservationBuilderFn: createMock<
+    NormalizedExecuteAgentPassOptions['createObservationBuilderFn']
+  >(
+    () =>
+      ({
+        build: jest.fn(),
+        buildCancellationObservation: jest.fn(() => ({})),
+      }) as unknown as ObservationBuilder,
   ),
-  combineStdStreamsFn: createMock<NormalizedExecuteAgentPassOptions['combineStdStreamsFn']>(() => ({ stdout: '', stderr: '' })),
+  combineStdStreamsFn: createMock<NormalizedExecuteAgentPassOptions['combineStdStreamsFn']>(() => ({
+    stdout: '',
+    stderr: '',
+  })),
   buildPreviewFn: createMock<NormalizedExecuteAgentPassOptions['buildPreviewFn']>(() => ''),
-  parseAssistantResponseFn: createMock<NormalizedExecuteAgentPassOptions['parseAssistantResponseFn']>(() =>
-    ({} as unknown as ReturnType<NormalizedExecuteAgentPassOptions['parseAssistantResponseFn']>),
+  parseAssistantResponseFn: createMock<
+    NormalizedExecuteAgentPassOptions['parseAssistantResponseFn']
+  >(
+    () =>
+      ({}) as unknown as ReturnType<NormalizedExecuteAgentPassOptions['parseAssistantResponseFn']>,
   ),
-  validateAssistantResponseSchemaFn: createMock<NormalizedExecuteAgentPassOptions['validateAssistantResponseSchemaFn']>(() =>
-    ({} as unknown as ReturnType<NormalizedExecuteAgentPassOptions['validateAssistantResponseSchemaFn']>),
+  validateAssistantResponseSchemaFn: createMock<
+    NormalizedExecuteAgentPassOptions['validateAssistantResponseSchemaFn']
+  >(
+    () =>
+      ({}) as unknown as ReturnType<
+        NormalizedExecuteAgentPassOptions['validateAssistantResponseSchemaFn']
+      >,
   ),
-  validateAssistantResponseFn: createMock<NormalizedExecuteAgentPassOptions['validateAssistantResponseFn']>(() =>
-    ({} as unknown as ReturnType<NormalizedExecuteAgentPassOptions['validateAssistantResponseFn']>),
+  validateAssistantResponseFn: createMock<
+    NormalizedExecuteAgentPassOptions['validateAssistantResponseFn']
+  >(
+    () =>
+      ({}) as unknown as ReturnType<
+        NormalizedExecuteAgentPassOptions['validateAssistantResponseFn']
+      >,
   ),
-  createChatMessageEntryFn: createMock<NormalizedExecuteAgentPassOptions['createChatMessageEntryFn']>((entry) =>
-    ({ eventType: 'chat-message', payload: {}, ...entry } as ReturnType<NormalizedExecuteAgentPassOptions['createChatMessageEntryFn']>),
+  createChatMessageEntryFn: createMock<
+    NormalizedExecuteAgentPassOptions['createChatMessageEntryFn']
+  >(
+    (entry) =>
+      ({ eventType: 'chat-message', payload: {}, ...entry }) as ReturnType<
+        NormalizedExecuteAgentPassOptions['createChatMessageEntryFn']
+      >,
   ),
-  extractOpenAgentToolCallFn: createMock<NormalizedExecuteAgentPassOptions['extractOpenAgentToolCallFn']>(() => null),
-  summarizeContextUsageFn: createMock<NormalizedExecuteAgentPassOptions['summarizeContextUsageFn']>(() =>
-    ({} as unknown as ReturnType<NormalizedExecuteAgentPassOptions['summarizeContextUsageFn']>),
+  extractOpenAgentToolCallFn: createMock<
+    NormalizedExecuteAgentPassOptions['extractOpenAgentToolCallFn']
+  >(() => null),
+  summarizeContextUsageFn: createMock<NormalizedExecuteAgentPassOptions['summarizeContextUsageFn']>(
+    () =>
+      ({}) as unknown as ReturnType<NormalizedExecuteAgentPassOptions['summarizeContextUsageFn']>,
   ),
-  incrementCommandCountFn: createMock<NormalizedExecuteAgentPassOptions['incrementCommandCountFn']>(async () => true),
+  incrementCommandCountFn: createMock<NormalizedExecuteAgentPassOptions['incrementCommandCountFn']>(
+    async () => true,
+  ),
   guardRequestPayloadSizeFn: null,
   recordRequestPayloadSizeFn: null,
   ...overrides,

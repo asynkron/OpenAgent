@@ -1,14 +1,8 @@
 import { jest } from '@jest/globals';
 import { createChatActionRunner } from '../chat_actionRunner.js';
 import { createChatBootstrap, type ChatBootstrapHandlers } from '../chat_bootstrap.js';
-import {
-  createChatLifecycle,
-  type ChatLifecycleObserver,
-} from '../chat_lifecycle.js';
-import {
-  createChatSessionController,
-  createChatSessionState,
-} from '../chat_sessionController.js';
+import { createChatLifecycle, type ChatLifecycleObserver } from '../chat_lifecycle.js';
+import { createChatSessionController, createChatSessionState } from '../chat_sessionController.js';
 import type { ChatDomController } from '../chat_domController.js';
 import type { ChatInputController } from '../chat_inputController.js';
 import type {
@@ -211,7 +205,10 @@ describe('chat service helpers', () => {
         createManager: managerFactory,
       });
 
-      const observer = jest.fn<ReturnType<ChatLifecycleObserver>, Parameters<ChatLifecycleObserver>>();
+      const observer = jest.fn<
+        ReturnType<ChatLifecycleObserver>,
+        Parameters<ChatLifecycleObserver>
+      >();
       const unsubscribe = lifecycle.subscribe(observer);
 
       const statusUpdate: ChatSocketStatusUpdate = {
