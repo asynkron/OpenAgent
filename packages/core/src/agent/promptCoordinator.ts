@@ -88,16 +88,11 @@ export class PromptCoordinator {
   }
 
   handleCancel(payload: EscPayload = null): void {
-    if (this.cancelFn) {
-      this.cancelFn('ui-cancel');
-    }
+    this.cancelFn?.('ui-cancel');
 
     const escState = this.escState;
-    if (escState && escState.waiters.size > 0) {
-      const normalizedPayload = this.normalizeEscPayload(payload);
-      if (escState.trigger && typeof escState.trigger === 'function') {
-        escState.trigger(normalizedPayload);
-      }
+    if (escState?.waiters.size) {
+      escState.trigger?.(this.normalizeEscPayload(payload));
     }
 
     this.emitEvent({
@@ -117,12 +112,12 @@ export class PromptCoordinator {
 
   private normalizeEscPayload(payload: EscPayload): EscPayload {
     if (typeof payload === 'string') {
-      return payload;
+      return payload.trim().length > 0 ? payload : { reason: 'ui-cancel' };
     }
 
     if (payload && typeof payload === 'object') {
       const candidate = payload as { reason?: unknown };
-      if (typeof candidate.reason === 'string' && candidate.reason.length > 0) {
+      if (typeof candidate.reason === 'string' && candidate.reason.trim().length > 0) {
         return { reason: candidate.reason };
       }
     }
