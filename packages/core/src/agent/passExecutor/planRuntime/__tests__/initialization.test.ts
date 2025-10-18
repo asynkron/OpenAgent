@@ -2,6 +2,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { initializePlanRuntime } from '../initialization.js';
 import { createPlanStateMachine } from '../stateMachine/index.js';
+import { createPlanPersistenceCoordinator } from '../persistenceCoordinator.js';
 
 describe('initializePlanRuntime', () => {
   test('normalizes incoming plan and emits snapshot effect', async () => {
@@ -17,7 +18,7 @@ describe('initializePlanRuntime', () => {
     const result = await initializePlanRuntime({
       incomingPlan,
       stateMachine,
-      planManager: null,
+      persistence: createPlanPersistenceCoordinator(null),
     });
 
     expect(result.type).toBe('plan-initialized');

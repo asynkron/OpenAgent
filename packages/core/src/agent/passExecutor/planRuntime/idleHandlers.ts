@@ -1,5 +1,4 @@
 import type { PlanStep } from '../planExecution.js';
-import type { PlanManagerAdapter } from '../planManagerAdapter.js';
 import { refusalHeuristics } from '../refusalDetection.js';
 import {
   createRefusalAutoResponseEntry,
@@ -17,12 +16,12 @@ import {
   type HandleNoExecutableResult,
   toEmitEffects,
 } from './effects.js';
-import { resetPersistedPlan } from './persistence.js';
 import { normalizeAssistantMessage } from '../planStepStatus.js';
+import type { PlanPersistenceCoordinator } from './persistenceCoordinator.js';
 
 export interface NoExecutableContext {
   readonly parsedMessage: string;
-  readonly planManager: PlanManagerAdapter | null;
+  readonly persistence: PlanPersistenceCoordinator;
   readonly stateMachine: PlanStateMachine;
   readonly passIndex: number;
   readonly getNoHumanFlag?: () => boolean;
@@ -31,7 +30,7 @@ export interface NoExecutableContext {
 
 export const handleNoExecutableMessage = async ({
   parsedMessage,
-  planManager,
+  persistence,
   stateMachine,
   passIndex,
   getNoHumanFlag,
@@ -89,7 +88,7 @@ export const handleNoExecutableMessage = async ({
   }
 
   if (activePlanEmpty) {
-    const cleared = await resetPersistedPlan(planManager);
+    const cleared = await persistence.resetPlanSnapshot();
     effects.push(...toEmitEffects(cleared.warning));
     stateMachine.replaceActivePlan(cleared.plan);
     effects.push(createPlanSnapshotEffect(stateMachine.cloneActivePlan()));

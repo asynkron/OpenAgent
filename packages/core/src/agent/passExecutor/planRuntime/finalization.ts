@@ -1,5 +1,4 @@
-import type { PlanManagerAdapter } from '../planManagerAdapter.js';
-import { resetPersistedPlan, syncPlanSnapshot } from './persistence.js';
+import type { PlanPersistenceCoordinator } from './persistenceCoordinator.js';
 import type { PlanStateMachine } from './stateMachine/index.js';
 import {
   createPlanObservationEffect,
@@ -9,13 +8,13 @@ import {
 } from './effects.js';
 
 export interface PlanFinalizationContext {
-  readonly planManager: PlanManagerAdapter | null;
+  readonly persistence: PlanPersistenceCoordinator;
   readonly stateMachine: PlanStateMachine;
   readonly passIndex: number;
 }
 
 export const finalizePlanRuntime = async ({
-  planManager,
+  persistence,
   stateMachine,
   passIndex,
 }: PlanFinalizationContext): Promise<FinalizeResult> => {
@@ -26,14 +25,14 @@ export const finalizePlanRuntime = async ({
   const effects = [] as FinalizeResult['effects'];
 
   if (stateMachine.state.activePlan.length === 0) {
-    const cleared = await resetPersistedPlan(planManager);
+    const cleared = await persistence.resetPlanSnapshot();
     effects.push(...toEmitEffects(cleared.warning));
     stateMachine.replaceActivePlan(cleared.plan);
     effects.push(createPlanSnapshotEffect(stateMachine.cloneActivePlan()));
   } else {
     const planSnapshot = stateMachine.cloneActivePlan();
     effects.push(createPlanSnapshotEffect(planSnapshot));
-    const warning = await syncPlanSnapshot(planManager, planSnapshot);
+    const warning = await persistence.persistPlanSnapshot(planSnapshot);
     effects.push(...toEmitEffects(warning));
   }
 
