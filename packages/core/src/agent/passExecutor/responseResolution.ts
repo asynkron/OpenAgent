@@ -37,6 +37,7 @@ export const resolveAssistantResponse = ({
     parseAssistantResponseFn: options.parseAssistantResponseFn,
     validateAssistantResponseSchemaFn: options.validateAssistantResponseSchemaFn,
     validateAssistantResponseFn: options.validateAssistantResponseFn,
+    responseEmitter: prePassResult.responseEmitter ?? null,
   });
 
   if (resolution.status !== 'success') {

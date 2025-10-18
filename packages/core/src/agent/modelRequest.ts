@@ -27,6 +27,7 @@ import { buildOpenAgentRequestPayload } from './modelRequestPayload.js';
 import type { ObservationBuilder } from './observationBuilder.js';
 import type { ChatMessageEntry } from './historyEntry.js';
 import type { RuntimeEvent } from './runtimeTypes.js';
+import type { StructuredResponseEventEmitter } from './structuredResponseEventEmitter.js';
 
 interface CancellationRegistrationOptions {
   description: string;
@@ -62,6 +63,7 @@ export interface RequestModelCompletionOptions {
   setNoHumanFlag?: (value: boolean) => void;
   emitEvent?: EmitEvent;
   passIndex: number;
+  structuredResponseEmitter?: StructuredResponseEventEmitter | null;
 }
 
 export interface ModelCompletionSuccess {
@@ -86,6 +88,7 @@ export async function requestModelCompletion({
   setNoHumanFlag,
   emitEvent = () => {},
   passIndex,
+  structuredResponseEmitter = null,
 }: RequestModelCompletionOptions): Promise<ModelCompletionResult> {
   if (!openai) {
     throw new Error('requestModelCompletion requires an AI SDK responses client.');
@@ -154,6 +157,7 @@ export async function requestModelCompletion({
 
   const emitStructuredStreamPartial = (value: PlanResponseStreamPartial): void => {
     streamPanelCleared = false;
+    structuredResponseEmitter?.handleStreamPartial(value);
     emitStructuredStreamInstruction('replace', value);
   };
 
