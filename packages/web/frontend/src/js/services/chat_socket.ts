@@ -25,9 +25,33 @@ export interface ChatSocketManager {
 
 type CleanupFn = () => void;
 
+// Centralise socket teardown so every call logs the same message structure.
+function safeCloseSocket(target: WebSocket | null, message: string): void {
+  if (!target) {
+    return;
+  }
+  try {
+    target.close();
+  } catch (error) {
+    console.warn(message, error);
+  }
+}
+
 function isFromStaleSocket(target: WebSocket | null, event: Event): boolean {
   const currentTarget = event?.currentTarget ?? null;
   return Boolean(target && currentTarget && target !== currentTarget);
+}
+
+// Derive the websocket URL while guarding against browsers that restrict
+// access to `location` in certain sandboxed frames.
+function resolveAgentSocketUrl(location: Location): string | null {
+  try {
+    const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+    return `${protocol}://${location.host}/ws/agent`;
+  } catch (error) {
+    console.error('Failed to resolve agent websocket URL', error);
+    return null;
+  }
 }
 
 export function createChatSocketManager({
@@ -134,8 +158,7 @@ export function createChatSocketManager({
   };
 
   const handleClose = (event: CloseEvent): void => {
-    const target = event.currentTarget as WebSocket | null;
-    if (socket && target && socket !== target) {
+    if (!socket || isFromStaleSocket(socket, event)) {
       return;
     }
     if (destroyed) {
@@ -149,14 +172,11 @@ export function createChatSocketManager({
     });
     scheduleReconnect();
     removeSocketListeners();
-    if (socket === target) {
-      socket = null;
-    }
+    socket = null;
   };
 
   const handleError = (event: Event): void => {
-    const target = event.currentTarget as WebSocket | null;
-    if (socket && target && socket !== target) {
+    if (!socket || isFromStaleSocket(socket, event)) {
       return;
     }
     updateConnection(false);
@@ -165,15 +185,8 @@ export function createChatSocketManager({
       level: 'error',
       message: 'Agent connection encountered an error.',
     });
-    try {
-      target?.close();
-    } catch (error) {
-      console.warn('Failed to close agent socket after error', error);
-    } finally {
-      if (socket === target) {
-        socket = null;
-      }
-    }
+    safeCloseSocket(socket, 'Failed to close agent socket after error');
+    socket = null;
     scheduleReconnect();
   };
 
@@ -204,19 +217,11 @@ export function createChatSocketManager({
 
     if (socket && socket.readyState !== CLOSED_STATE && socket.readyState !== CLOSING_STATE) {
       removeSocketListeners();
-      try {
-        socket.close();
-      } catch (error) {
-        console.warn('Failed to close existing agent socket', error);
-      }
+      safeCloseSocket(socket, 'Failed to close existing agent socket');
     }
 
-    let url: string;
-    try {
-      const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-      url = `${protocol}://${location.host}/ws/agent`;
-    } catch (error) {
-      console.error('Failed to resolve agent websocket URL', error);
+    const url = resolveAgentSocketUrl(location);
+    if (!url) {
       scheduleReconnect();
       return;
     }
@@ -247,11 +252,7 @@ export function createChatSocketManager({
     clearReconnectTimer();
     removeSocketListeners();
     if (socket) {
-      try {
-        socket.close();
-      } catch (error) {
-        console.warn('Failed to close agent socket on dispose', error);
-      }
+      safeCloseSocket(socket, 'Failed to close agent socket on dispose');
       socket = null;
     }
   };
