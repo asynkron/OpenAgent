@@ -1,3 +1,5 @@
+import { PlanStatus, isTerminalStatus } from '@asynkron/openagent-core';
+
 import { formatDebugPayload } from './logging.js';
 import { cloneValue, parsePositiveInteger } from './runtimeUtils.js';
 import type { PlanStep } from '../planUtils.js';
@@ -103,6 +105,17 @@ export function createPlanCommandPayload(
 ): TimelinePayload<'command-result'> | null {
   if (!planStep || typeof planStep !== 'object') {
     return null;
+  }
+
+  const rawStatus = (planStep as { status?: unknown }).status;
+  if (typeof rawStatus === 'string') {
+    if (isTerminalStatus(rawStatus)) {
+      return null;
+    }
+
+    if (rawStatus !== PlanStatus.Pending && rawStatus !== PlanStatus.Running) {
+      return null;
+    }
   }
 
   const eventId = buildPlanStepEventId(planStep);

@@ -43,6 +43,8 @@ import {
   extractResponseText,
 } from '../agent/loop.js';
 import { createWebSocketBinding } from '../bindings/websocket.js';
+import { PlanStatus, TERMINAL_PLAN_STATUSES } from '../contracts/index.js';
+import { isTerminalStatus } from '../agent/passExecutor/planStepStatus.js';
 import {
   getStartupFlags,
   getAutoApproveFlag,
@@ -87,6 +89,9 @@ export {
   extractOpenAgentToolCall,
   extractResponseText,
   createWebSocketBinding,
+  PlanStatus,
+  TERMINAL_PLAN_STATUSES,
+  isTerminalStatus,
   getStartupFlags,
   getAutoApproveFlag,
   getNoHumanFlag,
@@ -158,6 +163,9 @@ const exported = {
   extractOpenAgentToolCall,
   extractResponseText,
   createWebSocketBinding,
+  PlanStatus,
+  TERMINAL_PLAN_STATUSES,
+  isTerminalStatus,
   getStartupFlags,
   getAutoApproveFlag,
   getNoHumanFlag,

@@ -46,8 +46,8 @@ describe('commandLogHelpers', () => {
     expect(payload.command).toEqual({ run: 'ls' });
   });
 
-  test('createPlanCommandPayload builds placeholder payloads without execution output', () => {
-    const planStep: PlanStep = { id: 'alpha', command: { run: 'pwd' } };
+  test('createPlanCommandPayload builds placeholder payloads for pending steps', () => {
+    const planStep: PlanStep = { id: 'alpha', status: 'pending', command: { run: 'pwd' } };
 
     const placeholder = createPlanCommandPayload(planStep);
 
@@ -57,5 +57,31 @@ describe('commandLogHelpers', () => {
     expect(placeholder?.result).toBeNull();
     expect(placeholder?.preview).toBeNull();
     expect(placeholder?.observation).toBeNull();
+  });
+
+  test('createPlanCommandPayload builds placeholders for running steps', () => {
+    const planStep: PlanStep = { id: 'bravo', status: 'running', command: { run: 'ls' } };
+
+    const placeholder = createPlanCommandPayload(planStep);
+
+    expect(placeholder).not.toBeNull();
+    expect(placeholder?.eventId).toBe('plan-step:bravo');
+    expect(placeholder?.command).toEqual({ run: 'ls' });
+  });
+
+  test('createPlanCommandPayload skips terminal plan steps to preserve execution output', () => {
+    const completedStep: PlanStep = { id: 'omega', status: 'completed', command: { run: 'ls' } };
+
+    const placeholder = createPlanCommandPayload(completedStep);
+
+    expect(placeholder).toBeNull();
+  });
+
+  test('createPlanCommandPayload skips unrecognized statuses to avoid wiping output', () => {
+    const blockedStep: PlanStep = { id: 'zeta', status: 'blocked', command: { run: 'pwd' } };
+
+    const placeholder = createPlanCommandPayload(blockedStep);
+
+    expect(placeholder).toBeNull();
   });
 });
