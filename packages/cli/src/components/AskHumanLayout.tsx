@@ -1,6 +1,5 @@
 import { type ReactElement } from 'react';
 import { Box, Text } from 'ink';
-import Spinner from 'ink-spinner';
 import ContextUsage from './ContextUsage.js';
 import InkTextArea from './InkTextArea.js';
 import {
@@ -38,7 +37,7 @@ const AskHumanLayout = ({
 }: AskHumanLayoutProps): ReactElement => {
   const inputDisplay = thinking ? (
     <Text {...askHumanViewProps.spinnerTextProps}>
-      <Spinner type="dots" key="spinner-icon" /> Thinking…
+      ⏳ Thinking…
     </Text>
   ) : (
     <InkTextArea
