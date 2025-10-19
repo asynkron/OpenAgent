@@ -1,3 +1,4 @@
+import { RuntimeEventType } from '@asynkron/openagent-core';
 import React from 'react';
 import { render } from 'ink';
 

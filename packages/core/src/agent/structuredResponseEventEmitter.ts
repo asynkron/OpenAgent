@@ -1,3 +1,4 @@
+import { RuntimeEventType } from '../contracts/events.js';
 import type { CommandDraft, PlanObservation, PlanResponse, PlanStep } from '../contracts/index.js';
 import type { PlanResponseStreamPartial } from '../openai/responses.js';
 import type {
@@ -466,7 +467,7 @@ export class StructuredResponseEventEmitter {
     }
 
     const event: RuntimeEvent = {
-      type: 'planning',
+      type: RuntimeEventType.Planning,
       payload: {
         state,
       },

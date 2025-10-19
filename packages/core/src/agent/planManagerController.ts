@@ -1,3 +1,4 @@
+import { RuntimeEventType } from '../contracts/events.js';
 import { mergePlanTrees } from '../utils/plan.js';
 import type { PlanSnapshot, PlanProgress } from '../utils/plan.js';
 import type {
@@ -63,7 +64,7 @@ export class PlanManagerController {
   async sync(nextPlan: PlanSnapshot | null | undefined): Promise<PlanSnapshot> {
     if (!Array.isArray(nextPlan)) {
       this.emitStatus({
-        type: 'status',
+        type: RuntimeEventType.Status,
         payload: {
           level: 'warn',
           message: 'Plan manager received an invalid plan snapshot during sync. Resetting plan.',
@@ -120,7 +121,7 @@ export class PlanManagerController {
 
     this.lastProgressSignature = signature;
     const evt: unknown = {
-      type: 'plan-progress',
+      type: RuntimeEventType.PlanProgress,
       payload: {
         progress,
       },
@@ -148,7 +149,7 @@ export class PlanManagerController {
       }
 
       this.emitStatus({
-        type: 'status',
+        type: RuntimeEventType.Status,
         payload: {
           level: 'warn',
           message: 'Plan persistence adapter returned an invalid snapshot. Resetting plan.',
@@ -161,7 +162,7 @@ export class PlanManagerController {
       this.activePlan = [];
     } catch (error) {
       this.emitStatus({
-        type: 'status',
+        type: RuntimeEventType.Status,
         payload: {
           level: 'warn',
           message: 'Failed to load plan snapshot. Resetting plan.',
@@ -178,7 +179,7 @@ export class PlanManagerController {
   private sanitizeIncomingPlan(plan: unknown): PlanSnapshot {
     if (!Array.isArray(plan)) {
       this.emitStatus({
-        type: 'status',
+        type: RuntimeEventType.Status,
         payload: {
           level: 'warn',
           message: 'Plan manager received an invalid plan snapshot. Ignoring payload.',
@@ -199,7 +200,7 @@ export class PlanManagerController {
       if (!mergeEnabled) {
         if (this.activePlan.length > 0) {
           this.emitStatus({
-            type: 'status',
+            type: RuntimeEventType.Status,
             payload: {
               level: 'info',
               message:
@@ -224,7 +225,7 @@ export class PlanManagerController {
 
     if (this.activePlan.length > 0) {
       this.emitStatus({
-        type: 'status',
+        type: RuntimeEventType.Status,
         payload: {
           level: 'info',
           message: 'Replacing active plan with assistant update because plan merging is disabled.',

@@ -1,3 +1,4 @@
+import { RuntimeEventType } from '@asynkron/openagent-core';
 /**
  * Handles the lightweight CLI "thinking" animation shown while awaiting API calls.
  *

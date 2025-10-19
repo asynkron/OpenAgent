@@ -1,3 +1,4 @@
+import { RuntimeEventType } from '@asynkron/openagent-core';
 /**
  * Terminal rendering helpers preserved for backwards compatibility with tests
  * and programmatic consumers. The CLI itself now uses Ink components, but these

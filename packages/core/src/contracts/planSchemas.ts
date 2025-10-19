@@ -62,3 +62,11 @@ export const PlanResponseSchema: z.ZodType<PlanResponse> = z
   .strict();
 
 export { PlanObservationSchema, PlanObservationPayloadSchema, PlanObservationMetadataSchema };
+
+/**
+ * Type guard helper to validate unknown values as PlanResponse.
+ */
+export function isPlanResponse(value: unknown): value is PlanResponse {
+  const result = PlanResponseSchema.safeParse(value);
+  return result.success;
+}

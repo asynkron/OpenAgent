@@ -1,3 +1,4 @@
+import { RuntimeEventType } from '../contracts/events.js';
 import type {
   AgentRuntimeOptions,
   AsyncQueueLike,
@@ -99,7 +100,7 @@ export function createRuntimeEmitter({
         observer(clonedEvent);
       } catch (_error) {
         outputsQueue.push({
-          type: 'status',
+          type: RuntimeEventType.Status,
           payload: {
             level: 'warn',
             message: 'eventObservers item threw.',
@@ -112,7 +113,7 @@ export function createRuntimeEmitter({
 
   const emitFactoryWarning = (message: string, error: string | null = null): void => {
     const warning: StatusRuntimeEvent = {
-      type: 'status',
+      type: RuntimeEventType.Status,
       payload: {
         level: 'warn',
         message,
@@ -132,7 +133,7 @@ export function createRuntimeEmitter({
       payload = typeof payloadOrFactory === 'function' ? payloadOrFactory() : payloadOrFactory;
     } catch (error) {
       emit({
-        type: 'status',
+        type: RuntimeEventType.Status,
         payload: {
           level: 'warn',
           message: 'Failed to prepare debug payload.',

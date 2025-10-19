@@ -27,3 +27,5 @@
 
 - CLI unit tests import `@jest/globals`; the package declares it as a devDependency so Jest helpers resolve even when the workspace is installed in isolation.
 - Ink 6.3.1 requires React 19; the CLI now pins `react@^19.2.0` so Ink and the Ink testing harness load the same React build without duplicating versions.
+
+- 2025-10-19: CLI task rows (Command.tsx) now render plain single-line entries (no background, no white border, no margins).

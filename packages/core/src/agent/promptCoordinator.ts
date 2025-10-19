@@ -1,3 +1,4 @@
+import { RuntimeEventType } from '../contracts/events.js';
 import type { EscPayload, EscState } from './escState.js';
 import type { PromptRequestMetadata } from '../prompts/types.js';
 import type {
@@ -45,7 +46,7 @@ export class PromptCoordinator {
 
   request(prompt: string, metadata?: PromptRequestMetadata | null): Promise<string> {
     const event: RequestInputRuntimeEvent = {
-      type: 'request-input',
+      type: RuntimeEventType.RequestInput,
       payload: {
         prompt,
         metadata: normalizePromptMetadata(metadata ?? null),
@@ -86,7 +87,7 @@ export class PromptCoordinator {
     }
 
     const statusEvent: StatusRuntimeEvent = {
-      type: 'status',
+      type: RuntimeEventType.Status,
       payload: {
         level: 'warn',
         message: 'Cancellation requested by UI.',

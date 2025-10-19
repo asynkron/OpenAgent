@@ -1,3 +1,4 @@
+import { RuntimeEventType } from '../../contracts/events.js';
 import type ObservationBuilder from '../observationBuilder.js';
 import type { ResponsesClient } from '../../openai/responses.js';
 import type { EscState } from '../escState.js';
@@ -41,7 +42,7 @@ const guardRequestPayloadSize = async ({
   } catch (error) {
     const details = error instanceof Error ? error.message : String(error);
     emitEvent({
-      type: 'status',
+      type: RuntimeEventType.Status,
       payload: {
         level: 'warn',
         message: '[failsafe] Unable to evaluate request payload size before history compaction.',
@@ -72,7 +73,7 @@ const compactHistoryIfNeeded = async ({
   } catch (error) {
     const details = error instanceof Error ? error.message : String(error);
     emitEvent({
-      type: 'status',
+      type: RuntimeEventType.Status,
       payload: {
         level: 'warn',
         message: '[history-compactor] Unexpected error during history compaction.',
@@ -100,7 +101,7 @@ const emitContextUsageSummary = ({
     const usage = summarizeContextUsageFn({ history, model });
     if (usage && usage.total) {
       emitEvent({
-        type: 'context-usage',
+        type: RuntimeEventType.ContextUsage,
         payload: {
           usage,
         },
@@ -109,7 +110,7 @@ const emitContextUsageSummary = ({
     }
   } catch (error) {
     emitEvent({
-      type: 'status',
+      type: RuntimeEventType.Status,
       payload: {
         level: 'warn',
         message: 'Failed to summarize context usage.',
@@ -182,7 +183,7 @@ const requestAssistantCompletion = async ({
 
   if (!responseContent) {
     emitEvent({
-      type: 'error',
+      type: RuntimeEventType.Error,
       payload: {
         message: 'OpenAI response did not include text output.',
         details: null,

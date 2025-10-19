@@ -1,3 +1,4 @@
+import { RuntimeEventType } from '../contracts/events.js';
 import { QUEUE_DONE } from '../utils/asyncQueue.js';
 import type {
   AgentInputEvent,
@@ -72,7 +73,7 @@ export async function processAgentInputs({
     }
   } catch (error) {
     emit({
-      type: 'error',
+      type: RuntimeEventType.Error,
       payload: {
         message: 'Input processing terminated unexpectedly.',
         details: error instanceof Error ? error.message : String(error),
@@ -99,14 +100,14 @@ export function emitSessionIntro({
   getNoHumanFlag: () => boolean;
 }): void {
   emit({
-    type: 'banner',
+    type: RuntimeEventType.Banner,
     payload: {
       title: 'OpenAgent - AI Agent with JSON Protocol',
       subtitle: null,
     },
   });
   emit({
-    type: 'status',
+    type: RuntimeEventType.Status,
     payload: {
       level: 'info',
       message: 'Submit prompts to drive the conversation.',
@@ -115,7 +116,7 @@ export function emitSessionIntro({
   });
   if (getAutoApproveFlag()) {
     emit({
-      type: 'status',
+      type: RuntimeEventType.Status,
       payload: {
         level: 'warn',
         message:
@@ -126,7 +127,7 @@ export function emitSessionIntro({
   }
   if (getNoHumanFlag()) {
     emit({
-      type: 'status',
+      type: RuntimeEventType.Status,
       payload: {
         level: 'warn',
         message:
@@ -142,8 +143,8 @@ export function createThinkingController(emit: EmitEvent): {
   stop: () => void;
 } {
   return {
-    start: () => emit({ type: 'thinking', payload: { state: 'start' } }),
-    stop: () => emit({ type: 'thinking', payload: { state: 'stop' } }),
+    start: () => emit({ type: RuntimeEventType.Thinking, payload: { state: 'start' } }),
+    stop: () => emit({ type: RuntimeEventType.Thinking, payload: { state: 'stop' } }),
   };
 }
 
@@ -158,7 +159,7 @@ export async function runConversationLoop(context: ConversationLoopContext): Pro
 
     if (decision.kind === 'exit') {
       context.emit({
-        type: 'status',
+        type: RuntimeEventType.Status,
         payload: {
           level: 'info',
           message: 'Goodbye!',

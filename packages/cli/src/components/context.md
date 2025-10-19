@@ -95,3 +95,5 @@
   - c = collapse all commands
 - Notes:
   - Flicker previously disappeared when “Submit prompts to drive the conversation.” was visible because Static lines stabilized the viewport. The hybrid model preserves that benefit while keeping streaming.
+
+- 2025-10-19: Task row UI simplified in Command.tsx — removed background color, white border, and margins; single-line format: '✅  Task #<id> — <title>'.

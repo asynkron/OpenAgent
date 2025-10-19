@@ -1,3 +1,4 @@
+import { RuntimeEventType } from '../contracts/events.js';
 /**
  * Implements the interactive agent loop that now emits structured events instead of
  * writing directly to the CLI.
@@ -155,7 +156,7 @@ export function createAgentRuntime({
     passCounter += 1;
     emit(
       {
-        type: 'pass',
+        type: RuntimeEventType.Pass,
         payload: {
           pass: passCounter,
           index: null,
@@ -209,7 +210,7 @@ export function createAgentRuntime({
     openai = getClient();
   } catch (err) {
     emit({
-      type: 'error',
+      type: RuntimeEventType.Error,
       payload: {
         message: 'Failed to initialize OpenAI client. Ensure API key is configured.',
         details: err instanceof Error ? err.message : String(err),
@@ -231,7 +232,7 @@ export function createAgentRuntime({
     preapprovedCfg: preapprovedCfg ?? { allowlist: [] },
     logWarn: (message) =>
       emit({
-        type: 'status',
+        type: RuntimeEventType.Status,
         payload: {
           level: 'warn',
           message,
@@ -240,7 +241,7 @@ export function createAgentRuntime({
       }),
     logSuccess: (message) =>
       emit({
-        type: 'status',
+        type: RuntimeEventType.Status,
         payload: {
           level: 'info',
           message,
@@ -361,7 +362,7 @@ export function createAgentRuntime({
         passContext,
         onPassError: (error) =>
           emit({
-            type: 'error',
+            type: RuntimeEventType.Error,
             payload: {
               message: 'Agent loop encountered an error.',
               details: error instanceof Error ? error.message : String(error),

@@ -1,3 +1,4 @@
+import { RuntimeEventType } from '../contracts/events.js';
 import type { RuntimeEvent } from './runtimeEvents.js';
 import type { EmitRuntimeEventOptions } from './runtimeTypes.js';
 
@@ -26,7 +27,7 @@ export const emitAssistantMessageEvent = (
   }
 
   emitEvent({
-    type: 'assistant-message',
+    type: RuntimeEventType.AssistantMessage,
     payload: {
       message,
     },

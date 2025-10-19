@@ -1,3 +1,4 @@
+import { RuntimeEventType } from '@asynkron/openagent-core';
 /**
  * Lightweight helpers for rendering transient status lines in the CLI.
  */

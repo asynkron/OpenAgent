@@ -110,19 +110,13 @@ function Command({
 
   const containerStyle: BoxStyleProps = {
     flexDirection: 'column',
-    paddingX: 1,
-    paddingY: 1,
+    paddingX: 0,
+    paddingY: 0,
     width: '100%',
     alignSelf: 'stretch',
     flexGrow: 1,
     ...container,
-  };
-
-  const derivedBorderStyle =
-    typeof containerStyle.borderStyle === 'string' && containerStyle.borderStyle
-      ? containerStyle.borderStyle
-      : 'round';
-  const derivedBorderColor =
+  };  const derivedBorderColor =
     typeof containerStyle.borderColor === 'string' && containerStyle.borderColor.trim() !== ''
       ? containerStyle.borderColor
       : '#ffffff';
@@ -132,31 +126,21 @@ function Command({
     width: '100%',
     alignSelf: containerStyle.alignSelf ?? 'stretch',
     flexGrow: containerStyle.flexGrow ?? 1,
-    marginTop: containerStyle.marginTop ?? 1,
-    borderStyle: derivedBorderStyle,
-    borderColor: derivedBorderColor,
+    marginTop: 0,    borderColor: derivedBorderColor,
   };
 
   delete containerStyle.alignSelf;
   delete containerStyle.flexGrow;
   delete containerStyle.marginTop;
   delete containerStyle.borderStyle;
-  delete containerStyle.borderColor;
-
-  if (!containerStyle.backgroundColor) {
-    containerStyle.backgroundColor = 'black';
-  }
-
-  const horizontalPadding = typeof containerStyle.paddingX === 'number' ? containerStyle.paddingX : 1;
+  delete containerStyle.borderColor;const horizontalPadding = typeof containerStyle.paddingX === 'number' ? containerStyle.paddingX : 1;
 
   const planHeaderProps: BoxStyleProps = {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    paddingX: horizontalPadding,
-    paddingY: 0,
-    backgroundColor: '#1f1f1f',
-  };
+    paddingX: 0,
+    paddingY: 0,  };
 
   const planHeadingColor =
     typeof headingStyle.color === 'string' ? headingStyle.color : commandColors.fg;

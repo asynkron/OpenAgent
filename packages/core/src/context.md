@@ -33,6 +33,8 @@
 - Agent loop is complex with many dependencies; ensure integration tests remain up-to-date when changing event contracts.
 - Utility layer (`utils/fetch.ts`) relies on the built-in Fetch/Abort APIs with Node `http`/`https` fallbacks; keep an eye on upstream Node changes to stay compatible.
 
+- Runtime events are centralized under contracts/events.ts with RuntimeEventType enum. The agent emitter and helpers use this to avoid stringly typed drift.
+
 ## Related Context
 
 - Package entry docs: [`../context.md`](../context.md), [`lib/context.md`](lib/context.md).

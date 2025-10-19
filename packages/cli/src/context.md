@@ -29,6 +29,8 @@
 
 ## Risks / Gaps
 
+- Event routing now uses RuntimeEventType from @asynkron/openagent-core to avoid string literal drift.
+
 - Ink rendering relies on Node terminal capabilities; ensure compatibility when adding components (use `progressUtils` helpers).
 - Runner handles CLI flags parsed via `@asynkron/openagent-core` startup flag helpers—keep docs/code aligned when adding new flags.
 

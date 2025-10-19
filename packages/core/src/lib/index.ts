@@ -179,3 +179,5 @@ const exported = {
 };
 
 export default exported;
+
+export { RuntimeEventType } from '../contracts/index.js';
