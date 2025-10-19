@@ -1,6 +1,6 @@
 import { isTerminalStatus } from '@asynkron/openagent-core';
 import React, { memo, useMemo, useRef, type ReactElement } from 'react';
-import { Box, Text } from 'ink';
+import { Box, Text, Static } from 'ink';
 import AgentResponse from '../AgentResponse.js';
 import HumanMessage from '../HumanMessage.js';
 import Command from '../Command.js';
@@ -18,6 +18,32 @@ const MemoAgentResponse = memo(AgentResponse);
 const MemoHumanMessage = memo(HumanMessage);
 const MemoCommand = memo(Command);
 const MemoStatusMessage = memo(StatusMessage);
+
+function isFinalizedEntry(entry: TimelineEntry): boolean {
+  switch (entry.type) {
+    case 'human-message':
+    case 'banner':
+      return true;
+    case 'status':
+      // status payload likely contains a status value checked via isTerminalStatus
+      return isTerminalStatus((entry as any).payload);
+    case 'command-result': {
+      const p: any = (entry as any).payload;
+      // finalized when execution is done or result is present and not streaming
+      const done = Boolean(p?.execution?.done || p?.execution?.finished || p?.execution?.isDone);
+      const hasObservation = Boolean(p?.observation && p?.observation !== '');
+      const hasResult = p?.result !== undefined && p?.result !== null;
+      return Boolean(done || hasObservation || hasResult);
+    }
+    case 'assistant-message': {
+      const p: any = (entry as any).payload;
+      // Treat assistant messages as finalized only when streaming is marked done
+      return Boolean(p?.message?.isFinal || p?.message?.done || p?.message?.finalized);
+    }
+    default:
+      return false;
+  }
+}
 
 function renderAssistantEntry({ message, eventId }: TimelineAssistantPayload): ReactElement {
   return <MemoAgentResponse key={eventId} message={message} />;
@@ -162,9 +188,18 @@ function Timeline({ entries }: TimelineProps): ReactElement | null {
     return withSeq.map((x) => x.e);
   }, [entries]);
 
+  const allOrdered = orderedEntries;
+  const staticEntries = allOrdered.filter((e) => isFinalizedEntry(e));
+  const liveEntries = allOrdered.filter((e) => !isFinalizedEntry(e));
+
   return (
     <Box width="100%" flexDirection="column" flexGrow={1}>
-      {orderedEntries.map((entry) => (
+      <Static items={staticEntries}>
+        {(entry: TimelineEntry) => (
+          <MemoTimelineRow entry={entry} key={entry.id} />
+        )}
+      </Static>
+      {liveEntries.map((entry) => (
         <MemoTimelineRow entry={entry} key={entry.id} />
       ))}
     </Box>

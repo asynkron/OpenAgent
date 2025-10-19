@@ -45,6 +45,8 @@ export interface InkTextAreaProps extends HorizontalPaddingInput, BoxStyleProps 
   showDebugMetrics?: boolean;
   commandMenuTitle?: string;
   debounceOnChangeMs?: number;
+  // Maximum visible rows for the input; content scrolls internally when exceeded
+  maxRows?: number;
 }
 
 function InkTextArea(props: InkTextAreaProps) {
@@ -85,6 +87,7 @@ function InkTextArea(props: InkTextAreaProps) {
     borderLeft,
     borderRight,
     debounceOnChangeMs,
+    maxRows,
   } = props;
 
   const textStyle: TextStyleProps = { ...(explicitTextProps ?? {}) };
@@ -352,8 +355,27 @@ function InkTextArea(props: InkTextAreaProps) {
   }, [hasValue, textProps]);
 
   const caretRowIndex = hasValue ? caretPosition.rowIndex : 0;
+  const maxVisibleRows = useMemo(() => {
+    const v = typeof maxRows === 'number' && Number.isFinite(maxRows) ? Math.max(1, Math.floor(maxRows)) : 6;
+    return v;
+  }, [maxRows]);
+
   const caretColumnDisplay = caretPosition.column + 1;
   const caretLineDisplay = caretRowIndex + 1;
+
+  // Keep a stable-height window of rows so typing does not grow layout
+  const firstVisibleRowIndex = useMemo(() => {
+    // Prefer to keep caret on last line of the window when possible
+    const start = Math.max(0, caretRowIndex - (maxVisibleRows - 1));
+    return start;
+  }, [caretRowIndex, maxVisibleRows]);
+
+  const visibleRows = useMemo(() => {
+    const src = displayRows;
+    if (src.length <= maxVisibleRows) return src;
+    return src.slice(firstVisibleRowIndex, firstVisibleRowIndex + maxVisibleRows);
+  }, [displayRows, firstVisibleRowIndex, maxVisibleRows]);
+
 
   const commandMenuElement = (
     <CommandMenu
@@ -413,12 +435,13 @@ function InkTextArea(props: InkTextAreaProps) {
   return (
     <Box {...containerProps}>
       <InkTextAreaRows
-        rows={displayRows}
+        rows={visibleRows}
         caretPosition={caretPosition}
-        caretRowIndex={caretRowIndex}
+        caretRowIndex={Math.min(caretRowIndex - firstVisibleRowIndex, maxVisibleRows - 1)}
         hasValue={hasValue}
         textProps={computedTextProps}
         interactive={interactive}
+        maxVisibleRows={maxVisibleRows}
       />
       {commandMenuElement}
       {debugElement}
@@ -433,6 +456,7 @@ type InkTextAreaRowsProps = {
   hasValue: boolean;
   textProps: TextProps;
   interactive: boolean;
+  maxVisibleRows: number;
 };
 
 function InkTextAreaRowsComponent({
@@ -442,6 +466,7 @@ function InkTextAreaRowsComponent({
   hasValue,
   textProps,
   interactive,
+  maxVisibleRows,
 }: InkTextAreaRowsProps) {
   const caretVisible = interactive;
 
@@ -459,7 +484,7 @@ function InkTextAreaRowsComponent({
   );
 
   return (
-    <Box flexDirection="column" width="100%">
+    <Box flexDirection="column" width="100%" height={maxVisibleRows}>
       {rowElements}
     </Box>
   );
