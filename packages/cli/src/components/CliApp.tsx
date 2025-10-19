@@ -76,10 +76,28 @@ function toRuntimeErrorPayload(value: unknown): RuntimeErrorPayload {
 function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): ReactElement {
   const runtimeRef = useRef<AgentRuntimeLike | null>(coerceRuntime(runtime));
   runtimeRef.current = coerceRuntime(runtime);
+  const getRuntime = useCallback(() => runtimeRef.current, []);
 
   const { exit } = useApp();
   const [plan, setPlan] = useState<PlanStep[]>([]);
-  const [planProgress, setPlanProgress] = useState<PlanProgressState>({ seen: false, value: null });
+  const [planProgressState, setPlanProgressState] = useState<PlanProgressState>({ seen: false, value: null });
+  const planProgressRef = useRef<PlanProgressState>(planProgressState);
+  const setPlanProgress = useCallback(
+    (update: PlanProgressState | ((previous: PlanProgressState) => PlanProgressState)) => {
+      setPlanProgressState((previous) => {
+        const nextValue =
+          typeof update === 'function'
+            ? (update as (value: PlanProgressState) => PlanProgressState)(previous)
+            : update;
+        planProgressRef.current = nextValue;
+        return nextValue;
+      });
+    },
+    [setPlanProgressState],
+  );
+  if (planProgressRef.current !== planProgressState) {
+    planProgressRef.current = planProgressState;
+  }
   const [contextUsage, setContextUsage] = useState<ContextUsage | null>(null);
   const [thinking, setThinking] = useState(false);
   const [inputRequest, setInputRequest] = useState<InputRequestState | null>(null);
@@ -131,7 +149,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
     });
 
   const { handleHistoryCommand } = useHistoryCommand({
-    getRuntime: () => runtimeRef.current,
+    getRuntime,
     appendStatus,
   });
 
@@ -182,7 +200,8 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
   const routeSlashCommand = useSlashCommandRouter(slashCommandHandlers);
 
   const checkAndResetPlanIfCompleted = useCallback((): void => {
-    const progressValue = planProgress?.value ?? null;
+    const latestPlanProgress = planProgressRef.current;
+    const progressValue = latestPlanProgress?.value ?? null;
     const totalSteps =
       typeof progressValue?.totalSteps === 'number' && Number.isFinite(progressValue.totalSteps)
         ? progressValue.totalSteps
@@ -193,7 +212,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
         ? progressValue.completedSteps
         : null;
     const planCompleted =
-      planProgress?.seen === true &&
+      latestPlanProgress?.seen === true &&
       totalSteps !== null &&
       completedSteps !== null &&
       totalSteps > 0 &&
@@ -208,7 +227,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
         return { seen: false, value: null } satisfies PlanProgressState;
       });
     }
-  }, [planProgress]);
+  }, []);
 
   const handleSubmitPrompt = useCallback(
     async (value: string) => {
@@ -328,7 +347,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
       seen: true,
       value: event.payload.progress ? (cloneValue(event.payload.progress) as PlanProgress) : null,
     });
-  }, []);
+  }, [setPlanProgress]);
 
   const handleContextUsageEvent = useCallback((event: ContextUsageRuntimeEvent): void => {
     setContextUsage(
