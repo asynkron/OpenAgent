@@ -1,6 +1,6 @@
+import { isTerminalStatus } from '@asynkron/openagent-core';
 import React, { memo, type ReactElement } from 'react';
-import { Box, Text } from 'ink';
-
+import { Box, Text, Static } from 'ink';
 import AgentResponse from '../AgentResponse.js';
 import HumanMessage from '../HumanMessage.js';
 import Command from '../Command.js';
@@ -140,9 +140,27 @@ function Timeline({ entries }: TimelineProps): ReactElement | null {
     return null;
   }
 
+  const staticEntries: TimelineEntry[] = entries.filter((e) => {
+    if (e.type === 'command-result') {
+      const status = (e.payload?.result as { status?: string } | null | undefined)?.status;
+      return typeof status === 'string' ? isTerminalStatus(status) : false;
+    }
+    if (e.type === 'status') {
+      const s = (e.payload as { status?: string } | null | undefined)?.status;
+      return typeof s === 'string' ? isTerminalStatus(s) : false;
+    }
+    // Assistant/human/banner: treat as finalized once emitted
+    return true;
+  });
+
+  const liveEntries: TimelineEntry[] = entries.filter((e) => !staticEntries.includes(e));
+
   return (
     <Box width="100%" flexDirection="column" flexGrow={1}>
-      {entries.map((entry) => (
+      <Static items={staticEntries}>
+        {(item: TimelineEntry) => <MemoTimelineRow entry={item} key={item.id} />}
+      </Static>
+      {liveEntries.map((entry) => (
         <MemoTimelineRow entry={entry} key={entry.id} />
       ))}
     </Box>

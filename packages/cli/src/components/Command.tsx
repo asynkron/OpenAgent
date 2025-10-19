@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import { memo, type ReactElement } from 'react';
 import { Box, Text } from 'ink';
 
 import {
@@ -210,4 +210,5 @@ function Command({
   );
 }
 
-export default Command;
+export default memo(Command);
+

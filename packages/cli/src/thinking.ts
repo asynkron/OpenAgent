@@ -57,7 +57,7 @@ export class ThinkingIndicator {
     this.stream = stream;
     this.frames = Array.isArray(frames) && frames.length > 0 ? frames : DEFAULT_FRAMES;
     this.label = label;
-    this.intervalMs = Math.max(16, Number(intervalMs) || 50);
+    this.intervalMs = Math.max(120, Number(intervalMs) || 120);
 
     this.intervalHandle = null;
     this.animationStart = null;

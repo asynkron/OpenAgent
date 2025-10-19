@@ -67,3 +67,12 @@
 
 - UI render helpers: [`../render.js`](../render.js).
 - Runtime event producer: [`../../agent/context.md`](../../agent/context.md).
+
+
+## Flicker mitigation (2025-10)
+- Debounce terminal resize in useStdoutWidth to ~120ms.
+- Cap thinking animation tick to ~120ms (≈8 FPS).
+- Memoize presentational components (e.g., Command).
+- Prefer <Static> for finalized timeline entries (future refactor).
+- Use stable keys (ids), avoid index keys.
+- Avoid direct stdout writes; render via Ink.

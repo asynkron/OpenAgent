@@ -249,7 +249,7 @@ function cloneCommandPreview(value: unknown): CommandPreview | null {
   }
 
   const source = value as {
-    stdoutPreview?: unknown;
+    stdoutPreview?: string | null;
     stderrPreview?: unknown;
     execution?: unknown;
   };

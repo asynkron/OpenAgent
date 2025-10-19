@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStdout } from 'ink';
 
 export interface UseStdoutWidthOptions {
@@ -15,13 +15,17 @@ export function useStdoutWidth(explicitWidth?: number, options?: UseStdoutWidthO
   const horizontalOffset =
     typeof rawOffset === 'number' && Number.isFinite(rawOffset) ? Math.max(0, Math.floor(rawOffset)) : 0;
 
+  // Debounce resize to avoid rapid reflows/flicker on terminal resizes.
+  const debounceMs = 120; // ~8 FPS
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     if (!stdout) {
       setMeasuredWidth(undefined);
       return undefined;
     }
 
-    const handleResize = () => {
+    const applyResize = () => {
       if (Number.isFinite(stdout.columns)) {
         setMeasuredWidth(Math.floor(stdout.columns));
       } else {
@@ -29,10 +33,24 @@ export function useStdoutWidth(explicitWidth?: number, options?: UseStdoutWidthO
       }
     };
 
+    const handleResize = () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      timerRef.current = setTimeout(applyResize, debounceMs);
+    };
+
+    // Initialize once immediately.
     handleResize();
+
     stdout.on('resize', handleResize);
 
     return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
       if (typeof stdout.off === 'function') {
         stdout.off('resize', handleResize);
       } else {
@@ -55,4 +73,3 @@ export function useStdoutWidth(explicitWidth?: number, options?: UseStdoutWidthO
 
   return { measuredWidth, normalizedWidth } as const;
 }
-
