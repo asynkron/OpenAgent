@@ -178,4 +178,47 @@ describe('createResponse', () => {
     });
     expect(mockGenerateText).not.toHaveBeenCalled();
   });
+
+  test('forwards abort signal to generateText when provided', async () => {
+    mockGenerateText.mockResolvedValue({ text: 'ok' });
+    const modelRef: {} = {};
+    const openai = {
+      responses: jest.fn((_model: string) => modelRef),
+    };
+    const controller = new AbortController();
+
+    const { createResponse } = await import('../responses.js');
+    await createResponse({
+      openai,
+      model: 'gpt-5-codex',
+      input: [],
+      options: { signal: controller.signal },
+    });
+
+    expect(mockGenerateText).toHaveBeenCalledWith(
+      expect.objectContaining({ abortSignal: controller.signal }),
+    );
+  });
+
+  test('forwards abort signal to streamObject when provided', async () => {
+    const tool = { name: 'example', description: 'desc', schema: { mock: true } };
+    const modelRef: {} = {};
+    const openai = {
+      responses: jest.fn((_model: string) => modelRef),
+    };
+    const controller = new AbortController();
+
+    const { createResponse } = await import('../responses.js');
+    await createResponse({
+      openai,
+      model: 'gpt-5-codex',
+      input: [],
+      tools: [tool],
+      options: { signal: controller.signal },
+    });
+
+    expect(mockStreamObject).toHaveBeenCalledWith(
+      expect.objectContaining({ abortSignal: controller.signal }),
+    );
+  });
 });
