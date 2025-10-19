@@ -35,6 +35,7 @@ export interface InkTextAreaProps extends HorizontalPaddingInput, BoxStyleProps 
   onSubmit?: (value: string) => void;
   placeholder?: string;
   width?: number;
+  widthOffset?: number;
   isActive?: boolean;
   isDisabled?: boolean;
   slashMenuItems?: ReadonlyArray<LegacySlashMenuItem>;
@@ -53,6 +54,7 @@ function InkTextArea(props: InkTextAreaProps) {
     onSubmit,
     placeholder = '',
     width,
+    widthOffset,
     isActive = true,
     isDisabled = false,
     slashMenuItems,
@@ -102,7 +104,9 @@ function InkTextArea(props: InkTextAreaProps) {
   });
   const desiredColumnRef = useRef<number | null>(null);
 
-  const { measuredWidth, normalizedWidth } = useStdoutWidth(width);
+  const { measuredWidth, normalizedWidth } = useStdoutWidth(width, {
+    horizontalOffset: widthOffset,
+  });
 
   const maxIndex = value.length;
 
