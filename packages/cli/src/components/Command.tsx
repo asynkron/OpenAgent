@@ -19,6 +19,14 @@ import {
 import { toBoxProps, toTextProps } from '../styleTypes.js';
 import type { PlanStep } from './planUtils.js';
 
+function normalizeStatus(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed.toLowerCase() : null;
+}
+
 const { colors: commandColors, container, heading, headingDetail, runContainer } = createCommandTheme();
 
 const commandContainerProps: BoxStyleProps = { ...container };
@@ -43,14 +51,50 @@ const DEFAULT_MAX_RUN_CHARACTERS = 270;
 function computeStatusEmoji(
   execution: CommandExecution | null | undefined,
   planStep: PlanStep | null | undefined,
+  result: CommandResult | null | undefined,
 ): string {
+  const status = normalizeStatus(planStep && (planStep as { status?: unknown }).status);
+  if (status === 'failed' || status === 'abandoned' || status === 'cancelled') {
+    return '❌';
+  }
+  if (status === 'completed' || status === 'succeeded') {
+    return '✅';
+  }
+
+  if (result && typeof result.exit_code === 'number') {
+    return result.exit_code === 0 ? '✅' : '❌';
+  }
+  if (result && result.killed === true) {
+    return '❌';
+  }
+
   const waitingIds = (planStep && Array.isArray(planStep.waitingForId) ? planStep.waitingForId : []) as ReadonlyArray<string | null | undefined>;
-  const waiting = waitingIds.length > 0;
+  const waiting = waitingIds.some((id) => typeof id === 'string' && id.trim().length > 0);
+
   const exec = execution ?? null;
+  const execStatus = normalizeStatus(exec && (exec as { status?: unknown }).status);
+  if (execStatus === 'completed' || execStatus === 'succeeded') {
+    return '✅';
+  }
+  if (execStatus === 'failed') {
+    return '❌';
+  }
+
   const done = Boolean((exec as { done?: boolean } | null)?.done);
-  const started = Boolean((exec as { started?: boolean; running?: boolean } | null)?.started || (exec as { running?: boolean } | null)?.running);
-  if (done) return '✅';
-  if (started) return waiting ? '⏳' : '▶️';
+  if (done) {
+    return '✅';
+  }
+
+  const started = Boolean(
+    (exec as { started?: boolean } | null)?.started ||
+      (exec as { running?: boolean } | null)?.running ||
+      (exec as { in_progress?: boolean } | null)?.in_progress,
+  );
+
+  if (started) {
+    return waiting ? '⏳' : '▶️';
+  }
+
   return waiting ? '⏳' : '💤';
 }
 
@@ -64,7 +108,7 @@ function Command({
   maxRunCharacters = DEFAULT_MAX_RUN_CHARACTERS,
   expandAll,
 }: CommandProps): ReactElement | null {
-  const [expanded, setExpanded] = useState<boolean>(false);
+  const [expanded, setExpanded] = useState<boolean>(Boolean(expandAll));
   useEffect(() => {
     if (typeof expandAll === 'boolean') setExpanded(expandAll);
   }, [expandAll]);
@@ -174,7 +218,7 @@ function Command({
   const rootBoxProps = toBoxProps(rootProps);
   const planHeaderBoxProps = toBoxProps(planHeaderProps);
 
-  const statusEmoji = computeStatusEmoji(execution, planStep);
+  const statusEmoji = computeStatusEmoji(execution, planStep, result ?? null);
 
   return (
     <Box {...rootBoxProps}>
