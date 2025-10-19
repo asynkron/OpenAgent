@@ -1,12 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useStdout } from 'ink';
 
+export interface UseStdoutWidthOptions {
+  horizontalOffset?: number;
+}
+
 // Tracks the live terminal width so caret/layout math can stay in a lean hook.
-export function useStdoutWidth(explicitWidth?: number) {
+export function useStdoutWidth(explicitWidth?: number, options?: UseStdoutWidthOptions) {
   const { stdout } = useStdout();
   const [measuredWidth, setMeasuredWidth] = useState<number | undefined>(() =>
     stdout && Number.isFinite(stdout.columns) ? Math.floor(stdout.columns) : undefined,
   );
+  const rawOffset = options?.horizontalOffset;
+  const horizontalOffset =
+    typeof rawOffset === 'number' && Number.isFinite(rawOffset) ? Math.max(0, Math.floor(rawOffset)) : 0;
 
   useEffect(() => {
     if (!stdout) {
@@ -40,11 +47,11 @@ export function useStdoutWidth(explicitWidth?: number) {
     }
 
     if (typeof measuredWidth === 'number') {
-      return Math.max(1, Math.floor(measuredWidth));
+      return Math.max(1, Math.floor(measuredWidth) - horizontalOffset);
     }
 
-    return 60;
-  }, [explicitWidth, measuredWidth]);
+    return Math.max(1, 60 - horizontalOffset);
+  }, [explicitWidth, horizontalOffset, measuredWidth]);
 
   return { measuredWidth, normalizedWidth } as const;
 }
