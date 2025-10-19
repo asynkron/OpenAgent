@@ -28,9 +28,23 @@ export function ControlledInkTextArea(props: {
   });
 }
 
-export async function flush(): Promise<void> {
-  await new Promise((resolve) => setImmediate(resolve));
-  await new Promise((resolve) => setImmediate(resolve));
+export async function flush(ticks: number = 4): Promise<void> {
+  for (let index = 0; index < ticks; index += 1) {
+    // Allow Ink's scheduler and React updates to settle across event loop turns.
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve);
+    });
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+  }
+}
+
+export async function waitForInkUpdates(delayMs: number = 150): Promise<void> {
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, delayMs);
+  });
+  await flush();
 }
 
 export function caretPositionFromFrame(frame: string) {

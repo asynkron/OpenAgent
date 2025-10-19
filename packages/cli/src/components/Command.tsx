@@ -1,4 +1,4 @@
-import { memo, type ReactElement } from 'react';
+import { memo, type ReactElement, useEffect, useState } from 'react';
 import { Box, Text } from 'ink';
 
 import {
@@ -9,33 +9,24 @@ import {
   type CommandRenderData,
   type CommandResult,
 } from './commandUtils.js';
-import { SummaryLine } from './command/SummaryLine.js';
 import { buildRunPreview, extractRunValue } from './command/runPreview.js';
 import { buildPlanStepHeading } from './command/planHeading.js';
 import {
   createCommandTheme,
   type BoxStyleProps,
-  type SummaryLineStyleMap,
   type TextStyleProps,
 } from './command/theme.js';
 import { toBoxProps, toTextProps } from '../styleTypes.js';
 import type { PlanStep } from './planUtils.js';
 
-const {
-  colors: commandColors,
-  container,
-  heading,
-  headingDetail,
-  summaryLine,
-  runContainer,
-} = createCommandTheme();
+const { colors: commandColors, container, heading, headingDetail, runContainer } = createCommandTheme();
+
 const commandContainerProps: BoxStyleProps = { ...container };
 const commandHeadingProps: TextStyleProps = { ...heading };
 const commandHeadingDetailProps: TextStyleProps = { ...headingDetail };
-const commandSummaryLineProps: SummaryLineStyleMap = summaryLine;
 const commandRunContainerProps: BoxStyleProps = { ...runContainer };
 
-type CommandProps = {
+export type CommandProps = {
   command: CommandPayload | null | undefined;
   result?: CommandResult | null;
   preview?: CommandPreview | null;
@@ -43,13 +34,26 @@ type CommandProps = {
   planStep?: PlanStep | null;
   observation?: string | null;
   maxRunCharacters?: number;
+  // external control to expand/collapse this command (from Timeline hotkeys)
+  expandAll?: boolean;
 };
 
 const DEFAULT_MAX_RUN_CHARACTERS = 270;
 
-/**
- * Displays command execution details, mirroring the textual summaries.
- */
+function computeStatusEmoji(
+  execution: CommandExecution | null | undefined,
+  planStep: PlanStep | null | undefined,
+): string {
+  const waitingIds = (planStep && Array.isArray(planStep.waitingForId) ? planStep.waitingForId : []) as ReadonlyArray<string | null | undefined>;
+  const waiting = waitingIds.length > 0;
+  const exec = execution ?? null;
+  const done = Boolean((exec as { done?: boolean } | null)?.done);
+  const started = Boolean((exec as { started?: boolean; running?: boolean } | null)?.started || (exec as { running?: boolean } | null)?.running);
+  if (done) return '✅';
+  if (started) return waiting ? '⏳' : '▶️';
+  return waiting ? '⏳' : '💤';
+}
+
 function Command({
   command: commandData,
   result,
@@ -58,7 +62,13 @@ function Command({
   planStep = null,
   observation = null,
   maxRunCharacters = DEFAULT_MAX_RUN_CHARACTERS,
+  expandAll,
 }: CommandProps): ReactElement | null {
+  const [expanded, setExpanded] = useState<boolean>(false);
+  useEffect(() => {
+    if (typeof expandAll === 'boolean') setExpanded(expandAll);
+  }, [expandAll]);
+
   const data: CommandRenderData | null = buildCommandRenderData(
     commandData ?? undefined,
     result ?? undefined,
@@ -70,13 +80,12 @@ function Command({
     return null;
   }
 
-  const { detail, summaryLines } = data;
+  const { detail } = data;
 
   const headingStyle: TextStyleProps = { ...commandHeadingProps };
   if (headingStyle.color === undefined) {
     headingStyle.color = commandColors.fg;
   }
-
   const headingDetailStyle: TextStyleProps = { ...commandHeadingDetailProps };
 
   const planStepHeading = buildPlanStepHeading(planStep);
@@ -90,17 +99,12 @@ function Command({
   const hasResult = result !== null && result !== undefined;
   const shouldTailTruncateRun = !hasResult && !hasExecution;
 
-  const { block: runElements, inline: inlineRunPreview } = buildRunPreview({
+  const { block: runElements } = buildRunPreview({
     runValue,
     limit: runCharacterLimit,
     allowInline: !detail,
     truncateDirection: shouldTailTruncateRun ? 'end' : 'start',
   });
-
-  const headingDetailText = detail;
-  const baseSummaryColorValue = commandSummaryLineProps.base?.color;
-  const summaryFallbackColor =
-    typeof baseSummaryColorValue === 'string' ? baseSummaryColorValue : commandColors.fg;
 
   const containerStyle: BoxStyleProps = {
     flexDirection: 'column',
@@ -134,7 +138,7 @@ function Command({
   delete containerStyle.alignSelf;
   delete containerStyle.flexGrow;
   delete containerStyle.marginTop;
-  // Border styling lives on the outer wrapper so the plan header and body share the same frame.
+  // Border styling lives on the outer wrapper so the header and body share the same frame.
   delete containerStyle.borderStyle;
   delete containerStyle.borderColor;
 
@@ -151,8 +155,7 @@ function Command({
     runContainerStyle.flexDirection = 'column';
   }
 
-  const horizontalPadding =
-    typeof containerStyle.paddingX === 'number' ? containerStyle.paddingX : 1;
+  const horizontalPadding = typeof containerStyle.paddingX === 'number' ? containerStyle.paddingX : 1;
 
   const planHeaderProps: BoxStyleProps = {
     flexDirection: 'row',
@@ -163,52 +166,39 @@ function Command({
     backgroundColor: '#1f1f1f',
   };
 
-  const planHeadingColor =
-    typeof headingStyle.color === 'string' ? headingStyle.color : commandColors.fg;
+  const planHeadingColor = typeof headingStyle.color === 'string' ? headingStyle.color : commandColors.fg;
 
-  const headingProps = toTextProps(headingStyle);
   const headingDetailProps = toTextProps(headingDetailStyle);
   const containerProps = toBoxProps(containerStyle);
   const runContainerProps = toBoxProps(runContainerStyle);
   const rootBoxProps = toBoxProps(rootProps);
   const planHeaderBoxProps = toBoxProps(planHeaderProps);
 
-  const headingDetailNode = inlineRunPreview ? (
-    // Avoid overriding the ANSI color codes produced by the markdown renderer.
-    <Text>{inlineRunPreview}</Text>
-  ) : headingDetailText ? (
-    <Text {...headingDetailProps}>{headingDetailText}</Text>
-  ) : null;
+  const statusEmoji = computeStatusEmoji(execution, planStep);
 
   return (
     <Box {...rootBoxProps}>
       <Box {...planHeaderBoxProps}>
-        <Text color="#ff5f56">●</Text>
-        <Text> </Text>
-        <Text color="#ffbd2e">●</Text>
-        <Text> </Text>
-        <Text color="#28c840">●</Text>
+        <Text>{statusEmoji}</Text>
         {planStepHeading ? <Text color={planHeadingColor}>{`  ${planStepHeading}`}</Text> : null}
       </Box>
       <Box {...containerProps}>
-        <Text {...headingProps}>
-          <Text color="green">❯</Text>
-          <Text> </Text>
-          {headingDetailNode}
-        </Text>
-        {runElements ? <Box {...runContainerProps}>{runElements}</Box> : null}
-        {summaryLines.map((line, index) => (
-          <SummaryLine
-            key={index}
-            line={line}
-            styles={commandSummaryLineProps}
-            fallbackColor={summaryFallbackColor}
-          />
-        ))}
+        {expanded ? (
+          <>
+            {/* Run preview (no shell prompt) */}
+            {runElements ? <Box {...runContainerProps}>{runElements}</Box> : null}
+            {/* Output details */}
+            {typeof observation === 'string' && observation.length > 0 ? (
+              <Text {...headingDetailProps}>{String(observation)}</Text>
+            ) : null}
+            {result !== null && result !== undefined ? (
+              <Text>{JSON.stringify(result)}</Text>
+            ) : null}
+          </>
+        ) : null}
       </Box>
     </Box>
   );
 }
 
 export default memo(Command);
-

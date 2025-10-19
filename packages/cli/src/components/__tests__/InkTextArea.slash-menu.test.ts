@@ -3,7 +3,7 @@ import React from 'react';
 import { describe, expect, jest, test } from '@jest/globals';
 import { render } from 'ink-testing-library';
 
-import { ControlledInkTextArea, flush, stripAnsi } from '../test-utils/InkTextArea.js';
+import { ControlledInkTextArea, stripAnsi, waitForInkUpdates } from '../test-utils/InkTextArea.js';
 
 describe('InkTextArea slash command menus', () => {
   test('offers slash menu suggestions and selects highlighted item', async () => {
@@ -25,27 +25,27 @@ describe('InkTextArea slash command menus', () => {
     );
 
     stdin.write('/');
-    await flush();
+    await waitForInkUpdates();
     expect(stripAnsi(lastFrame())).toContain('model');
     expect(stripAnsi(lastFrame())).toContain('mode');
     expect(stripAnsi(lastFrame())).toContain('help');
 
     stdin.write('m');
-    await flush();
+    await waitForInkUpdates();
     expect(stripAnsi(lastFrame())).toContain('model');
     expect(stripAnsi(lastFrame())).toContain('mode');
     expect(stripAnsi(lastFrame())).not.toContain('help');
 
     stdin.write('o');
-    await flush();
+    await waitForInkUpdates();
     expect(lastFrame()).toContain('\u001B[7mmodel');
 
     stdin.write('\u001B[B');
-    await flush();
+    await waitForInkUpdates();
     expect(lastFrame()).toContain('\u001B[7mmode');
 
     stdin.write('\r');
-    await flush();
+    await waitForInkUpdates();
 
     expect(handleSubmit).not.toHaveBeenCalled();
     expect(handleSelect).toHaveBeenCalledTimes(1);
@@ -78,15 +78,15 @@ describe('InkTextArea slash command menus', () => {
     );
 
     stdin.write('/');
-    await flush();
+    await waitForInkUpdates();
     expect(stripAnsi(lastFrame())).toContain('model gpt-4');
 
     stdin.write('model ');
-    await flush();
+    await waitForInkUpdates();
     expect(stripAnsi(lastFrame())).toContain('model gpt-4');
 
     stdin.write('g');
-    await flush();
+    await waitForInkUpdates();
     expect(stripAnsi(lastFrame())).toContain('model gpt-4');
     expect(stripAnsi(lastFrame())).not.toContain('model claude');
 
@@ -121,11 +121,11 @@ describe('InkTextArea slash command menus', () => {
     );
 
     stdin.write('/');
-    await flush();
+    await waitForInkUpdates();
     expect(stripAnsi(lastFrame())).toContain('Switch the active language model');
 
     stdin.write('model gpt');
-    await flush();
+    await waitForInkUpdates();
 
     let frame = stripAnsi(lastFrame());
     expect(frame).not.toContain('Switch the active language model');
@@ -133,7 +133,7 @@ describe('InkTextArea slash command menus', () => {
     expect(frame).toContain('Use the faster GPT-4o mini variant');
 
     stdin.write('-4o');
-    await flush();
+    await waitForInkUpdates();
     frame = stripAnsi(lastFrame());
 
     expect(frame).not.toContain('Switch the active language model');
@@ -182,16 +182,14 @@ describe('InkTextArea slash command menus', () => {
     );
 
     stdin.write('@');
-    await flush();
-    await flush();
+    await waitForInkUpdates();
     expect(dynamicItems).toHaveBeenCalledWith('');
     expect(stripAnsi(lastFrame())).toContain('alpha.txt');
     expect(stripAnsi(lastFrame())).toContain('beta.txt');
     expect(stripAnsi(lastFrame())).toContain('config.json');
 
     stdin.write('co');
-    await flush();
-    await flush();
+    await waitForInkUpdates();
     expect(dynamicItems).toHaveBeenLastCalledWith('co');
     expect(stripAnsi(lastFrame())).toContain('config.json');
     expect(stripAnsi(lastFrame())).not.toContain('alpha.txt');
@@ -211,10 +209,10 @@ describe('InkTextArea slash command menus', () => {
     );
 
     slashStdin.write('prefix ');
-    await flush();
+    await waitForInkUpdates();
 
     slashStdin.write('/');
-    await flush();
+    await waitForInkUpdates();
     expect(stripAnsi(slashLastFrame())).not.toContain('root action');
 
     unmountWithPrefix();
@@ -232,7 +230,7 @@ describe('InkTextArea slash command menus', () => {
     );
 
     rootOnlyStdin.write('/');
-    await flush();
+    await waitForInkUpdates();
     expect(stripAnsi(rootOnlyFrame())).toContain('root action');
 
     unmountRootOnly();

@@ -1,6 +1,5 @@
-import { isTerminalStatus } from '@asynkron/openagent-core';
-import React, { memo, useMemo, useRef, type ReactElement } from 'react';
-import { Box, Text, Static } from 'ink';
+import React, { memo, useMemo, useRef, useState, type ReactElement } from 'react';
+import { Box, Text, useInput } from 'ink';
 import AgentResponse from '../AgentResponse.js';
 import HumanMessage from '../HumanMessage.js';
 import Command from '../Command.js';
@@ -19,32 +18,6 @@ const MemoHumanMessage = memo(HumanMessage);
 const MemoCommand = memo(Command);
 const MemoStatusMessage = memo(StatusMessage);
 
-function isFinalizedEntry(entry: TimelineEntry): boolean {
-  switch (entry.type) {
-    case 'human-message':
-    case 'banner':
-      return true;
-    case 'status':
-      // status payload likely contains a status value checked via isTerminalStatus
-      return isTerminalStatus((entry as any).payload);
-    case 'command-result': {
-      const p: any = (entry as any).payload;
-      // finalized when execution is done or result is present and not streaming
-      const done = Boolean(p?.execution?.done || p?.execution?.finished || p?.execution?.isDone);
-      const hasObservation = Boolean(p?.observation && p?.observation !== '');
-      const hasResult = p?.result !== undefined && p?.result !== null;
-      return Boolean(done || hasObservation || hasResult);
-    }
-    case 'assistant-message': {
-      const p: any = (entry as any).payload;
-      // Treat assistant messages as finalized only when streaming is marked done
-      return Boolean(p?.message?.isFinal || p?.message?.done || p?.message?.finalized);
-    }
-    default:
-      return false;
-  }
-}
-
 function renderAssistantEntry({ message, eventId }: TimelineAssistantPayload): ReactElement {
   return <MemoAgentResponse key={eventId} message={message} />;
 }
@@ -53,15 +26,18 @@ function renderHumanEntry({ message }: TimelineHumanPayload): ReactElement {
   return <MemoHumanMessage message={message} />;
 }
 
-function renderCommandEntry({
-  eventId,
-  command,
-  result,
-  preview,
-  execution,
-  observation,
-  planStep,
-}: TimelineCommandPayload): ReactElement {
+function renderCommandEntry(
+  {
+    eventId,
+    command,
+    result,
+    preview,
+    execution,
+    observation,
+    planStep,
+  }: TimelineCommandPayload,
+  expandAll?: boolean,
+): ReactElement {
   return (
     <MemoCommand
       key={eventId}
@@ -71,6 +47,7 @@ function renderCommandEntry({
       execution={execution}
       observation={observation}
       planStep={planStep}
+      expandAll={Boolean(expandAll)}
     />
   );
 }
@@ -99,85 +76,26 @@ function renderStatusEntry(status: TimelineStatusPayload): ReactElement | null {
   return <MemoStatusMessage status={status} />;
 }
 
-type TimelineRowProps = {
-  entry: TimelineEntry;
-};
-
-function TimelineRowComponent({ entry }: TimelineRowProps): ReactElement | null {
-  switch (entry.type) {
-    case 'assistant-message':
-      return (
-        <Box width="100%" flexGrow={1} flexDirection="column">
-          {renderAssistantEntry(entry.payload)}
-        </Box>
-      );
-    case 'human-message':
-      return (
-        <Box width="100%" flexGrow={1} flexDirection="column">
-          {renderHumanEntry(entry.payload)}
-        </Box>
-      );
-    case 'command-result':
-      return (
-        <Box width="100%" flexGrow={1} flexDirection="column">
-          {renderCommandEntry(entry.payload)}
-        </Box>
-      );
-    case 'banner': {
-      const banner = renderBannerEntry(entry.payload);
-      if (!banner) {
-        return null;
-      }
-      return (
-        <Box width="100%" flexGrow={1} flexDirection="column">
-          {banner}
-        </Box>
-      );
-    }
-    case 'status': {
-      const status = renderStatusEntry(entry.payload);
-      if (!status) {
-        return null;
-      }
-      return (
-        <Box width="100%" flexGrow={1} flexDirection="column">
-          {status}
-        </Box>
-      );
-    }
-    default:
-      return null;
-  }
-}
-
-const areTimelineRowsEqual = (
-  previous: TimelineRowProps,
-  next: TimelineRowProps,
-): boolean => {
-  // Streaming assistant messages should always re-render as content grows
-  if (previous.entry.type === 'assistant-message' || next.entry.type === 'assistant-message') {
-    return false;
-  }
-  return previous.entry === next.entry;
-};
-
-const MemoTimelineRow = memo(TimelineRowComponent, areTimelineRowsEqual);
-
 type TimelineProps = {
   entries: TimelineEntry[];
 };
 
 function Timeline({ entries }: TimelineProps): ReactElement | null {
-  if (!entries || entries.length === 0) {
-    return null;
-  }
+  const [expandAllCommands, setExpandAllCommands] = useState<boolean>(false);
+
+  useInput((input, key) => {
+    if (key.ctrl || key.meta) return;
+    if (input === 'e') setExpandAllCommands(true);
+    if (input === 'c') setExpandAllCommands(false);
+  });
 
   // Preserve strict chronology even if upstream temporarily reorders entries
   const arrivalOrderRef = useRef<{ order: Map<string, number>; next: number }>({ order: new Map(), next: 0 });
 
   const orderedEntries = useMemo<ReadonlyArray<TimelineEntry>>(() => {
     const ref = arrivalOrderRef.current;
-    const withSeq: { e: TimelineEntry; seq: number }[] = entries.map((e: TimelineEntry) => {
+    const source = Array.isArray(entries) ? entries : [];
+    const withSeq: { e: TimelineEntry; seq: number }[] = source.map((e: TimelineEntry) => {
       const id = String(e.id);
       if (!ref.order.has(id)) {
         ref.order.set(id, ref.next++);
@@ -188,22 +106,63 @@ function Timeline({ entries }: TimelineProps): ReactElement | null {
     return withSeq.map((x) => x.e);
   }, [entries]);
 
-  const allOrdered = orderedEntries;
-  const staticEntries = allOrdered.filter((e) => isFinalizedEntry(e));
-  const liveEntries = allOrdered.filter((e) => !isFinalizedEntry(e));
+  if (!orderedEntries || orderedEntries.length === 0) {
+    return null;
+  }
 
   return (
     <Box width="100%" flexDirection="column" flexGrow={1}>
-      <Static items={staticEntries}>
-        {(entry: TimelineEntry) => (
-          <MemoTimelineRow entry={entry} key={entry.id} />
-        )}
-      </Static>
-      {liveEntries.map((entry) => (
-        <MemoTimelineRow entry={entry} key={entry.id} />
+      {orderedEntries.map((entry) => (
+        <TimelineRow
+          key={entry.id}
+          entry={entry}
+          expandAllCommands={expandAllCommands}
+        />
       ))}
     </Box>
   );
 }
+
+function renderTimelineEntry(
+  entry: TimelineEntry,
+  expandAllCommands: boolean,
+): ReactElement | null {
+  switch (entry.type) {
+    case 'assistant-message':
+      return renderAssistantEntry(entry.payload);
+    case 'human-message':
+      return renderHumanEntry(entry.payload);
+    case 'command-result':
+      return renderCommandEntry(entry.payload, expandAllCommands);
+    case 'banner':
+      return renderBannerEntry(entry.payload);
+    case 'status':
+      return renderStatusEntry(entry.payload);
+    default:
+      return null;
+  }
+}
+
+interface TimelineRowProps {
+  entry: TimelineEntry;
+  expandAllCommands: boolean;
+}
+
+const TimelineRow = memo(
+  ({ entry, expandAllCommands }: TimelineRowProps) => {
+    const content = renderTimelineEntry(entry, expandAllCommands);
+    if (!content) {
+      return null;
+    }
+
+    return (
+      <Box width="100%" flexGrow={1} flexDirection="column">
+        {content}
+      </Box>
+    );
+  },
+  (previous, next) =>
+    previous.entry === next.entry && previous.expandAllCommands === next.expandAllCommands,
+);
 
 export default memo(Timeline);

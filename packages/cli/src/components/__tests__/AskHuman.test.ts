@@ -3,17 +3,13 @@ import React from 'react';
 import { describe, expect, jest, test } from '@jest/globals';
 import { render } from 'ink-testing-library';
 import AskHuman, { HUMAN_SLASH_COMMANDS } from '../AskHuman.js';
+import { flush, waitForInkUpdates } from '../test-utils/InkTextArea.js';
 
 const ESC = String.fromCharCode(27);
 const ANSI_ESCAPE_PATTERN = new RegExp(`${ESC}\\[[0-9;]*m`, 'g');
 
 function stripAnsi(value: string): string {
   return value.replace(ANSI_ESCAPE_PATTERN, '');
-}
-
-async function flush(): Promise<void> {
-  await new Promise((resolve) => setImmediate(resolve));
-  await new Promise((resolve) => setImmediate(resolve));
 }
 
 describe('AskHuman slash commands', () => {
@@ -40,6 +36,7 @@ describe('AskHuman slash commands', () => {
 
     stdin.write('/');
     await flush();
+    await waitForInkUpdates();
 
     const frame = stripAnsi(lastFrame());
     expect(frame).toContain('model');

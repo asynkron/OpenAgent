@@ -2,6 +2,7 @@
 import React from 'react';
 import { describe, expect, jest, test } from '@jest/globals';
 import { render } from 'ink-testing-library';
+import { waitForInkUpdates } from '../test-utils/InkTextArea.js';
 
 const cancelMock = jest.fn();
 let latestAskHumanProps = null;
@@ -94,8 +95,7 @@ function createRuntimeHarness() {
 }
 
 async function flush() {
-  await new Promise((resolve) => setImmediate(resolve));
-  await new Promise((resolve) => setImmediate(resolve));
+  await waitForInkUpdates();
 }
 
 describe('CliApp slash command handling', () => {

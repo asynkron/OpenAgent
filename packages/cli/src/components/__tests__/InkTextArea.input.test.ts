@@ -8,6 +8,7 @@ import {
   caretPositionFromFrame,
   ControlledInkTextArea,
   flush,
+  waitForInkUpdates,
   stripAnsi,
 } from '../test-utils/InkTextArea.js';
 
@@ -259,7 +260,7 @@ describe('InkTextArea input handling', () => {
       },
     });
     stdout.emit('resize');
-    await flush();
+    await waitForInkUpdates();
 
     const resizedLines = lastFrame().split('\n');
     expect(stripAnsi(resizedLines[0])).toMatch(/^ ?abc$/);

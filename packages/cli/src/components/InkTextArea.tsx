@@ -105,7 +105,7 @@ function InkTextArea(props: InkTextAreaProps) {
 
   const onChangeDelay = typeof debounceOnChangeMs === 'number' && Number.isFinite(debounceOnChangeMs)
     ? Math.max(0, Math.floor(debounceOnChangeMs))
-    : 80;
+    : 0;
   const onChangeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [caretIndex, setCaretIndex] = useState<number>(() => clamp(0, 0, value.length));

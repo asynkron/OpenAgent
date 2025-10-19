@@ -1,5 +1,3 @@
-import { PlanStatus, isTerminalStatus } from '@asynkron/openagent-core';
-
 import { formatDebugPayload } from './logging.js';
 import { cloneValue, parsePositiveInteger } from './runtimeUtils.js';
 import type { PlanStep } from '../planUtils.js';
@@ -59,17 +57,17 @@ const resolveCommandEventId = (
   event: CommandResultRuntimeEvent,
   planStep: PlanStep | null,
 ): string => {
+  const runtimeIdentifier = buildRuntimeEventId((event as { __id?: unknown }).__id);
+  if (runtimeIdentifier) {
+    return runtimeIdentifier;
+  }
+
   const planStepIdentifier = buildPlanStepEventId(planStep);
   if (planStepIdentifier) {
     return planStepIdentifier;
   }
 
-  const fallbackIdentifier = buildRuntimeEventId((event as { __id?: unknown }).__id);
-  if (!fallbackIdentifier) {
-    throw new TypeError('Command runtime event expected string "__id".');
-  }
-
-  return fallbackIdentifier;
+  throw new TypeError('Command runtime event expected string "__id".');
 };
 
 export type CommandInspectorResolution = {
@@ -98,45 +96,6 @@ export function createCommandResultPayload(
   };
 
   return timelinePayload;
-}
-
-export function createPlanCommandPayload(
-  planStep: PlanStep | null,
-): TimelinePayload<'command-result'> | null {
-  if (!planStep || typeof planStep !== 'object') {
-    return null;
-  }
-
-  const rawStatus = (planStep as { status?: unknown }).status;
-  if (typeof rawStatus === 'string') {
-    if (isTerminalStatus(rawStatus)) {
-      return null;
-    }
-
-    if (rawStatus !== PlanStatus.Pending && rawStatus !== PlanStatus.Running) {
-      return null;
-    }
-  }
-
-  const eventId = buildPlanStepEventId(planStep);
-  if (!eventId) {
-    return null;
-  }
-
-  const commandPayload = cloneCommandPayload(planStep.command ?? null);
-  if (!commandPayload) {
-    return null;
-  }
-
-  return {
-    eventId,
-    command: commandPayload,
-    result: null,
-    preview: null,
-    execution: null,
-    observation: null,
-    planStep: cloneValue(planStep) as PlanStep,
-  } satisfies TimelinePayload<'command-result'>;
 }
 
 export function resolveCommandInspectorRequest(

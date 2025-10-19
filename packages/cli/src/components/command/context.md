@@ -9,9 +9,8 @@
 
 - `theme.ts` — clones the theme-driven styling props for commands so renders can safely mutate local copies.
 - `planHeading.ts` — normalises the originating plan step into a short heading used inside the command chrome.
-- `runPreview.tsx` — parses run text, extracts diff segments, and renders either inline or block markdown previews. The helper
-  now supports tail truncation so streaming plan updates can display the most recent command characters while the final command
-  preview still uses the leading snippet.
+- `runPreview.tsx` — parses run text, extracts diff segments, and renders either inline or block markdown previews. Tail truncation
+  keeps long commands readable while executed command rows still show the leading snippet that shipped with the runtime event.
 - `SummaryLine.tsx` — renders textual summary rows with theme-aware styling.
 - `commandTypes.ts` — defines the command payload, execution envelope, and summary line contracts used across the helpers.
 - `previewLines.ts` — trims stdout/stderr previews into ready-to-render line arrays reused by both Ink and legacy console renderers.
@@ -22,3 +21,19 @@
 
 - Modules export pure helpers to keep `Command.tsx` focused on layout and data orchestration.
 - Shared utilities accept already computed props so tests can inject alternative styles when needed.
+
+## Update: Collapsed Command rows with emoji header (2025-10-19)
+- Default collapsed: Command entries show a compact header only.
+- Header status emoji (left):
+  - 💤 pending (no execution started)
+  - ⏳ waiting (waitingForId set; also used while streaming if waiting)
+  - ▶️ running (started, not done, not waiting)
+  - ✅ completed (done)
+- Removed UI elements: decorative dots and shell prompt symbol.
+- Expanded content shows only:
+  - Run preview (block) without shell prompt
+  - Output details: observation string and JSON of result (if present)
+- Control:
+  - Prop expandAll?: boolean (wired from Timeline hotkeys)
+  - Hotkeys: e expand all, c collapse all
+- Future work (optional): per-command toggle hotkeys and persistent expansion per command.
