@@ -65,7 +65,8 @@ export async function createStructuredResult(
     schemaName: typeof tool.name === 'string' ? tool.name : undefined,
     schemaDescription: typeof tool.description === 'string' ? tool.description : undefined,
     providerOptions,
-    ...callSettings,
+    ...(callSettings.abortSignal ? { abortSignal: callSettings.abortSignal } : {}),
+    ...(typeof callSettings.maxRetries === 'number' ? { maxRetries: callSettings.maxRetries } : {}),
   });
 
   const { onPartial, onComplete } = callbacks;
