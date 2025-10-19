@@ -8,6 +8,14 @@ let latestAskHumanProps = null;
 
 jest.unstable_mockModule('@asynkron/openagent-core', () => ({
   cancel: cancelMock,
+  PlanStatus: {
+    Pending: 'pending',
+    Running: 'running',
+    Completed: 'completed',
+    Failed: 'failed',
+    Abandoned: 'abandoned',
+  },
+  isTerminalStatus: (status) => status === 'completed' || status === 'failed' || status === 'abandoned',
 }));
 
 jest.unstable_mockModule('../AskHuman.tsx', () => ({
