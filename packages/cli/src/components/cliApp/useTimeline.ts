@@ -5,7 +5,6 @@ import type {
   TimelineAssistantPayload,
   TimelineCommandPayload,
   TimelineEntry,
-  TimelineEntryOptions,
   TimelineEntryType,
   UpsertAssistantTimelineEntry,
   UpsertCommandTimelineEntry,
@@ -59,9 +58,6 @@ const findEntryIndexById = (entries: TimelineEntry[], id: number): number => {
   return -1;
 };
 
-const resolveFinalFlag = (options: TimelineEntryOptions | undefined): boolean =>
-  Boolean(options && options.final === true);
-
 export function useTimeline(limit: number): {
   entries: TimelineEntry[];
   timelineKey: number;
@@ -85,13 +81,11 @@ export function useTimeline(limit: number): {
   }, []);
 
   const appendEntry = useCallback<AppendTimelineEntry>(
-    (type: TimelineEntryType, payload: TimelineEntry['payload'], options?: TimelineEntryOptions) => {
+    (type: TimelineEntryType, payload: TimelineEntry['payload']) => {
       const id = entryIdRef.current + 1;
       entryIdRef.current = id;
 
-      const entryFinal = resolveFinalFlag(options);
-
-      const entry = { id, type, payload, final: entryFinal } as TimelineEntry;
+      const entry = { id, type, payload } as TimelineEntry;
       setEntries((previousEntries) => {
         const { next, trimmedEntries } = applyLimit(previousEntries, entry, limit);
         if (trimmedEntries.length > 0) {
@@ -105,14 +99,12 @@ export function useTimeline(limit: number): {
   );
 
   const upsertAssistantEntry = useCallback<UpsertAssistantTimelineEntry>(
-    (payload: TimelineAssistantPayload, options?: TimelineEntryOptions) => {
+    (payload: TimelineAssistantPayload) => {
       const eventId = payload.eventId;
       if (!eventId) {
-        appendEntry('assistant-message', payload, options);
+        appendEntry('assistant-message', payload);
         return;
       }
-
-      const shouldSetFinal = resolveFinalFlag(options);
 
       setEntries((previousEntries) => {
         const existingId = eventIdMapRef.current.get(eventId);
@@ -127,29 +119,18 @@ export function useTimeline(limit: number): {
             return previousEntries;
           }
 
-          const payloadChanged = !areAssistantPayloadsEqual(currentEntry.payload, payload);
-          const finalChanged = shouldSetFinal && !currentEntry.final;
-          if (!payloadChanged && !finalChanged) {
+          if (areAssistantPayloadsEqual(currentEntry.payload, payload)) {
             return previousEntries;
           }
 
           const nextEntries = previousEntries.slice();
-          nextEntries[index] = {
-            ...currentEntry,
-            payload: payloadChanged ? payload : currentEntry.payload,
-            final: currentEntry.final || shouldSetFinal,
-          } as TimelineEntry;
+          nextEntries[index] = { ...currentEntry, payload } as TimelineEntry;
           return nextEntries;
         }
 
         const id = entryIdRef.current + 1;
         entryIdRef.current = id;
-        const entry: TimelineEntry = {
-          id,
-          type: 'assistant-message',
-          payload,
-          final: shouldSetFinal,
-        };
+        const entry: TimelineEntry = { id, type: 'assistant-message', payload };
         const { next, trimmedEntries } = applyLimit(previousEntries, entry, limit);
         eventIdMapRef.current.set(eventId, id);
         if (trimmedEntries.length > 0) {
@@ -163,9 +144,8 @@ export function useTimeline(limit: number): {
   );
 
   const upsertCommandEntry = useCallback<UpsertCommandTimelineEntry>(
-    (payload: TimelineCommandPayload, options?: TimelineEntryOptions) => {
+    (payload: TimelineCommandPayload) => {
       const eventId = payload.eventId;
-      const shouldSetFinal = resolveFinalFlag(options);
       setEntries((previousEntries) => {
         const existingId = eventIdMapRef.current.get(eventId);
         if (existingId) {
@@ -179,29 +159,18 @@ export function useTimeline(limit: number): {
             return previousEntries;
           }
 
-          const payloadChanged = !areCommandPayloadsEqual(currentEntry.payload, payload);
-          const finalChanged = shouldSetFinal && !currentEntry.final;
-          if (!payloadChanged && !finalChanged) {
+          if (areCommandPayloadsEqual(currentEntry.payload, payload)) {
             return previousEntries;
           }
 
           const nextEntries = previousEntries.slice();
-          nextEntries[index] = {
-            ...currentEntry,
-            payload: payloadChanged ? payload : currentEntry.payload,
-            final: currentEntry.final || shouldSetFinal,
-          } as TimelineEntry;
+          nextEntries[index] = { ...currentEntry, payload } as TimelineEntry;
           return nextEntries;
         }
 
         const id = entryIdRef.current + 1;
         entryIdRef.current = id;
-        const entry: TimelineEntry = {
-          id,
-          type: 'command-result',
-          payload,
-          final: shouldSetFinal,
-        };
+        const entry: TimelineEntry = { id, type: 'command-result', payload };
         const { next, trimmedEntries } = applyLimit(previousEntries, entry, limit);
         eventIdMapRef.current.set(eventId, id);
         if (trimmedEntries.length > 0) {

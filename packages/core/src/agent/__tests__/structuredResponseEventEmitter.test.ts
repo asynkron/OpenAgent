@@ -13,13 +13,11 @@ describe('StructuredResponseEventEmitter', () => {
     emitter.handleStreamPartial(partial);
 
     expect(emitEvent).toHaveBeenCalledTimes(1);
-    expect(emitEvent).toHaveBeenNthCalledWith(
-      1,
+    expect(emitEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'assistant-message',
         payload: { message: 'Hello world' },
       }),
-      expect.objectContaining({ final: false }),
     );
 
     const finalResponse: PlanResponse = {
@@ -28,15 +26,7 @@ describe('StructuredResponseEventEmitter', () => {
     };
     const summary = emitter.handleFinalResponse(finalResponse);
 
-    expect(emitEvent).toHaveBeenCalledTimes(2);
-    expect(emitEvent).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        type: 'assistant-message',
-        payload: { message: 'Hello world' },
-      }),
-      expect.objectContaining({ final: true }),
-    );
+    expect(emitEvent).toHaveBeenCalledTimes(1);
     expect(summary.messageEmitted).toBe(true);
   });
 
@@ -87,7 +77,6 @@ describe('StructuredResponseEventEmitter', () => {
           ],
         },
       }),
-      expect.objectContaining({ final: false }),
     );
 
     emitEvent.mockClear();
@@ -119,7 +108,6 @@ describe('StructuredResponseEventEmitter', () => {
           ],
         },
       }),
-      expect.objectContaining({ final: true }),
     );
   });
 });

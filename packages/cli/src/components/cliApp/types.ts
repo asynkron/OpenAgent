@@ -109,7 +109,6 @@ export type TimelineEntryBase<Type extends string, Payload> = {
   id: number;
   type: Type;
   payload: Payload;
-  final: boolean;
 };
 
 export type TimelineEntry =
@@ -126,27 +125,17 @@ export type TimelinePayload<Type extends TimelineEntryType> = Extract<
   { type: Type }
 >['payload'];
 
-export interface TimelineEntryOptions {
-  readonly final?: boolean;
-}
-
 export type AppendTimelineEntry = {
-  (type: 'assistant-message', payload: TimelineAssistantPayload, options?: TimelineEntryOptions): void;
-  (type: 'human-message', payload: TimelineHumanPayload, options?: TimelineEntryOptions): void;
-  (type: 'command-result', payload: TimelineCommandPayload, options?: TimelineEntryOptions): void;
-  (type: 'banner', payload: TimelineBannerPayload, options?: TimelineEntryOptions): void;
-  (type: 'status', payload: TimelineStatusPayload, options?: TimelineEntryOptions): void;
+  (type: 'assistant-message', payload: TimelineAssistantPayload): void;
+  (type: 'human-message', payload: TimelineHumanPayload): void;
+  (type: 'command-result', payload: TimelineCommandPayload): void;
+  (type: 'banner', payload: TimelineBannerPayload): void;
+  (type: 'status', payload: TimelineStatusPayload): void;
 };
 
-export type UpsertAssistantTimelineEntry = (
-  payload: TimelineAssistantPayload,
-  options?: TimelineEntryOptions,
-) => void;
+export type UpsertAssistantTimelineEntry = (payload: TimelineAssistantPayload) => void;
 
-export type UpsertCommandTimelineEntry = (
-  payload: TimelineCommandPayload,
-  options?: TimelineEntryOptions,
-) => void;
+export type UpsertCommandTimelineEntry = (payload: TimelineCommandPayload) => void;
 
 export type DebugEntry = {
   id: string | number;

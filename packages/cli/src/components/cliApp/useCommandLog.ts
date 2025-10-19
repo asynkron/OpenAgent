@@ -71,15 +71,15 @@ export function useCommandLog({ limit, upsertCommandResult, appendStatus }: UseC
 
   const handleCommandEvent = useCallback(
     (event: CommandResultRuntimeEvent) => {
-      const update = createCommandResultPayload(event);
-      upsertCommandResult(update.payload, { final: update.final });
+      const timelinePayload = createCommandResultPayload(event);
+      upsertCommandResult(timelinePayload);
 
-      const commandPayload = update.payload.command as CommandPayload | null | undefined;
+      const commandPayload = timelinePayload.command as CommandPayload | null | undefined;
       if (!commandPayload) {
         return;
       }
 
-      const eventId = update.payload.eventId;
+      const eventId = timelinePayload.eventId;
 
       setCommandLog((prev) => {
         const existingId = commandEventIdMapRef.current.get(eventId);

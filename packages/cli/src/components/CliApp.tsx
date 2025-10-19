@@ -174,9 +174,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
       const rawMessage = Array.isArray(rawSource)
         ? rawSource.map((v) => String(v)).join('\n')
         : String(rawSource);
-      upsertAssistantEntry({ message: rawMessage, eventId: normalizedId }, {
-        final: event.final === true,
-      });
+      upsertAssistantEntry({ message: rawMessage, eventId: normalizedId });
     },
     [upsertAssistantEntry],
   );
