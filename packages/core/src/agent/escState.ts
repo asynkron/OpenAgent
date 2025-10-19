@@ -16,6 +16,30 @@ export type EscWaiter = (payload: EscPayload | null) => void;
 
 export type EscTrigger = (payload?: EscPayload) => void;
 
+export interface EscActivePromise {
+  promise: Promise<unknown>;
+  cancel: (() => void) | null;
+}
+
+const activePromises = new WeakMap<EscState, EscActivePromise>();
+
+function cancelActivePromise(state: EscState): void {
+  const tracked = activePromises.get(state);
+  if (!tracked) {
+    return;
+  }
+
+  activePromises.delete(state);
+
+  if (typeof tracked.cancel === 'function') {
+    try {
+      tracked.cancel();
+    } catch {
+      // Ignore cancellation failures triggered by ESC.
+    }
+  }
+}
+
 export interface EscState {
   triggered: boolean;
   payload: EscPayload | null;
@@ -48,6 +72,8 @@ export function createEscState({ onTrigger }: CreateEscStateOptions = {}): EscSt
   const trigger: EscTrigger = (payload = null) => {
     state.triggered = true;
     state.payload = payload ?? null;
+
+    cancelActivePromise(state);
 
     if (state.waiters.size > 0) {
       const waiters = Array.from(state.waiters);
@@ -126,10 +152,52 @@ export function resetEscState(escState: EscState | null | undefined): void {
 
   escState.triggered = false;
   escState.payload = null;
+  clearEscActivePromise(escState);
+}
+
+export function setEscActivePromise(
+  escState: EscState | null | undefined,
+  active: EscActivePromise | null,
+): void {
+  if (!escState) {
+    return;
+  }
+
+  if (!active || !active.promise) {
+    activePromises.delete(escState);
+    return;
+  }
+
+  activePromises.set(escState, {
+    promise: active.promise,
+    cancel: active.cancel ?? null,
+  });
+}
+
+export function getEscActivePromise(
+  escState: EscState | null | undefined,
+): EscActivePromise | null {
+  if (!escState) {
+    return null;
+  }
+
+  const tracked = activePromises.get(escState);
+  return tracked ? { ...tracked } : null;
+}
+
+export function clearEscActivePromise(escState: EscState | null | undefined): void {
+  if (!escState) {
+    return;
+  }
+
+  activePromises.delete(escState);
 }
 
 export default {
   createEscState,
   createEscWaiter,
   resetEscState,
+  setEscActivePromise,
+  getEscActivePromise,
+  clearEscActivePromise,
 };

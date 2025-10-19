@@ -21,7 +21,13 @@ import {
   type PlanResponseStreamPartial,
 } from '../openai/responses.js';
 import { getOpenAIRequestSettings } from '../openai/client.js';
-import { createEscWaiter, resetEscState, type EscState } from './escState.js';
+import {
+  createEscWaiter,
+  resetEscState,
+  setEscActivePromise,
+  clearEscActivePromise,
+  type EscState,
+} from './escState.js';
 import { createObservationHistoryEntry, type ObservationRecord } from './historyMessageBuilder.js';
 import { buildOpenAgentRequestPayload } from './modelRequestPayload.js';
 import type { ObservationBuilder } from './observationBuilder.js';
@@ -198,6 +204,24 @@ export async function requestModelCompletion({
     onStructuredStreamFinish: clearStructuredStreamPanel,
   });
 
+  setEscActivePromise(escState, {
+    promise: requestPromise,
+    cancel: () => {
+      let canceledViaManager = false;
+      if (cancellationOp && typeof cancellationOp.cancel === 'function') {
+        canceledViaManager = Boolean(cancellationOp.cancel('ui-cancel'));
+      }
+
+      if (!canceledViaManager && controller) {
+        try {
+          controller.abort();
+        } catch {
+          // Ignore abort errors triggered by ESC.
+        }
+      }
+    },
+  });
+
   try {
     type CompletionOutcome =
       | { kind: 'completion'; value: CreateResponseResult }
@@ -283,6 +307,7 @@ export async function requestModelCompletion({
     throw error;
   } finally {
     cleanupEscWaiter();
+    clearEscActivePromise(escState);
     if (cancellationOp && typeof cancellationOp.unregister === 'function') {
       cancellationOp.unregister();
     }
