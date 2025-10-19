@@ -32,6 +32,32 @@ const applyLimit = (
   } satisfies AppendResult;
 };
 
+const areAssistantPayloadsEqual = (
+  current: TimelineAssistantPayload,
+  next: TimelineAssistantPayload,
+): boolean => current.eventId === next.eventId && current.message === next.message;
+
+const areCommandPayloadsEqual = (
+  current: TimelineCommandPayload,
+  next: TimelineCommandPayload,
+): boolean =>
+  current.eventId === next.eventId &&
+  current.command === next.command &&
+  current.result === next.result &&
+  current.preview === next.preview &&
+  current.execution === next.execution &&
+  current.observation === next.observation &&
+  current.planStep === next.planStep;
+
+const findEntryIndexById = (entries: TimelineEntry[], id: number): number => {
+  for (let index = 0; index < entries.length; index += 1) {
+    if (entries[index]?.id === id) {
+      return index;
+    }
+  }
+  return -1;
+};
+
 export function useTimeline(limit: number): {
   entries: TimelineEntry[];
   timelineKey: number;
@@ -83,11 +109,23 @@ export function useTimeline(limit: number): {
       setEntries((previousEntries) => {
         const existingId = eventIdMapRef.current.get(eventId);
         if (existingId) {
-          return previousEntries.map((entry) =>
-            entry.id === existingId
-              ? ({ ...entry, payload } as TimelineEntry)
-              : entry,
-          );
+          const index = findEntryIndexById(previousEntries, existingId);
+          if (index === -1) {
+            return previousEntries;
+          }
+
+          const currentEntry = previousEntries[index];
+          if (currentEntry.type !== 'assistant-message') {
+            return previousEntries;
+          }
+
+          if (areAssistantPayloadsEqual(currentEntry.payload, payload)) {
+            return previousEntries;
+          }
+
+          const nextEntries = previousEntries.slice();
+          nextEntries[index] = { ...currentEntry, payload } as TimelineEntry;
+          return nextEntries;
         }
 
         const id = entryIdRef.current + 1;
@@ -111,11 +149,23 @@ export function useTimeline(limit: number): {
       setEntries((previousEntries) => {
         const existingId = eventIdMapRef.current.get(eventId);
         if (existingId) {
-          return previousEntries.map((entry) =>
-            entry.id === existingId
-              ? ({ ...entry, payload } as TimelineEntry)
-              : entry,
-          );
+          const index = findEntryIndexById(previousEntries, existingId);
+          if (index === -1) {
+            return previousEntries;
+          }
+
+          const currentEntry = previousEntries[index];
+          if (currentEntry.type !== 'command-result') {
+            return previousEntries;
+          }
+
+          if (areCommandPayloadsEqual(currentEntry.payload, payload)) {
+            return previousEntries;
+          }
+
+          const nextEntries = previousEntries.slice();
+          nextEntries[index] = { ...currentEntry, payload } as TimelineEntry;
+          return nextEntries;
         }
 
         const id = entryIdRef.current + 1;

@@ -73,23 +73,27 @@ function renderStatusEntry(status: TimelineStatusPayload): ReactElement | null {
   return <MemoStatusMessage status={status} />;
 }
 
-function renderTimelineEntry(entry: TimelineEntry): ReactElement | null {
+type TimelineRowProps = {
+  entry: TimelineEntry;
+};
+
+function TimelineRowComponent({ entry }: TimelineRowProps): ReactElement | null {
   switch (entry.type) {
     case 'assistant-message':
       return (
-        <Box key={entry.id} width="100%" flexGrow={1} flexDirection="column">
+        <Box width="100%" flexGrow={1} flexDirection="column">
           {renderAssistantEntry(entry.payload)}
         </Box>
       );
     case 'human-message':
       return (
-        <Box key={entry.id} width="100%" flexGrow={1} flexDirection="column">
+        <Box width="100%" flexGrow={1} flexDirection="column">
           {renderHumanEntry(entry.payload)}
         </Box>
       );
     case 'command-result':
       return (
-        <Box key={entry.id} width="100%" flexGrow={1} flexDirection="column">
+        <Box width="100%" flexGrow={1} flexDirection="column">
           {renderCommandEntry(entry.payload)}
         </Box>
       );
@@ -99,7 +103,7 @@ function renderTimelineEntry(entry: TimelineEntry): ReactElement | null {
         return null;
       }
       return (
-        <Box key={entry.id} width="100%" flexGrow={1} flexDirection="column">
+        <Box width="100%" flexGrow={1} flexDirection="column">
           {banner}
         </Box>
       );
@@ -110,7 +114,7 @@ function renderTimelineEntry(entry: TimelineEntry): ReactElement | null {
         return null;
       }
       return (
-        <Box key={entry.id} width="100%" flexGrow={1} flexDirection="column">
+        <Box width="100%" flexGrow={1} flexDirection="column">
           {status}
         </Box>
       );
@@ -119,6 +123,13 @@ function renderTimelineEntry(entry: TimelineEntry): ReactElement | null {
       return null;
   }
 }
+
+const areTimelineRowsEqual = (
+  previous: TimelineRowProps,
+  next: TimelineRowProps,
+): boolean => previous.entry === next.entry;
+
+const MemoTimelineRow = memo(TimelineRowComponent, areTimelineRowsEqual);
 
 type TimelineProps = {
   entries: TimelineEntry[];
@@ -131,7 +142,9 @@ function Timeline({ entries }: TimelineProps): ReactElement | null {
 
   return (
     <Box width="100%" flexDirection="column" flexGrow={1}>
-      {entries.map((entry) => renderTimelineEntry(entry))}
+      {entries.map((entry) => (
+        <MemoTimelineRow entry={entry} key={entry.id} />
+      ))}
     </Box>
   );
 }

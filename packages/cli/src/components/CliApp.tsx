@@ -55,6 +55,7 @@ const MAX_TIMELINE_ENTRIES = 20;
 const MAX_COMMAND_LOG_ENTRIES = 50;
 
 const MemoPlan = memo(Plan);
+const MemoAskHuman = memo(AskHuman);
 const MemoDebugPanel = memo(DebugPanel);
 
 const UNKNOWN_ERROR_MESSAGE = 'Unknown runtime error';
@@ -493,7 +494,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
           key={`command-${commandPanelKey ?? 'command-inspector'}`}
         />
       ) : null}
-      <AskHuman
+      <MemoAskHuman
         onSubmit={inputRequest ? handleSubmitPrompt : undefined}
         thinking={thinking}
         contextUsage={contextUsage}
