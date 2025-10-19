@@ -86,10 +86,15 @@ function Command({
     ? Math.max(0, Math.floor(maxRunCharacters))
     : DEFAULT_MAX_RUN_CHARACTERS;
 
+  const hasExecution = execution !== null && execution !== undefined;
+  const hasResult = result !== null && result !== undefined;
+  const shouldTailTruncateRun = !hasResult && !hasExecution;
+
   const { block: runElements, inline: inlineRunPreview } = buildRunPreview({
     runValue,
     limit: runCharacterLimit,
     allowInline: !detail,
+    truncateDirection: shouldTailTruncateRun ? 'end' : 'start',
   });
 
   const headingDetailText = detail;

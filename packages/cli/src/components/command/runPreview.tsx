@@ -12,6 +12,8 @@ export type RunPreview = {
   block: ReactElement[] | null;
 };
 
+type TruncateDirection = 'start' | 'end';
+
 type RunSegment =
   | {
       type: 'text';
@@ -76,35 +78,55 @@ function renderDiffSegment(content: string, key: string): ReactElement {
   return <Text key={key}>{rendered}</Text>;
 }
 
+export function truncateRunContent(
+  content: string,
+  limit: number,
+  direction: TruncateDirection,
+): string {
+  if (limit <= 0 || content.length <= limit) {
+    return content;
+  }
+
+  const ellipsis = '…';
+  const sliceLength = Math.max(limit - ellipsis.length, 0);
+  if (sliceLength <= 0) {
+    return ellipsis;
+  }
+
+  if (direction === 'end') {
+    const tail = content.slice(content.length - sliceLength);
+    return `${ellipsis}${tail}`;
+  }
+
+  return `${content.slice(0, sliceLength)}${ellipsis}`;
+}
+
 function renderRunMarkdown(
   content: string | null | undefined,
   key: string,
   limit: number,
+  direction: TruncateDirection,
 ): ReactElement | null {
   if (typeof content !== 'string' || content.trim() === '') {
     return null;
   }
 
-  const ellipsis = '…';
-  const shouldTruncate = limit > 0 && content.length > limit;
-  const truncatedContent = shouldTruncate
-    ? `${content.slice(0, Math.max(limit - ellipsis.length, 0))}${ellipsis}`
-    : content;
+  const truncatedContent = truncateRunContent(content, limit, direction);
   const markdown = `\`\`\`bash\n${truncatedContent}\n\`\`\``;
   const rendered = renderMarkdownMessage(markdown);
   return <Text key={key}>{rendered}</Text>;
 }
 
-function renderInlineRunMarkdown(content: string, limit: number): string | null {
+function renderInlineRunMarkdown(
+  content: string,
+  limit: number,
+  direction: TruncateDirection,
+): string | null {
   if (content.trim() === '') {
     return null;
   }
 
-  const ellipsis = '…';
-  const shouldTruncate = limit > 0 && content.length > limit;
-  const truncatedContent = shouldTruncate
-    ? `${content.slice(0, Math.max(limit - ellipsis.length, 0))}${ellipsis}`
-    : content;
+  const truncatedContent = truncateRunContent(content, limit, direction);
   const markdown = `\`\`\`bash\n${truncatedContent}\n\`\`\``;
   const rendered = renderMarkdownMessage(markdown);
   return rendered.replace(/^\s+/, '');
@@ -127,10 +149,12 @@ export function buildRunPreview({
   runValue,
   limit,
   allowInline,
+  truncateDirection = 'start',
 }: {
   runValue: string | null | undefined;
   limit: number;
   allowInline: boolean;
+  truncateDirection?: TruncateDirection;
 }): RunPreview {
   const runSegments = splitRunSegments(runValue);
 
@@ -142,7 +166,12 @@ export function buildRunPreview({
       if (segment.type === 'diff') {
         return [renderDiffSegment(segment.content, `run-diff-${index}`)];
       }
-      const rendered = renderRunMarkdown(segment.content, `run-text-${index}`, limit);
+      const rendered = renderRunMarkdown(
+        segment.content,
+        `run-text-${index}`,
+        limit,
+        truncateDirection,
+      );
       return rendered ? [rendered] : [];
     });
 
@@ -153,7 +182,7 @@ export function buildRunPreview({
     return { inline: null, block: null };
   }
 
-  const rendered = renderRunMarkdown(runValue, 'run-text', limit);
+  const rendered = renderRunMarkdown(runValue, 'run-text', limit, truncateDirection);
   const block = rendered ? [rendered] : null;
 
   if (!allowInline) {
@@ -163,7 +192,7 @@ export function buildRunPreview({
   if (typeof runValue === 'string') {
     const trimmedRun = runValue.trim();
     if (trimmedRun && !/[\r\n]/.test(runValue)) {
-      const inline = renderInlineRunMarkdown(trimmedRun, limit);
+      const inline = renderInlineRunMarkdown(trimmedRun, limit, truncateDirection);
       if (inline) {
         return { inline, block: null };
       }
