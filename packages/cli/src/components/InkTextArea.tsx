@@ -26,7 +26,6 @@ import { renderRows } from './inkTextArea/renderRows.js';
 import { toBoxProps, toTextProps, type BoxStyleProps, type TextStyleProps } from '../styleTypes.js';
 import type { TextRow } from './inkTextArea/layout.js';
 import type { TextProps } from 'ink';
-import { useCaretBlink } from './inkTextArea/useCaretBlink.js';
 
 type LegacySlashMenuItem = SlashCommandSourceItem;
 
@@ -409,8 +408,7 @@ function InkTextAreaRowsComponent({
   textProps,
   interactive,
 }: InkTextAreaRowsProps) {
-  const showCaret = useCaretBlink(interactive);
-  const caretVisible = interactive && showCaret;
+  const caretVisible = interactive;
 
   const rowElements = useMemo(
     () =>

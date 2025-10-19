@@ -89,7 +89,7 @@ const AskHumanLayout = ({
 }: AskHumanLayoutProps): ReactElement => {
   const inputDisplay = thinking ? (
     <Text {...askHumanViewProps.spinnerTextProps}>
-      <Spinner type="dots" key="spinner-icon" /> Thinking…
+      ⏳ Thinking…
     </Text>
   ) : (
     <InkTextArea
