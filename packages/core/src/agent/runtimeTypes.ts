@@ -221,6 +221,7 @@ export type RuntimeDebugPayload =
 
 export interface EmitRuntimeEventOptions {
   readonly id?: string;
+  readonly final?: boolean;
 }
 
 export interface RuntimeEmitter extends RuntimeLogger {

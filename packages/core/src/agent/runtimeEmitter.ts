@@ -87,6 +87,19 @@ export function createRuntimeEmitter({
     })();
     const resolvedId = providedId ?? existingId ?? nextId();
     (clonedEvent as { __id: string }).__id = resolvedId;
+
+    const providedFinal = options && typeof options.final === 'boolean' ? options.final : null;
+    const existingFinalCandidate = (clonedEvent as { final?: unknown }).final;
+    const existingFinal =
+      typeof existingFinalCandidate === 'boolean' ? existingFinalCandidate : null;
+    const resolvedFinal = providedFinal ?? existingFinal;
+    if (resolvedFinal === null) {
+      if ('final' in clonedEvent) {
+        delete (clonedEvent as { final?: unknown }).final;
+      }
+    } else {
+      (clonedEvent as { final: boolean }).final = resolvedFinal;
+    }
     outputsQueue.push(clonedEvent);
 
     if (!Array.isArray(eventObservers)) {

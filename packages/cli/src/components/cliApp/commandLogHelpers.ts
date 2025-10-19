@@ -78,9 +78,14 @@ export type CommandInspectorResolution = {
   warningMessage: string | null;
 };
 
+export interface CommandResultTimelineUpdate {
+  readonly payload: TimelinePayload<'command-result'>;
+  readonly final: boolean;
+}
+
 export function createCommandResultPayload(
   event: CommandResultRuntimeEvent,
-): TimelinePayload<'command-result'> {
+): CommandResultTimelineUpdate {
   const { command, result, preview, execution, observation, planStep, planSnapshot } =
     event.payload;
 
@@ -97,7 +102,12 @@ export function createCommandResultPayload(
     planStep: clonedPlanStep,
   };
 
-  return timelinePayload;
+  const statusCandidate = clonedPlanStep ? (clonedPlanStep as { status?: unknown }).status : null;
+  const normalizedStatus =
+    typeof statusCandidate === 'string' ? statusCandidate.trim().toLowerCase() : '';
+  const isFinal = normalizedStatus === 'completed';
+
+  return { payload: timelinePayload, final: isFinal } satisfies CommandResultTimelineUpdate;
 }
 
 export function createPlanCommandPayload(
