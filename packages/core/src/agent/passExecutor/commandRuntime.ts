@@ -78,7 +78,7 @@ export class CommandRuntime {
     );
 
     if (approvalOutcome.canceled) {
-      this.emitCancellationStatus(approvalOutcome.payload);
+      this.emitCancellationStatus(approvalOutcome.payload ?? null);
       this.resetEscState();
       return 'stop';
     }
@@ -91,14 +91,27 @@ export class CommandRuntime {
     const executionOutcome = await this.awaitWithEsc(() =>
       runApprovedCommand(this.executorOptions, approvalResult),
     );
-    const executionResult = executionOutcome.value;
+
+    if (executionOutcome.canceled) {
+      const pendingResult = executionOutcome.pending;
+      if (pendingResult) {
+        pendingResult
+          .then((result) =>
+            processCommandExecution(this.resultOptions, result).catch(() => undefined),
+          )
+          .catch(() => undefined);
+      }
+      this.emitCancellationStatus(executionOutcome.payload ?? null);
+      this.resetEscState();
+      return 'stop';
+    }
 
     const processedOutcome = await this.awaitWithEsc(() =>
-      processCommandExecution(this.resultOptions, executionResult),
+      processCommandExecution(this.resultOptions, executionOutcome.value),
     );
 
-    if (executionOutcome.canceled || processedOutcome.canceled) {
-      this.emitCancellationStatus(executionOutcome.payload ?? processedOutcome.payload);
+    if (processedOutcome.canceled) {
+      this.emitCancellationStatus(processedOutcome.payload ?? null);
       this.resetEscState();
       return 'stop';
     }
@@ -108,11 +121,14 @@ export class CommandRuntime {
 
   private async awaitWithEsc<T>(
     promiseFactory: () => Promise<T>,
-  ): Promise<{ value: T; canceled: boolean; payload: EscPayload | null }> {
+  ): Promise<
+    | { canceled: false; value: T; payload: null; pending: null }
+    | { canceled: true; value?: never; payload: EscPayload | null; pending: Promise<T> }
+  > {
     const escState = this.escState;
     if (!escState) {
       const value = await promiseFactory();
-      return { value, canceled: false, payload: null };
+      return { value, canceled: false, payload: null, pending: null };
     }
 
     const { promise: escPromise, cleanup } = createEscWaiter(escState);
@@ -128,7 +144,7 @@ export class CommandRuntime {
     try {
       if (!escPromise) {
         const value = await operationPromise;
-        return { value, canceled: false, payload: null };
+        return { value, canceled: false, payload: null, pending: null };
       }
 
       const outcome = await Promise.race([
@@ -137,11 +153,17 @@ export class CommandRuntime {
       ]);
 
       if (outcome.kind === 'esc') {
-        const value = await operationPromise;
-        return { value, canceled: true, payload: outcome.payload ?? null };
+        operationPromise
+          .then(() => undefined)
+          .catch(() => undefined);
+        return {
+          canceled: true,
+          payload: outcome.payload ?? null,
+          pending: operationPromise,
+        };
       }
 
-      return { value: outcome.value, canceled: false, payload: null };
+      return { value: outcome.value, canceled: false, payload: null, pending: null };
     } finally {
       cleanup();
       clearEscActivePromise(escState);

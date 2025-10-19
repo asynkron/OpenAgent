@@ -1,9 +1,11 @@
 /* eslint-env jest */
 import { describe, expect, test, jest } from '@jest/globals';
 import { CommandRuntime } from '../../commandRuntime.js';
+import { ApprovalManager } from '../../../approvalManager.js';
 import { createEscState } from '../../../escState.js';
 import { prepareCommandCandidate, runApprovedCommand } from '../executor.js';
 import type { PlanRuntime } from '../../planRuntime.js';
+import type ObservationBuilder from '../../observationBuilder.js';
 
 const createPlanRuntimeMock = () =>
   ({
@@ -146,6 +148,7 @@ describe('CommandRuntime', () => {
 
     const outcome = await executePromise;
     expect(outcome).toBe('stop');
+    await new Promise((resolve) => setImmediate(resolve));
     expect(planRuntime.applyCommandObservation).toHaveBeenCalled();
     expect(emitEvent).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -153,5 +156,66 @@ describe('CommandRuntime', () => {
         payload: expect.objectContaining({ level: 'warn' }),
       }),
     );
+  });
+
+  test('returns stop immediately when ESC triggers during approval prompt', async () => {
+    const escController = createEscState();
+    const askHuman = jest.fn(
+      () =>
+        new Promise<string | undefined>(() => {
+          // Intentionally never resolve to simulate a stuck approval prompt.
+        }),
+    );
+
+    const approvalManager = new ApprovalManager({ askHuman });
+
+    const planRuntime = {
+      markCommandRunning: jest.fn(),
+      emitPlanSnapshot: jest.fn(() => ({ type: 'plan-snapshot', plan: [] })),
+      applyEffects: jest.fn(),
+      applyCommandObservation: jest.fn(),
+      handleCommandRejection: jest.fn(() => ({ effects: [] })),
+    } as unknown as PlanRuntime;
+
+    const runtime = new CommandRuntime({
+      approvalManager,
+      emitEvent: jest.fn(),
+      emitAutoApproveStatus: false,
+      runCommandFn: jest.fn(),
+      executeAgentCommandFn: jest.fn(),
+      incrementCommandCountFn: jest.fn().mockResolvedValue(undefined),
+      observationBuilder: {
+        build: jest.fn(),
+      } as unknown as ObservationBuilder,
+      planRuntime,
+      emitDebug: jest.fn(),
+      escState: escController.state,
+    });
+
+    const candidate = {
+      command: {
+        reason: 'Check status',
+        shell: '',
+        run: 'status',
+        cwd: '.',
+        timeout_sec: 1,
+        filter_regex: '',
+        tail_lines: 200,
+        max_bytes: 1024,
+      },
+      step: { id: 'step-approval', status: 'pending' },
+    } as never;
+
+    const executePromise = runtime.execute(candidate);
+
+    for (let i = 0; i < 10 && askHuman.mock.calls.length === 0; i += 1) {
+      await Promise.resolve();
+    }
+
+    expect(askHuman).toHaveBeenCalled();
+    escController.trigger?.({ reason: 'escape-key' });
+
+    const outcome = await executePromise;
+    expect(outcome).toBe('stop');
   });
 });
