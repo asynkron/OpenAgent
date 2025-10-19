@@ -65,6 +65,14 @@ export type AssistantMessageRuntimeEvent = RuntimeEventBase<
   AssistantMessageRuntimeEventPayload
 >;
 
+export type PlanningState = 'start' | 'update' | 'finish';
+
+export interface PlanningRuntimeEventPayload {
+  readonly state: PlanningState;
+}
+
+export type PlanningRuntimeEvent = RuntimeEventBase<'planning', PlanningRuntimeEventPayload>;
+
 export interface PlanRuntimeEventPayload {
   readonly plan: PlanSnapshot | null;
 }
@@ -193,6 +201,7 @@ export type RuntimeEvent =
   | StatusRuntimeEvent
   | PassRuntimeEvent
   | ThinkingRuntimeEvent
+  | PlanningRuntimeEvent
   | AssistantMessageRuntimeEvent
   | PlanRuntimeEvent
   | PlanProgressRuntimeEvent

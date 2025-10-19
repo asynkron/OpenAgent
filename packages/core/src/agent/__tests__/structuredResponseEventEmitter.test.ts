@@ -48,7 +48,7 @@ describe('StructuredResponseEventEmitter', () => {
     expect(finalSummary.messageEmitted).toBe(false);
   });
 
-  test('emits plan snapshots during streaming and final response handling', () => {
+  test('emits planning indicator during streaming and final plan snapshot on completion', () => {
     const emitEvent = jest.fn();
     const emitter = createStructuredResponseEventEmitter({ emitEvent });
 
@@ -66,15 +66,9 @@ describe('StructuredResponseEventEmitter', () => {
     expect(streamSummary.planEmitted).toBe(true);
     expect(emitEvent).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'plan',
+        type: 'planning',
         payload: {
-          plan: [
-            expect.objectContaining({
-              id: 'step-1',
-              status: 'in_progress',
-              command: expect.objectContaining({ run: 'ls' }),
-            }),
-          ],
+          state: 'start',
         },
       }),
     );
@@ -95,19 +89,28 @@ describe('StructuredResponseEventEmitter', () => {
     });
 
     expect(finalSummary.planEmitted).toBe(true);
-    expect(emitEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'plan',
-        payload: {
-          plan: [
-            expect.objectContaining({
-              id: 'step-1',
-              status: 'complete',
-              observation: null,
-            }),
-          ],
-        },
-      }),
+    const emittedEvents = emitEvent.mock.calls.map((call) => call[0] as { type?: string });
+    expect(emittedEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'plan',
+          payload: {
+            plan: [
+              expect.objectContaining({
+                id: 'step-1',
+                status: 'complete',
+                observation: null,
+              }),
+            ],
+          },
+        }),
+        expect.objectContaining({
+          type: 'planning',
+          payload: {
+            state: 'finish',
+          },
+        }),
+      ]),
     );
   });
 });

@@ -28,6 +28,7 @@ import {
   type ExitState,
   type InputRequestState,
   type PassRuntimeEvent,
+  type PlanningRuntimeEvent,
   type PlanProgressState,
   type PlanProgressRuntimeEvent,
   type PlanRuntimeEvent,
@@ -102,6 +103,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
   const [inputRequest, setInputRequest] = useState<InputRequestState | null>(null);
   const [exitState, setExitState] = useState<ExitState | null>(null);
   const [passCounter, setPassCounter] = useState(0);
+  const [isPlanning, setIsPlanning] = useState(false);
 
   const { entries, timelineKey, appendEntry, upsertAssistantEntry, upsertCommandEntry } =
     useTimeline(MAX_TIMELINE_ENTRIES);
@@ -332,7 +334,19 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
         })) as PlanStep[])
       : [];
     setPlan(nextPlan);
+    setIsPlanning(false);
+  }, [setIsPlanning]);
 
+  const handlePlanningEvent = useCallback((event: PlanningRuntimeEvent): void => {
+    const rawState = event?.payload?.state;
+    const normalized = typeof rawState === 'string' ? rawState.trim().toLowerCase() : '';
+    if (normalized === 'finish') {
+      setIsPlanning(false);
+      return;
+    }
+    if (normalized === 'start' || normalized === 'update') {
+      setIsPlanning(true);
+    }
   }, []);
 
   const handlePlanProgressEvent = useCallback((event: PlanProgressRuntimeEvent): void => {
@@ -406,6 +420,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
     onDebug: handleDebugEvent,
     onError: handleErrorEvent,
     onPass: handlePassEvent,
+    onPlanning: handlePlanningEvent,
     onPlan: handlePlanEvent,
     onPlanProgress: handlePlanProgressEvent,
     onRequestInput: handleRequestInputEvent,
@@ -513,7 +528,7 @@ function CliApp({ runtime, onRuntimeComplete, onRuntimeError }: CliAppProps): Re
         passCounter={passCounter}
         key="ask-human"
       />
-      <MemoPlan plan={plan} key="plan" />
+      <MemoPlan plan={plan} isPlanning={isPlanning} key="plan" />
     </Box>
   );
 }

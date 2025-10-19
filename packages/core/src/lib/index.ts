@@ -112,6 +112,7 @@ export type {
   DebugRuntimeEvent,
   DebugRuntimeEventPayload,
   ErrorRuntimeEvent,
+  PlanningRuntimeEvent,
   PassRuntimeEvent,
   PlanProgressRuntimeEvent,
   PlanRuntimeEvent,

@@ -14,12 +14,13 @@ const planProps: Partial<PlanPropsConfig> = planTheme?.props ?? {};
 
 type PlanProps = {
   plan?: PlanStep[] | null;
+  isPlanning?: boolean;
 };
 
 /**
  * High-level plan renderer that lists every step using `PlanDetail` rows.
  */
-function Plan({ plan }: PlanProps): ReactElement {
+function Plan({ plan, isPlanning = false }: PlanProps): ReactElement {
   const nodes: PlanNode[] = createPlanNodes(plan ?? []);
   const hasSteps = nodes.length > 0;
 
@@ -48,11 +49,15 @@ function Plan({ plan }: PlanProps): ReactElement {
   const headingProps = toTextProps(headingStyle);
   const containerProps = toBoxProps(containerStyle);
 
+  const headingSuffix = isPlanning ? ' (planning...)' : '';
+
   return (
     <Box {...containerProps}>
-      <Text {...headingProps}>Plan</Text>
+      <Text {...headingProps}>{`Plan${headingSuffix}`}</Text>
       {hasSteps ? (
         nodes.map((node) => <PlanDetail key={node.id} node={node} />)
+      ) : isPlanning ? (
+        <Text dimColor>Planning in progress…</Text>
       ) : (
         <Text dimColor>No plan yet.</Text>
       )}

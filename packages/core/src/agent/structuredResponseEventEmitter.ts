@@ -271,6 +271,8 @@ export class StructuredResponseEventEmitter {
 
   private hasEmittedMessage = false;
 
+  private planningActive = false;
+
   constructor(options: StructuredResponseEventEmitterOptions) {
     this.emitEvent = options.emitEvent ?? null;
   }
@@ -316,6 +318,11 @@ export class StructuredResponseEventEmitter {
       this.lastStreamingPlanSignature = null;
     }
 
+    if (!planEmitted && this.planningActive) {
+      this.planningActive = false;
+      this.emitPlanningEvent('finish');
+    }
+
     return {
       messageEmitted: this.hasEmittedMessage,
       planEmitted,
@@ -354,6 +361,10 @@ export class StructuredResponseEventEmitter {
       }
       this.streamingPlan = [];
       this.lastStreamingPlanSignature = null;
+      if (this.planningActive) {
+        this.planningActive = false;
+        this.emitPlanningEvent('finish');
+      }
       return true;
     }
 
@@ -413,15 +424,9 @@ export class StructuredResponseEventEmitter {
 
     this.lastStreamingPlanSignature = serialized;
 
-    const event: RuntimeEvent = {
-      type: 'plan',
-      payload: {
-        plan: snapshot,
-      },
-      plan: snapshot,
-    } as RuntimeEvent;
-
-    this.emitEvent(event);
+    const state = this.planningActive ? 'update' : 'start';
+    this.planningActive = true;
+    this.emitPlanningEvent(state);
     return true;
   }
 
@@ -448,7 +453,26 @@ export class StructuredResponseEventEmitter {
     } as RuntimeEvent;
 
     this.emitEvent(event);
+    if (this.planningActive) {
+      this.planningActive = false;
+      this.emitPlanningEvent('finish');
+    }
     return true;
+  }
+
+  private emitPlanningEvent(state: 'start' | 'update' | 'finish'): void {
+    if (!this.emitEvent) {
+      return;
+    }
+
+    const event: RuntimeEvent = {
+      type: 'planning',
+      payload: {
+        state,
+      },
+    } as RuntimeEvent;
+
+    this.emitEvent(event);
   }
 }
 

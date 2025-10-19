@@ -7,6 +7,7 @@ import type {
   ContextUsageRuntimeEvent,
   DebugRuntimeEvent,
   ErrorRuntimeEvent,
+  PlanningRuntimeEvent,
   PassRuntimeEvent,
   PlanProgressRuntimeEvent,
   PlanRuntimeEvent,
@@ -25,6 +26,7 @@ type RuntimeEventRouterConfig = {
   onPass: (event: PassRuntimeEvent) => void;
   onThinking: (event: ThinkingRuntimeEvent) => void;
   onAssistantMessage: (event: AssistantMessageRuntimeEvent) => void;
+  onPlanning: (event: PlanningRuntimeEvent) => void;
   onPlan: (event: PlanRuntimeEvent) => void;
   onPlanProgress: (event: PlanProgressRuntimeEvent) => void;
   onContextUsage: (event: ContextUsageRuntimeEvent) => void;
@@ -52,6 +54,9 @@ function buildRuntimeEventMap(config: RuntimeEventRouterConfig): Map<string, Run
   });
   map.set('assistant-message', (event) => {
     config.onAssistantMessage(event as AssistantMessageRuntimeEvent);
+  });
+  map.set('planning', (event) => {
+    config.onPlanning(event as PlanningRuntimeEvent);
   });
   map.set('plan', (event) => {
     config.onPlan(event as PlanRuntimeEvent);
@@ -91,6 +96,7 @@ export function useRuntimeEventRouter(config: RuntimeEventRouterConfig): (event:
       config.onDebug,
       config.onError,
       config.onPass,
+      config.onPlanning,
       config.onPlan,
       config.onPlanProgress,
       config.onRequestInput,
