@@ -7,7 +7,7 @@
 
 ## Key Files
 
-- `index.ts` — imports runtime modules (agent loop, OpenAI client, services, utilities) and re-exports them as named exports plus a default aggregate object. Loads environment variables via `dotenv/config`.
+- `index.ts` — imports runtime modules (agent loop, OpenAI client, services, utilities) and re-exports them as named exports plus a default aggregate object. Loads environment variables via `dotenv/config` and now surfaces the canonical plan status enum alongside the `isTerminalStatus` helper for downstream UIs.
 - `startupFlags.ts` — parses CLI flags, tracks toggles (auto-approve, plan merging, debug), and exposes setters/getters shared between CLI and programmatic consumers.
 
 ## Positive Signals
