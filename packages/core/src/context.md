@@ -47,3 +47,4 @@
 - Fixed deep relative imports to `utils/plan.js` in plan runtime and command result processing, and corrected a misplaced type import in the plan persistence coordinator.
 - Runtime emitter assigns event IDs immutably during cloning instead of mutating a readonly field.
 - Agent runtime start is now idempotent: repeated calls to `start()` on the same runtime instance return immediately without throwing. This prevents accidental double-starts from hosts integrating Ink/React or wrapper scripts.
+- Command executors spawn detached process groups and cancel them via negative PIDs so ESC/timeouts clean up descendant processes even when shells fork.

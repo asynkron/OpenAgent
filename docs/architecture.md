@@ -116,6 +116,7 @@ CLI-->>U: Render output [Ink components]
 
 - **Command Layer (`src/commands`)**
   - Executes shell commands with timeout/cancellation, storing stdout/stderr in `.openagent/temp`.
+  - Spawns each command in a detached process group so ESC/timeouts terminate the entire tree before the SIGKILL fallback.
 
 - **Services (`src/services`)**
   - Tracks pre-approved commands and session approvals.

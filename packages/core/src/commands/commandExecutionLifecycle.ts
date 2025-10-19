@@ -14,6 +14,26 @@ import {
 import type { CommandResult } from './commandTypes.js';
 import { type CommandExecutionState } from './commandExecutionTypes.js';
 
+const PROCESS_GROUP_SUPPORTED = process.platform !== 'win32';
+
+function signalProcessGroup(child: ChildProcess, signal: NodeJS.Signals): boolean {
+  if (!PROCESS_GROUP_SUPPORTED) {
+    return false;
+  }
+
+  const pid = child.pid;
+  if (typeof pid !== 'number' || pid <= 0) {
+    return false;
+  }
+
+  try {
+    process.kill(-pid, signal);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function startExecution(state: CommandExecutionState): void {
   registerCancellationToken(state);
   spawnChild(state);
@@ -128,6 +148,10 @@ function terminateChild(state: CommandExecutionState): void {
     return;
   }
 
+  // Best-effort tree termination: send the signal to the process group first,
+  // then fall back to the direct child in case the group was not created.
+  signalProcessGroup(child, 'SIGTERM');
+
   try {
     child.kill('SIGTERM');
   } catch {
@@ -136,14 +160,17 @@ function terminateChild(state: CommandExecutionState): void {
 
   state.forceKillHandle = setTimeout(() => {
     const activeChild: ChildProcess | null = state.child;
-    if (state.settled || !activeChild) {
+    if (!activeChild) {
       return;
     }
+
+    signalProcessGroup(activeChild, 'SIGKILL');
     try {
       activeChild.kill('SIGKILL');
     } catch {
       // Ignore kill errors.
     }
+    state.forceKillHandle = undefined;
   }, 1000);
 }
 
@@ -246,7 +273,9 @@ function clearPendingTimers(state: CommandExecutionState): void {
   }
 
   if (state.forceKillHandle) {
-    clearTimeout(state.forceKillHandle);
+    if (!state.killed && !state.timedOut && !state.canceled) {
+      clearTimeout(state.forceKillHandle);
+    }
     state.forceKillHandle = undefined;
   }
 }

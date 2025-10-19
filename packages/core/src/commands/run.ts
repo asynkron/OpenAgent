@@ -37,6 +37,8 @@ function normalizeRunOptions(input?: string | boolean | RunOptions): NormalizedR
     };
   }
 
+  // Run each command inside its own process group so cancellation signals reach
+  // every descendant process before the force-kill fallback fires.
   return {
     shell: input as string | boolean | undefined,
     stdin: undefined,
@@ -58,10 +60,13 @@ function createSpawnOptions(
   shell: string | boolean | undefined,
   artifacts: CommandTempArtifacts,
 ): SpawnOptions {
+  const normalizedShell = shell !== undefined ? shell : true;
+
   return {
     cwd,
-    shell: shell !== undefined ? shell : true,
+    shell: normalizedShell,
     stdio: [io.shouldPipeStdin ? 'pipe' : 'ignore', artifacts.stdoutFd, artifacts.stderrFd],
+    detached: true,
   };
 }
 

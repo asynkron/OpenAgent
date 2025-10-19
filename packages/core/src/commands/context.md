@@ -16,6 +16,7 @@
 ## Positive Signals
 
 - Command execution isolates side effects from the agent loop, simplifying testing via mocks.
+- `run.ts` now spawns detached process groups so ESC/timeouts signal every descendant before the force-kill fallback fires.
 - `run.ts` ensures cancellation handlers are unregistered during all completion paths to avoid dangling callbacks.
 - `run.ts` rewrites legacy `apply_patch` and `read` invocations to the bundled helpers under `packages/core/scripts/`, keeping the
   command surface stable while pointing to vetted implementations even when the working directory changes.
@@ -30,4 +31,4 @@
 ## Related Context
 
 - Dispatcher using these primitives: [`../agent/context.md`](../agent/context.md).
-- Tests covering behavior: [`__tests__/runCommand.test.js`](__tests__/runCommand.test.js), [`../../tests/integration/context.md`](../../tests/integration/context.md).
+- Tests covering behavior: [`__tests__/runCommand.test.ts`](__tests__/runCommand.test.ts), [`__tests__/runCommand.processGroup.test.ts`](__tests__/runCommand.processGroup.test.ts), [`../../tests/integration/context.md`](../../tests/integration/context.md).

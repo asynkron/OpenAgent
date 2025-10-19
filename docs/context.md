@@ -20,6 +20,7 @@
 
 - Documents explicitly target AI agents (e.g., context indexing guide), aligning with repo automation goals.
 - Coverage spans both developer ergonomics and deployment processes, reducing institutional knowledge gaps.
+- Architecture overview now documents the process-group cancellation flow so contributors understand how ESC cleanup reaches child processes.
 
 ## Risks / Gaps
 
