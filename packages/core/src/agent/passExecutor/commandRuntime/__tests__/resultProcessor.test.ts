@@ -51,6 +51,7 @@ describe('processCommandExecution', () => {
     expect(planRuntime.applyCommandObservation).toHaveBeenCalled();
     expect(emitEvent).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'command-result', command: executed.command }),
+      expect.objectContaining({ final: true }),
     );
     expect(planRuntime.applyEffects).toHaveBeenCalledWith([{ type: 'plan-snapshot', plan: [] }]);
     expect(result).toEqual({ type: 'continue' });

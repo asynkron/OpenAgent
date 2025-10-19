@@ -269,6 +269,8 @@ export class StructuredResponseEventEmitter {
 
   private lastMessageSignature: string | null = null;
 
+  private lastMessageWasFinal = false;
+
   private hasEmittedMessage = false;
 
   constructor(options: StructuredResponseEventEmitterOptions) {
@@ -281,7 +283,7 @@ export class StructuredResponseEventEmitter {
     }
 
     if (typeof partial.message === 'string') {
-      this.applyMessageUpdate(partial.message);
+      this.applyMessageUpdate(partial.message, false);
     }
 
     let planEmitted = false;
@@ -306,7 +308,7 @@ export class StructuredResponseEventEmitter {
   }
 
   handleFinalResponse(response: PlanResponse): StructuredResponseEmissionSummary {
-    this.applyMessageUpdate(response.message);
+    this.applyMessageUpdate(response.message, true);
     const finalPlanSnapshot = response.plan.map((step) => buildSnapshotFromPlanStep(step));
     const planChanged = this.replaceFinalPlanSnapshot(finalPlanSnapshot);
     const planEmitted = planChanged ? this.emitFinalPlanSnapshot() : false;
@@ -322,23 +324,27 @@ export class StructuredResponseEventEmitter {
     };
   }
 
-  private applyMessageUpdate(value: string): boolean {
+  private applyMessageUpdate(value: string, final: boolean): boolean {
     const trimmed = value.trim();
     if (!trimmed) {
       return false;
     }
 
-    if (this.lastMessageSignature === trimmed) {
+    const messageChanged = this.lastMessageSignature !== trimmed;
+    const shouldUpdateFinal = final && !this.lastMessageWasFinal;
+
+    if (!messageChanged && !shouldUpdateFinal) {
       return false;
     }
 
     this.lastMessageSignature = trimmed;
+    this.lastMessageWasFinal = final;
 
     if (!this.emitEvent) {
       return false;
     }
 
-    emitAssistantMessageEvent(this.emitEvent, trimmed);
+    emitAssistantMessageEvent(this.emitEvent, trimmed, { final });
     this.hasEmittedMessage = true;
     return true;
   }
@@ -421,7 +427,7 @@ export class StructuredResponseEventEmitter {
       plan: snapshot,
     } as RuntimeEvent;
 
-    this.emitEvent(event);
+    this.emitEvent(event, { final: false });
     return true;
   }
 
@@ -447,7 +453,7 @@ export class StructuredResponseEventEmitter {
       plan: snapshot,
     } as RuntimeEvent;
 
-    this.emitEvent(event);
+    this.emitEvent(event, { final: true });
     return true;
   }
 }

@@ -4,7 +4,7 @@ import type ObservationBuilder from '../../observationBuilder.js';
 import type { ExecuteAgentPassOptions } from '../types.js';
 import type { PlanRuntime } from '../planRuntime.js';
 import type { CommandExecutedResult, CommandContinueResult } from './types.js';
-import type { RuntimeDebugPayload } from '../../runtimeTypes.js';
+import type { EmitRuntimeEventOptions, RuntimeDebugPayload } from '../../runtimeTypes.js';
 import type { PlanSnapshotStep } from '../../../utils/plan.js';
 import type { CommandDraft } from '../../../contracts/index.js';
 import type { CommandResult } from '../../../commands/run.js';
@@ -117,6 +117,20 @@ const sanitizePlanSnapshot = (
   return buildPlanStepSnapshot(planStep);
 };
 
+const isPlanStepCompleted = (planStep: PlanSnapshotStep | null): boolean => {
+  if (!planStep || typeof planStep !== 'object') {
+    return false;
+  }
+
+  const statusCandidate = (planStep as { status?: unknown }).status;
+  if (typeof statusCandidate !== 'string') {
+    return false;
+  }
+
+  const normalized = statusCandidate.trim().toLowerCase();
+  return normalized === 'completed';
+};
+
 export const processCommandExecution = async (
   options: ResultProcessorOptions,
   executed: CommandExecutedResult,
@@ -150,7 +164,7 @@ export const processCommandExecution = async (
     observation: sanitizedObservation,
   }));
 
-  options.emitEvent?.({
+  const commandResultEvent = {
     type: 'command-result',
     payload: {
       command: sanitizedCommand,
@@ -168,7 +182,13 @@ export const processCommandExecution = async (
     observation: sanitizedObservation,
     planStep: sanitizedPlanStep,
     planSnapshot: sanitizedPlanSnapshot,
-  } as unknown as Parameters<NonNullable<typeof options.emitEvent>>[0]);
+  } as unknown as Parameters<NonNullable<typeof options.emitEvent>>[0];
+
+  const emitOptions: EmitRuntimeEventOptions | undefined = isPlanStepCompleted(sanitizedPlanStep)
+    ? { final: true }
+    : undefined;
+
+  options.emitEvent?.(commandResultEvent, emitOptions);
 
   const snapshotEffect = options.planRuntime.emitPlanSnapshot();
   options.planRuntime.applyEffects([snapshotEffect]);

@@ -15,6 +15,7 @@ export const extractAssistantMessage = (value: unknown): string | null => {
 export const emitAssistantMessageEvent = (
   emitEvent: EmitRuntimeEvent | null | undefined,
   value: unknown,
+  options?: EmitRuntimeEventOptions,
 ): void => {
   if (!emitEvent) {
     return;
@@ -30,5 +31,5 @@ export const emitAssistantMessageEvent = (
     payload: {
       message,
     },
-  });
+  }, options);
 };

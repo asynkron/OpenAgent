@@ -99,7 +99,7 @@ function handleAssistantResolution(
     case 'success': {
       const messageEmitted = resolution.emissionSummary?.messageEmitted === true;
       if (!messageEmitted) {
-        emitAssistantMessageEvent(emitEvent, resolution.parsed.message);
+        emitAssistantMessageEvent(emitEvent, resolution.parsed.message, { final: true });
       }
       return { kind: 'continue', parsed: resolution.parsed };
     }
