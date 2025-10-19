@@ -1,5 +1,5 @@
 import React, { memo, type ReactElement } from 'react';
-import { Box, Static, Text } from 'ink';
+import { Box, Text } from 'ink';
 
 import AgentResponse from '../AgentResponse.js';
 import HumanMessage from '../HumanMessage.js';
@@ -140,17 +140,9 @@ function Timeline({ entries }: TimelineProps): ReactElement | null {
     return null;
   }
 
-  const staticEntries = entries.filter((entry) => entry.final);
-  const liveEntries = entries.filter((entry) => !entry.final);
-
   return (
     <Box width="100%" flexDirection="column" flexGrow={1}>
-      {staticEntries.length > 0 ? (
-        <Static items={staticEntries}>
-          {(entry: TimelineEntry) => <MemoTimelineRow entry={entry} />}
-        </Static>
-      ) : null}
-      {liveEntries.map((entry) => (
+      {entries.map((entry) => (
         <MemoTimelineRow entry={entry} key={entry.id} />
       ))}
     </Box>

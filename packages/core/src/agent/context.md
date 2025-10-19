@@ -73,9 +73,4 @@
 - When the assistant sends an explicit empty plan (`[]`), the runtime clears the completed-step registry so identifiers can be reused after a full reset.
 - Plan executor helpers share a centralized `planStatusTypes.ts` module for canonical status literals and normalization, eliminating duplicate union types across executor and utility layers.
 - Runtime emitter accepts optional event identifier overrides so pass-scoped emitters can reuse stable IDs during streaming, keeping CLI keys consistent while partial updates arrive.
-- Runtime emitter now propagates a boolean `final` flag alongside each event; streaming assistant responses and plan snapshots emit with `final: false`, while the final assistant message, final plan snapshot, and command results for completed steps emit `final: true` so consumers can freeze UI components once data settles.
-
-### API Frozen Surface
-
-- The model request DTO and builder are API FROZEN and must not change without a versioned migration:
-  - OpenAgentRequestPayload, BuildOpenAgentRequestPayloadOptions, buildOpenAgentRequestPayload() (modelRequestPayload.ts)
+\n### API Frozen Surface\n\n- The model request DTO and builder are API FROZEN and must not change without a versioned migration:\n  - OpenAgentRequestPayload, BuildOpenAgentRequestPayloadOptions, buildOpenAgentRequestPayload() (modelRequestPayload.ts)\n
