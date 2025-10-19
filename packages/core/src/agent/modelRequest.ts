@@ -238,11 +238,18 @@ export async function requestModelCompletion({
     const outcome = await Promise.race(raceCandidates);
 
     if (outcome.kind === 'escape') {
+      if (controller) {
+        try {
+          controller.abort();
+        } catch {
+          // Ignore abort errors triggered by ESC.
+        }
+      }
       if (cancellationOp && typeof cancellationOp.cancel === 'function') {
         cancellationOp.cancel('ui-cancel');
       }
 
-      await requestPromise.catch((error: unknown) => {
+      void requestPromise.catch((error: unknown) => {
         if (!error) return null;
         if (isAbortLikeError(error)) {
           return null;

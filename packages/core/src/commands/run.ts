@@ -1,5 +1,8 @@
 import type { SpawnOptions } from 'node:child_process';
 
+
+import { register as registerCancellation } from '../utils/cancellation.js';
+import { createEscWaiter, setEscActivePromise, clearEscActivePromise, resetEscState, type EscState } from '../agent/escState.js';
 import { substituteBuiltinCommand } from './commandSubstitution.js';
 import { getCommandLabel, getOperationDescription } from './commandHelpers.js';
 import { prepareTempOutputs } from './tempFileManager.js';
