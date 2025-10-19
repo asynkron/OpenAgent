@@ -10,7 +10,7 @@ const loadPlanExecutor = async () => {
   jest.resetModules();
 
   const commandRuntimeConfig: {
-    loopResults: Array<'continue' | 'command-rejected'>;
+    loopResults: Array<'continue' | 'command-rejected' | 'stop'>;
     execute?: jest.Mock;
     createCommandRuntime?: jest.Mock;
   } = { loopResults: [] };
@@ -149,5 +149,24 @@ describe('executePlan', () => {
 
     expect(outcome).toBe('command-rejected');
     expect(planRuntimeConfig.instances[0].finalize).not.toHaveBeenCalled();
+  });
+
+  test('returns stop when command runtime reports cancellation', async () => {
+    const { executePlan, planRuntimeConfig, commandRuntimeConfig } = await loadPlanExecutor();
+    const options = createNormalizedOptions();
+    planRuntimeConfig.nextExecutables = [{}];
+    commandRuntimeConfig.loopResults = ['stop'];
+
+    const outcome = await executePlan({
+      parsedResponse: buildResponse({ plan: [{} as never] }),
+      options,
+      planManagerAdapter: null,
+      observationBuilder: createObservationBuilderStub(),
+      debugEmitter: { emit: jest.fn() },
+    });
+
+    expect(outcome).toBe('stop');
+    expect(planRuntimeConfig.instances[0].finalize).not.toHaveBeenCalled();
+    expect(commandRuntimeConfig.execute).toHaveBeenCalledTimes(1);
   });
 });

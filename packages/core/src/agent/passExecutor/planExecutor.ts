@@ -73,6 +73,7 @@ export const executePlan = async ({
     observationBuilder,
     planRuntime,
     emitDebug: debugEmitter.emit,
+    escState: options.escState,
   });
 
   try {
@@ -80,6 +81,9 @@ export const executePlan = async ({
       const loopResult = await commandRuntime.execute(nextExecutable);
       if (loopResult === 'command-rejected') {
         return 'command-rejected';
+      }
+      if (loopResult === 'stop') {
+        return 'stop';
       }
       nextExecutable = planRuntime.selectNextExecutableEntry();
     }
