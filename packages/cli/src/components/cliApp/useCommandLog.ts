@@ -33,9 +33,28 @@ export function useCommandLog({ limit, upsertCommandResult, appendStatus }: UseC
   handleCommandInspectorCommand: SlashCommandHandler;
 } {
   const commandLogIdRef = useRef(0);
-  const [commandLog, setCommandLog] = useState<CommandLogEntry[]>([]);
+  const commandLogSnapshotRef = useRef<CommandLogEntry[]>([]);
+  const [commandLog, setCommandLogState] = useState<CommandLogEntry[]>([]);
   const [commandInspector, setCommandInspector] = useState<CommandInspectorState | null>(null);
   const commandEventIdMapRef = useRef<Map<string, number>>(new Map());
+
+  const setCommandLog = useCallback(
+    (update: CommandLogEntry[] | ((previous: CommandLogEntry[]) => CommandLogEntry[])) => {
+      setCommandLogState((previous) => {
+        const nextValue =
+          typeof update === 'function'
+            ? (update as (value: CommandLogEntry[]) => CommandLogEntry[])(previous)
+            : update;
+        commandLogSnapshotRef.current = nextValue;
+        return nextValue;
+      });
+    },
+    [setCommandLogState],
+  );
+
+  if (commandLogSnapshotRef.current !== commandLog) {
+    commandLogSnapshotRef.current = commandLog;
+  }
 
   const createCommandLogEntry = useCallback(
     (commandPayload: CommandPayload): CommandLogEntry => {
@@ -98,13 +117,14 @@ export function useCommandLog({ limit, upsertCommandResult, appendStatus }: UseC
 
   const executeCommandInspectorCommand = useCallback(
     (rest: string) => {
-      if (!commandLog || commandLog.length === 0) {
+      const currentLog = commandLogSnapshotRef.current;
+      if (!currentLog || currentLog.length === 0) {
         appendStatus({ level: 'info', message: 'No commands have been received yet.' });
         setCommandInspector(null);
         return;
       }
 
-      const resolution = resolveCommandInspectorRequest(rest, commandLog.length);
+      const resolution = resolveCommandInspectorRequest(rest, currentLog.length);
       const panelKey = Date.now();
       setCommandInspector({ requested: resolution.count, token: panelKey });
 
@@ -114,7 +134,7 @@ export function useCommandLog({ limit, upsertCommandResult, appendStatus }: UseC
 
       appendStatus({ level: 'info', message: resolution.infoMessage });
     },
-    [appendStatus, commandLog],
+    [appendStatus],
   );
 
   const handleCommandInspectorCommand = useCallback<SlashCommandHandler>(
