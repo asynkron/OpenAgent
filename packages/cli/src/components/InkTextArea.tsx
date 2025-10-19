@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import type { Key } from 'ink';
 
@@ -18,13 +18,15 @@ import {
 } from './inkTextArea/keyEvents.js';
 import type { SlashCommandDefinition, SlashCommandSourceItem } from './inkTextArea/commands.js';
 import { CommandMenu } from './inkTextArea/CommandMenu.js';
-import { useCaretBlink } from './inkTextArea/useCaretBlink.js';
 import { useCommandMenu } from './inkTextArea/useCommandMenu.js';
 import { useStdoutWidth } from './inkTextArea/useStdoutWidth.js';
 import type { SlashCommandSelectEvent } from './inkTextArea/types.js';
 import { useCaretNavigation } from './inkTextArea/useCaretNavigation.js';
 import { renderRows } from './inkTextArea/renderRows.js';
 import { toBoxProps, toTextProps, type BoxStyleProps, type TextStyleProps } from '../styleTypes.js';
+import type { TextRow } from './inkTextArea/layout.js';
+import type { TextProps } from 'ink';
+import { useCaretBlink } from './inkTextArea/useCaretBlink.js';
 
 type LegacySlashMenuItem = SlashCommandSourceItem;
 
@@ -88,7 +90,6 @@ function InkTextArea(props: InkTextAreaProps) {
 
   const interactive = isActive && !isDisabled;
   const [caretIndex, setCaretIndex] = useState(() => clamp(0, 0, value.length));
-  const showCaret = useCaretBlink(interactive);
   const [lastKeyEvent, setLastKeyEvent] = useState<LastKeyEvent>(() => ({
     rawInput: '',
     printableInput: '',
@@ -283,7 +284,6 @@ function InkTextArea(props: InkTextAreaProps) {
 
   useInput(handleInput, { isActive: interactive });
 
-  const caretVisible = interactive && showCaret;
   const hasValue = value.length > 0;
   const displayRows = useMemo(() => {
     if (hasValue) {
@@ -316,19 +316,6 @@ function InkTextArea(props: InkTextAreaProps) {
   const caretRowIndex = hasValue ? caretPosition.rowIndex : 0;
   const caretColumnDisplay = caretPosition.column + 1;
   const caretLineDisplay = caretRowIndex + 1;
-
-  const rowElements = useMemo(
-    () =>
-      renderRows({
-        rows: displayRows,
-        caretPosition,
-        caretRowIndex,
-        caretVisible,
-        hasValue,
-        textProps: computedTextProps,
-      }),
-    [caretPosition, caretRowIndex, caretVisible, computedTextProps, displayRows, hasValue],
-  );
 
   const commandMenuElement = (
     <CommandMenu
@@ -387,14 +374,61 @@ function InkTextArea(props: InkTextAreaProps) {
 
   return (
     <Box {...containerProps}>
-      <Box flexDirection="column" width="100%">
-        {rowElements}
-      </Box>
+      <InkTextAreaRows
+        rows={displayRows}
+        caretPosition={caretPosition}
+        caretRowIndex={caretRowIndex}
+        hasValue={hasValue}
+        textProps={computedTextProps}
+        interactive={interactive}
+      />
       {commandMenuElement}
       {debugElement}
     </Box>
   );
 }
+
+type InkTextAreaRowsProps = {
+  rows: ReadonlyArray<TextRow>;
+  caretPosition: CaretPosition;
+  caretRowIndex: number;
+  hasValue: boolean;
+  textProps: TextProps;
+  interactive: boolean;
+};
+
+function InkTextAreaRowsComponent({
+  rows,
+  caretPosition,
+  caretRowIndex,
+  hasValue,
+  textProps,
+  interactive,
+}: InkTextAreaRowsProps) {
+  const showCaret = useCaretBlink(interactive);
+  const caretVisible = interactive && showCaret;
+
+  const rowElements = useMemo(
+    () =>
+      renderRows({
+        rows,
+        caretPosition,
+        caretRowIndex,
+        caretVisible,
+        hasValue,
+        textProps,
+      }),
+    [rows, caretPosition, caretRowIndex, caretVisible, hasValue, textProps],
+  );
+
+  return (
+    <Box flexDirection="column" width="100%">
+      {rowElements}
+    </Box>
+  );
+}
+
+const InkTextAreaRows = memo(InkTextAreaRowsComponent);
 
 export { transformToRows } from './inkTextArea/layout.js';
 export default InkTextArea;
