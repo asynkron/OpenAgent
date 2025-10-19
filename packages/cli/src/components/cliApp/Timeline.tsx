@@ -149,8 +149,13 @@ function Timeline({ entries }: TimelineProps): ReactElement | null {
       const s = (e.payload as { status?: string } | null | undefined)?.status;
       return typeof s === 'string' ? isTerminalStatus(s) : false;
     }
-    // Assistant/human/banner: treat as finalized once emitted
-    return true;
+    if (e.type === 'human-message' || e.type === 'banner') {
+      return true; // finalized once emitted
+    }
+    if (e.type === 'assistant-message') {
+      return false; // streaming: keep live so updates render
+    }
+    return false;
   });
 
   const liveEntries: TimelineEntry[] = entries.filter((e) => !staticEntries.includes(e));
