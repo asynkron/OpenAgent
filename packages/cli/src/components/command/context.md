@@ -9,7 +9,9 @@
 
 - `theme.ts` — clones the theme-driven styling props for commands so renders can safely mutate local copies.
 - `planHeading.ts` — normalises the originating plan step into a short heading used inside the command chrome.
-- `runPreview.tsx` — parses run text, extracts diff segments, and renders either inline or block markdown previews.
+- `runPreview.tsx` — parses run text, extracts diff segments, and renders either inline or block markdown previews. The helper
+  now supports tail truncation so streaming plan updates can display the most recent command characters while the final command
+  preview still uses the leading snippet.
 - `SummaryLine.tsx` — renders textual summary rows with theme-aware styling.
 - `commandTypes.ts` — defines the command payload, execution envelope, and summary line contracts used across the helpers.
 - `previewLines.ts` — trims stdout/stderr previews into ready-to-render line arrays reused by both Ink and legacy console renderers.
