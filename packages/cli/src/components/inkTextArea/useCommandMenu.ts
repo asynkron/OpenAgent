@@ -159,6 +159,7 @@ export interface CommandMenuResult {
   handleNavigation: (key: Key, shouldInsertNewline: boolean) => boolean;
 }
 
+const DEBOUNCE_MS = 80;
 export function useCommandMenu({
   value,
   caretIndex,
@@ -178,10 +179,15 @@ export function useCommandMenu({
   );
 
   const dynamicCommandItems = useCommandItems(activeCommand, caretIndex, value);
-  const commandMatches = useMemo(
-    () => buildCommandMatches(activeCommand, dynamicCommandItems, caretIndex, value),
-    [activeCommand, caretIndex, dynamicCommandItems, value],
-  );
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [commandMatches, setCommandMatches] = useState<CommandMatch[]>(() => buildCommandMatches(activeCommand, dynamicCommandItems, caretIndex, value));
+  useEffect(() => {
+    if (debounceTimerRef.current) { clearTimeout(debounceTimerRef.current); debounceTimerRef.current = null; }
+    debounceTimerRef.current = setTimeout(() => {
+      setCommandMatches(buildCommandMatches(activeCommand, dynamicCommandItems, caretIndex, value));
+    }, DEBOUNCE_MS);
+    return () => { if (debounceTimerRef.current) { clearTimeout(debounceTimerRef.current); debounceTimerRef.current = null; } };
+  }, [activeCommand, caretIndex, dynamicCommandItems, value]);
 
   const commandMenuVisible = Boolean(activeCommand) && commandMatches.length > 0;
   const commandSignatureRef = useRef<string | null>(null);

@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import type { Key } from 'ink';
+import type { Key, TextProps } from 'ink';
 
 import {
   clamp,
@@ -25,7 +25,6 @@ import { useCaretNavigation } from './inkTextArea/useCaretNavigation.js';
 import { renderRows } from './inkTextArea/renderRows.js';
 import { toBoxProps, toTextProps, type BoxStyleProps, type TextStyleProps } from '../styleTypes.js';
 import type { TextRow } from './inkTextArea/layout.js';
-import type { TextProps } from 'ink';
 
 type LegacySlashMenuItem = SlashCommandSourceItem;
 
@@ -45,11 +44,12 @@ export interface InkTextAreaProps extends HorizontalPaddingInput, BoxStyleProps 
   debug?: boolean;
   showDebugMetrics?: boolean;
   commandMenuTitle?: string;
+  debounceOnChangeMs?: number;
 }
 
 function InkTextArea(props: InkTextAreaProps) {
   const {
-    value = '',
+    value: externalValue = '',
     onChange,
     onSubmit,
     placeholder = '',
@@ -84,13 +84,28 @@ function InkTextArea(props: InkTextAreaProps) {
     borderBottom,
     borderLeft,
     borderRight,
+    debounceOnChangeMs,
   } = props;
 
   const textStyle: TextStyleProps = { ...(explicitTextProps ?? {}) };
   const textProps = toTextProps(textStyle);
 
   const interactive = isActive && !isDisabled;
-  const [caretIndex, setCaretIndex] = useState(() => clamp(0, 0, value.length));
+
+  // Local echo to avoid tying typing responsiveness to parent re-renders
+  const [value, setValue] = useState<string>(externalValue);
+  useEffect(() => {
+    if (externalValue !== value) {
+      setValue(externalValue);
+    }
+  }, [externalValue]);
+
+  const onChangeDelay = typeof debounceOnChangeMs === 'number' && Number.isFinite(debounceOnChangeMs)
+    ? Math.max(0, Math.floor(debounceOnChangeMs))
+    : 80;
+  const onChangeTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const [caretIndex, setCaretIndex] = useState<number>(() => clamp(0, 0, value.length));
   const [lastKeyEvent, setLastKeyEvent] = useState<LastKeyEvent>(() => ({
     rawInput: '',
     printableInput: '',
@@ -109,7 +124,6 @@ function InkTextArea(props: InkTextAreaProps) {
   });
 
   const maxIndex = value.length;
-
   useEffect(() => {
     setCaretIndex((previous) => clamp(previous, 0, maxIndex));
   }, [maxIndex]);
@@ -152,10 +166,21 @@ function InkTextArea(props: InkTextAreaProps) {
     (nextValue: string, nextCaretIndex: number) => {
       const clampedIndex = clamp(nextCaretIndex, 0, nextValue.length);
       resetDesiredColumn();
-      onChange?.(nextValue);
+      setValue(nextValue);
       setCaretIndex(clampedIndex);
+      if (onChange) {
+        if (onChangeTimerRef.current) {
+          clearTimeout(onChangeTimerRef.current);
+          onChangeTimerRef.current = null;
+        }
+        if (onChangeDelay === 0) {
+          onChange(nextValue);
+        } else {
+          onChangeTimerRef.current = setTimeout(() => onChange(nextValue), onChangeDelay);
+        }
+      }
     },
-    [onChange, resetDesiredColumn],
+    [onChange, onChangeDelay, resetDesiredColumn],
   );
 
   const {
@@ -243,7 +268,6 @@ function InkTextArea(props: InkTextAreaProps) {
       });
 
       const commandNavigationHandled = handleCommandNavigation(key, evaluation.shouldInsertNewline);
-
       if (commandNavigationHandled) {
         return;
       }
@@ -287,7 +311,18 @@ function InkTextArea(props: InkTextAreaProps) {
 
   useInput(handleInput, { isActive: interactive });
 
+  useEffect(() => {
+    // cleanup on unmount for onChange timer
+    return () => {
+      if (onChangeTimerRef.current) {
+        clearTimeout(onChangeTimerRef.current);
+        onChangeTimerRef.current = null;
+      }
+    };
+  }, []);
+
   const hasValue = value.length > 0;
+
   const displayRows = useMemo(() => {
     if (hasValue) {
       return rows;
@@ -313,7 +348,7 @@ function InkTextArea(props: InkTextAreaProps) {
           | 'truncate-start') ?? 'wrap',
       dimColor: (dimColor as boolean) ?? !hasValue,
       ...otherTextProps,
-    };
+    } as TextProps;
   }, [hasValue, textProps]);
 
   const caretRowIndex = hasValue ? caretPosition.rowIndex : 0;
@@ -433,4 +468,4 @@ function InkTextAreaRowsComponent({
 const InkTextAreaRows = memo(InkTextAreaRowsComponent);
 
 export { transformToRows } from './inkTextArea/layout.js';
-export default InkTextArea;
+export default memo(InkTextArea);

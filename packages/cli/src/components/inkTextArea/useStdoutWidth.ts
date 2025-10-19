@@ -3,68 +3,91 @@ import { useStdout } from 'ink';
 
 export interface UseStdoutWidthOptions {
   horizontalOffset?: number;
+  debounceMs?: number; // default ~120ms
 }
 
+type InkStdout = NodeJS.WriteStream & {
+  columns?: number;
+  off?: (event: 'resize', handler: () => void) => void;
+  removeListener?: (event: 'resize', handler: () => void) => void;
+};
+
 // Tracks the live terminal width so caret/layout math can stay in a lean hook.
-export function useStdoutWidth(explicitWidth?: number, options?: UseStdoutWidthOptions) {
+export function useStdoutWidth(
+  explicitWidth?: number,
+  options?: UseStdoutWidthOptions,
+) {
   const { stdout } = useStdout();
+  const s = stdout as InkStdout | undefined;
+
   const [measuredWidth, setMeasuredWidth] = useState<number | undefined>(() =>
-    stdout && Number.isFinite(stdout.columns) ? Math.floor(stdout.columns) : undefined,
+    s && Number.isFinite(s.columns) ? Math.floor(s.columns as number) : undefined,
   );
+
   const rawOffset = options?.horizontalOffset;
   const horizontalOffset =
-    typeof rawOffset === 'number' && Number.isFinite(rawOffset) ? Math.max(0, Math.floor(rawOffset)) : 0;
+    typeof rawOffset === 'number' && Number.isFinite(rawOffset)
+      ? Math.max(0, Math.floor(rawOffset))
+      : 0;
 
-  // Debounce resize to avoid rapid reflows/flicker on terminal resizes.
-  const debounceMs = 120; // ~8 FPS
+  const rawDebounce = options?.debounceMs;
+  const debounceMs =
+    typeof rawDebounce === 'number' && Number.isFinite(rawDebounce)
+      ? Math.max(0, Math.floor(rawDebounce))
+      : 120; // ~8 FPS default
+
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (!stdout) {
+    if (!s) {
       setMeasuredWidth(undefined);
       return undefined;
     }
 
-    const applyResize = () => {
-      if (Number.isFinite(stdout.columns)) {
-        setMeasuredWidth(Math.floor(stdout.columns));
+    const applyResize = (): void => {
+      if (Number.isFinite(s.columns)) {
+        setMeasuredWidth(Math.floor(s.columns as number));
       } else {
         setMeasuredWidth(undefined);
       }
     };
 
-    const handleResize = () => {
+    const handleResize = (): void => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
+      if (debounceMs === 0) {
+        applyResize();
+        return;
+      }
       timerRef.current = setTimeout(applyResize, debounceMs);
     };
 
-    // Initialize once immediately.
-    handleResize();
+    // Initialize once immediately (no debounce) to avoid blank first frame.
+    applyResize();
 
-    stdout.on('resize', handleResize);
+    s.on('resize', handleResize);
 
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
-      if (typeof stdout.off === 'function') {
-        stdout.off('resize', handleResize);
+      if (typeof s.off === 'function') {
+        s.off('resize', handleResize);
       } else {
-        stdout.removeListener?.('resize', handleResize);
+        s.removeListener?.('resize', handleResize);
       }
     };
-  }, [stdout]);
+  }, [s, debounceMs]);
 
-  const normalizedWidth = useMemo(() => {
+  const normalizedWidth = useMemo<number>(() => {
     if (typeof explicitWidth === 'number' && Number.isFinite(explicitWidth)) {
       return Math.max(1, Math.floor(explicitWidth));
     }
 
-    if (typeof measuredWidth === 'number') {
+    if (typeof measuredWidth === 'number' && Number.isFinite(measuredWidth)) {
       return Math.max(1, Math.floor(measuredWidth) - horizontalOffset);
     }
 

@@ -1,6 +1,6 @@
 import { isTerminalStatus } from '@asynkron/openagent-core';
-import React, { memo, type ReactElement } from 'react';
-import { Box, Text, Static } from 'ink';
+import React, { memo, useMemo, useRef, type ReactElement } from 'react';
+import { Box, Text } from 'ink';
 import AgentResponse from '../AgentResponse.js';
 import HumanMessage from '../HumanMessage.js';
 import Command from '../Command.js';
@@ -127,7 +127,13 @@ function TimelineRowComponent({ entry }: TimelineRowProps): ReactElement | null 
 const areTimelineRowsEqual = (
   previous: TimelineRowProps,
   next: TimelineRowProps,
-): boolean => previous.entry === next.entry;
+): boolean => {
+  // Streaming assistant messages should always re-render as content grows
+  if (previous.entry.type === 'assistant-message' || next.entry.type === 'assistant-message') {
+    return false;
+  }
+  return previous.entry === next.entry;
+};
 
 const MemoTimelineRow = memo(TimelineRowComponent, areTimelineRowsEqual);
 
@@ -140,32 +146,25 @@ function Timeline({ entries }: TimelineProps): ReactElement | null {
     return null;
   }
 
-  const staticEntries: TimelineEntry[] = entries.filter((e) => {
-    if (e.type === 'command-result') {
-      const status = (e.payload?.result as { status?: string } | null | undefined)?.status;
-      return typeof status === 'string' ? isTerminalStatus(status) : false;
-    }
-    if (e.type === 'status') {
-      const s = (e.payload as { status?: string } | null | undefined)?.status;
-      return typeof s === 'string' ? isTerminalStatus(s) : false;
-    }
-    if (e.type === 'human-message' || e.type === 'banner') {
-      return true; // finalized once emitted
-    }
-    if (e.type === 'assistant-message') {
-      return false; // streaming: keep live so updates render
-    }
-    return false;
-  });
+  // Preserve strict chronology even if upstream temporarily reorders entries
+  const arrivalOrderRef = useRef<{ order: Map<string, number>; next: number }>({ order: new Map(), next: 0 });
 
-  const liveEntries: TimelineEntry[] = entries.filter((e) => !staticEntries.includes(e));
+  const orderedEntries = useMemo<ReadonlyArray<TimelineEntry>>(() => {
+    const ref = arrivalOrderRef.current;
+    const withSeq: { e: TimelineEntry; seq: number }[] = entries.map((e: TimelineEntry) => {
+      const id = String(e.id);
+      if (!ref.order.has(id)) {
+        ref.order.set(id, ref.next++);
+      }
+      return { e, seq: ref.order.get(id) as number };
+    });
+    withSeq.sort((a, b) => a.seq - b.seq);
+    return withSeq.map((x) => x.e);
+  }, [entries]);
 
   return (
     <Box width="100%" flexDirection="column" flexGrow={1}>
-      <Static items={staticEntries}>
-        {(item: TimelineEntry) => <MemoTimelineRow entry={item} key={item.id} />}
-      </Static>
-      {liveEntries.map((entry) => (
+      {orderedEntries.map((entry) => (
         <MemoTimelineRow entry={entry} key={entry.id} />
       ))}
     </Box>
