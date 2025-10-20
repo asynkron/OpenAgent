@@ -136,6 +136,9 @@ export function createEscWaiter(escState: EscState | null | undefined): EscWaite
     return { promise: null, cleanup: () => {} };
   }
 
+  if (!escState.waiters) {
+    escState.waiters = new Set<EscWaiter>();
+  }
   escState.waiters.add(resolver);
 
   const cleanup = () => {
