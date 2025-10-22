@@ -10,6 +10,17 @@ import { shouldAppendStatusMessage } from './chat_domController.js';
 
 import type { PlanStep } from '../components/plan_display.js';
 
+function normaliseEventId(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  return null;
+}
+
 const AGENT_PAYLOAD_TYPES = [
   'agent_message',
   'agent_status',
@@ -53,6 +64,7 @@ export interface ChatMessageAction {
   role: AgentRole;
   text: string;
   startConversation?: boolean;
+  eventId?: string;
 }
 
 export interface ChatStatusAction {
@@ -79,6 +91,7 @@ export interface ChatCommandAction {
   type: 'command';
   payload: AgentCommandPayload;
   startConversation?: boolean;
+  eventId?: string;
 }
 
 export interface ChatThinkingAction {
@@ -120,12 +133,19 @@ function ensureArray(
 export function createChatRouter(): ChatRouter {
   const onMessage: ChatRouter['onMessage'] = (payload) => {
     const text = normaliseText(payload.text);
+    const eventId = normaliseEventId(payload.__id);
     if (!text) {
       return [{ type: 'thinking', active: false }];
     }
     return [
       { type: 'thinking', active: false },
-      { type: 'message', role: 'agent', text, startConversation: true },
+      {
+        type: 'message',
+        role: 'agent',
+        text,
+        startConversation: true,
+        ...(eventId ? { eventId } : {}),
+      },
     ];
   };
 
@@ -205,10 +225,18 @@ export function createChatRouter(): ChatRouter {
     ];
   };
 
-  const onCommand: ChatRouter['onCommand'] = (payload) => [
-    { type: 'thinking', active: false },
-    { type: 'command', payload, startConversation: true },
-  ];
+  const onCommand: ChatRouter['onCommand'] = (payload) => {
+    const eventId = normaliseEventId(payload.__id);
+    return [
+      { type: 'thinking', active: false },
+      {
+        type: 'command',
+        payload,
+        startConversation: true,
+        ...(eventId ? { eventId } : {}),
+      },
+    ];
+  };
 
   const handlers: {
     [Type in AgentPayloadType]: (

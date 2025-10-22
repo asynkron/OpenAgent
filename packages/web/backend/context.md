@@ -13,6 +13,7 @@
   HTTP.
 - `src/server/agentSocket.ts` — manages runtime bindings for each connected agent websocket client (now emitting strongly typed agent payloads and stricter prompt parsing helpers). Binding setup, message routing, and teardown now live in dedicated helpers so the lifecycle is easier to follow.
 - `src/server/utils.ts` — shared helpers for normalising runtime payloads and error reporting; returns typed payload objects for the websocket bridge.
+- `src/server/utils.ts` — shared helpers for normalising runtime payloads and error reporting; returns typed payload objects for the websocket bridge and now preserves the core runtime `__id` on every emitted event so frontends can reconcile streaming updates without duplicating rows.
 - `src/server/agentSocketMessage.ts` — parses inbound websocket payloads and forwards valid prompts to the runtime queue.
 - `src/server/__tests__/` — Jest suites covering the websocket manager wiring plus payload formatting utilities.
 - `public/unified_index.html` — static shell served to the browser with the agent chat and

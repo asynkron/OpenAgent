@@ -43,7 +43,11 @@ export function createChatActionRunner({
               ensureConversationStarted();
             }
             if (action.text) {
-              dom.appendMessage(action.role, action.text);
+              if (action.eventId) {
+                dom.appendMessage(action.role, action.text, { eventId: action.eventId });
+              } else {
+                dom.appendMessage(action.role, action.text);
+              }
             }
             break;
           case 'plan':
@@ -62,7 +66,11 @@ export function createChatActionRunner({
             if (action.startConversation) {
               ensureConversationStarted();
             }
-            dom.appendCommand(action.payload);
+            if (action.eventId) {
+              dom.appendCommand(action.payload, { eventId: action.eventId });
+            } else {
+              dom.appendCommand(action.payload);
+            }
             break;
           default:
             break;
