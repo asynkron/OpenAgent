@@ -70,6 +70,21 @@ describe('formatAgentEvent', () => {
     });
   });
 
+  it('preserves runtime event identifiers', () => {
+    const payload = formatAgentEvent({
+      type: 'status',
+      message: 'Update',
+      __id: ' event-42 ',
+    });
+
+    expect(payload).toEqual({
+      type: 'agent_status',
+      text: 'Update',
+      eventType: 'status',
+      __id: 'event-42',
+    });
+  });
+
   it('formats command results with command, result, and preview details', () => {
     const payload = formatAgentEvent({
       type: 'command-result',

@@ -46,4 +46,39 @@ describe('createChatRouter', () => {
       { type: 'message', role: 'agent', text: 'Stack details', startConversation: true },
     ]);
   });
+
+  it('propagates runtime event identifiers for messages and commands', () => {
+    const messagePayload = {
+      type: 'agent_message',
+      text: 'Chunk',
+      __id: ' event-7 ',
+    } as AgentIncomingPayload & { type: 'agent_message' };
+
+    const commandPayload = {
+      type: 'agent_command',
+      command: { run: 'ls' },
+      __id: 'cmd-9',
+    } as AgentIncomingPayload & { type: 'agent_command' };
+
+    expect(router.onMessage(messagePayload)).toEqual([
+      { type: 'thinking', active: false },
+      {
+        type: 'message',
+        role: 'agent',
+        text: 'Chunk',
+        startConversation: true,
+        eventId: 'event-7',
+      },
+    ]);
+
+    expect(router.onCommand(commandPayload)).toEqual([
+      { type: 'thinking', active: false },
+      {
+        type: 'command',
+        payload: commandPayload,
+        startConversation: true,
+        eventId: 'cmd-9',
+      },
+    ]);
+  });
 });

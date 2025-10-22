@@ -22,8 +22,16 @@ export interface AgentCommand {
   run?: string;
   description?: string;
   shell?: string;
-  preview?: CommandPreview | null;
+  cwd?: string;
   workingDirectory?: string;
+  timeoutSeconds?: number;
+  filterRegex?: string;
+  tailLines?: number;
+}
+
+export interface AgentCommandPreviewPayload {
+  stdout?: string;
+  stderr?: string;
 }
 
 export interface AgentEventPayload {
@@ -36,10 +44,15 @@ export interface AgentEventPayload {
   level?: string;
   prompt?: string;
   metadata?: AgentMetadata | null;
+  __id?: string | null;
 }
 
 export interface AgentCommandPayload extends AgentEventPayload {
   command?: AgentCommand | null;
+  exitCode?: number | null;
+  runtimeMs?: number;
+  killed?: boolean;
+  preview?: AgentCommandPreviewPayload | CommandPreview | null;
 }
 
 export interface AgentMessagePayload extends AgentEventPayload {
