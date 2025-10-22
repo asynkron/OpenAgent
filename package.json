@@ -5,7 +5,8 @@
   "description": "Monorepo for the OpenAgent CLI and core runtime",
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "packages/web/*"
   ],
   "scripts": {
     "start": "node ./scripts/dist/start.js",

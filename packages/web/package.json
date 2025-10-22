@@ -1,0 +1,20 @@
+{
+  "name": "@asynkron/openagent-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Orchestrates the OpenAgent web frontend build and backend server startup.",
+  "scripts": {
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:core": "npm --prefix ../core run build",
+    "build:frontend": "npm --prefix ./frontend run build",
+    "build:backend": "npm --prefix ./backend run build",
+    "prebuild:backend": "npm run build:core",
+    "prestart": "npm run build:frontend",
+    "prestart:backend": "npm run build:core",
+    "start": "npm run start:backend",
+    "start:backend": "npm --prefix ./backend run start",
+    "predev": "npm run build:core && npm run build:frontend",
+    "dev": "npm --prefix ./backend run dev"
+  }
+}
