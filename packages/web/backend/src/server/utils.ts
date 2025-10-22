@@ -18,12 +18,25 @@ export function normaliseAgentText(value: unknown): string {
 
 interface AgentEventBase {
   type: string;
+  payload?: unknown;
   [key: string]: unknown;
+}
+
+interface AssistantMessageEventPayload {
+  message?: unknown;
 }
 
 interface AssistantMessageEvent extends AgentEventBase {
   type: 'assistant-message';
   message?: unknown;
+  payload?: AssistantMessageEventPayload | null;
+}
+
+interface StatusEventPayload {
+  message?: unknown;
+  level?: unknown;
+  details?: unknown;
+  title?: unknown;
 }
 
 interface StatusEvent extends AgentEventBase {
@@ -32,22 +45,45 @@ interface StatusEvent extends AgentEventBase {
   level?: unknown;
   details?: unknown;
   title?: unknown;
+  payload?: StatusEventPayload | null;
+}
+
+interface ErrorEventPayload {
+  message?: unknown;
+  details?: unknown;
 }
 
 interface ErrorEvent extends AgentEventBase {
   type: 'error';
   message?: unknown;
   details?: unknown;
+  payload?: ErrorEventPayload | null;
+}
+
+interface ThinkingEventPayload {
+  state?: unknown;
 }
 
 interface ThinkingEvent extends AgentEventBase {
   type: 'thinking';
   state?: unknown;
+  payload?: ThinkingEventPayload | null;
+}
+
+interface PlanEventPayload {
+  plan?: unknown;
 }
 
 interface PlanEvent extends AgentEventBase {
   type: 'plan';
   plan?: unknown;
+  payload?: PlanEventPayload | null;
+}
+
+interface CommandResultEventPayload {
+  command?: unknown;
+  result?: unknown;
+  preview?: unknown;
 }
 
 interface CommandResultEvent extends AgentEventBase {
@@ -55,6 +91,13 @@ interface CommandResultEvent extends AgentEventBase {
   command?: unknown;
   result?: unknown;
   preview?: unknown;
+  payload?: CommandResultEventPayload | null;
+}
+
+interface RequestInputEventPayload {
+  prompt?: unknown;
+  level?: unknown;
+  metadata?: PromptRequestMetadata | null;
 }
 
 interface RequestInputEvent extends AgentEventBase {
@@ -62,6 +105,7 @@ interface RequestInputEvent extends AgentEventBase {
   prompt?: unknown;
   level?: unknown;
   metadata?: PromptRequestMetadata | null;
+  payload?: RequestInputEventPayload | null;
 }
 
 export type AgentEvent =
@@ -146,6 +190,14 @@ export type AgentPayload =
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+function resolveEventField(event: AgentEventBase, field: string): unknown {
+  const payload = (event as { payload?: unknown }).payload;
+  if (isRecord(payload) && field in payload) {
+    return payload[field];
+  }
+  return event[field];
 }
 
 function normaliseCommand(command: unknown): NormalisedAgentCommand | undefined {
@@ -292,11 +344,13 @@ export function formatAgentEvent(event: unknown): AgentPayload | undefined {
 
   switch (data.type) {
     case 'assistant-message': {
-      const text = normaliseAgentText((data as AssistantMessageEvent).message).trim();
+      const text = normaliseAgentText(
+        resolveEventField(data as AssistantMessageEvent, 'message'),
+      ).trim();
       return text ? { type: 'agent_message', text } : undefined;
     }
     case 'status': {
-      const text = normaliseAgentText((data as StatusEvent).message);
+      const text = normaliseAgentText(resolveEventField(data as StatusEvent, 'message'));
       if (!text) {
         return undefined;
       }
@@ -307,17 +361,17 @@ export function formatAgentEvent(event: unknown): AgentPayload | undefined {
         eventType: 'status',
       };
 
-      const level = (data as StatusEvent).level;
+      const level = resolveEventField(data as StatusEvent, 'level');
       if (typeof level === 'string' && level) {
         payload.level = level;
       }
 
-      const details = (data as StatusEvent).details;
+      const details = resolveEventField(data as StatusEvent, 'details');
       if (typeof details === 'string' && details) {
         payload.details = details;
       }
 
-      const title = (data as StatusEvent).title;
+      const title = resolveEventField(data as StatusEvent, 'title');
       if (typeof title === 'string' && title) {
         const normalizedTitle = normaliseAgentText(title).trim();
         if (normalizedTitle) {
@@ -329,14 +383,14 @@ export function formatAgentEvent(event: unknown): AgentPayload | undefined {
     }
     case 'error': {
       const message =
-        normaliseAgentText((data as ErrorEvent).message).trim() ||
+        normaliseAgentText(resolveEventField(data as ErrorEvent, 'message')).trim() ||
         'Agent runtime reported an error.';
       const payload: AgentErrorPayload = {
         type: 'agent_error',
         message,
       };
 
-      const details = (data as ErrorEvent).details;
+      const details = resolveEventField(data as ErrorEvent, 'details');
       if (typeof details === 'string' && details) {
         payload.details = details;
       }
@@ -344,11 +398,11 @@ export function formatAgentEvent(event: unknown): AgentPayload | undefined {
       return payload;
     }
     case 'thinking': {
-      const state = (data as ThinkingEvent).state;
+      const state = resolveEventField(data as ThinkingEvent, 'state');
       return state === 'start' || state === 'stop' ? { type: 'agent_thinking', state } : undefined;
     }
     case 'plan': {
-      const plan = (data as PlanEvent).plan;
+      const plan = resolveEventField(data as PlanEvent, 'plan');
       return Array.isArray(plan) ? { type: 'agent_plan', plan } : undefined;
     }
     case 'command-result': {
@@ -356,15 +410,15 @@ export function formatAgentEvent(event: unknown): AgentPayload | undefined {
         type: 'agent_command',
       };
 
-      const commandPayload = normaliseCommand((data as CommandResultEvent).command);
+      const commandPayload = normaliseCommand(resolveEventField(data as CommandResultEvent, 'command'));
       if (commandPayload) {
         payload.command = commandPayload;
       }
 
-      const resultPayload = normaliseCommandResult((data as CommandResultEvent).result);
+      const resultPayload = normaliseCommandResult(resolveEventField(data as CommandResultEvent, 'result'));
       Object.assign(payload, resultPayload);
 
-      const previewPayload = normaliseCommandPreview((data as CommandResultEvent).preview);
+      const previewPayload = normaliseCommandPreview(resolveEventField(data as CommandResultEvent, 'preview'));
       if (previewPayload) {
         payload.preview = previewPayload;
       }
@@ -372,18 +426,18 @@ export function formatAgentEvent(event: unknown): AgentPayload | undefined {
       return payload;
     }
     case 'request-input': {
-      const prompt = normaliseAgentText((data as RequestInputEvent).prompt);
+      const prompt = normaliseAgentText(resolveEventField(data as RequestInputEvent, 'prompt'));
       const payload: AgentRequestInputPayload = {
         type: 'agent_request_input',
         prompt,
       };
 
-      const level = (data as RequestInputEvent).level;
+      const level = resolveEventField(data as RequestInputEvent, 'level');
       if (typeof level === 'string' && level) {
         payload.level = level;
       }
 
-      const metadata = serialiseMetadata((data as RequestInputEvent).metadata);
+      const metadata = serialiseMetadata(resolveEventField(data as RequestInputEvent, 'metadata'));
       if (metadata) {
         payload.metadata = metadata;
       }

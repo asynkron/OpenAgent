@@ -20,6 +20,9 @@
   embedded so the frontend no longer crashes on load.
 - `src/types/openagent-core.d.ts` — ambient bindings for the core runtime websocket adapter exposed by the CLI package.
 - `src/types/ws.d.ts` — workspace-scoped typings for the `ws` package so the backend stays TypeScript-only without external @types.
+- `src/server/utils.ts` — normalises runtime events by reading canonical fields from the nested
+  `payload` objects emitted by the core agent while tolerating legacy flattened fields for
+  compatibility.
 
 ## Build & Development
 
