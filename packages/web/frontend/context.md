@@ -30,8 +30,7 @@
 - Split shared chat and plan logic into `src/js/services/chat_model.ts` and `src/js/components/plan_model.ts` so DOM wiring stays lean and unit tests can target the pure helpers.
 - Added Jest suites under `src/js/**/__tests__` to cover plan aggregation and chat payload normalisation utilities.
 - Markdown rendering now initialises Mermaid for ```mermaid fences and includes targeted Jest coverage for the display helper.
-- Mermaid rendering suppresses the default error widget and falls back to the raw diagram definition when parsing fails so users
-  are not shown the bomb overlay.
+- Mermaid diagrams now stay as plain code blocks until their definitions parse successfully, preventing streaming-time rendering errors and deferring Mermaid initialisation until the content stabilises.
 - Streamlined chat, shared context, and bootstrap helpers with stricter TypeScript unions and optional chaining, replacing runtime `typeof` guards with typed utilities for cleaner DOM event handling.
 - Refined chat payload routing with a typed handler map and removed the last `unknown` casts from markdown rendering to keep syntax highlighting and message handling strictly typed.
 - Pruned unused helper typings in shared context/tests so ESLint stays quiet under the expanded repo-wide lint run.

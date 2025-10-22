@@ -1,7 +1,23 @@
 import hljs from 'highlight.js';
 import { marked } from 'marked';
 import type { MarkedOptions } from 'marked';
-import mermaid from 'mermaid';
+import mermaidLibrary from 'mermaid';
+
+interface MermaidConfig {
+  startOnLoad: boolean;
+}
+
+interface MermaidRunOptions {
+  nodes?: ArrayLike<HTMLElement>;
+}
+
+interface MermaidApi {
+  initialize(config: MermaidConfig): void;
+  run(options: MermaidRunOptions): Promise<unknown>;
+  parse?(definition: string): boolean | void;
+}
+
+const mermaid: MermaidApi = mermaidLibrary as MermaidApi;
 
 export type MarkdownDisplayContext = {
   content: HTMLElement;
@@ -58,6 +74,27 @@ function ensureMermaidInitialised(): void {
   mermaidInitialised = true;
 }
 
+function canRenderMermaidDefinition(definition: string): boolean {
+  if (definition.length === 0) {
+    return false;
+  }
+
+  const parser = mermaid.parse;
+  if (!parser) {
+    return true;
+  }
+
+  try {
+    const result = parser(definition);
+    if (typeof result === 'boolean') {
+      return result;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function renderMermaidDiagrams(target: HTMLElement): void {
   const codeBlocks = Array.from(
     target.querySelectorAll<HTMLElement>('pre > code.language-mermaid'),
@@ -66,8 +103,6 @@ function renderMermaidDiagrams(target: HTMLElement): void {
   if (codeBlocks.length === 0) {
     return;
   }
-
-  ensureMermaidInitialised();
 
   const containers: HTMLElement[] = [];
   const sources: MermaidDiagramSource[] = [];
@@ -85,9 +120,11 @@ function renderMermaidDiagrams(target: HTMLElement): void {
     }
 
     const definition = (codeBlock.textContent ?? '').trim();
-    if (definition.length === 0) {
+    if (!canRenderMermaidDefinition(definition)) {
       continue;
     }
+
+    ensureMermaidInitialised();
 
     const container = ownerDocument.createElement('div');
     container.className = 'mermaid';
