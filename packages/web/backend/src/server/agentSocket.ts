@@ -1,8 +1,7 @@
 import { createWebSocketBinding, type WebSocketBinding } from '@asynkron/openagent-core';
-import type { RawData, WebSocket } from 'ws';
+import type { WebSocket } from 'ws';
 
 import { describeAgentError, formatAgentEvent, isWebSocketOpen, type AgentPayload } from './utils.js';
-import { handleIncomingAgentMessage } from './agentSocketMessage.js';
 
 export interface AgentConfig {
   autoApprove: boolean;
@@ -117,10 +116,6 @@ export class AgentSocketManager {
 
     ws.on('close', handleClose);
     ws.on('error', handleError);
-    ws.on('message', (raw: RawData, isBinary: boolean) => {
-      handleIncomingAgentMessage(binding, raw, isBinary);
-    });
-
     return record;
   }
 
