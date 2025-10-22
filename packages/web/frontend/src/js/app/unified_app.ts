@@ -20,7 +20,6 @@ type LayoutInitOptions = {
   tocSidebar?: HTMLElement | null;
   fileSidebar?: HTMLElement | null;
   agentPanel?: HTMLElement | null;
-  terminalPanel?: HTMLElement | null;
   tocSplitter?: HTMLElement | null;
   fileSplitter?: HTMLElement | null;
   rootElement?: HTMLElement | null;
@@ -62,20 +61,6 @@ type ControllersModule = {
     onFallback: (options?: { skipHistory?: boolean }) => void;
   }) => RouterApi | null;
 };
-
-type TerminalService = {
-  setupTerminalPanel?: () => void;
-};
-
-type TerminalServiceFactory = (options: {
-  terminalPanel?: HTMLElement | null;
-  terminalContainer?: HTMLElement | null;
-  terminalToggleButton?: HTMLButtonElement | null;
-  terminalStatusText?: HTMLElement | null;
-  terminalResizeHandle?: HTMLElement | null;
-  storageKey?: string;
-  isDockviewActive?: () => boolean;
-}) => TerminalService | null;
 
 type ViewerApi = {
   render(markdownText: string, options?: { updateCurrent?: boolean }): void;
@@ -123,7 +108,6 @@ type RealtimeServiceFactory = (options: {
 }) => RealtimeService | null;
 
 type ServicesModule = {
-  createTerminalService?: TerminalServiceFactory;
   createChatService?: (options: ChatServiceOptions) => ChatServiceApi | null;
   createRealtimeService?: RealtimeServiceFactory;
   createViewerApi?: (target: MarkdownDisplayContext | ViewerApi | null) => ViewerApi | null;
@@ -181,7 +165,6 @@ export function createUnifiedApp({
     initialState = {},
     state: appState = {} as AppContext['state'],
     elements = {},
-    terminalStorageKey,
   } = context;
 
   const elementRefs = elements as AppContext['elements'];
@@ -208,11 +191,6 @@ export function createUnifiedApp({
     agentChatForm,
     agentChatInput,
     agentStatus,
-    terminalPanel,
-    terminalContainer,
-    terminalToggleButton,
-    terminalStatusText,
-    terminalResizeHandle,
     content,
   } = elementRefs;
 
@@ -221,7 +199,6 @@ export function createUnifiedApp({
   const { createHeaderController, createTocController, createRouter } = controllers;
 
   const {
-    createTerminalService,
     createChatService,
     createRealtimeService,
     createViewerApi,
@@ -241,7 +218,6 @@ export function createUnifiedApp({
   let editorApi: EditorApi | null = null;
   let viewerApi: ViewerApi | null = null;
   let realtimeService: RealtimeService | null = null;
-  let terminalService: TerminalService | null = null;
   let chatService: ChatServiceApi | null = null;
   let contentClickHandler: ((event: Event) => void) | null = null;
   let pointerListeners: Array<[string, EventTarget, EventListener]> = [];
@@ -285,7 +261,6 @@ export function createUnifiedApp({
         tocSidebar,
         fileSidebar,
         agentPanel,
-        terminalPanel,
         tocSplitter,
         fileSplitter,
         rootElement,
@@ -340,17 +315,6 @@ export function createUnifiedApp({
     sharedContext.router = router;
 
     context.initialFileFromLocation = router?.getCurrent?.() ?? '';
-
-    terminalService =
-      createTerminalService?.({
-        terminalPanel,
-        terminalContainer,
-        terminalToggleButton,
-        terminalStatusText,
-        terminalResizeHandle,
-        storageKey: terminalStorageKey,
-        isDockviewActive: () => Boolean(layoutInstance?.dockviewIsActive),
-      }) ?? null;
 
     chatService =
       createChatService?.({
@@ -430,7 +394,6 @@ export function createUnifiedApp({
       if (initialError?.length) {
         sharedContext.setStatus(initialError);
       }
-      terminalService?.setupTerminalPanel?.();
       chatService?.connect?.();
       realtimeService?.connect?.();
 

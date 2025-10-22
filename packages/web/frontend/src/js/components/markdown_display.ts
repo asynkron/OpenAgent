@@ -1,6 +1,7 @@
 import hljs from 'highlight.js';
 import { marked } from 'marked';
 import type { MarkedOptions } from 'marked';
+import mermaid from 'mermaid';
 
 export type MarkdownDisplayContext = {
   content: HTMLElement;
@@ -20,6 +21,65 @@ interface MarkdownHighlightedOptions extends MarkedOptions {
    * it locally to maintain type safety for syntax highlighting.
    */
   highlight?(code: string, language?: string): string;
+}
+
+let mermaidInitialised = false;
+
+function ensureMermaidInitialised(): void {
+  if (mermaidInitialised) {
+    return;
+  }
+
+  mermaid.initialize({ startOnLoad: false });
+  mermaidInitialised = true;
+}
+
+function renderMermaidDiagrams(target: HTMLElement): void {
+  const codeBlocks = Array.from(
+    target.querySelectorAll<HTMLElement>('pre > code.language-mermaid'),
+  );
+
+  if (codeBlocks.length === 0) {
+    return;
+  }
+
+  ensureMermaidInitialised();
+
+  const containers: HTMLElement[] = [];
+
+  for (const codeBlock of codeBlocks) {
+    const preElement = codeBlock.parentElement;
+    if (!(preElement instanceof HTMLElement)) {
+      continue;
+    }
+
+    const ownerDocument =
+      preElement.ownerDocument ?? target.ownerDocument ?? (typeof document !== 'undefined' ? document : null);
+    if (!ownerDocument) {
+      continue;
+    }
+
+    const definition = (codeBlock.textContent ?? '').trim();
+    if (definition.length === 0) {
+      continue;
+    }
+
+    const container = ownerDocument.createElement('div');
+    container.className = 'mermaid';
+    container.textContent = definition;
+    preElement.replaceWith(container);
+    containers.push(container);
+  }
+
+  if (containers.length === 0) {
+    return;
+  }
+
+  mermaid
+    .run({ nodes: containers })
+    .catch((error: unknown) => {
+      console.warn('Failed to render mermaid diagram', error);
+    });
 }
 
 function renderMarkdown(
@@ -66,6 +126,7 @@ function renderMarkdown(
   }
 
   content.innerHTML = html;
+  renderMermaidDiagrams(content);
 
   if (updateCurrent && typeof content.dataset !== 'undefined') {
     content.dataset.rendered = 'true';

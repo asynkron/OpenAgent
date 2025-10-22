@@ -50,11 +50,6 @@ type AppElements = {
   agentChatForm: HTMLFormElement | null;
   agentChatInput: HTMLTextAreaElement | HTMLInputElement | null;
   agentStatus: HTMLElement | null;
-  terminalPanel: HTMLElement | null;
-  terminalContainer: HTMLElement | null;
-  terminalToggleButton: HTMLButtonElement | null;
-  terminalStatusText: HTMLElement | null;
-  terminalResizeHandle: HTMLElement | null;
   panelToggleButtons: HTMLElement[];
 };
 
@@ -80,7 +75,6 @@ type AppContext = {
     expandedDirectories: Set<string>;
     knownDirectories: Set<string>;
   };
-  terminalStorageKey: string;
   initialFileFromLocation: string;
 };
 
@@ -142,11 +136,6 @@ export function createAppContext(): AppContext {
       | HTMLInputElement
       | null,
     agentStatus: getElementById<HTMLElement>('agent-status'),
-    terminalPanel: getElementById<HTMLElement>('terminal-panel'),
-    terminalContainer: getElementById<HTMLElement>('terminal-container'),
-    terminalToggleButton: getElementById<HTMLButtonElement>('terminal-toggle'),
-    terminalStatusText: getElementById<HTMLElement>('terminal-status'),
-    terminalResizeHandle: getElementById<HTMLElement>('terminal-resize-handle'),
     panelToggleButtons: Array.from(document.querySelectorAll<HTMLElement>('[data-panel-toggle]')),
   };
 
@@ -172,7 +161,6 @@ export function createAppContext(): AppContext {
       expandedDirectories: new Set(),
       knownDirectories: new Set(),
     },
-    terminalStorageKey: 'terminalPanelHeight',
     initialFileFromLocation: '',
   };
 }
