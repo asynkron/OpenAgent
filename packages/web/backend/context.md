@@ -8,7 +8,9 @@
 ## Key Files
 
 - `src/index.ts` — boots the backend with runtime configuration derived from environment variables.
-- `src/server.ts` — wraps HTTP and WebSocket server lifecycle management.
+- `src/server.ts` — wraps HTTP and WebSocket server lifecycle management and now serves the
+  `public/` directory (including `unified_index.html`) so the chat panel loads over regular
+  HTTP.
 - `src/server/agentSocket.ts` — manages runtime bindings for each connected agent websocket client (now emitting strongly typed agent payloads and stricter prompt parsing helpers). Binding setup, message routing, and teardown now live in dedicated helpers so the lifecycle is easier to follow.
 - `src/server/utils.ts` — shared helpers for normalising runtime payloads and error reporting; returns typed payload objects for the websocket bridge.
 - `src/server/agentSocketMessage.ts` — parses inbound websocket payloads and forwards valid prompts to the runtime queue.
