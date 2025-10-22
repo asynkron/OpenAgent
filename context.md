@@ -10,6 +10,7 @@
 - `packages/core/src/contracts/` — canonical TypeScript contracts (plans, commands, chat history) consumed by every package. See [`packages/core/src/contracts/context.md`](packages/core/src/contracts/context.md).
 - `packages/core/` — headless runtime, OpenAI client adapters, and shared utilities. See [`packages/core/context.md`](packages/core/context.md).
 - `packages/cli/` — Ink-based CLI that depends on the core runtime. See [`packages/cli/context.md`](packages/cli/context.md).
+- `packages/web/` — Bundled frontend/backend web experience orchestrator. See [`packages/web/context.md`](packages/web/context.md).
 - `tests/` — cross-package integration suites with mock OpenAI harnesses. See [`tests/context.md`](tests/context.md).
 - `packages/core/prompts/` & `schemas/` — authoritative protocol prompts plus JSON schema for validation. Linked details in [`packages/core/prompts/context.md`](packages/core/prompts/context.md) and [`schemas/context.md`](schemas/context.md).
 - `docs/` — design notes, operational guides, and meta documentation for contributors. See [`docs/context.md`](docs/context.md).
