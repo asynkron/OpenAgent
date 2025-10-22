@@ -120,6 +120,12 @@ body {
   position: relative;
 }
 
+/* Ensure the standalone layout stretches the chat panel without the old grid shell. */
+body > .agent-panel {
+  flex: 1 1 auto;
+  height: auto;
+}
+
 .agent-panel.agent-panel--empty {
   justify-content: center;
 }

@@ -9,53 +9,6 @@
 
   <body>
     <div id="dockview-root" class="dockview-theme-abyss hidden"></div>
-    <div class="app-shell">
-      <aside class="sidebar sidebar--toc is-expanded" data-sidebar="toc">
-        <div class="sidebar-collapsed-label" aria-hidden="true">ToC</div>
-        <div class="sidebar-content">
-          <nav id="toc-list" class="toc-list" aria-label="Table of contents"></nav>
-        </div>
-      </aside>
-
-      <section class="viewer">
-        <header class="file-header">
-          <h1 id="file-name">Markdown Viewer</h1>
-          <div class="file-actions">
-            <button id="edit-button" class="" title="Edit the current file">
-              <i class="fas fa-edit file-button-icon"></i>
-            </button>
-            <button id="preview-button" class="hidden" title="Preview the pending changes">
-              <i class="fas fa-eye file-button-icon"></i>
-            </button>
-            <button id="save-button" class="hidden" title="Save your changes">
-              <i class="fas fa-save file-button-icon"></i>
-            </button>
-            <button id="cancel-button" class="hidden" title="Cancel editing">
-              <i class="fas fa-times file-button-icon"></i>
-            </button>
-            <button id="download-button" title="Download the current file">
-              <i class="fas fa-download file-button-icon"></i>
-            </button>
-            <button id="delete-button" class="" title="Delete the current file">
-              <i class="fas fa-trash file-button-icon"></i>
-            </button>
-          </div>
-        </header>
-        <div id="content" class="content-area"></div>
-        <div id="editor-container" class="editor-container"></div>
-      </section>
-
-      <aside class="sidebar sidebar--files is-expanded" data-sidebar="files">
-        <div class="sidebar-collapsed-label" aria-hidden="true">Files</div>
-        <div class="sidebar-content">
-          <div class="sidebar-header">
-            <div class="sidebar-path" id="sidebar-path"></div>
-          </div>
-          <ul id="file-list" class="file-list" role="tree"></ul>
-        </div>
-      </aside>
-    </div>
-
     <div id="offline-overlay" class="offline-overlay">
       <div class="offline-message">
         <div class="offline-spinner"></div>
@@ -139,7 +92,7 @@
     </div>
 
     <script>
-      window.__INITIAL_STATE__ = __INITIAL_STATE_JSON__;
+      window.__INITIAL_STATE__ = window.__INITIAL_STATE__ ?? {};
     </script>
     <script src="/static/dist/unified_index.js" defer></script>
   </body>
