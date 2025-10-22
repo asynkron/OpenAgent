@@ -1,6 +1,6 @@
 # Agents.md
 
-- Start every task by locating the nearest `context.md` (walk from repo root downward). The directory index explains purpose, key files, and known risks—treat it as your jump table before exploring code or docs.
+- Start every coding task by locating the nearest `context.md` (walk from repo root downward). The directory index explains purpose, key files, and known risks—treat it as your jump table before exploring code or docs.
 - Keep the context network accurate: whenever you modify code, tests, docs, prompts, or tooling, update the `context.md` in that directory and refresh any parent summaries that reference it.
 
 ## Rules for TypeScript
