@@ -11,6 +11,7 @@
 - `src/js/` — TypeScript sources for chat services, plan renderer, and unified application bootstrap logic. Chat wiring now reuses `services/chat_highlight.ts`, `services/chat_dom.ts`, and `services/chat_domController.ts` to keep markdown rendering, DOM listener utilities, and UI mutations isolated from the main chat orchestrator; helper controllers (`services/chat_sessionController.ts`, `services/chat_actionRunner.ts`, and `services/chat_lifecycle.ts`) further split session state, action dispatch, and socket wiring from `services/chat.ts`.
 - `src/css/` — Stylesheets bundled alongside JavaScript for the frontend UI.
 - `scripts/ensure-esbuild.mjs` — Rebuild helper guaranteeing esbuild binary compatibility before bundling.
+- `src/css/vendor/` — Checked-in copies of the third-party stylesheets (and Font Awesome webfonts) that the app imports so CSS bundling works without the corresponding npm packages present.
 
 ## Build & Tooling
 

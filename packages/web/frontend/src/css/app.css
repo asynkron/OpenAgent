@@ -1,9 +1,9 @@
-@import 'highlight.js/styles/github-dark.css';
-@import 'codemirror/lib/codemirror.css';
-@import 'codemirror-one-dark-theme/one-dark.css';
-@import 'dockview/dist/styles/dockview.css';
-@import '@fortawesome/fontawesome-free/css/all.min.css';
-@import 'xterm/css/xterm.css';
+@import './vendor/highlight/github-dark.css';
+@import './vendor/codemirror/codemirror.css';
+@import './vendor/codemirror-one-dark/one-dark.css';
+@import './vendor/dockview/dockview.css';
+@import './vendor/fontawesome/css/all.min.css';
+@import './vendor/xterm/xterm.css';
 @import './theme.css';
 
 :root {
