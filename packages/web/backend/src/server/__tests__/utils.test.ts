@@ -44,6 +44,15 @@ describe('formatAgentEvent', () => {
     expect(payload).toEqual(expected);
   });
 
+  it('normalises assistant message state values', () => {
+    const payload = formatAgentEvent({
+      type: 'assistant-message',
+      payload: { message: 'Hello', state: ' FINAL ' },
+    });
+    const expected: AgentPayload = { type: 'agent_message', text: 'Hello', state: 'final' };
+    expect(payload).toEqual(expected);
+  });
+
   it('omits assistant messages without meaningful text', () => {
     expect(
       formatAgentEvent({ type: 'assistant-message', payload: { message: '   ' } }),

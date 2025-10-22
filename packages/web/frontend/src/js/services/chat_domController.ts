@@ -28,7 +28,11 @@ export interface ChatDomControllerOptions {
 }
 
 export interface ChatDomController {
-  appendMessage(role: AgentRole, text: string, options?: { eventId?: string }): void;
+  appendMessage(
+    role: AgentRole,
+    text: string,
+    options?: { eventId?: string; final?: boolean },
+  ): void;
   appendEvent(eventType: string, payload: AgentEventPayload): void;
   appendCommand(payload?: AgentCommandPayload | null, options?: { eventId?: string }): void;
   setStatus(message: string | null | undefined, options?: { level?: string }): void;
@@ -59,6 +63,8 @@ interface MessageEntry {
   wrapper: HTMLElement;
   bubble: HTMLElement;
   markdown: MarkdownDisplayApi | null;
+  text: string;
+  final: boolean;
 }
 
 interface CommandEntry {
@@ -309,9 +315,47 @@ export function createChatDomController({
     container.appendChild(block);
   };
 
-  const appendMessage = (role: AgentRole, text: string, options: { eventId?: string } = {}): void => {
+  const createAgentMarkdownDisplay = (target: HTMLElement): MarkdownDisplayApi =>
+    createMarkdownDisplay({
+      content: target,
+      getCurrentFile: () => null,
+      setCurrentContent: () => {
+        /* noop */
+      },
+      buildQuery: () => '',
+    });
+
+  const ensureAgentMarkdown = (entry: MessageEntry): MarkdownDisplayApi => {
+    if (entry.markdown) {
+      return entry.markdown;
+    }
+    const markdownDisplay = createAgentMarkdownDisplay(entry.bubble);
+    entry.markdown = markdownDisplay;
+    return markdownDisplay;
+  };
+
+  const renderAgentMarkdown = (
+    entry: MessageEntry,
+    { updateCurrent }: { updateCurrent: boolean },
+  ): void => {
+    const markdownDisplay = ensureAgentMarkdown(entry);
+    markdownDisplay.render(entry.text, { updateCurrent });
+    entry.final = true;
+  };
+
+  const setAgentStreamingContent = (entry: MessageEntry): void => {
+    entry.final = false;
+    entry.bubble.textContent = entry.text;
+  };
+
+  const appendMessage = (
+    role: AgentRole,
+    text: string,
+    options: { eventId?: string; final?: boolean } = {},
+  ): void => {
     const normalized = normaliseText(text);
     const eventId = normaliseEventId(options.eventId);
+    const isFinal = options.final === true;
 
     if (eventId) {
       const existing = messageEntries.get(eventId);
@@ -321,19 +365,16 @@ export function createChatDomController({
           existing.wrapper.className = `agent-message agent-message--${role}`;
         }
 
+        existing.text = normalized;
+
         if (role === 'agent') {
-          const markdownDisplay =
-            existing.markdown ??
-            createMarkdownDisplay({
-              content: existing.bubble,
-              getCurrentFile: () => null,
-              setCurrentContent: () => {
-                /* noop */
-              },
-              buildQuery: () => '',
-            });
-          markdownDisplay.render(normalized, { updateCurrent: false });
-          existing.markdown = markdownDisplay;
+          if (isFinal) {
+            renderAgentMarkdown(existing, { updateCurrent: true });
+          } else if (existing.final && existing.markdown) {
+            existing.markdown.render(existing.text, { updateCurrent: true });
+          } else {
+            setAgentStreamingContent(existing);
+          }
         } else {
           existing.bubble.textContent = normalized;
         }
@@ -352,24 +393,31 @@ export function createChatDomController({
       'agent-message-bubble',
     );
 
-    let markdownDisplay: MarkdownDisplayApi | null = null;
+    const entry: MessageEntry = {
+      role,
+      wrapper,
+      bubble,
+      markdown: null,
+      text: normalized,
+      final: false,
+    };
+
     if (role === 'agent') {
-      markdownDisplay = createMarkdownDisplay({
-        content: bubble,
-        getCurrentFile: () => null,
-        setCurrentContent: () => {
-          /* noop */
-        },
-        buildQuery: () => '',
-      });
-      markdownDisplay.render(normalized, { updateCurrent: false });
+      if (isFinal) {
+        const markdownDisplay = createAgentMarkdownDisplay(bubble);
+        markdownDisplay.render(entry.text, { updateCurrent: true });
+        entry.markdown = markdownDisplay;
+        entry.final = true;
+      } else {
+        bubble.textContent = entry.text;
+      }
     } else {
-      bubble.textContent = normalized;
+      bubble.textContent = entry.text;
     }
 
     if (eventId) {
       wrapper.dataset.eventId = eventId;
-      messageEntries.set(eventId, { role, wrapper, bubble, markdown: markdownDisplay });
+      messageEntries.set(eventId, entry);
     }
 
     appendMessageWrapper(wrapper);
