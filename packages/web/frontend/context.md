@@ -16,6 +16,8 @@
 
 - Run `npm run build` from this package to bundle TypeScript and CSS assets via esbuild.
 - Output files land in `packages/web/backend/public/static/dist` for server consumption.
+- Dependency resolution is driven by the workspace root `package-lock.json`; this package no longer keeps an independent lockfile,
+  so install dependencies via the repository root to avoid stale module sets during builds.
 
 ## Recent Changes
 
