@@ -23,7 +23,30 @@ interface MarkdownHighlightedOptions extends MarkedOptions {
   highlight?(code: string, language?: string): string;
 }
 
+type MermaidParseErrorDetails = {
+  readonly [key: string]: string | number | boolean | null | undefined;
+};
+
+type MermaidModuleWithErrorControl = typeof mermaid & {
+  parseError?: (error: Error, details?: MermaidParseErrorDetails) => void;
+};
+
+type MermaidDiagramSource = {
+  readonly container: HTMLElement;
+  readonly definition: string;
+};
+
 let mermaidInitialised = false;
+
+function disableMermaidErrorWidget(instance: typeof mermaid): void {
+  const mermaidWithErrorControl = instance as MermaidModuleWithErrorControl;
+  if (typeof mermaidWithErrorControl.parseError === 'function') {
+    mermaidWithErrorControl.parseError = () => {
+      // Intentionally ignore diagram parse errors so Mermaid does not render
+      // its default error widget. We surface a console warning instead.
+    };
+  }
+}
 
 function ensureMermaidInitialised(): void {
   if (mermaidInitialised) {
@@ -31,6 +54,7 @@ function ensureMermaidInitialised(): void {
   }
 
   mermaid.initialize({ startOnLoad: false });
+  disableMermaidErrorWidget(mermaid);
   mermaidInitialised = true;
 }
 
@@ -46,6 +70,7 @@ function renderMermaidDiagrams(target: HTMLElement): void {
   ensureMermaidInitialised();
 
   const containers: HTMLElement[] = [];
+  const sources: MermaidDiagramSource[] = [];
 
   for (const codeBlock of codeBlocks) {
     const preElement = codeBlock.parentElement;
@@ -69,6 +94,7 @@ function renderMermaidDiagrams(target: HTMLElement): void {
     container.textContent = definition;
     preElement.replaceWith(container);
     containers.push(container);
+    sources.push({ container, definition });
   }
 
   if (containers.length === 0) {
@@ -79,6 +105,9 @@ function renderMermaidDiagrams(target: HTMLElement): void {
     .run({ nodes: containers })
     .catch((error: unknown) => {
       console.warn('Failed to render mermaid diagram', error);
+      for (const source of sources) {
+        source.container.textContent = source.definition;
+      }
     });
 }
 
