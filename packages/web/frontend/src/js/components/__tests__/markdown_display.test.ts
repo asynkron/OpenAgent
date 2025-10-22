@@ -24,6 +24,7 @@ describe('renderMarkdown', () => {
     }));
 
     const { renderMarkdown } = await import('../markdown_display.js');
+    const { default: mermaidModule } = await import('mermaid');
 
     const container = document.createElement('div');
     const context: MarkdownDisplayContext = {
@@ -49,6 +50,10 @@ describe('renderMarkdown', () => {
     expect(parse).toHaveBeenCalledTimes(1);
     expect(parse).toHaveBeenCalledWith(['flowchart TD', 'A --> B'].join('\n'));
     expect(run).toHaveBeenCalledTimes(1);
+
+    expect(parseError).not.toHaveBeenCalled();
+    expect(mermaidModule.parseError).toEqual(expect.any(Function));
+    expect(mermaidModule.parseError).not.toBe(parseError);
 
     const runCall = run.mock.calls[0]?.[0];
     expect(runCall?.nodes).toBeDefined();
