@@ -5,7 +5,7 @@ import type { PlanResponse } from '../../contracts/index.js';
 import type { PlanResponseStreamPartial } from '../../openai/responses.js';
 
 describe('StructuredResponseEventEmitter', () => {
-  test('does not emit a duplicate assistant message when the final response matches the last streamed partial', () => {
+  test('emits final assistant message state even when text matches the last streamed partial', () => {
     const emitEvent = jest.fn();
     const emitter = createStructuredResponseEventEmitter({ emitEvent });
 
@@ -13,10 +13,10 @@ describe('StructuredResponseEventEmitter', () => {
     emitter.handleStreamPartial(partial);
 
     expect(emitEvent).toHaveBeenCalledTimes(1);
-    expect(emitEvent).toHaveBeenCalledWith(
+    expect(emitEvent).toHaveBeenLastCalledWith(
       expect.objectContaining({
         type: 'assistant-message',
-        payload: { message: 'Hello world' },
+        payload: expect.objectContaining({ message: 'Hello world', state: 'stream' }),
       }),
     );
 
@@ -26,7 +26,20 @@ describe('StructuredResponseEventEmitter', () => {
     };
     const summary = emitter.handleFinalResponse(finalResponse);
 
-    expect(emitEvent).toHaveBeenCalledTimes(1);
+    expect(emitEvent).toHaveBeenCalledTimes(2);
+    const [firstCall, secondCall] = emitEvent.mock.calls;
+    expect(firstCall?.[0]).toEqual(
+      expect.objectContaining({
+        type: 'assistant-message',
+        payload: expect.objectContaining({ message: 'Hello world', state: 'stream' }),
+      }),
+    );
+    expect(secondCall?.[0]).toEqual(
+      expect.objectContaining({
+        type: 'assistant-message',
+        payload: expect.objectContaining({ message: 'Hello world', state: 'final' }),
+      }),
+    );
     expect(summary.messageEmitted).toBe(true);
   });
 

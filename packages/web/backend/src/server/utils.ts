@@ -28,11 +28,13 @@ interface AgentPayloadBase {
 
 interface AssistantMessageEventPayload {
   message?: unknown;
+  state?: unknown;
 }
 
 interface AssistantMessageEvent extends AgentEventBase {
   type: 'assistant-message';
   message?: unknown;
+  state?: unknown;
   payload?: AssistantMessageEventPayload | null;
 }
 
@@ -125,6 +127,7 @@ export type AgentEvent =
 export interface AgentMessagePayload extends AgentPayloadBase {
   type: 'agent_message';
   text: string;
+  state?: 'stream' | 'final';
 }
 
 export interface AgentStatusPayload extends AgentPayloadBase {
@@ -378,6 +381,13 @@ export function formatAgentEvent(event: unknown): AgentPayload | undefined {
       }
 
       const payload: AgentMessagePayload = { type: 'agent_message', text };
+      const stateSource = resolveEventField(data as AssistantMessageEvent, 'state');
+      if (typeof stateSource === 'string') {
+        const normalisedState = stateSource.trim().toLowerCase();
+        if (normalisedState === 'stream' || normalisedState === 'final') {
+          payload.state = normalisedState as 'stream' | 'final';
+        }
+      }
       return withEventId(payload);
     }
     case 'status': {

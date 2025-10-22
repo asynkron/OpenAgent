@@ -13,9 +13,14 @@ export const extractAssistantMessage = (value: unknown): string | null => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+export interface AssistantMessageEmitOptions {
+  readonly state?: 'stream' | 'final';
+}
+
 export const emitAssistantMessageEvent = (
   emitEvent: EmitRuntimeEvent | null | undefined,
   value: unknown,
+  options: AssistantMessageEmitOptions = {},
 ): void => {
   if (!emitEvent) {
     return;
@@ -30,6 +35,7 @@ export const emitAssistantMessageEvent = (
     type: RuntimeEventType.AssistantMessage,
     payload: {
       message,
+      ...(options.state ? { state: options.state } : {}),
     },
   });
 };

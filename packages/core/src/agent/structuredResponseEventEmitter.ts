@@ -268,7 +268,9 @@ export class StructuredResponseEventEmitter {
 
   private lastFinalPlanSignature: string | null = null;
 
-  private lastMessageSignature: string | null = null;
+  private lastMessageText: string | null = null;
+
+  private lastMessageState: 'stream' | 'final' | null = null;
 
   private hasEmittedMessage = false;
 
@@ -284,7 +286,7 @@ export class StructuredResponseEventEmitter {
     }
 
     if (typeof partial.message === 'string') {
-      this.applyMessageUpdate(partial.message);
+      this.applyMessageUpdate(partial.message, 'stream');
     }
 
     let planEmitted = false;
@@ -309,7 +311,7 @@ export class StructuredResponseEventEmitter {
   }
 
   handleFinalResponse(response: PlanResponse): StructuredResponseEmissionSummary {
-    this.applyMessageUpdate(response.message);
+    this.applyMessageUpdate(response.message, 'final');
     const finalPlanSnapshot = response.plan.map((step) => buildSnapshotFromPlanStep(step));
     const planChanged = this.replaceFinalPlanSnapshot(finalPlanSnapshot);
     const planEmitted = planChanged ? this.emitFinalPlanSnapshot() : false;
@@ -330,23 +332,31 @@ export class StructuredResponseEventEmitter {
     };
   }
 
-  private applyMessageUpdate(value: string): boolean {
+  private applyMessageUpdate(value: string, state: 'stream' | 'final'): boolean {
     const trimmed = value.trim();
     if (!trimmed) {
       return false;
     }
 
-    if (this.lastMessageSignature === trimmed) {
+    const previousText = this.lastMessageText;
+    const previousState = this.lastMessageState;
+
+    this.lastMessageText = trimmed;
+    this.lastMessageState = state;
+
+    if (state === 'stream' && previousState === 'stream' && previousText === trimmed) {
       return false;
     }
 
-    this.lastMessageSignature = trimmed;
+    if (state === 'final' && previousState === 'final' && previousText === trimmed) {
+      return false;
+    }
 
     if (!this.emitEvent) {
       return false;
     }
 
-    emitAssistantMessageEvent(this.emitEvent, trimmed);
+    emitAssistantMessageEvent(this.emitEvent, trimmed, { state });
     this.hasEmittedMessage = true;
     return true;
   }

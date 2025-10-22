@@ -43,8 +43,17 @@ export function createChatActionRunner({
               ensureConversationStarted();
             }
             if (action.text) {
+              const options: { eventId?: string; final?: boolean } = {};
               if (action.eventId) {
-                dom.appendMessage(action.role, action.text, { eventId: action.eventId });
+                options.eventId = action.eventId;
+              }
+              if (action.final) {
+                options.final = true;
+              }
+              if (action.eventId) {
+                dom.appendMessage(action.role, action.text, options);
+              } else if (options.final) {
+                dom.appendMessage(action.role, action.text, { final: true });
               } else {
                 dom.appendMessage(action.role, action.text);
               }

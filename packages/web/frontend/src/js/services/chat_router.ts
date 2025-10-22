@@ -65,6 +65,7 @@ export interface ChatMessageAction {
   text: string;
   startConversation?: boolean;
   eventId?: string;
+  final?: boolean;
 }
 
 export interface ChatStatusAction {
@@ -134,6 +135,8 @@ export function createChatRouter(): ChatRouter {
   const onMessage: ChatRouter['onMessage'] = (payload) => {
     const text = normaliseText(payload.text);
     const eventId = normaliseEventId(payload.__id);
+    const state = typeof payload.state === 'string' ? payload.state.trim().toLowerCase() : '';
+    const isFinal = state === 'final';
     if (!text) {
       return [{ type: 'thinking', active: false }];
     }
@@ -145,6 +148,7 @@ export function createChatRouter(): ChatRouter {
         text,
         startConversation: true,
         ...(eventId ? { eventId } : {}),
+        ...(isFinal ? { final: true } : {}),
       },
     ];
   };
