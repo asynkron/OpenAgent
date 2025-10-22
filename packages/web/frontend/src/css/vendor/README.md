@@ -12,6 +12,5 @@ The copies live in-repo so `npm run build --prefix packages/web` succeeds even w
 | codemirror-one-dark-theme@1.1.1 | `one-dark.css` | `codemirror-one-dark/one-dark.css` |
 | dockview@4.9.0 | `dist/styles/dockview.css` | `dockview/dockview.css` |
 | @fortawesome/fontawesome-free@7.1.0 | `css/all.min.css` + `webfonts/*.woff2` | `fontawesome/css/all.min.css`, `fontawesome/webfonts/` |
-| xterm@5.3.0 | `css/xterm.css` | `xterm/xterm.css` |
 
 To refresh a file, reinstall dependencies at the repo root and copy the upstream asset over the existing snapshot (preserving the brief header comment with the version number).

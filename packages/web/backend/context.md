@@ -16,9 +16,9 @@
 - `src/server/utils.ts` — shared helpers for normalising runtime payloads and error reporting; returns typed payload objects for the websocket bridge and now preserves the core runtime `__id` on every emitted event so frontends can reconcile streaming updates without duplicating rows.
 - `src/server/agentSocketMessage.ts` — parses inbound websocket payloads and forwards valid prompts to the runtime queue.
 - `src/server/__tests__/` — Jest suites covering the websocket manager wiring plus payload formatting utilities.
-- `public/unified_index.html` — static shell served to the browser with the agent chat and
-  terminal containers; seeds an empty `window.__INITIAL_STATE__` when no state payload is
-  embedded so the frontend no longer crashes on load.
+- `public/unified_index.html` — static shell served to the browser with the agent chat
+  container; seeds an empty `window.__INITIAL_STATE__` when no state payload is embedded so
+  the frontend no longer crashes on load.
 - `src/types/openagent-core.d.ts` — ambient bindings for the core runtime websocket adapter exposed by the CLI package.
 - `src/types/ws.d.ts` — workspace-scoped typings for the `ws` package so the backend stays TypeScript-only without external @types.
 - `src/server/utils.ts` — normalises runtime events by reading canonical fields from the nested

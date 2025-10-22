@@ -3,7 +3,6 @@
 @import './vendor/codemirror-one-dark/one-dark.css';
 @import './vendor/dockview/dockview.css';
 @import './vendor/fontawesome/css/all.min.css';
-@import './vendor/xterm/xterm.css';
 @import './theme.css';
 
 :root {
@@ -93,16 +92,6 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
-}
-
-.dockview-panel-terminal .terminal-panel {
-  height: 100%;
-  max-height: none;
-  flex: 1 1 auto;
-}
-
-.dockview-panel-terminal .terminal-body {
-  flex: 1 1 auto;
 }
 
 .dockview-panel-agent .agent-panel {
@@ -717,10 +706,6 @@ body > .agent-panel {
 
 .agent-panel .hidden {
   display: none !important;
-}
-
-.dockview-panel-container .terminal-toolbar {
-  flex: 0 0 auto;
 }
 
 .dv-groupview.dv-inactive-group
@@ -1607,56 +1592,6 @@ body.modal-open {
   font-size: 0.9rem;
   color: var(--color-text-secondary);
   margin: var(--space-0);
-}
-
-.terminal-panel {
-  background: var(--color-bg-body);
-  border-top: 1px solid var(--color-border-default);
-  display: flex;
-  flex-direction: column;
-  height: 260px;
-  min-height: 48px;
-  max-height: 75vh;
-  transition: height 0.15s ease;
-  flex: 0 0 auto;
-}
-
-.terminal-panel.is-collapsed {
-  display: none;
-}
-
-.terminal-resize-handle {
-  height: 6px;
-  cursor: row-resize;
-  background: linear-gradient(180deg, var(--color-border-default) 0%, var(--color-bg-overlay) 100%);
-  border-bottom: 1px solid var(--color-border-default);
-}
-
-.terminal-body {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-}
-
-.terminal-status-badge {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: var(--space-6) var(--space-10);
-  background: var(--color-overlay-panel);
-  border: 1px solid var(--color-border-default);
-  border-radius: 6px;
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-  pointer-events: none;
-}
-
-#terminal-container {
-  position: absolute;
-  inset: 0;
 }
 
 .file-title {
