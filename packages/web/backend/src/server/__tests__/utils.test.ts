@@ -36,22 +36,29 @@ describe('formatAgentEvent', () => {
   });
 
   it('formats assistant messages', () => {
-    const payload = formatAgentEvent({ type: 'assistant-message', message: ' Hello ' });
+    const payload = formatAgentEvent({
+      type: 'assistant-message',
+      payload: { message: ' Hello ' },
+    });
     const expected: AgentPayload = { type: 'agent_message', text: 'Hello' };
     expect(payload).toEqual(expected);
   });
 
   it('omits assistant messages without meaningful text', () => {
-    expect(formatAgentEvent({ type: 'assistant-message', message: '   ' })).toBeUndefined();
+    expect(
+      formatAgentEvent({ type: 'assistant-message', payload: { message: '   ' } }),
+    ).toBeUndefined();
   });
 
   it('formats status events with optional fields', () => {
     const payload = formatAgentEvent({
       type: 'status',
-      message: 'Working',
-      level: 'info',
-      details: 'done',
-      title: ' Agent ',
+      payload: {
+        message: 'Working',
+        level: 'info',
+        details: 'done',
+        title: ' Agent ',
+      },
     });
     expect(payload).toEqual({
       type: 'agent_status',
@@ -66,23 +73,25 @@ describe('formatAgentEvent', () => {
   it('formats command results with command, result, and preview details', () => {
     const payload = formatAgentEvent({
       type: 'command-result',
-      command: {
-        run: '  ls  ',
-        description: ' List ',
-        shell: ' /bin/bash ',
-        cwd: ' /tmp ',
-        timeout_sec: 5,
-        filter_regex: '.*',
-        tail_lines: 10,
-      },
-      result: {
-        exit_code: 0,
-        runtime_ms: 123,
-        killed: false,
-      },
-      preview: {
-        stdoutPreview: ' ok ',
-        stderrPreview: '  ',
+      payload: {
+        command: {
+          run: '  ls  ',
+          description: ' List ',
+          shell: ' /bin/bash ',
+          cwd: ' /tmp ',
+          timeout_sec: 5,
+          filter_regex: '.*',
+          tail_lines: 10,
+        },
+        result: {
+          exit_code: 0,
+          runtime_ms: 123,
+          killed: false,
+        },
+        preview: {
+          stdoutPreview: ' ok ',
+          stderrPreview: '  ',
+        },
       },
     }) as AgentCommandPayload;
 
@@ -107,9 +116,11 @@ describe('formatAgentEvent', () => {
   it('drops unusable command preview data', () => {
     const payload = formatAgentEvent({
       type: 'command-result',
-      preview: {
-        stdout: '   ',
-        stderr: '   ',
+      payload: {
+        preview: {
+          stdout: '   ',
+          stderr: '   ',
+        },
       },
     }) as AgentCommandPayload;
 
@@ -119,9 +130,11 @@ describe('formatAgentEvent', () => {
   it('formats request input metadata when serialisable', () => {
     const payload = formatAgentEvent({
       type: 'request-input',
-      prompt: 'hello',
-      level: 'warn',
-      metadata: { scope: 'user-input', nested: { value: 1 } },
+      payload: {
+        prompt: 'hello',
+        level: 'warn',
+        metadata: { scope: 'user-input', nested: { value: 1 } },
+      },
     });
     expect(payload).toEqual({
       type: 'agent_request_input',
@@ -138,13 +151,24 @@ describe('formatAgentEvent', () => {
 
     const payload = formatAgentEvent({
       type: 'request-input',
-      prompt: 'hello',
-      metadata: cyclic,
+      payload: {
+        prompt: 'hello',
+        metadata: cyclic,
+      },
     });
 
     expect(payload).toEqual({ type: 'agent_request_input', prompt: 'hello' });
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+
+  it('supports legacy top-level fields when payload is absent', () => {
+    const payload = formatAgentEvent({ type: 'status', message: 'Legacy status' });
+    expect(payload).toEqual({
+      type: 'agent_status',
+      text: 'Legacy status',
+      eventType: 'status',
+    });
   });
 
   it('returns undefined for unsupported events', () => {
