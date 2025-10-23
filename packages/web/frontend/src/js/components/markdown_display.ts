@@ -4,6 +4,8 @@ import { highlightCodeBlocks } from '../services/code_highlighter.js';
 
 interface MermaidConfig {
   startOnLoad: boolean;
+  theme: 'dark';
+  securityLevel: 'loose';
 }
 
 interface MermaidRunOptions {
@@ -60,7 +62,13 @@ function ensureMermaidInitialised(): void {
     return;
   }
 
-  mermaid.initialize({ startOnLoad: false });
+  // Mirror the LiveView runtime defaults so diagrams pick up the dark theme and
+  // allow the relaxed link handling the upstream experience depends on.
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'dark',
+    securityLevel: 'loose',
+  });
   disableMermaidErrorWidget(mermaid);
   mermaidInitialised = true;
 }
