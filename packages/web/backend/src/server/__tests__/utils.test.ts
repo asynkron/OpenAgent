@@ -168,6 +168,29 @@ describe('formatAgentEvent', () => {
     });
   });
 
+  it('sanitises request input prompts and drops empty metadata', () => {
+    const payload = formatAgentEvent({
+      type: 'request-input',
+      payload: {
+        prompt: '\n ▷ ',
+        level: ' info ',
+        metadata: {
+          scope: 'user-input',
+          promptId: null,
+          description: null,
+          tags: [],
+          extra: [],
+        },
+      },
+    });
+
+    expect(payload).toEqual({
+      type: 'agent_request_input',
+      prompt: '',
+      level: 'info',
+    });
+  });
+
   it('drops request input metadata when serialisation fails', () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     const cyclic: Record<string, unknown> = { scope: 'user-input' };
