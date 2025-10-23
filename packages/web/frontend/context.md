@@ -50,3 +50,4 @@
 - Further decomposed the chat orchestration into `chat_socket.ts`, `chat_router.ts`, and `chat_inputController.ts` so socket lifecycle, payload routing, and input handling stay isolated and testable; new Jest suites cover reconnection, routing, and queued input dispatch behaviour.
 - Refactored the chat entrypoint to compose `chat_bootstrap.ts`, `chat_lifecycle.ts`, and `chat_sessionController.ts`, pushing socket observers, pending-queue prompts, and DOM bootstrap glue into dedicated modules while tightening discriminated-union typings across lifecycle events.
 - Retired the unused terminal dock panel styling and element plumbing so the agent chat stands alone.
+- Updated the `.agent-message--user` bubble styling to use the requested brand blue background and glow.
