@@ -18,6 +18,8 @@
 - `chat_model.ts` — Shared type definitions plus re-exports of the pure chat helper modules.
 - `chat_modelText.ts` — Text and approval-detection utilities shared by the router and DOM controllers.
 - `chat_modelPreview.ts` — Command preview normalisers used when rendering shell snippets.
+- `code_highlighter.ts` — Applies highlight.js markup to rendered code blocks so markdown content and command previews share the
+  same syntax highlighting pipeline.
 
 ## Tests
 

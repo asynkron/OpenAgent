@@ -1,14 +1,9 @@
-import hljs from 'highlight.js';
 import { marked } from 'marked';
-import type { MarkedOptions } from 'marked';
+import { highlightCodeElement } from './code_highlighter.js';
 
 export interface HighlightOptions {
   language?: string | null;
   classNames?: ReadonlyArray<string> | string;
-}
-
-interface HighlightedMarkedOptions extends MarkedOptions {
-  highlight?(code: string, infoString?: string): string;
 }
 
 const toClassList = (classNames: ReadonlyArray<string> | string | undefined): string[] => {
@@ -42,36 +37,19 @@ export function createHighlightedCodeBlock(
 
   try {
     const markdown = `\`\`\`${safeLanguage}\n${content}\n\`\`\``;
-    const options: HighlightedMarkedOptions = {
-      gfm: true,
-      highlight(code: string, infoString?: string): string {
-        const requestedLanguage = safeLanguage || (infoString || '').trim();
-        try {
-          if (requestedLanguage && hljs.getLanguage(requestedLanguage)) {
-            return hljs.highlight(code, { language: requestedLanguage }).value;
-          }
-          return hljs.highlightAuto(code).value;
-        } catch (error) {
-          console.warn('Failed to highlight command preview snippet', error);
-          return code;
-        }
-      },
-    };
-    const parsed = marked.parse(markdown, options);
+    const parsed = marked.parse(markdown, { gfm: true });
 
     if (typeof parsed === 'string') {
       const template = document.createElement('template');
       template.innerHTML = parsed.trim();
       const pre = template.content.querySelector('pre');
       const codeElement = pre ? pre.querySelector('code') : null;
-      if (pre && codeElement) {
+      if (pre && codeElement instanceof HTMLElement) {
         blockClasses.forEach((className) => pre.classList.add(className));
         if (safeLanguage) {
           codeElement.classList.add(`language-${safeLanguage}`);
         }
-        if (!codeElement.classList.contains('hljs')) {
-          codeElement.classList.add('hljs');
-        }
+        highlightCodeElement(codeElement, safeLanguage);
         return pre;
       }
     }
@@ -83,25 +61,11 @@ export function createHighlightedCodeBlock(
   blockClasses.forEach((className) => pre.classList.add(className));
 
   const codeElement = document.createElement('code');
-
-  try {
-    const requestedLanguage = safeLanguage && hljs.getLanguage(safeLanguage) ? safeLanguage : '';
-    if (requestedLanguage) {
-      codeElement.innerHTML = hljs.highlight(content, { language: requestedLanguage }).value;
-    } else {
-      codeElement.innerHTML = hljs.highlightAuto(content).value;
-    }
-    codeElement.classList.add('hljs');
-    if (requestedLanguage) {
-      codeElement.classList.add(`language-${requestedLanguage}`);
-    }
-  } catch (error) {
-    console.warn('Failed to highlight command preview fallback', error);
-    codeElement.textContent = content;
-    if (safeLanguage) {
-      codeElement.classList.add(`language-${safeLanguage}`);
-    }
+  if (safeLanguage) {
+    codeElement.classList.add(`language-${safeLanguage}`);
   }
+  codeElement.textContent = content;
+  highlightCodeElement(codeElement, safeLanguage);
 
   pre.appendChild(codeElement);
   return pre;
