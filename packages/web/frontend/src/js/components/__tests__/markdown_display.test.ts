@@ -4,6 +4,12 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import type { MarkdownDisplayContext } from '../markdown_display.js';
 
+type MermaidInitializeConfig = {
+  startOnLoad: boolean;
+  theme: 'dark';
+  securityLevel: 'loose';
+};
+
 describe('renderMarkdown', () => {
   beforeEach(() => {
     jest.resetModules();
@@ -11,15 +17,17 @@ describe('renderMarkdown', () => {
   });
 
   it('renders mermaid diagrams from fenced code blocks', async () => {
-    const initialize = jest.fn((config: { startOnLoad: boolean }) => undefined);
+    const initialize = jest.fn((config: MermaidInitializeConfig) => undefined);
     const run = jest.fn((_options: { nodes?: ArrayLike<HTMLElement> }) => Promise.resolve());
     const parse = jest.fn(() => true);
+    const parseError = jest.fn();
 
     await jest.unstable_mockModule('mermaid', () => ({
       default: {
         initialize,
         run,
         parse,
+        parseError,
       },
     }));
 
@@ -46,7 +54,11 @@ describe('renderMarkdown', () => {
     expect(diagrams[0]?.textContent).toBe(['flowchart TD', 'A --> B'].join('\n'));
 
     expect(initialize).toHaveBeenCalledTimes(1);
-    expect(initialize).toHaveBeenCalledWith({ startOnLoad: false });
+    expect(initialize).toHaveBeenCalledWith({
+      startOnLoad: false,
+      theme: 'dark',
+      securityLevel: 'loose',
+    });
     expect(parse).toHaveBeenCalledTimes(1);
     expect(parse).toHaveBeenCalledWith(['flowchart TD', 'A --> B'].join('\n'));
     expect(run).toHaveBeenCalledTimes(1);
@@ -61,15 +73,17 @@ describe('renderMarkdown', () => {
   });
 
   it('initialises mermaid only once per module instance', async () => {
-    const initialize = jest.fn((config: { startOnLoad: boolean }) => undefined);
+    const initialize = jest.fn((config: MermaidInitializeConfig) => undefined);
     const run = jest.fn((_options: { nodes?: ArrayLike<HTMLElement> }) => Promise.resolve());
     const parse = jest.fn(() => true);
+    const parseError = jest.fn();
 
     await jest.unstable_mockModule('mermaid', () => ({
       default: {
         initialize,
         run,
         parse,
+        parseError,
       },
     }));
 
@@ -98,17 +112,19 @@ describe('renderMarkdown', () => {
   });
 
   it('skips mermaid rendering when definitions fail to parse', async () => {
-    const initialize = jest.fn((config: { startOnLoad: boolean }) => undefined);
+    const initialize = jest.fn((config: MermaidInitializeConfig) => undefined);
     const run = jest.fn((_options: { nodes?: ArrayLike<HTMLElement> }) => Promise.resolve());
     const parse = jest.fn(() => {
       throw new Error('parse-error');
     });
+    const parseError = jest.fn();
 
     await jest.unstable_mockModule('mermaid', () => ({
       default: {
         initialize,
         run,
         parse,
+        parseError,
       },
     }));
 

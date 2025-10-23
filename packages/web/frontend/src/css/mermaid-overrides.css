@@ -1,0 +1,60 @@
+/* Mermaid and diagram presentation overrides synced from Asynkron.LiveView
+   Source: https://github.com/asynkron/Asynkron.LiveView/blob/19a8a234b810990064968b1eae248dd23bba5fee/apps/frontend/src/css/app.css
+   Keep this file aligned with upstream to ensure Mermaid diagrams match the LiveView styling. */
+
+path {
+  stroke: var(--color-graph-stroke);
+}
+
+.cluster rect {
+  fill: var(--color-surface-alpha-light) !important;
+}
+
+.diagram-loading {
+  background: var(--color-bg-elevated);
+  border: 1px dashed var(--color-border-default);
+  border-radius: 8px;
+  padding: var(--space-16);
+  margin: var(--space-24) var(--space-0);
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.diagram-loading pre {
+  margin-top: var(--space-12);
+  max-height: 320px;
+  overflow: auto;
+  background: var(--color-overlay-60);
+  border-radius: 6px;
+  padding: var(--space-12);
+}
+
+:where(.content-area, .markdown-display) .mermaid {
+  display: block;
+  margin: var(--space-24) var(--space-0);
+}
+
+:where(.content-area, .markdown-display) .vega-diagram,
+:where(.content-area, .markdown-display) .excalidraw-diagram {
+  margin: var(--space-24) var(--space-0);
+  position: relative;
+  min-height: 120px;
+  overflow: hidden;
+}
+
+:where(.content-area, .markdown-display) .excalidraw-wrapper {
+  width: 100%;
+  min-height: 320px;
+  height: clamp(320px, 65vh, 640px);
+  pointer-events: none;
+}
+
+:where(.content-area, .markdown-display) .excalidraw-wrapper canvas {
+  pointer-events: none !important;
+}
+
+:where(.content-area, .markdown-display) .excalidraw-wrapper .layer-ui__wrapper {
+  display: none !important;
+}

@@ -4,6 +4,7 @@
 @import './vendor/dockview/dockview.css';
 @import './vendor/fontawesome/css/all.min.css';
 @import './theme.css';
+@import './mermaid-overrides.css';
 
 :root {
   color-scheme: dark;
@@ -16,14 +17,6 @@
   --sidebar-collapsed-width: 20px;
   --file-sidebar-current-width: var(--file-sidebar-width);
   --toc-sidebar-current-width: var(--toc-sidebar-width);
-}
-
-path {
-  stroke: var(--color-graph-stroke);
-}
-
-.cluster rect {
-  fill: var(--color-surface-alpha-light) !important;
 }
 
 * {
@@ -1011,55 +1004,6 @@ blockquote code {
   padding: var(--space-16);
   overflow-x: auto;
   border-left: 8px solid #ff7b71;
-}
-
-.diagram-loading {
-  background: var(--color-bg-elevated);
-  border: 1px dashed var(--color-border-default);
-  border-radius: 8px;
-  padding: var(--space-16);
-  margin: var(--space-24) var(--space-0);
-  color: var(--color-text-secondary);
-  font-size: 0.95rem;
-  line-height: 1.5;
-  word-break: break-word;
-}
-
-.diagram-loading pre {
-  margin-top: var(--space-12);
-  max-height: 320px;
-  overflow: auto;
-  background: var(--color-overlay-60);
-  border-radius: 6px;
-  padding: var(--space-12);
-}
-
-:where(.content-area, .markdown-display) .mermaid {
-  display: block;
-  margin: var(--space-24) var(--space-0);
-}
-
-:where(.content-area, .markdown-display) .vega-diagram,
-:where(.content-area, .markdown-display) .excalidraw-diagram {
-  margin: var(--space-24) var(--space-0);
-  position: relative;
-  min-height: 120px;
-  overflow: hidden;
-}
-
-:where(.content-area, .markdown-display) .excalidraw-wrapper {
-  width: 100%;
-  min-height: 320px;
-  height: clamp(320px, 65vh, 640px);
-  pointer-events: none;
-}
-
-:where(.content-area, .markdown-display) .excalidraw-wrapper canvas {
-  pointer-events: none !important;
-}
-
-:where(.content-area, .markdown-display) .excalidraw-wrapper .layer-ui__wrapper {
-  display: none !important;
 }
 
 .editor-container {
