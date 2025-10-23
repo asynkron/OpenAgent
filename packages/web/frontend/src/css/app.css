@@ -410,6 +410,8 @@ body > .agent-panel {
   border: none;
   border-radius: 0;
   box-shadow: none;
+  max-width: none;
+  width: 100%;
 }
 
 .agent-message-bubble.markdown-display {
