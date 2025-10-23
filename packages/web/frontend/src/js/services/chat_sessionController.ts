@@ -124,13 +124,18 @@ export function createChatSessionController({
         case 'payload':
           processActions(routePayload(event.payload));
           break;
-        case 'connection':
+        case 'connection': {
+          const wasConnected = sessionState.isSocketConnected();
           sessionState.setSocketConnected(event.connected);
           if (event.connected) {
+            if (!wasConnected) {
+              dom.beginRuntimeSession();
+            }
             dom.setThinking(false);
             input.flushPending();
           }
           break;
+        }
         default:
           break;
       }
