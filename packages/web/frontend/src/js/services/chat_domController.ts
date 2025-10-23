@@ -79,6 +79,48 @@ interface CommandOutputBlock {
   language?: string;
 }
 
+interface ShellLanguageMapping {
+  names: string[];
+  language: string;
+}
+
+// Map known shell executables to highlight.js language identifiers so the
+// command preview renders with the appropriate syntax rules.
+const COMMAND_SHELL_LANGUAGES: ShellLanguageMapping[] = [
+  { names: ['bash', 'sh', 'zsh', 'ksh'], language: 'bash' },
+  { names: ['fish'], language: 'bash' },
+  { names: ['powershell', 'pwsh'], language: 'powershell' },
+  { names: ['cmd'], language: 'dos' },
+];
+
+const DEFAULT_SHELL_LANGUAGE = 'bash';
+
+function resolveShellLanguage(shellText: string | null | undefined): string {
+  if (!shellText) {
+    return DEFAULT_SHELL_LANGUAGE;
+  }
+
+  const trimmed = shellText.trim();
+  if (!trimmed) {
+    return DEFAULT_SHELL_LANGUAGE;
+  }
+
+  const firstTokenMatch = trimmed.match(/^("[^"]+"|'[^']+'|[^\s]+)/u);
+  const firstToken = firstTokenMatch ? firstTokenMatch[0] : trimmed;
+  const unquoted = firstToken.replace(/^"|"$/gu, '').replace(/^'|'$/gu, '');
+  const pathSegments = unquoted.split(/[\\/]/u);
+  const lastSegment = pathSegments[pathSegments.length - 1] ?? unquoted;
+  const baseName = lastSegment.replace(/\.exe$/iu, '').toLowerCase();
+
+  for (const mapping of COMMAND_SHELL_LANGUAGES) {
+    if (mapping.names.includes(baseName)) {
+      return mapping.language;
+    }
+  }
+
+  return DEFAULT_SHELL_LANGUAGE;
+}
+
 function normaliseEventId(value: unknown): string | null {
   if (typeof value === 'string') {
     const trimmed = value.trim();
@@ -356,6 +398,23 @@ export function createChatDomController({
     container.appendChild(block);
   };
 
+  const appendPlainTextBlock = (
+    container: HTMLElement,
+    content: string,
+    classNames: string[],
+  ): void => {
+    if (!content) {
+      return;
+    }
+    // Render stdout/stderr output without embedding highlight.js wrappers so the
+    // text stays faithful to the original stream.
+    const block = documentRef.createElement('pre');
+    const safeClassNames = classNames.filter((value) => value.length > 0);
+    block.className = safeClassNames.join(' ');
+    block.textContent = content;
+    container.appendChild(block);
+  };
+
   const createAgentMarkdownDisplay = (target: HTMLElement): MarkdownDisplayApi =>
     createMarkdownDisplay({
       content: target,
@@ -501,6 +560,7 @@ export function createChatDomController({
     const description = normaliseText(command?.description).trim();
     const shellText = normaliseText(command?.shell).trim();
     const workingDirectory = normaliseText(command?.cwd ?? (command as { workingDirectory?: unknown })?.workingDirectory).trim();
+    const shellLanguage = resolveShellLanguage(shellText);
 
     const titleCandidates = [
       description,
@@ -526,7 +586,7 @@ export function createChatDomController({
 
     if (runText) {
       appendHighlightedBlock(bubble, runText, {
-        language: shellText || 'bash',
+        language: shellLanguage,
         classNames: ['agent-command-block'],
       });
     }
@@ -581,10 +641,26 @@ export function createChatDomController({
             block.label.toUpperCase(),
           ),
         );
-        appendHighlightedBlock(section, block.content, {
-          language: block.language ?? '',
-          classNames: ['agent-command-block', 'agent-command-output-block'],
-        });
+        const labelKey = block.label.toLowerCase();
+        if (labelKey === 'stdout') {
+          appendPlainTextBlock(section, block.content, [
+            'agent-command-block',
+            'agent-command-output-block',
+            'agent-command-output-text',
+          ]);
+        } else if (labelKey === 'stderr') {
+          appendPlainTextBlock(section, block.content, [
+            'agent-command-block',
+            'agent-command-output-block',
+            'agent-command-output-text',
+            'agent-command-output-text--stderr',
+          ]);
+        } else {
+          appendHighlightedBlock(section, block.content, {
+            language: block.language ?? '',
+            classNames: ['agent-command-block', 'agent-command-output-block'],
+          });
+        }
         outputContainer.appendChild(section);
       }
       bubble.appendChild(outputContainer);

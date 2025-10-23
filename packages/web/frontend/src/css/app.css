@@ -628,6 +628,14 @@ body > .agent-panel {
   margin-top: 0;
 }
 
+.agent-command-output-text {
+  display: block;
+}
+
+.agent-command-output-text--stderr {
+  color: var(--color-danger-emphasis);
+}
+
 .agent-input-form {
   padding: var(--space-20) var(--space-24);
   display: flex;
