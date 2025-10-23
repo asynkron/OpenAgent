@@ -1,7 +1,6 @@
-import hljs from 'highlight.js';
 import { marked } from 'marked';
-import type { MarkedOptions } from 'marked';
 import mermaidLibrary from 'mermaid';
+import { highlightCodeBlocks } from '../services/code_highlighter.js';
 
 interface MermaidConfig {
   startOnLoad: boolean;
@@ -30,14 +29,6 @@ export type MarkdownDisplayContext = {
 type RenderOptions = {
   updateCurrent?: boolean;
 };
-
-interface MarkdownHighlightedOptions extends MarkedOptions {
-  /**
-   * `marked` omits the `highlight` callback from its option type, so we extend
-   * it locally to maintain type safety for syntax highlighting.
-   */
-  highlight?(code: string, language?: string): string;
-}
 
 type MermaidParseErrorDetails = {
   readonly [key: string]: string | number | boolean | null | undefined;
@@ -160,30 +151,7 @@ function renderMarkdown(
   let html = String(markdownText || '');
 
   try {
-    const options: MarkdownHighlightedOptions = {
-      gfm: true,
-      highlight(code: string, language?: string): string {
-        if (!language) {
-          try {
-            return hljs.highlightAuto(code).value;
-          } catch (error) {
-            console.warn('Failed to auto-highlight markdown code block', error);
-            return code;
-          }
-        }
-
-        try {
-          if (hljs.getLanguage(language)) {
-            return hljs.highlight(code, { language }).value;
-          }
-          return hljs.highlightAuto(code).value;
-        } catch (error) {
-          console.warn('Failed to highlight markdown code block', error);
-          return code;
-        }
-      },
-    };
-    const parsed = marked.parse(markdownText || '', options);
+    const parsed = marked.parse(markdownText || '', { gfm: true });
     if (typeof parsed === 'string') {
       html = parsed;
     }
@@ -192,6 +160,7 @@ function renderMarkdown(
   }
 
   content.innerHTML = html;
+  highlightCodeBlocks(content);
   renderMermaidDiagrams(content);
 
   if (updateCurrent && typeof content.dataset !== 'undefined') {
