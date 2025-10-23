@@ -345,11 +345,49 @@ function serialiseMetadata(metadata: unknown): PromptRequestMetadata | undefined
 
   try {
     const serialised = JSON.parse(JSON.stringify(metadata)) as Record<string, unknown>;
-    const scope =
-      typeof serialised.scope === 'string' && serialised.scope.trim().length > 0
-        ? serialised.scope
-        : 'user-input';
-    return { ...serialised, scope } as PromptRequestMetadata;
+    const sanitized: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(serialised)) {
+      if (value == null) {
+        continue;
+      }
+
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed.length === 0) {
+          continue;
+        }
+        sanitized[key] = trimmed;
+        continue;
+      }
+
+      if (Array.isArray(value) && value.length === 0) {
+        continue;
+      }
+
+      sanitized[key] = value;
+    }
+
+    if (typeof sanitized.scope === 'string') {
+      const trimmedScope = (sanitized.scope as string).trim();
+      if (trimmedScope.length === 0) {
+        delete sanitized.scope;
+      } else {
+        sanitized.scope = trimmedScope;
+        if (
+          trimmedScope.toLowerCase() === 'user-input' &&
+          Object.keys(sanitized).length === 1
+        ) {
+          delete sanitized.scope;
+        }
+      }
+    }
+
+    if (Object.keys(sanitized).length === 0) {
+      return undefined;
+    }
+
+    return sanitized as PromptRequestMetadata;
   } catch (error) {
     console.warn('Failed to serialise agent metadata', error);
     return undefined;
@@ -477,15 +515,23 @@ export function formatAgentEvent(event: unknown): AgentPayload | undefined {
       return withEventId(payload);
     }
     case 'request-input': {
-      const prompt = normaliseAgentText(resolveEventField(data as RequestInputEvent, 'prompt'));
+      const promptSource = normaliseAgentText(
+        resolveEventField(data as RequestInputEvent, 'prompt'),
+      );
+      const trimmedPrompt = promptSource.trim();
+      const prompt =
+        trimmedPrompt === '▷' || trimmedPrompt.length === 0 ? '' : trimmedPrompt;
       const payload: AgentRequestInputPayload = {
         type: 'agent_request_input',
         prompt,
       };
 
       const level = resolveEventField(data as RequestInputEvent, 'level');
-      if (typeof level === 'string' && level) {
-        payload.level = level;
+      if (typeof level === 'string') {
+        const trimmedLevel = level.trim();
+        if (trimmedLevel) {
+          payload.level = trimmedLevel;
+        }
       }
 
       const metadata = serialiseMetadata(resolveEventField(data as RequestInputEvent, 'metadata'));
