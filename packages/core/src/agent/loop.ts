@@ -408,6 +408,15 @@ export function createAgentLoop(options: AgentRuntimeOptions = {}): () => Promis
 }
 
 export { extractOpenAgentToolCall, extractResponseText } from '../openai/responseUtils.js';
+export {
+  performHumanInputStep,
+  processPromptStep,
+  performResponseAndPlanSteps,
+  type HumanInputStepResult,
+  type HumanInputStepStatus,
+  type ProcessPromptStepOptions,
+  type ProcessPromptStepResult,
+} from './loopSupport.js';
 
 export default {
   createAgentLoop,

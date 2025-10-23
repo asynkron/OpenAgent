@@ -148,16 +148,40 @@ export function createThinkingController(emit: EmitEvent): {
   };
 }
 
+export type HumanInputStepStatus = 'exit' | 'skip' | 'continue';
+
+export interface HumanInputStepResult {
+  status: HumanInputStepStatus;
+  value: string | null;
+}
+
+export interface ProcessPromptStepOptions {
+  history: HistorySnapshot;
+  createChatMessageEntryFn: (options: {
+    eventType: string;
+    role: string;
+    content: string;
+    pass: number;
+  }) => ChatMessageEntry;
+  enforceMemoryPolicies: (pass: number) => void;
+  passContext: PassExecutionContext;
+  prompt: string;
+}
+
+export interface ProcessPromptStepResult {
+  passIndex: number;
+}
+
 export async function runConversationLoop(context: ConversationLoopContext): Promise<void> {
   while (true) {
-    const decision = await fetchUserInputDecision({
+    const humanInput = await performHumanInputStep({
       promptCoordinator: context.promptCoordinator,
       getNoHumanFlag: context.getNoHumanFlag,
       noHumanAutoMessage: context.noHumanAutoMessage,
       userInputPrompt: context.userInputPrompt,
     });
 
-    if (decision.kind === 'exit') {
+    if (humanInput.status === 'exit') {
       context.emit({
         type: RuntimeEventType.Status,
         payload: {
@@ -169,26 +193,21 @@ export async function runConversationLoop(context: ConversationLoopContext): Pro
       break;
     }
 
-    if (decision.kind === 'skip') {
+    if (humanInput.status === 'skip') {
       continue;
     }
 
-    const activePass = context.passContext.nextPass();
-
-    context.history.push(
-      context.createChatMessageEntryFn({
-        eventType: 'chat-message',
-        role: 'user',
-        content: decision.value,
-        pass: activePass,
-      }),
-    );
-
-    context.enforceMemoryPolicies(activePass);
+    const processedPrompt = processPromptStep({
+      history: context.history,
+      createChatMessageEntryFn: context.createChatMessageEntryFn,
+      enforceMemoryPolicies: context.enforceMemoryPolicies,
+      passContext: context.passContext,
+      prompt: humanInput.value ?? '',
+    });
 
     try {
-      await executePassSequence({
-        initialPass: activePass,
+      await performResponseAndPlanSteps({
+        initialPass: processedPrompt.passIndex,
         passContext: context.passContext,
       });
     } catch (error) {
@@ -220,9 +239,12 @@ function handleAgentInputEvent(event: AgentInputEvent, promptCoordinator: Prompt
   }
 }
 
-type UserInputDecision = { kind: 'exit' } | { kind: 'skip' } | { kind: 'input'; value: string };
-
-async function fetchUserInputDecision({
+/**
+ * Step 1: Collect human input (or auto-generated input when --nohuman is active).
+ * Returns a structured result so the caller can decide whether to exit, skip, or
+ * continue with prompt processing.
+ */
+export async function performHumanInputStep({
   promptCoordinator,
   getNoHumanFlag,
   noHumanAutoMessage,
@@ -232,24 +254,50 @@ async function fetchUserInputDecision({
   getNoHumanFlag: () => boolean;
   noHumanAutoMessage: string;
   userInputPrompt: string;
-}): Promise<UserInputDecision> {
+}): Promise<HumanInputStepResult> {
   const noHumanActive = getNoHumanFlag();
   const userInput = noHumanActive
     ? noHumanAutoMessage
     : await promptCoordinator.request(userInputPrompt, { scope: 'user-input' });
 
   if (!userInput) {
-    return { kind: 'skip' };
+    return { status: 'skip', value: null };
   }
 
   if (isExitCommand(userInput)) {
-    return { kind: 'exit' };
+    return { status: 'exit', value: null };
   }
 
-  return { kind: 'input', value: userInput };
+  return { status: 'continue', value: userInput };
 }
 
-async function executePassSequence({
+/**
+ * Step 2: Persist the human prompt in history and enforce memory policies before
+ * handing control to the pass executor.
+ */
+export function processPromptStep(options: ProcessPromptStepOptions): ProcessPromptStepResult {
+  const passIndex = options.passContext.nextPass();
+
+  options.history.push(
+    options.createChatMessageEntryFn({
+      eventType: 'chat-message',
+      role: 'user',
+      content: options.prompt,
+      pass: passIndex,
+    }),
+  );
+
+  options.enforceMemoryPolicies(passIndex);
+
+  return { passIndex };
+}
+
+/**
+ * Steps 3-5: Delegate to the pass executor so it can stream assistant responses,
+ * process the final tool payload, and iterate plan/task execution until the
+ * executor signals completion.
+ */
+export async function performResponseAndPlanSteps({
   initialPass,
   passContext,
 }: {
