@@ -477,10 +477,11 @@ body > .agent-panel {
 }
 
 .agent-message--user .agent-message-bubble {
-  background: var(--color-accent-blue);
+  /* Match the requested user bubble color palette */
+  background: #006be4;
   border-color: transparent;
   color: var(--color-text-inverse);
-  box-shadow: 0 16px 40px rgba(56, 139, 253, 0.25);
+  box-shadow: 0 16px 40px #388bfd40;
 }
 
 .agent-message-bubble--event {
