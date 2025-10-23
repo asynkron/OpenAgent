@@ -30,6 +30,7 @@ export type MarkdownDisplayContext = {
 
 type RenderOptions = {
   updateCurrent?: boolean;
+  renderMermaid?: boolean;
 };
 
 type MermaidParseErrorDetails = {
@@ -150,7 +151,7 @@ function renderMermaidDiagrams(target: HTMLElement): void {
 function renderMarkdown(
   { content }: MarkdownDisplayContext,
   markdownText: string = '',
-  { updateCurrent = true }: RenderOptions = {},
+  { updateCurrent = true, renderMermaid: shouldRenderMermaid = true }: RenderOptions = {},
 ): void {
   if (!content) {
     return;
@@ -169,7 +170,9 @@ function renderMarkdown(
 
   content.innerHTML = html;
   highlightCodeBlocks(content);
-  renderMermaidDiagrams(content);
+  if (shouldRenderMermaid) {
+    renderMermaidDiagrams(content);
+  }
 
   if (updateCurrent && typeof content.dataset !== 'undefined') {
     content.dataset.rendered = 'true';

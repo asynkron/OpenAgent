@@ -33,7 +33,7 @@
 - Markdown rendering now reapplies highlight.js syntax highlighting in the DOM after parsing so fenced code blocks retain their
   theme even under the latest Marked release.
 - Mermaid diagrams now stay as plain code blocks until their definitions parse successfully, preventing streaming-time rendering errors and deferring Mermaid initialisation until the content stabilises.
-- Chat DOM handling keeps streaming assistant updates as plain text until the runtime marks the message as `state: "final"`, at which point the bubble re-renders via the markdown display (including Mermaid diagrams) so diagrams and code fences only hydrate once the response is complete.
+- Chat DOM handling now streams assistant updates through the markdown renderer while deferring Mermaid hydration until the runtime marks the message as `state: "final"`, preserving formatting mid-stream without repeatedly initialising diagrams.
 - Streamlined chat, shared context, and bootstrap helpers with stricter TypeScript unions and optional chaining, replacing runtime `typeof` guards with typed utilities for cleaner DOM event handling.
 - Refined chat payload routing with a typed handler map and removed the last `unknown` casts from markdown rendering to keep syntax highlighting and message handling strictly typed.
 - Pruned unused helper typings in shared context/tests so ESLint stays quiet under the expanded repo-wide lint run.
