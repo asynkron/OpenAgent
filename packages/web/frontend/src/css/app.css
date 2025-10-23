@@ -1009,11 +1009,11 @@ blockquote code {
 }
 
 :where(.content-area, .markdown-display) pre {
-  background: #2a262b;
-  /* border-radius: 8px; */
+  /* Match the refreshed dark theme for rendered code blocks. */
+  background: #141821;
+  border-radius: 12px;
   padding: var(--space-16);
   overflow-x: auto;
-  border-left: 8px solid #ff7b71;
 }
 
 .editor-container {
