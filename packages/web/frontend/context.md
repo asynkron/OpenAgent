@@ -33,6 +33,7 @@
 - Markdown rendering now reapplies highlight.js syntax highlighting in the DOM after parsing so fenced code blocks retain their
   theme even under the latest Marked release.
 - Mermaid diagrams now stay as plain code blocks until their definitions parse successfully, preventing streaming-time rendering errors and deferring Mermaid initialisation until the content stabilises.
+- Command result panels now highlight recorded shell commands using the reported interpreter and render stdout as plain text while emphasising stderr with a red tone for quicker scanning.
 - Chat DOM handling now streams assistant updates through the markdown renderer while deferring Mermaid hydration until the runtime marks the message as `state: "final"`, preserving formatting mid-stream without repeatedly initialising diagrams.
 - Streamlined chat, shared context, and bootstrap helpers with stricter TypeScript unions and optional chaining, replacing runtime `typeof` guards with typed utilities for cleaner DOM event handling.
 - Refined chat payload routing with a typed handler map and removed the last `unknown` casts from markdown rendering to keep syntax highlighting and message handling strictly typed.
