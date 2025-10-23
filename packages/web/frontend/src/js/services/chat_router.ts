@@ -206,9 +206,19 @@ export function createChatRouter(): ChatRouter {
       ];
     }
 
+    const scope =
+      typeof payload.metadata?.scope === 'string'
+        ? payload.metadata.scope.trim().toLowerCase()
+        : '';
+    const isApprovalPrompt = scope === 'approval';
+
     return [
       { type: 'thinking', active: false },
-      { type: 'status', message: promptText },
+      {
+        type: 'status',
+        message: promptText,
+        ...(isApprovalPrompt ? { level: 'warn' } : {}),
+      },
     ];
   };
 

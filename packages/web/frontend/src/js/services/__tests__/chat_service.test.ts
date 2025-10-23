@@ -39,6 +39,7 @@ describe('chat service helpers', () => {
         appendCommand: jest.fn(),
         appendEvent: jest.fn(),
         appendMessage: jest.fn(),
+        beginRuntimeSession: jest.fn(),
         dispose: jest.fn(),
         ensureConversationStarted: jest.fn(),
         isThinking: jest.fn(),
@@ -119,6 +120,7 @@ describe('chat service helpers', () => {
       appendCommand: jest.fn(),
       appendEvent: jest.fn(),
       appendMessage: jest.fn(),
+      beginRuntimeSession: jest.fn(),
       dispose: jest.fn(),
       ensureConversationStarted: jest.fn(),
       isThinking: jest.fn(),
@@ -182,6 +184,33 @@ describe('chat service helpers', () => {
       session.handleLifecycleEvent({ type: 'payload', payload });
       expect(routePayload).toHaveBeenCalledWith(payload);
       expect(runActions).toHaveBeenCalled();
+    });
+
+    it('starts a new runtime session when the socket reconnects', () => {
+      const dom = createDomSpies();
+      const input = createInputSpies();
+      const lifecycle = { connect: jest.fn(), isConnected: jest.fn(() => false) };
+      const routePayload = jest.fn<ChatRouteAction[], [AgentIncomingPayload]>(() => []);
+      const runActions = jest.fn();
+
+      const session = createChatSessionController({
+        dom,
+        input,
+        lifecycle,
+        routePayload,
+        runActions,
+      });
+
+      session.handleLifecycleEvent({ type: 'connection', connected: true });
+      expect(dom.beginRuntimeSession).toHaveBeenCalledTimes(1);
+      expect(input.flushPending).toHaveBeenCalledTimes(1);
+
+      session.handleLifecycleEvent({ type: 'connection', connected: true });
+      expect(dom.beginRuntimeSession).toHaveBeenCalledTimes(1);
+
+      session.handleLifecycleEvent({ type: 'connection', connected: false });
+      session.handleLifecycleEvent({ type: 'connection', connected: true });
+      expect(dom.beginRuntimeSession).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -249,6 +278,7 @@ describe('chat service helpers', () => {
       let capturedHandlers: ChatBootstrapHandlers = {};
 
       const dom = {
+        beginRuntimeSession: jest.fn(),
         dispose: jest.fn(),
         isThinking: jest.fn(() => false),
       } as unknown as ChatDomController;

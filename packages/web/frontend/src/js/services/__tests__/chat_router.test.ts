@@ -31,6 +31,26 @@ describe('createChatRouter', () => {
     ]);
   });
 
+  it('surfaces approval prompts as warning status updates', () => {
+    const payload = {
+      type: 'agent_request_input',
+      prompt:
+        'Approve running this command?\n  1) Yes (run once)\n  2) Yes, for entire session (add to in-memory approvals)\n  3) No, tell the AI to do something else\nSelect 1, 2, or 3:',
+      metadata: { scope: 'approval' },
+    } as AgentIncomingPayload & { type: 'agent_request_input' };
+
+    const actions = router.onRequestInput(payload);
+    expect(actions).toEqual([
+      { type: 'thinking', active: false },
+      {
+        type: 'status',
+        message:
+          'Approve running this command?\n  1) Yes (run once)\n  2) Yes, for entire session (add to in-memory approvals)\n  3) No, tell the AI to do something else\nSelect 1, 2, or 3:',
+        level: 'warn',
+      },
+    ]);
+  });
+
   it('returns status, message, and details for errors', () => {
     const payload = {
       type: 'agent_error',

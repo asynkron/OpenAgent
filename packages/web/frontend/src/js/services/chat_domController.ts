@@ -40,6 +40,7 @@ export interface ChatDomController {
   ensureConversationStarted(): void;
   updatePanelState(active: boolean): void;
   updatePlan(steps: PlanStep[]): void;
+  beginRuntimeSession(): void;
   isThinking(): boolean;
   dispose(): void;
 }
@@ -157,8 +158,48 @@ export function createChatDomController({
   let isThinking = false;
   let lastStatus = '';
   let lastStatusLevel = '';
+  let runtimeGeneration = 0;
   const messageEntries = new Map<string, MessageEntry>();
   const commandEntries = new Map<string, CommandEntry>();
+
+  const buildRuntimeKey = (eventId: string | null): string | null => {
+    if (!eventId) {
+      return null;
+    }
+    return `${runtimeGeneration}:${eventId}`;
+  };
+
+  const getMessageEntry = (eventId: string | null): MessageEntry | null => {
+    const key = buildRuntimeKey(eventId);
+    if (!key) {
+      return null;
+    }
+    return messageEntries.get(key) ?? null;
+  };
+
+  const setMessageEntry = (eventId: string | null, entry: MessageEntry): void => {
+    const key = buildRuntimeKey(eventId);
+    if (!key) {
+      return;
+    }
+    messageEntries.set(key, entry);
+  };
+
+  const getCommandEntry = (eventId: string | null): CommandEntry | null => {
+    const key = buildRuntimeKey(eventId);
+    if (!key) {
+      return null;
+    }
+    return commandEntries.get(key) ?? null;
+  };
+
+  const setCommandEntry = (eventId: string | null, entry: CommandEntry): void => {
+    const key = buildRuntimeKey(eventId);
+    if (!key) {
+      return;
+    }
+    commandEntries.set(key, entry);
+  };
 
   const ensureButtons = (disabled: boolean): void => {
     for (const button of sendButtons) {
@@ -356,32 +397,29 @@ export function createChatDomController({
     const normalized = normaliseText(text);
     const eventId = normaliseEventId(options.eventId);
     const isFinal = options.final === true;
-
-    if (eventId) {
-      const existing = messageEntries.get(eventId);
-      if (existing) {
-        if (existing.role !== role) {
-          existing.role = role;
-          existing.wrapper.className = `agent-message agent-message--${role}`;
-        }
-
-        existing.text = normalized;
-
-        if (role === 'agent') {
-          if (isFinal) {
-            renderAgentMarkdown(existing, { updateCurrent: true });
-          } else if (existing.final && existing.markdown) {
-            existing.markdown.render(existing.text, { updateCurrent: true });
-          } else {
-            setAgentStreamingContent(existing);
-          }
-        } else {
-          existing.bubble.textContent = normalized;
-        }
-
-        scrollToLatest();
-        return;
+    const existing = getMessageEntry(eventId);
+    if (existing) {
+      if (existing.role !== role) {
+        existing.role = role;
+        existing.wrapper.className = `agent-message agent-message--${role}`;
       }
+
+      existing.text = normalized;
+
+      if (role === 'agent') {
+        if (isFinal) {
+          renderAgentMarkdown(existing, { updateCurrent: true });
+        } else if (existing.final && existing.markdown) {
+          existing.markdown.render(existing.text, { updateCurrent: true });
+        } else {
+          setAgentStreamingContent(existing);
+        }
+      } else {
+        existing.bubble.textContent = normalized;
+      }
+
+      scrollToLatest();
+      return;
     }
 
     if (!normalized) {
@@ -417,7 +455,8 @@ export function createChatDomController({
 
     if (eventId) {
       wrapper.dataset.eventId = eventId;
-      messageEntries.set(eventId, entry);
+      wrapper.dataset.runtimeGeneration = String(runtimeGeneration);
+      setMessageEntry(eventId, entry);
     }
 
     appendMessageWrapper(wrapper);
@@ -561,13 +600,11 @@ export function createChatDomController({
     }
 
     const eventId = normaliseEventId(options.eventId);
-    if (eventId) {
-      const existing = commandEntries.get(eventId);
-      if (existing) {
-        renderCommandBubble(existing.bubble, payload ?? null);
-        scrollToLatest();
-        return;
-      }
+    const existing = getCommandEntry(eventId);
+    if (existing) {
+      renderCommandBubble(existing.bubble, payload ?? null);
+      scrollToLatest();
+      return;
     }
 
     const { wrapper, bubble } = createMessageContainer(
@@ -579,7 +616,8 @@ export function createChatDomController({
 
     if (eventId) {
       wrapper.dataset.eventId = eventId;
-      commandEntries.set(eventId, { wrapper, bubble });
+      wrapper.dataset.runtimeGeneration = String(runtimeGeneration);
+      setCommandEntry(eventId, { wrapper, bubble });
     }
 
     appendMessageWrapper(wrapper);
@@ -618,6 +656,11 @@ export function createChatDomController({
     updatePlan(steps) {
       planDisplay?.update(Array.isArray(steps) ? steps : []);
     },
+    beginRuntimeSession() {
+      runtimeGeneration += 1;
+      messageEntries.clear();
+      commandEntries.clear();
+    },
     isThinking() {
       return isThinking;
     },
@@ -628,6 +671,7 @@ export function createChatDomController({
       lastStatus = '';
       lastStatusLevel = '';
       isThinking = false;
+      runtimeGeneration = 0;
       messageEntries.clear();
       commandEntries.clear();
       setPanelActive(false);
@@ -641,5 +685,14 @@ export function shouldAppendStatusMessage(payload: AgentMessagePayload): boolean
   if (!promptText || promptText === '▷') {
     return false;
   }
+
+  const scope =
+    typeof payload.metadata?.scope === 'string'
+      ? payload.metadata.scope.trim().toLowerCase()
+      : '';
+  if (scope === 'approval') {
+    return true;
+  }
+
   return shouldDisplayApprovalText(promptText);
 }
