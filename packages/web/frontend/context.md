@@ -51,3 +51,4 @@
 - Refactored the chat entrypoint to compose `chat_bootstrap.ts`, `chat_lifecycle.ts`, and `chat_sessionController.ts`, pushing socket observers, pending-queue prompts, and DOM bootstrap glue into dedicated modules while tightening discriminated-union typings across lifecycle events.
 - Retired the unused terminal dock panel styling and element plumbing so the agent chat stands alone.
 - Synced Mermaid diagram CSS overrides (including the global path/cluster tweaks) from Asynkron.LiveView into `src/css/mermaid-overrides.css`, import them from `app.css`, and mirror the upstream dark-theme Mermaid initialisation so diagrams match the LiveView look and feel.
+- Updated the `.agent-message--user` bubble styling to use the requested brand blue background and glow.
