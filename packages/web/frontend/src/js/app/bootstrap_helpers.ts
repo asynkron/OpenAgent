@@ -16,6 +16,7 @@ function isMarkdownDisplayApi(target: MarkdownTarget): target is MarkdownDisplay
 
 type RenderOptions = {
   updateCurrent?: boolean;
+  renderMermaid?: boolean;
 };
 
 export type FileEntry = {

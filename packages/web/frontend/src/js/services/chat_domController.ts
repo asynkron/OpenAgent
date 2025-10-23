@@ -385,8 +385,10 @@ export function createChatDomController({
   };
 
   const setAgentStreamingContent = (entry: MessageEntry): void => {
+    const markdownDisplay = ensureAgentMarkdown(entry);
+    // Stream full markdown but defer Mermaid hydration until the final chunk arrives.
+    markdownDisplay.render(entry.text, { updateCurrent: true, renderMermaid: false });
     entry.final = false;
-    entry.bubble.textContent = entry.text;
   };
 
   const appendMessage = (
@@ -409,8 +411,6 @@ export function createChatDomController({
       if (role === 'agent') {
         if (isFinal) {
           renderAgentMarkdown(existing, { updateCurrent: true });
-        } else if (existing.final && existing.markdown) {
-          existing.markdown.render(existing.text, { updateCurrent: true });
         } else {
           setAgentStreamingContent(existing);
         }
@@ -447,7 +447,7 @@ export function createChatDomController({
         entry.markdown = markdownDisplay;
         entry.final = true;
       } else {
-        bubble.textContent = entry.text;
+        setAgentStreamingContent(entry);
       }
     } else {
       bubble.textContent = entry.text;

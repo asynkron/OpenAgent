@@ -151,4 +151,45 @@ describe('renderMarkdown', () => {
     const fallbackBlocks = container.querySelectorAll('pre > code.language-mermaid');
     expect(fallbackBlocks).toHaveLength(1);
   });
+
+  it('defers mermaid rendering when disabled via render options', async () => {
+    const initialize = jest.fn((config: MermaidInitializeConfig) => undefined);
+    const run = jest.fn((_options: { nodes?: ArrayLike<HTMLElement> }) => Promise.resolve());
+    const parse = jest.fn(() => true);
+    const parseError = jest.fn();
+
+    await jest.unstable_mockModule('mermaid', () => ({
+      default: {
+        initialize,
+        run,
+        parse,
+        parseError,
+      },
+    }));
+
+    const { renderMarkdown } = await import('../markdown_display.js');
+
+    const container = document.createElement('div');
+    const context: MarkdownDisplayContext = {
+      content: container,
+      tocList: null,
+      getCurrentFile: () => null,
+      setCurrentContent: () => {
+        /* noop */
+      },
+      buildQuery: () => '',
+    };
+
+    const markdown = ['```mermaid', 'sequenceDiagram', 'A->>B: ping', '```'].join('\n');
+
+    renderMarkdown(context, markdown, { renderMermaid: false });
+
+    expect(initialize).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
+    expect(parse).not.toHaveBeenCalled();
+
+    const fallbackBlocks = container.querySelectorAll('pre > code.language-mermaid');
+    expect(fallbackBlocks).toHaveLength(1);
+    expect(fallbackBlocks[0]?.textContent).toContain('sequenceDiagram');
+  });
 });
