@@ -3,6 +3,7 @@ import { describe, expect, test, jest } from '@jest/globals';
 
 import type { ResponsesClient } from '../../openai/responses.js';
 import { createChatMessageEntry } from '../historyEntry.js';
+import { createObservationHistoryEntry } from '../historyMessageBuilder.js';
 import type { PassExecutionBaseOptions } from '../loopSupport.js';
 import type { ExecuteAgentPassOptions } from '../passExecutor/types.js';
 import { createVirtualCommandExecutor } from '../virtualCommandExecutor.js';
@@ -82,6 +83,7 @@ describe('createVirtualCommandExecutor', () => {
 
     expect(passExecutor).toHaveBeenCalledTimes(1);
     expect(outcome.result.exit_code).toBe(0);
+    expect(outcome.result.stdout).toContain('Summary for "Virtual agent: research"');
     expect(outcome.result.stdout).toContain('virtual result summary');
     expect(outcome.executionDetails.type).toBe('VIRTUAL');
     for (const call of emitEvent.mock.calls) {
@@ -98,6 +100,51 @@ describe('createVirtualCommandExecutor', () => {
       });
       expect(finishedDebugCall[1]).toMatchObject({ agent: 'SubAgent-1' });
     }
+  });
+
+  test('includes command observations when the assistant does not respond', async () => {
+    const baseOptions = createBaseOptions();
+    const emitEvent = jest.fn();
+    const emitDebug = jest.fn();
+
+    const passExecutor = jest.fn(async (options: ExecuteAgentPassOptions) => {
+      options.history.push(
+        createObservationHistoryEntry({
+          observation: {
+            observation_for_llm: {
+              stdout: 'README.md explains the CLI usage.',
+              stderr: '',
+              truncated: false,
+              exit_code: 0,
+            },
+            observation_metadata: { timestamp: '2024-01-01T00:00:00.000Z' },
+          },
+          pass: options.passIndex,
+        }),
+      );
+      return false;
+    });
+
+    const executor = createVirtualCommandExecutor({
+      systemPrompt: 'system prompt',
+      baseOptions,
+      passExecutor,
+      createChatMessageEntryFn: createChatMessageEntry,
+      emitEvent,
+      emitDebug,
+      createSubAgentLabel: () => 'SubAgent-observation',
+    });
+
+    const outcome = await executor({
+      command: { shell: 'openagent', run: 'virtual-agent explore {}' },
+      descriptor: { action: 'explore', argument: '{}' },
+    });
+
+    expect(outcome.result.exit_code).toBe(0);
+    expect(outcome.result.stdout).toContain('Summary for "Virtual agent: explore"');
+    expect(outcome.result.stdout).toContain('No assistant summary was produced. Review command results below.');
+    expect(outcome.result.stdout).toContain('Command Results:');
+    expect(outcome.result.stdout).toContain('README.md explains the CLI usage.');
   });
 
   test('limits the number of passes when configured via JSON argument', async () => {
