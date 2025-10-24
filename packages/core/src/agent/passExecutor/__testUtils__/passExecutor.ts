@@ -60,6 +60,7 @@ export const createNormalizedOptions = (
     async () =>
       ({}) as Awaited<ReturnType<NormalizedExecuteAgentPassOptions['executeAgentCommandFn']>>,
   ),
+  virtualCommandExecutor: null,
   createObservationBuilderFn: createMock<
     NormalizedExecuteAgentPassOptions['createObservationBuilderFn']
   >(

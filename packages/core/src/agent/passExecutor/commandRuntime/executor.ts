@@ -1,4 +1,4 @@
-import type { AgentCommandContext } from '../../commandExecution.js';
+import type { AgentCommandContext, VirtualCommandExecutor } from '../../commandExecution.js';
 import type { ExecuteAgentPassOptions } from '../types.js';
 import type { PlanRuntime } from '../planRuntime.js';
 import type { CommandRunOutcome } from '../types.js';
@@ -10,6 +10,7 @@ export interface CommandExecutorOptions {
   readonly runCommandFn: AgentCommandContext['runCommandFn'];
   readonly emitEvent: ExecuteAgentPassOptions['emitEvent'];
   readonly planRuntime: PlanRuntime;
+  readonly virtualCommandExecutor: VirtualCommandExecutor | null;
 }
 
 const executeCommandSafely = async (
@@ -20,6 +21,7 @@ const executeCommandSafely = async (
     return await options.executeAgentCommandFn({
       command: commandPayload,
       runCommandFn: options.runCommandFn,
+      virtualCommandExecutor: options.virtualCommandExecutor,
     });
   } catch (error) {
     const normalizedError =

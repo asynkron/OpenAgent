@@ -33,6 +33,7 @@ import { AsyncQueue } from '../utils/asyncQueue.js';
 import { cancel as cancelActive } from '../utils/cancellation.js';
 import { AmnesiaManager, applyDementiaPolicy } from './amnesiaManager.js';
 import type { ApprovalConfig } from './approvalManager.js';
+import { createVirtualCommandExecutor } from './virtualCommandExecutor.js';
 import type {
   AgentInputEvent,
   AgentRuntime,
@@ -341,6 +342,19 @@ export function createAgentRuntime({
       emitAutoApproveStatus,
       ...normalizedPassExecutorDeps,
     };
+
+    if (typeof normalizedPassExecutorDeps.virtualCommandExecutor !== 'function') {
+      const virtualExecutor = createVirtualCommandExecutor({
+        systemPrompt: combinedSystemPrompt,
+        baseOptions,
+        passExecutor,
+        createChatMessageEntryFn,
+        emitEvent: (event, options) => emit(event, options),
+        emitDebug,
+      });
+      normalizedPassExecutorDeps.virtualCommandExecutor = virtualExecutor;
+      baseOptions.virtualCommandExecutor = virtualExecutor;
+    }
 
     const passContext: PassExecutionContext = {
       passExecutor,

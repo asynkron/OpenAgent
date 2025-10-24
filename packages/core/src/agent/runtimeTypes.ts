@@ -121,6 +121,7 @@ export type ExecuteAgentPassDependencies = Partial<
     | 'createObservationBuilderFn'
     | 'combineStdStreamsFn'
     | 'buildPreviewFn'
+    | 'virtualCommandExecutor'
     | 'parseAssistantResponseFn'
     | 'validateAssistantResponseSchemaFn'
     | 'validateAssistantResponseFn'

@@ -40,6 +40,7 @@ const createNormalizedOptions = (
   emitEvent: options.emitEvent ?? noop,
   requestModelCompletionFn: options.requestModelCompletionFn ?? defaultRequestModelCompletion,
   executeAgentCommandFn: options.executeAgentCommandFn ?? defaultExecuteAgentCommand,
+  virtualCommandExecutor: options.virtualCommandExecutor ?? null,
   parseAssistantResponseFn: options.parseAssistantResponseFn ?? defaultParseAssistantResponse,
   validateAssistantResponseSchemaFn:
     options.validateAssistantResponseSchemaFn ?? defaultValidateAssistantResponseSchema,

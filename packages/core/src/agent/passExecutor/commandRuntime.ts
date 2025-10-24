@@ -1,4 +1,4 @@
-import type { AgentCommandContext } from '../commandExecution.js';
+import type { AgentCommandContext, VirtualCommandExecutor } from '../commandExecution.js';
 import type ObservationBuilder from '../observationBuilder.js';
 import type { ApprovalManager } from '../approvalManager.js';
 import {
@@ -31,6 +31,7 @@ interface CommandRuntimeOptions {
   emitAutoApproveStatus: boolean;
   runCommandFn: AgentCommandContext['runCommandFn'];
   executeAgentCommandFn: NonNullable<ExecuteAgentPassOptions['executeAgentCommandFn']>;
+  virtualCommandExecutor: VirtualCommandExecutor | null;
   incrementCommandCountFn: NonNullable<ExecuteAgentPassOptions['incrementCommandCountFn']>;
   observationBuilder: ObservationBuilder;
   planRuntime: PlanRuntime;
@@ -57,6 +58,7 @@ export class CommandRuntime {
       runCommandFn: options.runCommandFn,
       emitEvent: options.emitEvent,
       planRuntime: options.planRuntime,
+      virtualCommandExecutor: options.virtualCommandExecutor,
     } satisfies CommandExecutorOptions;
 
     this.resultOptions = {
