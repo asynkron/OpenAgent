@@ -21,6 +21,14 @@ function normaliseEventId(value: unknown): string | null {
   return null;
 }
 
+function normaliseAgentLabel(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 const AGENT_PAYLOAD_TYPES = [
   'agent_message',
   'agent_status',
@@ -66,6 +74,7 @@ export interface ChatMessageAction {
   startConversation?: boolean;
   eventId?: string;
   final?: boolean;
+  agent?: string;
 }
 
 export interface ChatStatusAction {
@@ -73,12 +82,14 @@ export interface ChatStatusAction {
   message: string;
   level?: string;
   clear?: boolean;
+  agent?: string;
 }
 
 export interface ChatPlanAction {
   type: 'plan';
   steps: PlanStep[];
   startConversation?: boolean;
+  agent?: string;
 }
 
 export interface ChatEventAction {
@@ -86,6 +97,7 @@ export interface ChatEventAction {
   eventType: string;
   payload: AgentEventPayload;
   startConversation?: boolean;
+  agent?: string;
 }
 
 export interface ChatCommandAction {
@@ -93,6 +105,7 @@ export interface ChatCommandAction {
   payload: AgentCommandPayload;
   startConversation?: boolean;
   eventId?: string;
+  agent?: string;
 }
 
 export interface ChatThinkingAction {
@@ -137,6 +150,7 @@ export function createChatRouter(): ChatRouter {
     const eventId = normaliseEventId(payload.__id);
     const state = typeof payload.state === 'string' ? payload.state.trim().toLowerCase() : '';
     const isFinal = state === 'final';
+    const agentLabel = normaliseAgentLabel(payload.agent);
     if (!text) {
       return [{ type: 'thinking', active: false }];
     }
@@ -149,12 +163,14 @@ export function createChatRouter(): ChatRouter {
         startConversation: true,
         ...(eventId ? { eventId } : {}),
         ...(isFinal ? { final: true } : {}),
+        ...(agentLabel ? { agent: agentLabel } : {}),
       },
     ];
   };
 
   const onStatus: ChatRouter['onStatus'] = (payload) => {
     const text = normaliseText(payload.text);
+    const agentLabel = normaliseAgentLabel(payload.agent);
     if (isApprovalNotification({ ...payload, text } as AgentMessagePayload)) {
       return [{ type: 'thinking', active: false }];
     }
@@ -163,20 +179,32 @@ export function createChatRouter(): ChatRouter {
     }
     return [
       { type: 'thinking', active: false },
-      { type: 'status', message: text, level: payload.level },
+      {
+        type: 'status',
+        message: text,
+        level: payload.level,
+        ...(agentLabel ? { agent: agentLabel } : {}),
+      },
     ];
   };
 
   const onError: ChatRouter['onError'] = (payload) => {
     const message = normaliseText(payload.message);
+    const agentLabel = normaliseAgentLabel(payload.agent);
     const actions: ChatRouteAction[] = [{ type: 'thinking', active: false }];
     if (message) {
-      actions.push({ type: 'status', message, level: 'error' });
+      actions.push({
+        type: 'status',
+        message,
+        level: 'error',
+        ...(agentLabel ? { agent: agentLabel } : {}),
+      });
       actions.push({
         type: 'message',
         role: 'agent',
         text: message,
         startConversation: true,
+        ...(agentLabel ? { agent: agentLabel } : {}),
       });
     }
 
@@ -187,6 +215,7 @@ export function createChatRouter(): ChatRouter {
         role: 'agent',
         text: details,
         startConversation: true,
+        ...(agentLabel ? { agent: agentLabel } : {}),
       });
     }
 
@@ -199,6 +228,7 @@ export function createChatRouter(): ChatRouter {
 
   const onRequestInput: ChatRouter['onRequestInput'] = (payload) => {
     const promptText = normaliseText(payload.prompt).trim();
+    const agentLabel = normaliseAgentLabel(payload.agent);
     if (!promptText || promptText === '▷' || !shouldAppendStatusMessage(payload)) {
       return [
         { type: 'thinking', active: false },
@@ -218,29 +248,41 @@ export function createChatRouter(): ChatRouter {
         type: 'status',
         message: promptText,
         ...(isApprovalPrompt ? { level: 'warn' } : {}),
+        ...(agentLabel ? { agent: agentLabel } : {}),
       },
     ];
   };
 
   const onPlan: ChatRouter['onPlan'] = (payload) => {
     const planSteps: PlanStep[] = Array.isArray(payload.plan) ? (payload.plan as PlanStep[]) : [];
-    return [{ type: 'plan', steps: planSteps, startConversation: true }];
+    const agentLabel = normaliseAgentLabel(payload.agent);
+    return [
+      {
+        type: 'plan',
+        steps: planSteps,
+        startConversation: true,
+        ...(agentLabel ? { agent: agentLabel } : {}),
+      },
+    ];
   };
 
   const onEvent: ChatRouter['onEvent'] = (payload) => {
     const eventType = payload.eventType ?? 'event';
+    const agentLabel = normaliseAgentLabel(payload.agent);
     return [
       {
         type: 'event',
         eventType,
         payload,
         startConversation: true,
+        ...(agentLabel ? { agent: agentLabel } : {}),
       },
     ];
   };
 
   const onCommand: ChatRouter['onCommand'] = (payload) => {
     const eventId = normaliseEventId(payload.__id);
+    const agentLabel = normaliseAgentLabel(payload.agent);
     return [
       { type: 'thinking', active: false },
       {
@@ -248,6 +290,7 @@ export function createChatRouter(): ChatRouter {
         payload,
         startConversation: true,
         ...(eventId ? { eventId } : {}),
+        ...(agentLabel ? { agent: agentLabel } : {}),
       },
     ];
   };

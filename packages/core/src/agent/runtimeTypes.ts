@@ -197,6 +197,7 @@ export interface AgentRuntimeOptions {
   userInputPrompt?: string;
   noHumanAutoMessage?: string;
   eventObservers?: RuntimeEventObserver[] | null;
+  agentLabel?: string;
   idPrefix?: string;
   passExecutorDeps?: ExecuteAgentPassDependencies | null;
 }
@@ -224,10 +225,11 @@ export type RuntimeDebugPayload =
 
 export interface EmitRuntimeEventOptions {
   readonly id?: string;
+  readonly agent?: string;
 }
 
 export interface RuntimeEmitter extends RuntimeLogger {
   emit(event: RuntimeEvent, options?: EmitRuntimeEventOptions): void;
   emitFactoryWarning(message: string, error?: string | null): void;
-  emitDebug(payloadOrFactory: RuntimeDebugPayload): void;
+  emitDebug(payloadOrFactory: RuntimeDebugPayload, options?: EmitRuntimeEventOptions): void;
 }

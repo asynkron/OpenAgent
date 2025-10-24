@@ -21,6 +21,7 @@ interface RuntimeEmitterConfig {
   idPrefix: NonNullable<AgentRuntimeOptions['idPrefix']>;
   idGeneratorFn: AgentRuntimeOptions['idGeneratorFn'];
   isDebugEnabled: () => boolean;
+  agentLabel: string | null;
 }
 
 const cloneEvent = (event: RuntimeEvent): RuntimeEvent => {
@@ -45,8 +46,17 @@ export function createRuntimeEmitter({
   idPrefix,
   idGeneratorFn,
   isDebugEnabled,
+  agentLabel,
 }: RuntimeEmitterConfig): RuntimeEmitter {
   let counter = 0;
+
+  const normaliseAgentLabel = (value: unknown): string | null => {
+    if (typeof value !== 'string') {
+      return null;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  };
 
   const logWithFallback = (
     level: LoggerLevel,
@@ -88,6 +98,16 @@ export function createRuntimeEmitter({
     })();
     const resolvedId = providedId ?? existingId ?? nextId();
     (clonedEvent as { __id: string }).__id = resolvedId;
+
+    const providedAgent = normaliseAgentLabel(options?.agent);
+    const existingAgent = normaliseAgentLabel((clonedEvent as { agent?: unknown }).agent);
+    const defaultAgent = normaliseAgentLabel(agentLabel);
+    const resolvedAgent = providedAgent ?? existingAgent ?? defaultAgent;
+    if (resolvedAgent) {
+      (clonedEvent as { agent: string }).agent = resolvedAgent;
+    } else if (typeof (clonedEvent as { agent?: unknown }).agent !== 'undefined') {
+      delete (clonedEvent as { agent?: unknown }).agent;
+    }
     outputsQueue.push(clonedEvent);
 
     if (!Array.isArray(eventObservers)) {
@@ -123,7 +143,10 @@ export function createRuntimeEmitter({
     emit(warning);
   };
 
-  const emitDebug = (payloadOrFactory: RuntimeDebugPayload): void => {
+  const emitDebug = (
+    payloadOrFactory: RuntimeDebugPayload,
+    options?: EmitRuntimeEventOptions,
+  ): void => {
     if (!isDebugEnabled()) {
       return;
     }
@@ -148,7 +171,7 @@ export function createRuntimeEmitter({
     }
 
     const debugEvent: DebugRuntimeEvent = { type: 'debug', payload };
-    emit(debugEvent);
+    emit(debugEvent, options);
   };
 
   return {

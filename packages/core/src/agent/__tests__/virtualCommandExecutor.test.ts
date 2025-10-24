@@ -72,6 +72,7 @@ describe('createVirtualCommandExecutor', () => {
       createChatMessageEntryFn: createChatMessageEntry,
       emitEvent,
       emitDebug,
+      createSubAgentLabel: () => 'SubAgent-1',
     });
 
     const outcome = await executor({
@@ -83,9 +84,9 @@ describe('createVirtualCommandExecutor', () => {
     expect(outcome.result.exit_code).toBe(0);
     expect(outcome.result.stdout).toContain('virtual result summary');
     expect(outcome.executionDetails.type).toBe('VIRTUAL');
-    expect(emitEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ type: RuntimeEventType.Status }),
-    );
+    for (const call of emitEvent.mock.calls) {
+      expect(call[1]).toMatchObject({ agent: 'SubAgent-1' });
+    }
     expect(baseOptions.history).toHaveLength(0);
     const [, finishedDebugCall] = emitDebug.mock.calls;
     expect(Array.isArray(finishedDebugCall)).toBe(true);
@@ -95,6 +96,7 @@ describe('createVirtualCommandExecutor', () => {
         result: expect.objectContaining({ exit_code: 0 }),
         execution: expect.objectContaining({ type: 'VIRTUAL' }),
       });
+      expect(finishedDebugCall[1]).toMatchObject({ agent: 'SubAgent-1' });
     }
   });
 
@@ -112,6 +114,7 @@ describe('createVirtualCommandExecutor', () => {
       createChatMessageEntryFn: createChatMessageEntry,
       emitEvent,
       emitDebug,
+      createSubAgentLabel: () => 'SubAgent-1',
     });
 
     const outcome = await executor({
@@ -133,6 +136,7 @@ describe('createVirtualCommandExecutor', () => {
         result: expect.objectContaining({ exit_code: 1 }),
         execution: expect.objectContaining({ type: 'VIRTUAL' }),
       });
+      expect(lastDebugEntry[1]).toMatchObject({ agent: 'SubAgent-1' });
     }
   });
 
@@ -152,6 +156,7 @@ describe('createVirtualCommandExecutor', () => {
       createChatMessageEntryFn: createChatMessageEntry,
       emitEvent,
       emitDebug,
+      createSubAgentLabel: () => 'SubAgent-1',
     });
 
     const outcome = await executor({

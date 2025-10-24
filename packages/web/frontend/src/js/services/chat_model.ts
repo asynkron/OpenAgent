@@ -45,6 +45,7 @@ export interface AgentEventPayload {
   prompt?: string;
   metadata?: AgentMetadata | null;
   __id?: string | null;
+  agent?: string | null;
 }
 
 export interface AgentCommandPayload extends AgentEventPayload {

@@ -54,3 +54,4 @@
 - Retired the unused terminal dock panel styling and element plumbing so the agent chat stands alone.
 - Synced Mermaid diagram CSS overrides (including the global path/cluster tweaks) from Asynkron.LiveView into `src/css/mermaid-overrides.css`, import them from `app.css`, and mirror the upstream dark-theme Mermaid initialisation so diagrams match the LiveView look and feel.
 - Updated the `.agent-message--user` bubble styling to use the requested brand blue background and glow.
+- Chat router and DOM controller now surface the emitting agent before each timeline entry and status banner, keeping multi-agent conversations easy to scan while aligning with the backend’s new `agent` metadata.
