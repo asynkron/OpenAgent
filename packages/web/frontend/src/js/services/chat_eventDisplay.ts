@@ -24,6 +24,10 @@ const AGENT_EVENT_RESOLVERS: Record<string, EventDisplayResolver> = {
 
 const defaultEventDisplayResolver: EventDisplayResolver = resolveDefaultDisplay;
 
+// The runtime streams verbose debug events during nested agent runs; keep them
+// out of the UI so users only see meaningful updates.
+const SUPPRESSED_EVENT_TYPES = new Set<string>(['debug']);
+
 export interface EventDisplayResult {
   display: ResolvedDisplay;
   level: string;
@@ -34,6 +38,10 @@ export const resolveAgentEventDisplay = (
   eventType: string,
   payload: AgentEventPayload = {},
 ): EventDisplayResult | null => {
+  if (SUPPRESSED_EVENT_TYPES.has(eventType)) {
+    return null;
+  }
+
   if (isApprovalNotification(payload)) {
     return null;
   }
