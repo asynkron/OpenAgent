@@ -44,6 +44,7 @@ describe('runApprovedCommand', () => {
         runCommandFn: jest.fn(),
         emitEvent: jest.fn(),
         planRuntime,
+        virtualCommandExecutor: null,
       },
       {
         type: 'approved',
@@ -103,6 +104,7 @@ describe('CommandRuntime', () => {
       emitAutoApproveStatus: false,
       runCommandFn: jest.fn(),
       executeAgentCommandFn: executeAgentCommandFn as never,
+      virtualCommandExecutor: null,
       incrementCommandCountFn: jest.fn().mockResolvedValue(undefined),
       observationBuilder: observationBuilder as never,
       planRuntime,
@@ -183,6 +185,7 @@ describe('CommandRuntime', () => {
       emitAutoApproveStatus: false,
       runCommandFn: jest.fn(),
       executeAgentCommandFn: jest.fn(),
+      virtualCommandExecutor: null,
       incrementCommandCountFn: jest.fn().mockResolvedValue(undefined),
       observationBuilder: {
         build: jest.fn(),

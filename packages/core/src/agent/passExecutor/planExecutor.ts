@@ -69,6 +69,7 @@ export const executePlan = async ({
     emitAutoApproveStatus: options.emitAutoApproveStatus ?? false,
     runCommandFn: options.runCommandFn,
     executeAgentCommandFn: options.executeAgentCommandFn,
+    virtualCommandExecutor: options.virtualCommandExecutor,
     incrementCommandCountFn: options.incrementCommandCountFn,
     observationBuilder,
     planRuntime,

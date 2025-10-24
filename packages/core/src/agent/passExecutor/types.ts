@@ -4,7 +4,11 @@ import type ObservationBuilder from '../observationBuilder.js';
 import type { EscState } from '../escState.js';
 import type { ApprovalManager } from '../approvalManager.js';
 import type { HistoryCompactor } from '../historyCompactor.js';
-import type { AgentCommandContext, CommandExecutionResult } from '../commandExecution.js';
+import type {
+  AgentCommandContext,
+  CommandExecutionResult,
+  VirtualCommandExecutor,
+} from '../commandExecution.js';
 import type { PlanResponse } from '../../contracts/index.js';
 import type { ChatMessageEntry } from '../historyEntry.js';
 import type { requestModelCompletion as RequestModelCompletion } from '../modelRequest.js';
@@ -82,6 +86,7 @@ export interface ExecuteAgentPassOptions {
   passIndex: number;
   requestModelCompletionFn?: typeof RequestModelCompletion;
   executeAgentCommandFn?: typeof ExecuteAgentCommand;
+  virtualCommandExecutor?: VirtualCommandExecutor | null;
   createObservationBuilderFn?: (deps: ObservationBuilderDeps) => ObservationBuilder;
   combineStdStreamsFn?: ObservationBuilderDeps['combineStdStreams'];
   buildPreviewFn?: ObservationBuilderDeps['buildPreview'];
@@ -100,6 +105,7 @@ export interface NormalizedExecuteAgentPassOptions extends ExecuteAgentPassOptio
   emitEvent: EmitEvent;
   requestModelCompletionFn: typeof RequestModelCompletion;
   executeAgentCommandFn: typeof ExecuteAgentCommand;
+  virtualCommandExecutor: VirtualCommandExecutor | null;
   parseAssistantResponseFn: typeof ParseAssistantResponse;
   validateAssistantResponseSchemaFn: typeof ValidateAssistantResponseSchema;
   validateAssistantResponseFn: typeof ValidateAssistantResponse;

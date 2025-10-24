@@ -45,6 +45,18 @@ export interface CommandHandler {
   execute(context: AgentCommandContext): Promise<CommandExecutionResult>;
 }
 
+export interface VirtualCommandDescriptor {
+  readonly action: string;
+  readonly argument: string;
+}
+
+export interface VirtualCommandExecutionContext {
+  readonly command: AgentCommand;
+  readonly descriptor: VirtualCommandDescriptor;
+}
+
+export type VirtualCommandExecutor = (context: VirtualCommandExecutionContext) => Promise<CommandExecutionResult>;
+
 function createCommandHandlers(): CommandHandler[] {
   return [new ExecuteCommand()];
 }
@@ -52,6 +64,7 @@ function createCommandHandlers(): CommandHandler[] {
 export interface ExecuteAgentCommandOptions {
   command?: AgentCommand | null;
   runCommandFn: AgentCommandContext['runCommandFn'];
+  virtualCommandExecutor?: VirtualCommandExecutor | null;
 }
 
 const normalizeCommand = (command: AgentCommand | null | undefined): AgentCommand => {
@@ -107,6 +120,78 @@ function createCommandContext(
   };
 }
 
+const VIRTUAL_COMMAND_SHELL = 'openagent';
+const VIRTUAL_COMMAND_PREFIX = 'virtual-agent';
+
+const detectVirtualCommand = (command: AgentCommand): VirtualCommandDescriptor | null => {
+  if (command.shell !== VIRTUAL_COMMAND_SHELL) {
+    return null;
+  }
+
+  const trimmedRun = typeof command.run === 'string' ? command.run.trim() : '';
+  if (!trimmedRun.startsWith(VIRTUAL_COMMAND_PREFIX)) {
+    return null;
+  }
+
+  const remainder = trimmedRun.slice(VIRTUAL_COMMAND_PREFIX.length).trim();
+  if (!remainder) {
+    return { action: 'default', argument: '' };
+  }
+
+  const spaceIndex = remainder.indexOf(' ');
+  if (spaceIndex === -1) {
+    return { action: remainder, argument: '' };
+  }
+
+  const action = remainder.slice(0, spaceIndex).trim();
+  const argument = remainder.slice(spaceIndex + 1).trim();
+
+  return {
+    action: action || 'default',
+    argument,
+  };
+};
+
+const MAX_VIRTUAL_ARGUMENT_PREVIEW = 200;
+
+const formatVirtualCommandDetail = (descriptor: VirtualCommandDescriptor): string => {
+  const actionLabel = descriptor.action ? `action "${descriptor.action}"` : 'virtual action';
+  if (!descriptor.argument) {
+    return actionLabel;
+  }
+
+  const argument = descriptor.argument.length > MAX_VIRTUAL_ARGUMENT_PREVIEW
+    ? `${descriptor.argument.slice(0, MAX_VIRTUAL_ARGUMENT_PREVIEW)}…`
+    : descriptor.argument;
+
+  return `${actionLabel} with argument: ${argument}`;
+};
+
+const buildVirtualCommandFallback = (
+  command: AgentCommand,
+  descriptor: VirtualCommandDescriptor,
+  reason: string,
+): CommandExecutionResult => {
+  const message = `${reason} (${formatVirtualCommandDetail(descriptor)}). Provide a virtualCommandExecutor to handle this command.`;
+
+  return {
+    result: {
+      stdout: '',
+      stderr: message,
+      exit_code: 1,
+      killed: false,
+      runtime_ms: 0,
+    },
+    executionDetails: {
+      type: 'VIRTUAL',
+      command,
+      error: {
+        message,
+      },
+    },
+  };
+};
+
 function findMatchingHandler(context: AgentCommandContext): CommandHandler {
   const handlers = createCommandHandlers();
 
@@ -122,8 +207,23 @@ function findMatchingHandler(context: AgentCommandContext): CommandHandler {
 export async function executeAgentCommand({
   command,
   runCommandFn,
+  virtualCommandExecutor,
 }: ExecuteAgentCommandOptions): Promise<CommandExecutionResult> {
   const normalizedCommand = normalizeCommand(command);
+  const virtualDescriptor = detectVirtualCommand(normalizedCommand);
+
+  if (virtualDescriptor) {
+    if (typeof virtualCommandExecutor === 'function') {
+      return virtualCommandExecutor({ command: normalizedCommand, descriptor: virtualDescriptor });
+    }
+
+    return buildVirtualCommandFallback(
+      normalizedCommand,
+      virtualDescriptor,
+      'Virtual command requested but no virtualCommandExecutor is configured.',
+    );
+  }
+
   const context = createCommandContext(normalizedCommand, runCommandFn);
   const handler = findMatchingHandler(context);
 
