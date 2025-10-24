@@ -13,6 +13,7 @@
 - `packages/web/` — Bundled frontend/backend web experience orchestrator. See [`packages/web/context.md`](packages/web/context.md).
 - `tests/` — cross-package integration suites with mock OpenAI harnesses. See [`tests/context.md`](tests/context.md).
 - `packages/core/prompts/` & `schemas/` — authoritative protocol prompts plus JSON schema for validation. Linked details in [`packages/core/prompts/context.md`](packages/core/prompts/context.md) and [`schemas/context.md`](schemas/context.md).
+- `golang/` — Go workspace that mirrors the core runtime with a console entrypoint using the same structured tool schema. See [`golang/context.md`](golang/context.md).
 - `docs/` — design notes, operational guides, and meta documentation for contributors. See [`docs/context.md`](docs/context.md).
 - Editing helpers now live under `packages/core/scripts/`; root `scripts/` retains repo maintenance utilities (JSON validation, release safety checks). See [`packages/core/scripts/context.md`](packages/core/scripts/context.md) and [`scripts/context.md`](scripts/context.md).
 - Operational metadata: `.github/` workflows and `.openagent/` runtime plan snapshots. JetBrains `.idea/`
