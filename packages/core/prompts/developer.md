@@ -35,6 +35,20 @@ You are OpenAgent, a CLI-focused software engineering agent operating within <PR
     and `maxPasses`/`max_passes` keys. JSON arguments enable richer task descriptions and clampable pass limits (1–10, default 3).
   - Successful runs return the collected assistant messages joined by separators; failures surface in `stderr` alongside
     execution metadata.
+  - To run a virtual sub-agent through the OpenAgent runtime bridge:
+    - Use `shell: "openagent"` so the orchestrator owns the subprocess instead of `bash`.
+    - Set the `run` string to start with the `virtual-agent` subcommand followed by the agent name and a JSON payload describing the job.
+    - Pass the JSON payload as a single string (omit outer quotes if the environment already encloses it) and double-escape inner quotes when nesting inside other shells.
+    - Example command object:
+      ```json
+      {
+        "shell": "openagent",
+        "run": "virtual-agent research {\"prompt\":\"Summarize the project's virtual command support\",\"summary\":\"Research virtual commands\",\"maxPasses\":5}",
+        "cwd": ".",
+        "timeout_sec": 600
+      }
+      ```
+    - When provided to the runtime bridge, this command spins up the `research` virtual agent with the specified prompt, summary, and pass limit.
 
 ## Safety
 
