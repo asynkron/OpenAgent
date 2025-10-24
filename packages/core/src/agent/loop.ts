@@ -270,6 +270,16 @@ export function createAgentRuntime({
     }),
   ];
 
+  // Emit a status event so hosts can confirm the system prompt was seeded into history.
+  emit({
+    type: RuntimeEventType.Status,
+    payload: {
+      level: 'info',
+      message: 'System prompt injected into chat history.',
+      details: combinedSystemPrompt,
+    },
+  });
+
   // Memory policies mutate the shared history; keep the bookkeeping outside the loop.
   const { enforcePolicies: enforceMemoryPolicies } = createMemoryPolicyController({
     history,
