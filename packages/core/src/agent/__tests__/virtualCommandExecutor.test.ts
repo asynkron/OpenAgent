@@ -1,10 +1,10 @@
 /* eslint-env jest */
 import { describe, expect, test, jest } from '@jest/globals';
 
-import { RuntimeEventType } from '../../contracts/events.js';
 import type { ResponsesClient } from '../../openai/responses.js';
 import { createChatMessageEntry } from '../historyEntry.js';
 import type { PassExecutionBaseOptions } from '../loopSupport.js';
+import type { ExecuteAgentPassOptions } from '../passExecutor/types.js';
 import { createVirtualCommandExecutor } from '../virtualCommandExecutor.js';
 
 const createBaseOptions = (): PassExecutionBaseOptions => {
@@ -138,6 +138,51 @@ describe('createVirtualCommandExecutor', () => {
       });
       expect(lastDebugEntry[1]).toMatchObject({ agent: 'SubAgent-1' });
     }
+  });
+
+  test('honors pass limits above ten when the caller requests more', async () => {
+    const baseOptions = createBaseOptions();
+    const emitEvent = jest.fn();
+    const emitDebug = jest.fn();
+
+    let calls = 0;
+    const passExecutor = async (options: ExecuteAgentPassOptions): Promise<boolean> => {
+      calls += 1;
+      if (options.passIndex === 15) {
+        // Emit an assistant response on the final pass so the run succeeds.
+        options.history.push(
+          createChatMessageEntry({
+            role: 'assistant',
+            content: 'Completed after extended run.',
+            pass: options.passIndex,
+          }),
+        );
+        return false;
+      }
+      return true;
+    };
+
+    const executor = createVirtualCommandExecutor({
+      systemPrompt: 'system prompt',
+      baseOptions,
+      passExecutor,
+      createChatMessageEntryFn: createChatMessageEntry,
+      emitEvent,
+      emitDebug,
+      createSubAgentLabel: () => 'SubAgent-extended',
+    });
+
+    const outcome = await executor({
+      command: { shell: 'openagent', run: 'virtual-agent explore {}' },
+      descriptor: {
+        action: 'explore',
+        argument: '{"prompt":"Test extended run","maxPasses":15}',
+      },
+    });
+
+    expect(calls).toBe(15);
+    expect(outcome.result.exit_code).toBe(0);
+    expect(outcome.executionDetails.virtualAgent?.maxPasses).toBe(15);
   });
 
   test('propagates executor failures as command errors', async () => {
