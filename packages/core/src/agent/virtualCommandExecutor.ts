@@ -12,6 +12,21 @@ import type { PlanHistory } from './passExecutor/types.js';
 import type { EmitEvent } from './passExecutor/types.js';
 import type { DebugRuntimeEventPayload, EmitRuntimeEventOptions } from './runtimeTypes.js';
 
+interface ObservationSummary {
+  readonly summary: string | null;
+  readonly details: string | null;
+  readonly stdout: string;
+  readonly stderr: string;
+  readonly exitCode: number | null;
+  readonly truncated: boolean;
+  readonly truncationNotice: string | null;
+}
+
+interface VirtualAgentFindings {
+  readonly assistantMessages: string[];
+  readonly observations: ObservationSummary[];
+}
+
 interface VirtualAgentExecutorConfig {
   readonly systemPrompt: string;
   readonly baseOptions: PassExecutionBaseOptions;
@@ -102,6 +117,205 @@ const parseDescriptor = (descriptor: VirtualCommandDescriptor): ParsedVirtualDes
     summary: defaultSummary,
     maxPasses: DEFAULT_MAX_PASSES,
   } satisfies ParsedVirtualDescriptor;
+};
+
+const toTrimmedString = (value: unknown): string | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const toFiniteNumber = (value: unknown): number | null => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return value;
+};
+
+const parseObservationContent = (raw: string): ObservationSummary | null => {
+  try {
+    const parsed = JSON.parse(raw) as {
+      type?: unknown;
+      payload?: unknown;
+      summary?: unknown;
+      details?: unknown;
+    } | null;
+
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+
+    const typeValue = toTrimmedString(parsed.type);
+    if (typeValue !== 'observation') {
+      return null;
+    }
+
+    const payloadCandidate = parsed.payload as {
+      stdout?: unknown;
+      stderr?: unknown;
+      exit_code?: unknown;
+      truncated?: unknown;
+      truncation_notice?: unknown;
+      summary?: unknown;
+      details?: unknown;
+    } | null;
+
+    if (!payloadCandidate || typeof payloadCandidate !== 'object') {
+      return null;
+    }
+
+    const summary = toTrimmedString(parsed.summary)
+      ?? toTrimmedString(payloadCandidate.summary)
+      ?? null;
+    const details = toTrimmedString(parsed.details)
+      ?? toTrimmedString(payloadCandidate.details)
+      ?? null;
+    const stdout = typeof payloadCandidate.stdout === 'string' ? payloadCandidate.stdout : '';
+    const stderr = typeof payloadCandidate.stderr === 'string' ? payloadCandidate.stderr : '';
+    const exitCode = toFiniteNumber(payloadCandidate.exit_code);
+    const truncationNotice = toTrimmedString(payloadCandidate.truncation_notice);
+    const truncated = payloadCandidate.truncated === true;
+
+    return {
+      summary,
+      details,
+      stdout,
+      stderr,
+      exitCode,
+      truncated,
+      truncationNotice,
+    } satisfies ObservationSummary;
+  } catch (error) {
+    return null;
+  }
+};
+
+const collectFindings = (history: PlanHistory): VirtualAgentFindings => {
+  const assistantMessages: string[] = [];
+  const observations: ObservationSummary[] = [];
+
+  for (const entry of history) {
+    if (!entry || typeof entry !== 'object') {
+      continue;
+    }
+
+    const payload = entry.payload as {
+      role?: unknown;
+      content?: unknown;
+    } | undefined;
+
+    if (!payload || typeof payload !== 'object') {
+      continue;
+    }
+
+    const role = toTrimmedString(payload.role);
+    if (role === 'assistant') {
+      const content = toTrimmedString(payload.content);
+      if (content) {
+        assistantMessages.push(content);
+      }
+      continue;
+    }
+
+    const contentValue = payload.content;
+    if (typeof contentValue === 'string') {
+      const observation = parseObservationContent(contentValue);
+      if (observation) {
+        observations.push(observation);
+      }
+      continue;
+    }
+
+    if (
+      contentValue &&
+      typeof contentValue === 'object'
+    ) {
+      const serialized = JSON.stringify(contentValue);
+      const observation = parseObservationContent(serialized);
+      if (observation) {
+        observations.push(observation);
+      }
+    }
+  }
+
+  return { assistantMessages, observations } satisfies VirtualAgentFindings;
+};
+
+const indentBlock = (text: string): string =>
+  text
+    .split('\n')
+    .map((line) => `  ${line}`)
+    .join('\n');
+
+const formatObservation = (
+  observation: ObservationSummary,
+  index: number,
+  total: number,
+): string => {
+  const lines: string[] = [];
+  const headingPrefix = total > 1 ? `${index + 1}. ` : '';
+  const headingBody = observation.summary ?? 'Command result';
+  lines.push(`${headingPrefix}${headingBody}`);
+
+  if (typeof observation.exitCode === 'number') {
+    lines.push(`   Exit code: ${observation.exitCode}`);
+  }
+
+  const trimmedStdout = observation.stdout.trim();
+  if (trimmedStdout.length > 0) {
+    lines.push('   Stdout:');
+    lines.push(indentBlock(trimmedStdout));
+  }
+
+  const trimmedStderr = observation.stderr.trim();
+  if (trimmedStderr.length > 0) {
+    lines.push('   Stderr:');
+    lines.push(indentBlock(trimmedStderr));
+  }
+
+  if (observation.truncated) {
+    const notice = observation.truncationNotice ?? 'Output truncated.';
+    lines.push(`   Notice: ${notice}`);
+  } else if (observation.truncationNotice) {
+    lines.push(`   Notice: ${observation.truncationNotice}`);
+  }
+
+  if (observation.details) {
+    lines.push(`   Details: ${observation.details}`);
+  }
+
+  return lines.join('\n');
+};
+
+const buildStdoutFromFindings = (
+  taskLabel: string,
+  findings: VirtualAgentFindings,
+): string => {
+  const sections: string[] = [];
+  const assistantCount = findings.assistantMessages.length;
+  const summaryText =
+    assistantCount > 0
+      ? findings.assistantMessages[assistantCount - 1]
+      : 'No assistant summary was produced. Review command results below.';
+
+  const summarySection = [`Summary for "${taskLabel}":`, summaryText].join('\n');
+  sections.push(summarySection);
+
+  if (findings.observations.length > 0) {
+    const observationLines: string[] = [];
+    observationLines.push('Command Results:');
+    for (let index = 0; index < findings.observations.length; index += 1) {
+      const formatted = formatObservation(findings.observations[index], index, findings.observations.length);
+      observationLines.push(formatted);
+    }
+    sections.push(observationLines.join('\n'));
+  }
+
+  return sections.join('\n\n').trim();
 };
 
 const buildInitialHistory = (
@@ -206,42 +420,23 @@ const cloneBaseOptions = (
   return cloned;
 };
 
-const collectAssistantMessages = (history: PlanHistory): string[] => {
-  const outputs: string[] = [];
-  for (const entry of history) {
-    if (!entry || typeof entry !== 'object') {
-      continue;
-    }
-    const payload = (entry as { payload?: unknown }).payload;
-    if (!payload || typeof payload !== 'object') {
-      continue;
-    }
-    const role = (payload as { role?: unknown }).role;
-    if (role !== 'assistant') {
-      continue;
-    }
-    const content = (payload as { content?: unknown }).content;
-    if (typeof content === 'string' && content.trim()) {
-      outputs.push(content.trim());
-    }
-  }
-  return outputs;
-};
-
 const buildResult = (
   command: VirtualCommandExecutionContext['command'],
   descriptor: VirtualCommandDescriptor,
   history: PlanHistory,
   passesExecuted: number,
   maxPasses: number,
+  taskLabel: string,
   failure: string | null,
   runtimeMs: number,
 ): CommandExecutionResult => {
-  const assistantOutputs = collectAssistantMessages(history);
-  const stdout = assistantOutputs.length > 0 ? assistantOutputs.join('\n\n---\n\n') : '';
-  const success = !failure && stdout.length > 0;
-
-  const normalizedFailure = success ? null : failure ?? 'Virtual agent did not produce a response.';
+  const findings = collectFindings(history);
+  const hasResults = findings.assistantMessages.length > 0 || findings.observations.length > 0;
+  const normalizedFailure = !failure && hasResults
+    ? null
+    : failure ?? 'Virtual agent did not produce a response.';
+  const stdout = normalizedFailure ? '' : buildStdoutFromFindings(taskLabel, findings);
+  const success = normalizedFailure === null && stdout.length > 0;
 
   const result = {
     stdout: success ? stdout : '',
@@ -338,6 +533,7 @@ export const createVirtualCommandExecutor = (
       history,
       passesExecuted,
       parsed.maxPasses,
+      parsed.summary,
       failure,
       runtimeMs,
     );
