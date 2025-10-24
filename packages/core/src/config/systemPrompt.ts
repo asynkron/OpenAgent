@@ -15,6 +15,11 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 
+import {
+  CANONICAL_PROMPT_SECTIONS,
+  CanonicalPromptFile,
+} from './generatedSystemPrompts.js';
+
 export interface WorkspaceRootInfo {
   root: string;
   source: 'git' | 'cwd';
@@ -36,30 +41,56 @@ const detectWorkspaceRoot = (startDir: string = process.cwd()): WorkspaceRootInf
   return { root: path.resolve(startDir), source: 'cwd' };
 };
 
-const PACKAGE_ROOT = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
-const PROMPT_FILENAMES: readonly string[] = ['system.md', 'developer.md'];
+const PROMPT_FILENAMES: readonly CanonicalPromptFile[] = [
+  CanonicalPromptFile.System,
+  CanonicalPromptFile.Developer,
+];
 
-const resolvePromptDirectories = (rootDir: string): string[] => {
-  const seen = new Set<string>();
-  const directories: string[] = [];
-  const candidates = [path.join(rootDir, 'prompts'), path.join(PACKAGE_ROOT, 'prompts')];
+// Walk upwards from the compiled file until we find the package manifest.
+const resolvePackageRoot = (): string => {
+  const startDir = path.dirname(fileURLToPath(new URL('.', import.meta.url)));
+  let currentDir = startDir;
 
-  for (const candidate of candidates) {
-    const resolved = path.resolve(candidate);
-    if (seen.has(resolved)) {
-      continue;
-    }
-
-    seen.add(resolved);
-
+  while (true) {
+    const packageJsonPath = path.join(currentDir, 'package.json');
     try {
-      const stat = fs.statSync(resolved);
-      if (stat.isDirectory()) {
-        directories.push(resolved);
+      const raw = fs.readFileSync(packageJsonPath, 'utf8');
+      const parsed = JSON.parse(raw) as { name?: string };
+      if (parsed.name === '@asynkron/openagent-core') {
+        return currentDir;
       }
     } catch (_error) {
-      // Ignore missing directories.
+      // Continue walking up when the manifest is missing or unreadable.
     }
+
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) {
+      return startDir;
+    }
+
+    currentDir = parentDir;
+  }
+};
+
+const PACKAGE_ROOT = resolvePackageRoot();
+
+const PACKAGE_PROMPTS_DIR = path.join(PACKAGE_ROOT, 'prompts');
+
+const resolvePromptOverrideDirectories = (rootDir: string): string[] => {
+  const directories: string[] = [];
+  const candidate = path.resolve(path.join(rootDir, 'prompts'));
+
+  if (candidate === PACKAGE_PROMPTS_DIR) {
+    return directories;
+  }
+
+  try {
+    const stat = fs.statSync(candidate);
+    if (stat.isDirectory()) {
+      directories.push(candidate);
+    }
+  } catch (_error) {
+    // Ignore missing directories.
   }
 
   return directories;
@@ -135,21 +166,13 @@ const readFileIfExists = (filePath: string): string => {
 };
 
 export const buildBaseSystemPrompt = (rootDir: string): string => {
-  const sections: string[] = [];
+  const sections: string[] = CANONICAL_PROMPT_SECTIONS.map((section) => section.content);
 
-  const promptDirs = resolvePromptDirectories(rootDir);
-  const seenFiles = new Set<string>();
+  const promptDirs = resolvePromptOverrideDirectories(rootDir);
 
   for (const promptDir of promptDirs) {
     for (const fileName of PROMPT_FILENAMES) {
       const promptFile = path.join(promptDir, fileName);
-      const resolved = path.resolve(promptFile);
-      if (seenFiles.has(resolved)) {
-        continue;
-      }
-
-      seenFiles.add(resolved);
-
       const content = readFileIfExists(promptFile);
       if (content) {
         sections.push(content);

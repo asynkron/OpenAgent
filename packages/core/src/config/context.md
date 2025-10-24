@@ -6,7 +6,9 @@
 
 ## Key Files
 
-- `systemPrompt.js` — loads prompt assets (`packages/core/prompts/prompts.json`, markdown files), resolves additional prompts on disk, and exposes helpers (`findAgentFiles`, `buildAgentsPrompt`, constants like `SYSTEM_PROMPT`).
+- `systemPrompt.js` — loads prompt assets, embeds the canonical prompt strings generated at build time, resolves additional prompts on disk, and exposes helpers (`findAgentFiles`, `buildAgentsPrompt`, constants like `SYSTEM_PROMPT`).
+- `generatedSystemPrompts.ts` — auto-generated during `npm run build` and exports the canonical prompt contents as immutable constants so published packages do not rely on runtime file reads.
+- `__tests__/systemPrompt.test.ts` — guards against regressions by asserting that the base prompt always includes the canonical system and developer guidance from `packages/core/prompts`.
 
 ## Positive Signals
 
