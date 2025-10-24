@@ -28,17 +28,18 @@ interface ParsedVirtualDescriptor {
   readonly maxPasses: number;
 }
 
-const DEFAULT_MAX_PASSES = 3;
+// Default to ten passes when the caller does not specify a limit.
+const DEFAULT_MAX_PASSES = 10;
 
-const clampPassLimit = (value: number): number => {
-  if (!Number.isFinite(value) || value < 1) {
+const normalizePassLimit = (value: number): number => {
+  if (!Number.isFinite(value)) {
     return DEFAULT_MAX_PASSES;
   }
-  const upperBound = 10;
-  if (value > upperBound) {
-    return upperBound;
+  const floored = Math.floor(value);
+  if (floored < 1) {
+    return DEFAULT_MAX_PASSES;
   }
-  return Math.floor(value);
+  return floored;
 };
 
 const parseJsonArgument = (raw: string): ParsedVirtualDescriptor | null => {
@@ -59,7 +60,7 @@ const parseJsonArgument = (raw: string): ParsedVirtualDescriptor | null => {
 
     const prompt = typeof promptCandidate === 'string' ? promptCandidate.trim() : '';
     const summary = typeof summaryCandidate === 'string' ? summaryCandidate.trim() : '';
-    const maxPasses = typeof maxCandidate === 'number' ? clampPassLimit(maxCandidate) : DEFAULT_MAX_PASSES;
+    const maxPasses = typeof maxCandidate === 'number' ? normalizePassLimit(maxCandidate) : DEFAULT_MAX_PASSES;
 
     return {
       prompt: prompt || '',
