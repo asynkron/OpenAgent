@@ -7,8 +7,9 @@
 ## Key Files
 
 - `system.md` — canonical system prompt dictating response envelope rules, planning constraints, and instruction hierarchy.
-- `developer.md` — extended guidance for tool usage, command schema examples, safety reminders, and now hands-on instructions
-  for launching virtual sub-agents via the `virtual-agent` command prefix.
+- `developer.md` — extended guidance for tool usage, command schema examples, safety reminders, and hands-on instructions
+  for launching virtual sub-agents via the `virtual-agent` command prefix while explicitly banning direct `npx tsx ... --command`
+  runner invocations.
 - `hotcode.md` — quick-start instructions for AI agents modifying code (e.g., run tests, follow context docs).
 - `javascript.md` & `typescript.md` — language-specific guardrails for modifying OpenAgent’s JS/TS sources, including static analysis tips (FTA, ts-morph guidance for TypeScript).
 - `prompts.json` — machine-readable bundle aligning with `schemas/prompts.schema.json`; consumed by `findAgentFiles` and prompt loaders.
