@@ -21,6 +21,7 @@ export interface RuntimeEventBase<Type extends string, Payload> {
   readonly type: Type;
   readonly payload: Payload;
   readonly __id?: string;
+  readonly agent?: string;
 }
 
 export interface BannerRuntimeEventPayload {

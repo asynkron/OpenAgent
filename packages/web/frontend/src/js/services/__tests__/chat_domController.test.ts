@@ -60,4 +60,15 @@ describe('createChatDomController', () => {
     const bubble = messageList.querySelector('.agent-message-bubble');
     expect(bubble?.textContent ?? '').toContain('Hello friend!');
   });
+
+  it('renders agent labels ahead of the message bubble', () => {
+    const { controller, messageList } = setupController();
+
+    controller.appendMessage('agent', 'Hi there', { agent: 'SubAgent1' });
+
+    const wrapper = messageList.firstElementChild as HTMLElement | null;
+    expect(wrapper).not.toBeNull();
+    const label = wrapper?.querySelector('.agent-message-agent-label');
+    expect(label?.textContent).toBe('SubAgent1');
+  });
 });

@@ -10,7 +10,7 @@ import type { ChatMessageEntry } from './historyEntry.js';
 import type { PassExecutionBaseOptions, PassExecutor } from './loopSupport.js';
 import type { PlanHistory } from './passExecutor/types.js';
 import type { EmitEvent } from './passExecutor/types.js';
-import type { DebugRuntimeEventPayload } from './runtimeTypes.js';
+import type { DebugRuntimeEventPayload, EmitRuntimeEventOptions } from './runtimeTypes.js';
 
 interface VirtualAgentExecutorConfig {
   readonly systemPrompt: string;
@@ -18,7 +18,8 @@ interface VirtualAgentExecutorConfig {
   readonly passExecutor: PassExecutor;
   readonly createChatMessageEntryFn: typeof createChatMessageEntry;
   readonly emitEvent: EmitEvent;
-  readonly emitDebug: (payload: DebugRuntimeEventPayload) => void;
+  readonly emitDebug: (payload: DebugRuntimeEventPayload, options?: EmitRuntimeEventOptions) => void;
+  readonly createSubAgentLabel: () => string;
 }
 
 interface ParsedVirtualDescriptor {
@@ -272,8 +273,14 @@ export const createVirtualCommandExecutor = (
   config: VirtualAgentExecutorConfig,
 ): VirtualCommandExecutor => {
   return async (context: VirtualCommandExecutionContext): Promise<CommandExecutionResult> => {
+    const agentLabel = config.createSubAgentLabel();
+    const emitEventWithAgent: EmitEvent = (event, options) =>
+      config.emitEvent(event, { ...options, agent: agentLabel });
+    const emitDebugWithAgent: typeof config.emitDebug = (payload, options) =>
+      config.emitDebug(payload, { ...options, agent: agentLabel });
+
     const parsed = parseDescriptor(context.descriptor);
-    config.emitDebug({
+    emitDebugWithAgent({
       stage: 'command-execution',
       command: context.command,
       result: null,
@@ -281,7 +288,7 @@ export const createVirtualCommandExecutor = (
       observation: null,
     });
 
-    config.emitEvent({
+    emitEventWithAgent({
       type: RuntimeEventType.Status,
       payload: {
         level: 'info',
@@ -292,6 +299,8 @@ export const createVirtualCommandExecutor = (
 
     const history = buildInitialHistory(config, parsed);
     const subAgentOptions = cloneBaseOptions(config, history);
+    subAgentOptions.emitEvent = emitEventWithAgent;
+    subAgentOptions.onDebug = (payload) => emitDebugWithAgent(payload);
 
     let passIndex = 1;
     let passesExecuted = 0;
@@ -334,7 +343,7 @@ export const createVirtualCommandExecutor = (
 
     const success = commandResult.result.exit_code === 0;
 
-    config.emitEvent({
+    emitEventWithAgent({
       type: RuntimeEventType.Status,
       payload: {
         level: success ? 'info' : 'error',
@@ -345,7 +354,7 @@ export const createVirtualCommandExecutor = (
       },
     });
 
-    config.emitDebug({
+    emitDebugWithAgent({
       stage: 'command-execution',
       command: context.command,
       result: commandResult.result,

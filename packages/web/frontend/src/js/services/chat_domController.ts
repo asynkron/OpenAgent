@@ -31,11 +31,17 @@ export interface ChatDomController {
   appendMessage(
     role: AgentRole,
     text: string,
-    options?: { eventId?: string; final?: boolean },
+    options?: { eventId?: string; final?: boolean; agent?: string },
   ): void;
-  appendEvent(eventType: string, payload: AgentEventPayload): void;
-  appendCommand(payload?: AgentCommandPayload | null, options?: { eventId?: string }): void;
-  setStatus(message: string | null | undefined, options?: { level?: string }): void;
+  appendEvent(eventType: string, payload: AgentEventPayload, options?: { agent?: string }): void;
+  appendCommand(
+    payload?: AgentCommandPayload | null,
+    options?: { eventId?: string; agent?: string },
+  ): void;
+  setStatus(
+    message: string | null | undefined,
+    options?: { level?: string; agent?: string },
+  ): void;
   setThinking(active: boolean): void;
   ensureConversationStarted(): void;
   updatePanelState(active: boolean): void;
@@ -66,11 +72,15 @@ interface MessageEntry {
   markdown: MarkdownDisplayApi | null;
   text: string;
   final: boolean;
+  agentLabel: string | null;
+  labelElement: HTMLElement | null;
 }
 
 interface CommandEntry {
   wrapper: HTMLElement;
   bubble: HTMLElement;
+  agentLabel: string | null;
+  labelElement: HTMLElement | null;
 }
 
 interface MessageEntryRecord {
@@ -210,6 +220,7 @@ export function createChatDomController({
   let isThinking = false;
   let lastStatus = '';
   let lastStatusLevel = '';
+  let lastStatusAgent = '';
   let runtimeGeneration = 0;
   const messageEntries = new Map<string, MessageEntryRecord>();
   const commandEntries = new Map<string, CommandEntryRecord>();
@@ -282,7 +293,35 @@ export function createChatDomController({
     if (!statusElement) {
       return;
     }
-    statusElement.textContent = lastStatus;
+    statusElement.textContent = '';
+    if (statusElement.dataset) {
+      if (lastStatusAgent) {
+        statusElement.dataset.agentLabel = lastStatusAgent;
+      } else {
+        delete statusElement.dataset.agentLabel;
+      }
+    }
+
+    const trimmedAgent = lastStatusAgent.trim();
+    if (trimmedAgent) {
+      const label = createElement(
+        documentRef,
+        'span',
+        'agent-status-label',
+        trimmedAgent,
+      );
+      statusElement.appendChild(label);
+    }
+
+    if (lastStatus) {
+      const messageSpan = createElement(
+        documentRef,
+        'span',
+        'agent-status-message',
+        lastStatus,
+      );
+      statusElement.appendChild(messageSpan);
+    }
     if (isThinking) {
       statusElement.dataset.level = 'info';
       statusElement.dataset.thinking = 'true';
@@ -376,6 +415,45 @@ export function createChatDomController({
     wrapper.appendChild(bubble);
 
     return { wrapper, bubble };
+  };
+
+  const applyAgentLabel = (
+    entry: { agentLabel: string | null; labelElement: HTMLElement | null },
+    wrapper: HTMLElement,
+    label: string | null | undefined,
+  ): void => {
+    const trimmed = typeof label === 'string' ? label.trim() : '';
+    if (!trimmed) {
+      if (entry.labelElement?.parentElement === wrapper) {
+        wrapper.removeChild(entry.labelElement);
+      }
+      entry.labelElement = null;
+      entry.agentLabel = null;
+      if (wrapper.dataset) {
+        delete wrapper.dataset.agentLabel;
+      }
+      return;
+    }
+
+    if (entry.agentLabel === trimmed && entry.labelElement?.parentElement === wrapper) {
+      entry.labelElement.textContent = trimmed;
+      if (wrapper.dataset) {
+        wrapper.dataset.agentLabel = trimmed;
+      }
+      return;
+    }
+
+    if (entry.labelElement?.parentElement) {
+      entry.labelElement.parentElement.removeChild(entry.labelElement);
+    }
+
+    const labelElement = createElement(documentRef, 'div', 'agent-message-agent-label', trimmed);
+    wrapper.insertBefore(labelElement, wrapper.firstChild ?? null);
+    entry.labelElement = labelElement;
+    entry.agentLabel = trimmed;
+    if (wrapper.dataset) {
+      wrapper.dataset.agentLabel = trimmed;
+    }
   };
 
   const appendTextBlock = (container: HTMLElement, className: string, content: string): void => {
@@ -473,11 +551,12 @@ export function createChatDomController({
   const appendMessage = (
     role: AgentRole,
     text: string,
-    options: { eventId?: string; final?: boolean } = {},
+    options: { eventId?: string; final?: boolean; agent?: string } = {},
   ): void => {
     const normalized = normaliseText(text);
     const eventId = normaliseEventId(options.eventId);
     const isFinal = options.final === true;
+    const agentLabel = typeof options.agent === 'string' ? options.agent : null;
     const existing = getMessageEntry(eventId);
     if (existing) {
       if (eventId) {
@@ -490,6 +569,8 @@ export function createChatDomController({
           setMessageEntry(eventId, existing);
         }
       }
+
+      applyAgentLabel(existing, existing.wrapper, agentLabel ?? existing.agentLabel);
 
       if (existing.role !== role) {
         existing.role = role;
@@ -528,6 +609,8 @@ export function createChatDomController({
       markdown: null,
       text: normalized,
       final: false,
+      agentLabel: null,
+      labelElement: null,
     };
 
     if (role === 'agent') {
@@ -549,10 +632,15 @@ export function createChatDomController({
       setMessageEntry(eventId, entry);
     }
 
+    applyAgentLabel(entry, wrapper, agentLabel);
     appendMessageWrapper(wrapper);
   };
 
-  const appendEvent = (eventType: string, payload: AgentEventPayload = {}): void => {
+  const appendEvent = (
+    eventType: string,
+    payload: AgentEventPayload = {},
+    options: { agent?: string } = {},
+  ): void => {
     const resolved = resolveAgentEventDisplay(eventType, payload);
     if (!resolved) {
       return;
@@ -563,6 +651,9 @@ export function createChatDomController({
       'agent-message agent-message--event',
       'agent-message-bubble agent-message-bubble--event',
     );
+
+    const labelState = { agentLabel: null as string | null, labelElement: null as HTMLElement | null };
+    applyAgentLabel(labelState, wrapper, options.agent ?? payload.agent ?? null);
 
     if (eventType) {
       wrapper.dataset.eventType = eventType;
@@ -700,13 +791,14 @@ export function createChatDomController({
 
   const appendCommand = (
     payload?: AgentCommandPayload | null,
-    options: { eventId?: string } = {},
+    options: { eventId?: string; agent?: string } = {},
   ): void => {
     if (!messageList) {
       return;
     }
 
     const eventId = normaliseEventId(options.eventId);
+    const agentLabel = typeof options.agent === 'string' ? options.agent : null;
     const existing = getCommandEntry(eventId);
     if (existing) {
       if (eventId) {
@@ -720,6 +812,7 @@ export function createChatDomController({
         }
       }
       renderCommandBubble(existing.bubble, payload ?? null);
+      applyAgentLabel(existing, existing.wrapper, agentLabel ?? existing.agentLabel);
       scrollToLatest();
       return;
     }
@@ -731,10 +824,19 @@ export function createChatDomController({
 
     renderCommandBubble(bubble, payload ?? null);
 
+    const entry: CommandEntry = {
+      wrapper,
+      bubble,
+      agentLabel: null,
+      labelElement: null,
+    };
+
+    applyAgentLabel(entry, wrapper, agentLabel);
+
     if (eventId) {
       wrapper.dataset.eventId = eventId;
       wrapper.dataset.runtimeGeneration = String(runtimeGeneration);
-      setCommandEntry(eventId, { wrapper, bubble });
+      setCommandEntry(eventId, entry);
     }
 
     appendMessageWrapper(wrapper);
@@ -744,9 +846,10 @@ export function createChatDomController({
     appendMessage,
     appendEvent,
     appendCommand,
-    setStatus(message, { level } = {}) {
+    setStatus(message, { level, agent } = {}) {
       lastStatus = message ?? '';
       lastStatusLevel = level ?? '';
+      lastStatusAgent = typeof agent === 'string' ? agent.trim() : '';
       if (!isThinking) {
         updateStatusDisplay();
       }
@@ -795,6 +898,7 @@ export function createChatDomController({
       ensureButtons(false);
       lastStatus = '';
       lastStatusLevel = '';
+      lastStatusAgent = '';
       isThinking = false;
       runtimeGeneration = 0;
       messageEntries.clear();

@@ -86,13 +86,20 @@ describe('chat service helpers', () => {
       runner.run(actions);
 
       expect(dom.setThinking).toHaveBeenCalledWith(true);
-      expect(dom.setStatus).toHaveBeenNthCalledWith(1, 'hello', { level: 'info' });
+      expect(dom.setStatus).toHaveBeenNthCalledWith(
+        1,
+        'hello',
+        expect.objectContaining({ level: 'info', agent: undefined }),
+      );
       expect(dom.ensureConversationStarted).toHaveBeenCalledTimes(1);
-      expect(dom.appendMessage).toHaveBeenCalledWith('agent', 'greetings');
+      expect(dom.appendMessage).toHaveBeenCalledWith('agent', 'greetings', {});
       expect(dom.updatePlan).toHaveBeenCalledWith([]);
-      expect(dom.appendEvent).toHaveBeenCalledWith('ping', { text: 'payload' });
-      expect(dom.appendCommand).toHaveBeenCalledWith({ command: { run: 'run' } });
-      expect(dom.setStatus).toHaveBeenLastCalledWith('');
+      expect(dom.appendEvent).toHaveBeenCalledWith('ping', { text: 'payload' }, { agent: undefined });
+      expect(dom.appendCommand).toHaveBeenCalledWith(
+        { command: { run: 'run' } },
+        { eventId: undefined, agent: undefined },
+      );
+      expect(dom.setStatus).toHaveBeenLastCalledWith('', { agent: undefined });
     });
 
     it('stops processing once the session is destroyed', () => {

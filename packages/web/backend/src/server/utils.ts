@@ -16,6 +16,14 @@ export function normaliseAgentText(value: unknown): string {
   }
 }
 
+function normaliseAgentLabel(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 interface AgentEventBase {
   type: string;
   payload?: unknown;
@@ -24,6 +32,7 @@ interface AgentEventBase {
 
 interface AgentPayloadBase {
   __id?: string;
+  agent?: string;
 }
 
 interface AssistantMessageEventPayload {
@@ -401,12 +410,17 @@ export function formatAgentEvent(event: unknown): AgentPayload | undefined {
 
   const data = event as AgentEvent;
   const eventId = normaliseEventId(data);
+  const agentLabel = normaliseAgentLabel((data as { agent?: unknown }).agent);
 
-  const withEventId = <T extends AgentPayloadBase>(payload: T): T => {
-    if (!eventId) {
-      return payload;
+  const withEventMeta = <T extends AgentPayloadBase>(payload: T): T => {
+    const enriched = { ...payload } as T;
+    if (eventId) {
+      enriched.__id = eventId;
     }
-    return { ...payload, __id: eventId };
+    if (agentLabel) {
+      enriched.agent = agentLabel;
+    }
+    return enriched;
   };
 
   switch (data.type) {
@@ -426,7 +440,10 @@ export function formatAgentEvent(event: unknown): AgentPayload | undefined {
           payload.state = normalisedState as 'stream' | 'final';
         }
       }
-      return withEventId(payload);
+      if (eventId && eventId.startsWith('key')) {
+        return undefined;
+      }
+      return withEventMeta(payload);
     }
     case 'status': {
       const text = normaliseAgentText(resolveEventField(data as StatusEvent, 'message'));
@@ -458,7 +475,7 @@ export function formatAgentEvent(event: unknown): AgentPayload | undefined {
         }
       }
 
-      return withEventId(payload);
+      return withEventMeta(payload);
     }
     case 'error': {
       const message =
@@ -474,7 +491,7 @@ export function formatAgentEvent(event: unknown): AgentPayload | undefined {
         payload.details = details;
       }
 
-      return withEventId(payload);
+      return withEventMeta(payload);
     }
     case 'thinking': {
       const state = resolveEventField(data as ThinkingEvent, 'state');
@@ -483,7 +500,7 @@ export function formatAgentEvent(event: unknown): AgentPayload | undefined {
       }
 
       const payload: AgentThinkingPayload = { type: 'agent_thinking', state };
-      return withEventId(payload);
+      return withEventMeta(payload);
     }
     case 'plan': {
       const plan = resolveEventField(data as PlanEvent, 'plan');
@@ -492,7 +509,7 @@ export function formatAgentEvent(event: unknown): AgentPayload | undefined {
       }
 
       const payload: AgentPlanPayload = { type: 'agent_plan', plan };
-      return withEventId(payload);
+      return withEventMeta(payload);
     }
     case 'command-result': {
       const payload: AgentCommandPayload = {
@@ -512,7 +529,7 @@ export function formatAgentEvent(event: unknown): AgentPayload | undefined {
         payload.preview = previewPayload;
       }
 
-      return withEventId(payload);
+      return withEventMeta(payload);
     }
     case 'request-input': {
       const promptSource = normaliseAgentText(
@@ -539,7 +556,7 @@ export function formatAgentEvent(event: unknown): AgentPayload | undefined {
         payload.metadata = metadata;
       }
 
-      return withEventId(payload);
+      return withEventMeta(payload);
     }
     default:
       return undefined;

@@ -101,4 +101,39 @@ describe('createChatRouter', () => {
       },
     ]);
   });
+
+  it('includes agent labels when provided by the payload', () => {
+    const messagePayload = {
+      type: 'agent_message',
+      text: 'Hello',
+      agent: ' SubAgent1 ',
+    } as AgentIncomingPayload & { type: 'agent_message' };
+
+    const commandPayload = {
+      type: 'agent_command',
+      command: { run: 'ls' },
+      agent: 'SubAgent1',
+    } as AgentIncomingPayload & { type: 'agent_command' };
+
+    expect(router.onMessage(messagePayload)).toEqual([
+      { type: 'thinking', active: false },
+      {
+        type: 'message',
+        role: 'agent',
+        text: 'Hello',
+        startConversation: true,
+        agent: 'SubAgent1',
+      },
+    ]);
+
+    expect(router.onCommand(commandPayload)).toEqual([
+      { type: 'thinking', active: false },
+      {
+        type: 'command',
+        payload: commandPayload,
+        startConversation: true,
+        agent: 'SubAgent1',
+      },
+    ]);
+  });
 });

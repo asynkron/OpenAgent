@@ -369,19 +369,31 @@ body > .agent-panel {
 
 .agent-message {
   display: flex;
+  flex-direction: column;
   width: 100%;
+  align-items: flex-start;
+}
+
+.agent-message-agent-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--space-8);
+  display: inline-block;
 }
 
 .agent-message--user {
-  justify-content: flex-end;
+  align-items: flex-end;
 }
 
 .agent-message--agent {
-  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .agent-message--command {
-  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .agent-message--thinking .agent-message-bubble {
@@ -389,7 +401,7 @@ body > .agent-panel {
 }
 
 .agent-message--event {
-  justify-content: center;
+  align-items: center;
 }
 
 .agent-message-bubble {
@@ -701,6 +713,21 @@ body > .agent-panel {
   font-size: 0.8rem;
   color: var(--color-text-tertiary);
   min-height: 1.2em;
+}
+
+.agent-status-label {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-right: var(--space-8);
+  color: inherit;
+  opacity: 0.85;
+}
+
+.agent-status-message {
+  display: inline;
 }
 
 .agent-status[data-level='warn'] {

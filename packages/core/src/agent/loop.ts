@@ -113,6 +113,7 @@ export function createAgentRuntime({
   noHumanAutoMessage = NO_HUMAN_AUTO_MESSAGE,
   // New additions
   eventObservers = null as RuntimeEventObserver[] | null,
+  agentLabel = 'Main',
   idPrefix = 'key',
   // Dependency bag forwarded to executeAgentPass for deeper DI customization
   passExecutorDeps = null,
@@ -152,6 +153,10 @@ export function createAgentRuntime({
     }
   };
 
+  const normalisedAgentLabel =
+    typeof agentLabel === 'string' ? agentLabel.trim() : '';
+  const resolvedAgentLabel = normalisedAgentLabel.length > 0 ? normalisedAgentLabel : 'Main';
+
   const emitter = createRuntimeEmitter({
     outputsQueue,
     eventObservers,
@@ -159,6 +164,7 @@ export function createAgentRuntime({
     idPrefix,
     idGeneratorFn,
     isDebugEnabled,
+    agentLabel: resolvedAgentLabel,
   });
   const { emit, emitDebug } = emitter;
 
@@ -316,6 +322,7 @@ export function createAgentRuntime({
 
   let running = false;
   let inputProcessorPromise: Promise<void> | null = null;
+  let subAgentCounter = 0;
 
   async function start(): Promise<void> {
     if (running) {
@@ -373,6 +380,13 @@ export function createAgentRuntime({
         createChatMessageEntryFn,
         emitEvent: (event, options) => emit(event, options),
         emitDebug,
+        createSubAgentLabel: () => {
+          subAgentCounter += 1;
+          const baseLabel = resolvedAgentLabel.toLowerCase() === 'main'
+            ? 'SubAgent'
+            : `${resolvedAgentLabel}-SubAgent`;
+          return `${baseLabel}${subAgentCounter}`;
+        },
       });
       normalizedPassExecutorDeps.virtualCommandExecutor = virtualExecutor;
       baseOptions.virtualCommandExecutor = virtualExecutor;
