@@ -18,6 +18,7 @@ const createBaseOptions = (): PassExecutionBaseOptions => {
     applyFilterFn: jest.fn(),
     tailLinesFn: jest.fn(),
     getNoHumanFlag: () => false,
+    getDebugFlag: () => false,
     setNoHumanFlag: () => undefined,
     planReminderMessage: 'Virtual reminder.',
     startThinkingFn: jest.fn(),

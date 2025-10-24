@@ -144,6 +144,7 @@ const cloneBaseOptions = (
     applyFilterFn: base.applyFilterFn,
     tailLinesFn: base.tailLinesFn,
     getNoHumanFlag: () => false,
+    getDebugFlag: () => false,
     setNoHumanFlag: () => undefined,
     planReminderMessage: base.planReminderMessage,
     startThinkingFn: () => {},
@@ -158,6 +159,12 @@ const cloneBaseOptions = (
 
   if (typeof base.requestModelCompletionFn === 'function') {
     cloned.requestModelCompletionFn = base.requestModelCompletionFn;
+  }
+  if (typeof base.getNoHumanFlag === 'function') {
+    cloned.getNoHumanFlag = base.getNoHumanFlag;
+  }
+  if (typeof base.getDebugFlag === 'function') {
+    cloned.getDebugFlag = base.getDebugFlag;
   }
   if (typeof base.executeAgentCommandFn === 'function') {
     cloned.executeAgentCommandFn = base.executeAgentCommandFn;

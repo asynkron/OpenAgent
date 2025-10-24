@@ -39,6 +39,7 @@ export const createNormalizedOptions = (
   applyFilterFn: createMock<NormalizedExecuteAgentPassOptions['applyFilterFn']>((text) => text),
   tailLinesFn: createMock<NormalizedExecuteAgentPassOptions['tailLinesFn']>((text) => text),
   getNoHumanFlag: () => false,
+  getDebugFlag: () => false,
   setNoHumanFlag: jest.fn(),
   planReminderMessage: 'remember to plan',
   startThinkingFn: jest.fn(),

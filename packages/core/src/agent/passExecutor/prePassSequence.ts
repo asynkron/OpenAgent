@@ -136,6 +136,7 @@ const requestAssistantCompletion = async ({
   setNoHumanFlag,
   passIndex,
   responseEmitter,
+  isDebugEnabled,
 }: {
   requestModelCompletionFn: RequestModelCompletionFn;
   extractOpenAgentToolCallFn: ExtractOpenAgentToolCallFn;
@@ -152,6 +153,7 @@ const requestAssistantCompletion = async ({
   setNoHumanFlag: SetNoHumanFlagFn;
   passIndex: number;
   responseEmitter: StructuredResponseEventEmitter | null;
+  isDebugEnabled: () => boolean;
 }): Promise<CompletionAttempt> => {
   const completionResult = await requestModelCompletionFn({
     openai,
@@ -165,6 +167,7 @@ const requestAssistantCompletion = async ({
     emitEvent,
     passIndex,
     structuredResponseEmitter: responseEmitter,
+    isDebugEnabled,
   });
 
   if (completionResult.status === 'canceled') {
@@ -263,6 +266,7 @@ export const runPrePassSequence = async ({
     setNoHumanFlag: options.setNoHumanFlag,
     passIndex: options.passIndex,
     responseEmitter,
+    isDebugEnabled: () => Boolean(options.getDebugFlag?.()),
   });
 
   if (completionAttempt.status === 'canceled') {
