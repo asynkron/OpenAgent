@@ -70,6 +70,7 @@ export interface RequestModelCompletionOptions {
   emitEvent?: EmitEvent;
   passIndex: number;
   structuredResponseEmitter?: StructuredResponseEventEmitter | null;
+  isDebugEnabled?: () => boolean;
 }
 
 export interface ModelCompletionSuccess {
@@ -95,6 +96,7 @@ export async function requestModelCompletion({
   emitEvent = () => {},
   passIndex,
   structuredResponseEmitter = null,
+  isDebugEnabled,
 }: RequestModelCompletionOptions): Promise<ModelCompletionResult> {
   if (!openai) {
     throw new Error('requestModelCompletion requires an AI SDK responses client.');
@@ -132,6 +134,10 @@ export async function requestModelCompletion({
     action: 'replace' | 'remove',
     value?: PlanResponseStreamPartial,
   ): void => {
+    if (typeof isDebugEnabled === 'function' && !isDebugEnabled()) {
+      return;
+    }
+
     try {
       const clonedValue: PlanResponseStreamPartial | null = (() => {
         if (action === 'remove') {

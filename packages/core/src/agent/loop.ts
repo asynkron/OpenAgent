@@ -141,13 +141,24 @@ export function createAgentRuntime({
   const inputsQueue: AsyncQueueLike<AgentInputEvent> = inputs;
   let passCounter = 0;
 
+  const isDebugEnabled = (): boolean => {
+    if (typeof getDebugFlag !== 'function') {
+      return false;
+    }
+    try {
+      return Boolean(getDebugFlag());
+    } catch (_error) {
+      return false;
+    }
+  };
+
   const emitter = createRuntimeEmitter({
     outputsQueue,
     eventObservers,
     logger,
     idPrefix,
     idGeneratorFn,
-    isDebugEnabled: () => Boolean(typeof getDebugFlag === 'function' && getDebugFlag()),
+    isDebugEnabled,
   });
   const { emit, emitDebug } = emitter;
 
@@ -340,6 +351,7 @@ export function createAgentRuntime({
       applyFilterFn,
       tailLinesFn,
       getNoHumanFlag,
+      getDebugFlag: isDebugEnabled,
       setNoHumanFlag,
       planReminderMessage,
       startThinkingFn: thinkingController.start,

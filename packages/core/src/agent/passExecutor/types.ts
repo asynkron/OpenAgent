@@ -73,6 +73,7 @@ export interface ExecuteAgentPassOptions {
   applyFilterFn: ObservationBuilderDeps['applyFilter'];
   tailLinesFn: ObservationBuilderDeps['tailLines'];
   getNoHumanFlag?: () => boolean;
+  getDebugFlag?: () => boolean;
   setNoHumanFlag?: (value: boolean) => void;
   planReminderMessage: string;
   startThinkingFn: () => void;
