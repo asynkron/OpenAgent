@@ -19,7 +19,7 @@
   ],
   "license": "MIT",
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "node ./scripts/generate-system-prompts.mjs && tsc -p tsconfig.json"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.50",
