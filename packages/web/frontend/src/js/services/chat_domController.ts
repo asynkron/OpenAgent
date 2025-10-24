@@ -73,6 +73,16 @@ interface CommandEntry {
   bubble: HTMLElement;
 }
 
+interface MessageEntryRecord {
+  entry: MessageEntry;
+  generation: number;
+}
+
+interface CommandEntryRecord {
+  entry: CommandEntry;
+  generation: number;
+}
+
 interface CommandOutputBlock {
   label: string;
   content: string;
@@ -201,46 +211,56 @@ export function createChatDomController({
   let lastStatus = '';
   let lastStatusLevel = '';
   let runtimeGeneration = 0;
-  const messageEntries = new Map<string, MessageEntry>();
-  const commandEntries = new Map<string, CommandEntry>();
+  const messageEntries = new Map<string, MessageEntryRecord>();
+  const commandEntries = new Map<string, CommandEntryRecord>();
 
-  const buildRuntimeKey = (eventId: string | null): string | null => {
+  const getMessageEntry = (eventId: string | null): MessageEntry | null => {
     if (!eventId) {
       return null;
     }
-    return `${runtimeGeneration}:${eventId}`;
-  };
-
-  const getMessageEntry = (eventId: string | null): MessageEntry | null => {
-    const key = buildRuntimeKey(eventId);
-    if (!key) {
+    const record = messageEntries.get(eventId);
+    if (!record) {
       return null;
     }
-    return messageEntries.get(key) ?? null;
+    if (!record.entry.wrapper.parentElement) {
+      messageEntries.delete(eventId);
+      return null;
+    }
+    if (record.generation !== runtimeGeneration && record.entry.final) {
+      return null;
+    }
+    record.generation = runtimeGeneration;
+    return record.entry;
   };
 
   const setMessageEntry = (eventId: string | null, entry: MessageEntry): void => {
-    const key = buildRuntimeKey(eventId);
-    if (!key) {
+    if (!eventId) {
       return;
     }
-    messageEntries.set(key, entry);
+    messageEntries.set(eventId, { entry, generation: runtimeGeneration });
   };
 
   const getCommandEntry = (eventId: string | null): CommandEntry | null => {
-    const key = buildRuntimeKey(eventId);
-    if (!key) {
+    if (!eventId) {
       return null;
     }
-    return commandEntries.get(key) ?? null;
+    const record = commandEntries.get(eventId);
+    if (!record) {
+      return null;
+    }
+    if (!record.entry.wrapper.parentElement) {
+      commandEntries.delete(eventId);
+      return null;
+    }
+    record.generation = runtimeGeneration;
+    return record.entry;
   };
 
   const setCommandEntry = (eventId: string | null, entry: CommandEntry): void => {
-    const key = buildRuntimeKey(eventId);
-    if (!key) {
+    if (!eventId) {
       return;
     }
-    commandEntries.set(key, entry);
+    commandEntries.set(eventId, { entry, generation: runtimeGeneration });
   };
 
   const ensureButtons = (disabled: boolean): void => {
@@ -460,6 +480,17 @@ export function createChatDomController({
     const isFinal = options.final === true;
     const existing = getMessageEntry(eventId);
     if (existing) {
+      if (eventId) {
+        existing.wrapper.dataset.eventId = eventId;
+        existing.wrapper.dataset.runtimeGeneration = String(runtimeGeneration);
+        const record = messageEntries.get(eventId);
+        if (record) {
+          record.generation = runtimeGeneration;
+        } else {
+          setMessageEntry(eventId, existing);
+        }
+      }
+
       if (existing.role !== role) {
         existing.role = role;
         existing.wrapper.className = `agent-message agent-message--${role}`;
@@ -678,6 +709,16 @@ export function createChatDomController({
     const eventId = normaliseEventId(options.eventId);
     const existing = getCommandEntry(eventId);
     if (existing) {
+      if (eventId) {
+        existing.wrapper.dataset.eventId = eventId;
+        existing.wrapper.dataset.runtimeGeneration = String(runtimeGeneration);
+        const record = commandEntries.get(eventId);
+        if (record) {
+          record.generation = runtimeGeneration;
+        } else {
+          setCommandEntry(eventId, existing);
+        }
+      }
       renderCommandBubble(existing.bubble, payload ?? null);
       scrollToLatest();
       return;
@@ -734,8 +775,16 @@ export function createChatDomController({
     },
     beginRuntimeSession() {
       runtimeGeneration += 1;
-      messageEntries.clear();
-      commandEntries.clear();
+      for (const [eventId, record] of messageEntries) {
+        if (!record.entry.wrapper.parentElement || record.entry.final) {
+          messageEntries.delete(eventId);
+        }
+      }
+      for (const [eventId, record] of commandEntries) {
+        if (!record.entry.wrapper.parentElement) {
+          commandEntries.delete(eventId);
+        }
+      }
     },
     isThinking() {
       return isThinking;
