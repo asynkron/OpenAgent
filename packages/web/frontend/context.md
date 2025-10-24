@@ -49,6 +49,7 @@
 - Split the chat event display heuristics into `services/chat_eventDisplay.ts`, exposing typed helpers for banner/status body selection and command preview normalisation.
 - WebSocket lifecycle cleanup now removes listeners and ignores stale socket messages in `services/chat.ts`, preventing duplicate renders after reconnects and reducing memory pressure during repeated reconnect cycles.
 - Extracted DOM mutations into `services/chat_domController.ts` so `services/chat.ts` focuses on socket orchestration while the controller manages message rendering, status updates, and plan display resets.
+- Streaming agent responses now keep a single DOM bubble even when the runtime emits new event ids per chunk, preventing duplicate partial sentences from appearing mid-response.
 - Further decomposed the chat orchestration into `chat_socket.ts`, `chat_router.ts`, and `chat_inputController.ts` so socket lifecycle, payload routing, and input handling stay isolated and testable; new Jest suites cover reconnection, routing, and queued input dispatch behaviour.
 - Refactored the chat entrypoint to compose `chat_bootstrap.ts`, `chat_lifecycle.ts`, and `chat_sessionController.ts`, pushing socket observers, pending-queue prompts, and DOM bootstrap glue into dedicated modules while tightening discriminated-union typings across lifecycle events.
 - Retired the unused terminal dock panel styling and element plumbing so the agent chat stands alone.

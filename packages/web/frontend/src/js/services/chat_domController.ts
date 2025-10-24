@@ -213,6 +213,7 @@ export function createChatDomController({
   let runtimeGeneration = 0;
   const messageEntries = new Map<string, MessageEntryRecord>();
   const commandEntries = new Map<string, CommandEntryRecord>();
+  let lastStreamingAgentEntry: { entry: MessageEntry; generation: number } | null = null;
 
   const getMessageEntry = (eventId: string | null): MessageEntry | null => {
     if (!eventId) {
@@ -261,6 +262,55 @@ export function createChatDomController({
       return;
     }
     commandEntries.set(eventId, { entry, generation: runtimeGeneration });
+  };
+
+  const resolveLastStreamingEntry = (): MessageEntry | null => {
+    const record = lastStreamingAgentEntry;
+    if (!record) {
+      return null;
+    }
+
+    if (record.generation !== runtimeGeneration) {
+      lastStreamingAgentEntry = null;
+      return null;
+    }
+
+    const { entry } = record;
+    if (!entry.wrapper.parentElement || entry.final) {
+      lastStreamingAgentEntry = null;
+      return null;
+    }
+
+    return entry;
+  };
+
+  const updateEntryTracking = (entry: MessageEntry, eventId: string | null): void => {
+    const previousEventId = entry.wrapper.dataset.eventId ?? '';
+
+    if (previousEventId && (!eventId || previousEventId !== eventId)) {
+      messageEntries.delete(previousEventId);
+    }
+
+    if (eventId) {
+      entry.wrapper.dataset.eventId = eventId;
+      entry.wrapper.dataset.runtimeGeneration = String(runtimeGeneration);
+      setMessageEntry(eventId, entry);
+    } else {
+      delete entry.wrapper.dataset.eventId;
+    }
+  };
+
+  const clearLastStreamingEntry = (entry: MessageEntry | null): void => {
+    if (!lastStreamingAgentEntry) {
+      return;
+    }
+    if (!entry || lastStreamingAgentEntry.entry === entry) {
+      lastStreamingAgentEntry = null;
+    }
+  };
+
+  const markLastStreamingEntry = (entry: MessageEntry): void => {
+    lastStreamingAgentEntry = { entry, generation: runtimeGeneration };
   };
 
   const ensureButtons = (disabled: boolean): void => {
@@ -478,18 +528,15 @@ export function createChatDomController({
     const normalized = normaliseText(text);
     const eventId = normaliseEventId(options.eventId);
     const isFinal = options.final === true;
-    const existing = getMessageEntry(eventId);
+    let existing = getMessageEntry(eventId);
+
+    if (!existing && role === 'agent') {
+      existing = resolveLastStreamingEntry();
+    }
+
     if (existing) {
-      if (eventId) {
-        existing.wrapper.dataset.eventId = eventId;
-        existing.wrapper.dataset.runtimeGeneration = String(runtimeGeneration);
-        const record = messageEntries.get(eventId);
-        if (record) {
-          record.generation = runtimeGeneration;
-        } else {
-          setMessageEntry(eventId, existing);
-        }
-      }
+      updateEntryTracking(existing, eventId);
+      existing.wrapper.dataset.runtimeGeneration = String(runtimeGeneration);
 
       if (existing.role !== role) {
         existing.role = role;
@@ -501,11 +548,14 @@ export function createChatDomController({
       if (role === 'agent') {
         if (isFinal) {
           renderAgentMarkdown(existing, { updateCurrent: true });
+          clearLastStreamingEntry(existing);
         } else {
           setAgentStreamingContent(existing);
+          markLastStreamingEntry(existing);
         }
       } else {
         existing.bubble.textContent = normalized;
+        clearLastStreamingEntry(existing);
       }
 
       scrollToLatest();
@@ -536,17 +586,19 @@ export function createChatDomController({
         markdownDisplay.render(entry.text, { updateCurrent: true });
         entry.markdown = markdownDisplay;
         entry.final = true;
+        clearLastStreamingEntry(entry);
       } else {
         setAgentStreamingContent(entry);
+        markLastStreamingEntry(entry);
       }
     } else {
       bubble.textContent = entry.text;
+      clearLastStreamingEntry(entry);
     }
 
+    updateEntryTracking(entry, eventId);
     if (eventId) {
-      wrapper.dataset.eventId = eventId;
       wrapper.dataset.runtimeGeneration = String(runtimeGeneration);
-      setMessageEntry(eventId, entry);
     }
 
     appendMessageWrapper(wrapper);
@@ -785,6 +837,7 @@ export function createChatDomController({
           commandEntries.delete(eventId);
         }
       }
+      lastStreamingAgentEntry = null;
     },
     isThinking() {
       return isThinking;
@@ -799,6 +852,7 @@ export function createChatDomController({
       runtimeGeneration = 0;
       messageEntries.clear();
       commandEntries.clear();
+      lastStreamingAgentEntry = null;
       setPanelActive(false);
       updateStatusDisplay();
     },
