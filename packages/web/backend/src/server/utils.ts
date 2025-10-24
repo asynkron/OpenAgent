@@ -418,6 +418,10 @@ export function formatAgentEvent(event: unknown): AgentPayload | undefined {
         return undefined;
       }
 
+      if (eventId && eventId.startsWith('key')) {
+        return undefined;
+      }
+
       const payload: AgentMessagePayload = { type: 'agent_message', text };
       const stateSource = resolveEventField(data as AssistantMessageEvent, 'state');
       if (typeof stateSource === 'string') {

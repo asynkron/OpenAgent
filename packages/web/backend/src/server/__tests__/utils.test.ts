@@ -53,6 +53,15 @@ describe('formatAgentEvent', () => {
     expect(payload).toEqual(expected);
   });
 
+  it('omits assistant messages emitted without pass-scoped identifiers', () => {
+    const payload = formatAgentEvent({
+      type: 'assistant-message',
+      payload: { message: 'Hello', state: 'stream' },
+      __id: ' key123 ',
+    });
+    expect(payload).toBeUndefined();
+  });
+
   it('omits assistant messages without meaningful text', () => {
     expect(
       formatAgentEvent({ type: 'assistant-message', payload: { message: '   ' } }),
